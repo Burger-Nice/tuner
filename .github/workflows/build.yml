@@ -1,0 +1,49 @@
+name: Build Windows installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install (downloads mpv)
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Make sure mpv is there
+        shell: pwsh
+        run: if (!(Test-Path vendor/mpv/mpv.exe)) { throw "mpv.exe was not downloaded" }
+
+      - name: Build installer
+        run: npm run dist
+
+      - name: Smoke test the built app
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "dist/win-unpacked/Tuner.exe" -ArgumentList "--smoke-test" -PassThru -Wait -RedirectStandardOutput smoke.txt -RedirectStandardError smoke-err.txt
+          Get-Content smoke.txt, smoke-err.txt
+          if ($p.ExitCode -ne 0) { throw "Smoke test failed" }
+
+      - name: Publish as the "latest" release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>$null
+          $exe = Get-ChildItem dist/*.exe | Select-Object -First 1
+          Copy-Item $exe.FullName dist/Tuner-Setup.exe
+          gh release create latest dist/Tuner-Setup.exe --title "Tuner (latest build)" --notes "Built from $env:GITHUB_SHA. Download Tuner-Setup.exe and run it."

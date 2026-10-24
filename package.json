@@ -1,0 +1,64 @@
+{
+  "name": "tuner",
+  "productName": "Tuner",
+  "version": "0.1.0",
+  "description": "A fast, ad-free IPTV player with Xtream Codes and M3U support.",
+  "main": "main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "node scripts/fetch-mpv.js",
+    "get-mpv": "node scripts/fetch-mpv.js --again",
+    "dist": "electron-builder --win --publish never"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "hls.js": "^1.7.3",
+    "mpegts.js": "^1.8.2"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.0.0",
+    "7zip-bin": "^5.2.0"
+  },
+  "build": {
+    "appId": "app.tuner.player",
+    "productName": "Tuner",
+    "files": [
+      "main.js",
+      "mpv.js",
+      "preload.js",
+      "app/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.entertainment"
+    },
+    "win": {
+      "target": "nsis",
+      "extraResources": [
+        {
+          "from": "vendor/mpv",
+          "to": "mpv"
+        }
+      ]
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "AudioVideo"
+    },
+    "extraResources": [
+      {
+        "from": "player",
+        "to": "player"
+      }
+    ],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Tuner"
+    }
+  }
+}
