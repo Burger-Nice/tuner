@@ -376,7 +376,7 @@ kbd { font: 0.75rem var(--mono); padding: 0.125rem 0.45rem; border: 1px solid va
 .nba-list-col { background: var(--bg); }
 .day-nav { display: flex; align-items: center; gap: 0.125rem; -webkit-app-region: no-drag; }
 .day-nav .ib { width: 2rem; height: 2rem; }
-.day-label { border: 0; background: none; font: 600 0.8125rem var(--body); color: var(--soft); padding: 0.25rem 0.375rem; border-radius: 0.375rem; min-width: 5.5rem; }
+.day-label { border: 0; background: none; font: 600 0.8125rem var(--body); color: var(--soft); padding: 0.25rem 0.375rem; border-radius: 0.375rem; min-width: 7.5rem; white-space: nowrap; }
 .day-label:hover { background: var(--surface); }
 .nba-games { overflow-y: auto; padding: 0 0.75rem 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .nba-sep { font: 600 0.6875rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); padding: 0.75rem 0.25rem 0.125rem; }

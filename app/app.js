@@ -1271,10 +1271,19 @@
     refreshToday();
   }
 
+  const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   async function refreshToday() {
     clearTimeout(nba.timer);
     try {
-      const r = await NBA.scoreboard('');
+      // ESPN's "today" follows US time and keeps last night's games well into the next morning.
+      // Once they're all final and your own calendar has moved on, show your today's slate instead.
+      let r = await NBA.scoreboard('');
+      const local = isoDay(new Date());
+      if (r.day && r.day < local && r.games.every((g) => g.state === 'post')) {
+        try { const next = await NBA.scoreboard(local.replace(/-/g, '')); r = { day: next.day || local, games: next.games }; } catch {}
+      }
+      if (nba.todayDay && r.day !== nba.todayDay && nba.offset) { nba.offset = 0; nba.other = []; }
       nba.today = sortGames(r.games);
       nba.todayDay = r.day;
       nba.err = '';
@@ -1537,13 +1546,15 @@
     drawNba();
   }
 
+  // The slate's real date, named relative to your own calendar: "Yesterday, Oct 23", "Today, Oct 24".
   function dayLabel() {
-    if (nba.offset === 0) return 'Today';
-    if (nba.offset === -1) return 'Yesterday';
-    if (nba.offset === 1) return 'Tomorrow';
     const d = nba.todayDay ? new Date(nba.todayDay + 'T12:00:00') : new Date();
     d.setDate(d.getDate() + nba.offset);
-    return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    const now = new Date();
+    const diff = Math.round((new Date(isoDay(d) + 'T12:00:00') - new Date(isoDay(now) + 'T12:00:00')) / 86400000);
+    const rel = { '-1': 'Yesterday', 0: 'Today', 1: 'Tomorrow' }[diff];
+    const date = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return rel ? `${rel}, ${date}` : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
   function gameCardHtml(g) {
