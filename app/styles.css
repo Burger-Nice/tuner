@@ -101,7 +101,7 @@ input[type="range"] { accent-color: var(--fg); }
 /* ---------- boot splash ---------- */
 .boot { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 0.75rem; background: var(--bg); z-index: 100; }
 .boot p { margin: 0; color: var(--muted); }
-.boot .tally { animation: pulse 1.2s ease-in-out infinite; }
+.boot .brand-lg .mark { animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
 /* ---------- sign in ---------- */
@@ -110,8 +110,9 @@ input[type="range"] { accent-color: var(--fg); }
   background: radial-gradient(50rem 32rem at 85% -10%, #ff5b4f1f, transparent 60%), radial-gradient(40rem 30rem at -10% 110%, #43d39e12, transparent 60%), var(--bg);
 }
 .login-card { width: min(30rem, 100%); display: flex; flex-direction: column; gap: 1.25rem; }
-.brand-lg { font: 700 3rem/1 var(--display); letter-spacing: -0.035em; display: flex; align-items: center; gap: 0.875rem; }
-.brand-lg .tally { width: 0.875rem; height: 0.875rem; }
+.brand-lg { display: flex; align-items: center; gap: 0.875rem; color: var(--fg); }
+.brand-lg .mark { width: 4.25rem; height: 4.25rem; flex-shrink: 0; filter: drop-shadow(0 10px 24px #ff3b3040); }
+.brand-lg .word { width: 9.6rem; height: 3rem; }
 .lede { color: var(--muted); margin: -0.25rem 0 0; font-size: 1rem; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border-radius: 0.75rem; padding: 0.25rem; border: 1px solid var(--line); }
 .seg button { height: 2.25rem; border: 0; border-radius: 0.5rem; background: transparent; color: var(--muted); font-weight: 600; }
@@ -140,7 +141,10 @@ input[type="range"] { accent-color: var(--fg); }
   border-right: 1px solid var(--line); background: var(--bg); -webkit-app-region: drag;
 }
 .rail button, .rail input { -webkit-app-region: no-drag; }
-.rail-brand { height: 2.5rem; display: grid; place-items: center; margin-bottom: 0.5rem; }
+.rail-brand { height: 2.75rem; width: 2.75rem; display: grid; place-items: center; margin-bottom: 0.5rem; position: relative; }
+.rail-brand .mark { width: 2.75rem; height: 2.75rem; }
+.rail-brand .tally { position: absolute; right: -0.125rem; bottom: 0.125rem; width: 0.5rem; height: 0.5rem; box-shadow: 0 0 0 3px var(--bg); }
+.rail-brand .tally.on { box-shadow: 0 0 0 3px var(--bg), 0 0 12px var(--accent); }
 .nav {
   width: 4rem; padding: 0.625rem 0 0.5rem; border-radius: 0.75rem; display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
   font-size: 0.6875rem; font-weight: 600; color: var(--muted); background: none; border: 0; transition: color 0.15s, background 0.15s;

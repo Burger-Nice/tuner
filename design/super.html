@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tuner logo</title>
+<style>
+  body { margin: 0; background: #07080b; color: #e9ecf2; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; }
+  .row { display: flex; gap: 40px; padding: 40px; align-items: center; justify-content: center; }
+  .v { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .icon { width: 300px; height: 300px; border-radius: 68px; overflow: hidden; box-shadow: 0 30px 60px #000c, 0 0 0 1px #ffffff12; }
+  .lbl { font: 600 12px ui-monospace, monospace; letter-spacing: .14em; color: #6b7387; text-transform: uppercase; }
+  .smalls { display: flex; gap: 18px; align-items: end; }
+  .s48 { width: 48px; height: 48px; border-radius: 11px; overflow: hidden; } .s32 { width: 32px; height: 32px; border-radius: 7px; overflow: hidden; } .s16 { width: 16px; height: 16px; border-radius: 4px; overflow: hidden; }
+  svg { display: block; width: 100%; height: 100%; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="10" x2="0" y2="92"><stop offset="0" stop-color="#ffb43e"/><stop offset=".42" stop-color="#ff3b30"/><stop offset="1" stop-color="#c2185b"/></linearGradient>
+  <radialGradient id="bg" cx=".5" cy=".55" r=".75"><stop offset="0" stop-color="#2b0d12"/><stop offset=".55" stop-color="#0c0b10"/><stop offset="1" stop-color="#050507"/></radialGradient>
+  <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff3b30" stop-opacity=".55"/><stop offset="1" stop-color="#ff3b30" stop-opacity="0"/></radialGradient>
+  <linearGradient id="shL" x1="1" x2="0"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+  <linearGradient id="shR" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+  <!-- scanline gaps, shared by every part of the T -->
+  <mask id="scan" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+    <rect width="100" height="100" fill="#fff"/>
+    <g fill="#000"><rect y="22.5" width="100" height="2.4"/><rect y="30.5" width="100" height="2.4"/><rect y="47" width="100" height="2.4"/><rect y="55" width="100" height="2.4"/><rect y="63" width="100" height="2.4"/><rect y="71" width="100" height="2.4"/><rect y="79" width="100" height="2.4"/></g>
+  </mask>
+  <g id="mark">
+    <g mask="url(#scan)">
+      <!-- arms (behind), slightly darker, tapered like a ribbon -->
+      <path d="M11 16H50V41H16Z" fill="url(#g)"/><path d="M89 16H50V41H84Z" fill="url(#g)"/>
+      <path d="M11 16H50V41H16Z M89 16H50V41H84Z" fill="#000" opacity=".08"/>
+      <rect x="25" y="16" width="13" height="25" fill="url(#shL)"/><rect x="62" y="16" width="13" height="25" fill="url(#shR)"/>
+      <!-- stem (on top), slanted cut -->
+      <path d="M38 11H62V83L38 90Z" fill="url(#g)"/>
+      <path d="M38 11H62V14H38Z" fill="#fff" opacity=".35"/>
+    </g>
+  </g>
+  <g id="waves">
+    <path d="M32.7 53A20 20 0 0 0 32.7 73M67.3 53A20 20 0 0 1 67.3 73" fill="none" stroke="#f4f5f8" stroke-width="4.2" stroke-linecap="round" opacity=".6"/>
+    <path d="M24 48A30 30 0 0 0 24 78M76 48A30 30 0 0 1 76 78" fill="none" stroke="#f4f5f8" stroke-width="4.2" stroke-linecap="round" opacity=".26"/>
+  </g>
+  <g id="iconA"><rect width="100" height="100" fill="url(#bg)"/><circle cx="50" cy="56" r="36" fill="url(#glow)"/><use href="#waves"/><use href="#mark"/></g>
+  <g id="iconB"><rect width="100" height="100" fill="url(#bg)"/><circle cx="50" cy="56" r="36" fill="url(#glow)"/><use href="#mark"/><circle cx="50" cy="94" r="0"/></g>
+  <g id="iconC"><rect width="100" height="100" fill="url(#bg)"/><circle cx="50" cy="56" r="36" fill="url(#glow)"/><use href="#waves"/><use href="#mark"/><circle cx="83" cy="84" r="5.5" fill="#ff3b30"/><circle cx="83" cy="84" r="9" fill="url(#glow)"/></g>
+</defs></svg>
+<div class="row">
+  <div class="v"><div class="lbl">A · waves</div><div class="icon"><svg viewBox="0 0 100 100"><use href="#iconA"/></svg></div>
+    <div class="smalls"><span class="s48"><svg viewBox="0 0 100 100"><use href="#iconA"/></svg></span><span class="s32"><svg viewBox="0 0 100 100"><use href="#iconA"/></svg></span><span class="s16"><svg viewBox="0 0 100 100"><use href="#iconA"/></svg></span></div></div>
+  <div class="v"><div class="lbl">B · glow only</div><div class="icon"><svg viewBox="0 0 100 100"><use href="#iconB"/></svg></div>
+    <div class="smalls"><span class="s48"><svg viewBox="0 0 100 100"><use href="#iconB"/></svg></span><span class="s32"><svg viewBox="0 0 100 100"><use href="#iconB"/></svg></span><span class="s16"><svg viewBox="0 0 100 100"><use href="#iconB"/></svg></span></div></div>
+  <div class="v"><div class="lbl">C · waves + tally</div><div class="icon"><svg viewBox="0 0 100 100"><use href="#iconC"/></svg></div>
+    <div class="smalls"><span class="s48"><svg viewBox="0 0 100 100"><use href="#iconC"/></svg></span><span class="s32"><svg viewBox="0 0 100 100"><use href="#iconC"/></svg></span><span class="s16"><svg viewBox="0 0 100 100"><use href="#iconC"/></svg></span></div></div>
+</div>
+</body></html>
