@@ -1115,6 +1115,11 @@
           </div>
         </div>
         <div class="card">
+          <h4>Tuner ${esc(appVersion)}</h4>
+          <p class="hint" id="updateLine" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">${updateLine()}</p>
+          <div class="row"><button class="btn" data-update="check" ${native ? '' : 'disabled'}>Check for updates</button></div>
+        </div>
+        <div class="card">
           <h4>Keyboard</h4>
           <div class="keys">
             <kbd>↑ ↓</kbd><span>Change channel (or move through lists)</span>
@@ -1153,6 +1158,39 @@
       if (a.id === acc.id) signOut(); else renderSettings();
     }));
   }
+
+  // ======================================================================
+  // Updates
+  // ======================================================================
+  let appVersion = '', update = { state: 'idle' }, updateDismissed = false;
+  native?.version().then((v) => (appVersion = v));
+  native?.updates.status().then(onUpdate);
+  native?.updates.onStatus(onUpdate);
+  function onUpdate(s) {
+    update = s || { state: 'idle' };
+    $('#updateBar').hidden = update.state !== 'ready' || updateDismissed;
+    if (update.state === 'ready') $('#updateText').textContent = `Tuner ${update.version} is ready to install.`;
+    if (view === 'settings' && $('#updateLine')) $('#updateLine').innerHTML = updateLine();
+  }
+  function updateLine() {
+    switch (update.state) {
+      case 'checking': return 'Checking for updates…';
+      case 'current': return 'You have the latest version.';
+      case 'downloading': return `Downloading ${esc(update.version)}… ${update.percent || 0}%`;
+      case 'ready': return `Version ${esc(update.version)} is ready. <button class="btn primary" data-update="install">Restart to update</button>`;
+      case 'error': return `Could not check for updates: ${esc(update.message)}`;
+      case 'dev': return 'Updates are off when running from source.';
+      default: return 'Updates install automatically.';
+    }
+  }
+  $('#updateNow').onclick = () => native?.updates.install();
+  $('#updateLater').onclick = () => { updateDismissed = true; $('#updateBar').hidden = true; toast('The update installs next time you close Tuner.'); };
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-update]');
+    if (!b) return;
+    if (b.dataset.update === 'install') native?.updates.install();
+    else native?.updates.check();
+  });
 
   // ======================================================================
   // Keyboard / remote

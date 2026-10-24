@@ -4,7 +4,7 @@ A fast, ad-free IPTV player for Xtream Codes and M3U playlists. Live TV with a g
 
 ## Get it
 
-Download **Tuner-Setup.exe** from this repo's **Releases** page (the "latest" release) and run it. GitHub builds a fresh installer on Windows every time the code changes. Windows may warn that the app is from an unknown publisher, because it isn't code-signed: click **More info**, then **Run anyway**.
+Download [**Tuner-Setup.exe**](https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner-Setup.exe) and run it. After that, Tuner updates itself: new versions download in the background and install when you restart it. Windows may warn that the app is from an unknown publisher, because it isn't code-signed: click **More info**, then **Run anyway**.
 
 Then sign in with the server address, username and password from your provider. If your provider gave you one long link with `get.php?username=…&password=…` in it, paste the whole link into **Server address** and the other fields fill in.
 

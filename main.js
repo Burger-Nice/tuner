@@ -9,6 +9,7 @@ app.userAgentFallback = app.userAgentFallback.replace(/ (tuner|Tuner)\/\S+| Elec
 
 let userAgent = '';
 let mpv = null;
+let mainWin = null;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -38,8 +39,40 @@ function createWindow() {
   });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   mpv = new Mpv(win);
-  win.on('closed', () => { mpv.stop(); mpv = null; });
+  mainWin = win;
+  win.on('closed', () => { mpv.stop(); mpv = null; mainWin = null; });
 }
+
+// ---------- updates ----------
+// New versions are published as GitHub releases. Tuner downloads them quietly in the background,
+// then either installs on the next quit or right away when you press Restart.
+let updateStatus = { state: 'idle' };
+function setUpdateStatus(s) {
+  updateStatus = s;
+  mainWin?.webContents.send('update-status', s);
+}
+
+function setupUpdates() {
+  if (!app.isPackaged) { updateStatus = { state: 'dev' }; return null; }
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('checking-for-update', () => setUpdateStatus({ state: 'checking' }));
+  autoUpdater.on('update-not-available', () => setUpdateStatus({ state: 'current' }));
+  autoUpdater.on('update-available', (i) => setUpdateStatus({ state: 'downloading', version: i.version, percent: 0 }));
+  autoUpdater.on('download-progress', (p) => setUpdateStatus({ ...updateStatus, state: 'downloading', percent: Math.round(p.percent) }));
+  autoUpdater.on('update-downloaded', (i) => setUpdateStatus({ state: 'ready', version: i.version }));
+  autoUpdater.on('error', (e) => setUpdateStatus({ state: 'error', message: String(e?.message || e).split('\n')[0] }));
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  setTimeout(check, 5000);
+  setInterval(check, 4 * 60 * 60 * 1000);
+  return { check, install: () => { mpv?.stop(); autoUpdater.quitAndInstall(true, true); } };
+}
+let updates = null;
+ipcMain.handle('app-version', () => app.getVersion());
+ipcMain.handle('update-status', () => updateStatus);
+ipcMain.handle('update-check', () => updates?.check());
+ipcMain.handle('update-install', () => updates?.install());
 
 ipcMain.handle('mpv-available', () => !!mpv?.available);
 ipcMain.handle('mpv-play', (_, opts) => (mpv ? mpv.play(opts) : { ok: false, error: 'The player is not ready.' }));
@@ -118,6 +151,7 @@ app.whenReady().then(() => {
   installHeaderRewrite();
   createWindow();
   if (process.argv.includes('--smoke-test')) smokeTest();
+  else updates = setupUpdates();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

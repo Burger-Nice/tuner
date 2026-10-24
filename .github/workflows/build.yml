@@ -12,9 +12,9 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -28,6 +28,10 @@ jobs:
         shell: pwsh
         run: if (!(Test-Path vendor/mpv/mpv.exe)) { throw "mpv.exe was not downloaded" }
 
+      - name: Set version
+        shell: pwsh
+        run: npm version "0.2.${{ github.run_number }}" --no-git-tag-version --allow-same-version
+
       - name: Build installer
         run: npm run dist
 
@@ -38,12 +42,13 @@ jobs:
           Get-Content smoke.txt, smoke-err.txt
           if ($p.ExitCode -ne 0) { throw "Smoke test failed" }
 
-      - name: Publish as the "latest" release
+      - name: Publish release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          # The very first build used a release called "latest"; the app now looks for versioned releases.
           gh release delete latest --yes --cleanup-tag 2>$null
-          $exe = Get-ChildItem dist/*.exe | Select-Object -First 1
-          Copy-Item $exe.FullName dist/Tuner-Setup.exe
-          gh release create latest dist/Tuner-Setup.exe --title "Tuner (latest build)" --notes "Built from $env:GITHUB_SHA. Download Tuner-Setup.exe and run it."
+          $global:LASTEXITCODE = 0
+          gh release create "v$v" dist/Tuner-Setup.exe dist/Tuner-Setup.exe.blockmap dist/latest.yml --title "Tuner $v" --notes "Built from $env:GITHUB_SHA. Tuner updates itself; new installs use Tuner-Setup.exe." --latest

@@ -4,6 +4,13 @@ contextBridge.exposeInMainWorld('tuner', {
   platform: process.platform,
   setUserAgent: (ua) => ipcRenderer.send('set-ua', ua),
   openExternalPlayer: (url) => ipcRenderer.invoke('open-external-player', url),
+  version: () => ipcRenderer.invoke('app-version'),
+  updates: {
+    status: () => ipcRenderer.invoke('update-status'),
+    check: () => ipcRenderer.invoke('update-check'),
+    install: () => ipcRenderer.invoke('update-install'),
+    onStatus: (fn) => ipcRenderer.on('update-status', (_, s) => fn(s)),
+  },
   mpv: {
     available: () => ipcRenderer.invoke('mpv-available'),
     play: (opts) => ipcRenderer.invoke('mpv-play', opts),
