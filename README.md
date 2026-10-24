@@ -48,6 +48,7 @@ Arrow keys move focus between controls everywhere, so the whole app works withou
 
 - **A live channel won't start:** go to **Account → Live stream format** and switch between HLS and MPEG-TS. Tuner already tries the other format automatically, but some providers work better with one first.
 - **Nothing plays at all:** set **Account → User agent** to `VLC/3.0.20 LibVLC/3.0.20`. Some providers only accept certain apps.
+- **A 4K channel won't play in the preview:** the preview can't decode HEVC, which almost all 4K channels use. Channels with 4K, UHD or HEVC in the name open straight in the full player. For any other channel the preview can't show, press **Watch in full player**.
 - **No sound on a channel in the small preview:** some channels use Dolby audio the preview can't decode. Press **F** to watch full screen in the full player.
 
 ## Privacy

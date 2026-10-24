@@ -83,7 +83,8 @@
           { type: /\.flv(\?|$)/i.test(s.url) ? 'flv' : 'mpegts', isLive: true, url: s.url },
           { enableStashBuffer: false, liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 6, liveBufferLatencyMinRemain: 1.5 }
         ));
-        p.on(mpegts.Events.ERROR, next);
+        // Defer: destroying mpegts.js from inside its own error event makes it throw.
+        p.on(mpegts.Events.ERROR, () => setTimeout(next, 0));
         p.attachMediaElement(v);
         p.load();
         play();

@@ -295,9 +295,10 @@
   const livePlayer = new Player(liveVideo, (s) => {
     $('#liveSpin').hidden = s !== 'loading';
     $('#tally').classList.toggle('on', s === 'playing');
-    if (s === 'playing') { $('#liveMsg').hidden = true; updateNow(); checkLiveAudio(); }
+    if (s === 'playing') { $('#liveMsg').hidden = true; updateNow(); checkLiveAudio(); checkLiveVideo(); }
     if (s === 'error' && S.live.current) {
-      liveMsg('This channel is not playing', 'It may be offline, or your provider may be blocking it right now. Try again or switch channel.', [['Try again', () => livePlayer.retry(), true], ['Next channel', () => zap(1)]]);
+      if (useMpv()) liveMsg('The preview can’t play this channel', 'It may be 4K or HEVC, which only the full player can decode. If the full player can’t play it either, the channel is probably offline.', [['Watch in full player', () => liveMpv(), true], ['Try again', () => livePlayer.retry()], ['Next channel', () => zap(1)]]);
+      else liveMsg('This channel is not playing', 'It may be offline, or your provider may be blocking it right now. Try again or switch channel.', [['Try again', () => livePlayer.retry(), true], ['Next channel', () => zap(1)]]);
     }
     setPlayIcon();
   });
@@ -340,6 +341,20 @@
     }, 5000);
   }
 
+  // Sound but no picture usually means HEVC video the preview can't decode.
+  let videoCheckT;
+  function checkLiveVideo() {
+    clearTimeout(videoCheckT);
+    const ch = S.live.current;
+    videoCheckT = setTimeout(() => {
+      if (S.live.current !== ch || liveVideo.paused || !useMpv()) return;
+      const frames = 'webkitDecodedFrameCount' in liveVideo ? liveVideo.webkitDecodedFrameCount : 1;
+      if (liveVideo.videoWidth === 0 || frames === 0) {
+        liveMsg('No picture in the preview', 'This channel probably uses 4K or HEVC video. The full player can show it. If it’s a radio channel, you can ignore this.', [['Watch in full player', () => liveMpv(), true], ['Dismiss', () => ($('#liveMsg').hidden = true)]]);
+      }
+    }, 4000);
+  }
+
   function liveMsg(title, text, actions = []) {
     $('#liveMsgTitle').textContent = title;
     $('#liveMsgText').textContent = text;
@@ -373,11 +388,11 @@
     if (st.cat !== '*' && !['fav', 'recent'].includes(st.cat) && !catalog.live.catName.has(st.cat)) st.cat = '*';
     renderCats('live');
     refreshLive();
-    if (st.current) tune(st.current);
+    if (st.current) tune(st.current, { noFull: true });
     else if (st.autoResume) {
       st.autoResume = false;
       const last = catalog.live.byId.get(store.get(scoped('lastLive'), ''));
-      if (last) tune(last);
+      if (last) tune(last, { noFull: true });
       else liveMsg('Pick a channel', `${catalog.live.items.length.toLocaleString()} channels ready. Choose one from the list, or press ↓ to start from the top.`);
     } else liveMsg('Pick a channel', 'Choose one from the list, or press ↓ to start from the top.');
   }
@@ -432,7 +447,12 @@
     renderLiveList();
   }
 
-  function tune(ch) {
+  // The preview can't decode HEVC, which nearly every 4K channel uses. Those go to the full player.
+  const needsFull = (ch) => /(^|[^a-z0-9])(4k|uhd|2160p?|hevc|h\.?265)(?![a-z0-9])/i.test(ch?.name || '');
+  const fullPlayerMsg = (title, text) => liveMsg(title, text, [['Watch in full player', () => liveMpv(), true], ['Next channel', () => zap(1)]]);
+
+  // noFull: tuned by Tuner itself (start-up, coming back from the full player), so never jump to full screen.
+  function tune(ch, { noFull } = {}) {
     if (!ch) return;
     const st = S.live;
     if (st.current && st.current.id !== ch.id) st.last = st.current;
@@ -441,7 +461,13 @@
     store.set(scoped('recents'), recents);
     store.set(scoped('lastLive'), ch.id);
     $('#liveMsg').hidden = true;
-    livePlayer.load(ch.sources, { timeout: 15000 });
+    if (useMpv() && needsFull(ch)) {
+      livePlayer.stop();
+      if (noFull) fullPlayerMsg('4K channel', 'This channel plays in the full player, which handles 4K and HEVC video.');
+      else { fullPlayerMsg('Opening in the full player', '4K channels play in the full player.'); liveMpv(); }
+    } else {
+      livePlayer.load(ch.sources, { timeout: 15000 });
+    }
     renderLiveList();
     scrollToCurrent();
     updateNow();
@@ -560,7 +586,8 @@
     const list = st.list.length ? st.list : catalog.live?.items || [];
     if (!list.length) return;
     const index = Math.max(0, list.findIndex((c) => c.id === st.current?.id));
-    const engine = livePlayer.source?.engine || (settings().liveFormat === 'ts' ? 'mpegts' : 'hls');
+    // MPEG-TS is the one format every Xtream server offers, and mpv plays it best.
+    const engine = 'mpegts';
     const entries = list.map((c) => ({ url: (c.sources.find((s) => s.engine === engine) || c.sources[0]).url, title: `${c.num} · ${c.name}` }));
     livePlayer.stop();
     const r = await native.mpv.play({ mode: 'live', entries, index, ua: settings().ua });
@@ -602,11 +629,11 @@
         recordProgress(ctx.items[e.index], e.t, e.d, true);
         if (e.error) toast(`This video would not play. ${e.error}`, 6000);
         if (!$('#detail').hidden && detailItem) { drawDetail(); focusPrimary(); }
-        if (view === 'live' && S.live.current) tune(S.live.current);
+        if (view === 'live' && S.live.current) tune(S.live.current, { noFull: true });
       } else {
         const ch = ctx.items[e.index ?? ctx.index];
         if (e.error) toast(`That channel would not play. ${e.error}`, 6000);
-        if (view === 'live' && ch) tune(ch);
+        if (view === 'live' && ch) tune(ch, { noFull: true });
       }
     }
   });
@@ -985,7 +1012,7 @@
     vp.hidden = true;
     vod.item = null;
     if (!$('#detail').hidden && detailItem) { drawDetail(); focusPrimary(); }
-    if (view === 'live' && S.live.current) tune(S.live.current);
+    if (view === 'live' && S.live.current) tune(S.live.current, { noFull: true });
   }
 
   async function openExternal() {
