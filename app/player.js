@@ -2,6 +2,8 @@
 (function (global) {
   'use strict';
 
+  const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
   class Player {
     constructor(video, onState) {
       this.video = video;
@@ -61,7 +63,13 @@
       // A source that never starts is as good as a failed one.
       this.watch = setTimeout(next, opts.timeout || 15000);
 
-      if (s.engine === 'hls' && global.Hls && Hls.isSupported()) {
+      // iPhone/iPad: Apple's own player handles HLS natively, including 4K HEVC, Dolby audio and AirPlay.
+      if (s.engine === 'hls' && IOS && v.canPlayType('application/vnd.apple.mpegurl')) {
+        v.onerror = next;
+        if (opts.startAt) v.addEventListener('loadedmetadata', () => { v.currentTime = opts.startAt; }, { once: true });
+        v.src = s.url;
+        play();
+      } else if (s.engine === 'hls' && global.Hls && Hls.isSupported()) {
         const hls = (this.hls = new Hls({
           backBufferLength: 30,
           maxBufferLength: 30,

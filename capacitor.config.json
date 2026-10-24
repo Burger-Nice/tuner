@@ -1,0 +1,14 @@
+{
+  "appId": "app.tuner.player",
+  "appName": "Tuner",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0b0d11",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

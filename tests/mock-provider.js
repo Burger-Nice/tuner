@@ -1,0 +1,98 @@
+// Fake Xtream Codes provider for tests (credentials demo / demo), with recorded ESPN NBA data.
+// Test video and artwork come from tests/make-media.sh.
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const D = __dirname;
+const MEDIA = process.env.MEDIA_DIR || path.join(D, 'media');
+const ESPN = path.join(D, 'fixtures/espn');
+const PORT = 8899;
+const B = `http://127.0.0.1:${PORT}`;
+const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
+
+const liveCats = ['News', 'Sports', 'Movies', 'Kids', 'Music', 'Documentary', 'Iceland | ÍS', 'UK | Entertainment'].map((n, i) => ({ category_id: String(i + 1), category_name: n }));
+const names = ['NBA 01: Memphis Grizzlies @ Golden State Warriors', 'US: ESPN HD', 'NBA League Pass 3', 'BBC One', 'CNN International', 'Sky Sports Main Event 4K UHD', 'RÚV', 'Stöð 2', 'Eurosport 1', 'Discovery', 'Nat Geo', 'MTV', 'Cartoon Network', 'Al Jazeera', 'France 24', 'DAZN 1', 'HBO', 'Comedy Central'];
+const live = Array.from({ length: 320 }, (_, i) => ({
+  num: i + 1, name: i < names.length ? names[i] + (i % 3 === 0 ? ' HD' : '') : `Channel ${i + 1}`, stream_type: 'live', stream_id: 1000 + i,
+  stream_icon: i % 4 === 3 ? '' : `${B}/img/l${i % 8}.png`, epg_channel_id: 'x', category_id: String((i % 8) + 1), tv_archive: 0,
+}));
+const vodCats = ['New Releases', 'Action', 'Comedy', 'Drama', 'Kids', 'Documentary'].map((n, i) => ({ category_id: String(10 + i), category_name: n }));
+const titles = ['The Long Night', 'Northern Lights', 'Fast Lane', 'Glacier', 'Midnight Ferry', 'The Last Signal', 'Reykjavík Blues', 'Paper Moon', 'Static', 'Harbour'];
+const vod = Array.from({ length: 640 }, (_, i) => ({
+  num: i + 1, name: `${titles[i % 10]}${i >= 10 ? ' ' + (Math.floor(i / 10) + 1) : ''} (${2000 + (i % 25)})`, stream_type: 'movie', stream_id: 5000 + i,
+  stream_icon: i % 5 === 4 ? '' : `${B}/img/p${i % 8}.jpg`, rating: String(((i * 7) % 50) / 10 + 5), added: String(1700000000 + i * 3600),
+  category_id: String(10 + (i % 6)), container_extension: 'mp4',
+}));
+const serCats = ['Drama', 'Crime', 'Comedy', 'Reality'].map((n, i) => ({ category_id: String(30 + i), category_name: n }));
+const series = Array.from({ length: 60 }, (_, i) => ({
+  num: i + 1, name: ['Trapped', 'The Office', 'Katla', 'Succession', 'The Bear', 'Severance'][i % 6] + (i >= 6 ? ` ${Math.floor(i / 6) + 1}` : ''), series_id: 9000 + i,
+  cover: i % 7 === 6 ? '' : `${B}/img/p${(i + 3) % 8}.jpg`, plot: 'A plot.', rating: '8.1', releaseDate: `${2010 + (i % 14)}-01-01`, last_modified: String(1700000000 + i), category_id: String(30 + (i % 4)),
+}));
+
+function api(q) {
+  if (q.get('username') !== 'demo' || q.get('password') !== 'demo') return { user_info: { auth: 0 } };
+  const now = Math.floor(Date.now() / 1000);
+  switch (q.get('action')) {
+    case null: return { user_info: { username: 'demo', password: 'demo', auth: 1, status: 'Active', exp_date: String(now + 86400 * 143), is_trial: '0', active_cons: '0', max_connections: '2', created_at: '1690000000' }, server_info: { url: '127.0.0.1', port: String(PORT), timezone: 'Atlantic/Reykjavik' } };
+    case 'get_live_categories': return liveCats;
+    case 'get_live_streams': return live;
+    case 'get_vod_categories': return vodCats;
+    case 'get_vod_streams': return vod;
+    case 'get_series_categories': return serCats;
+    case 'get_series': return series;
+    case 'get_vod_info': return { info: { plot: 'A lighthouse keeper on a remote fjord picks up a radio signal that should not exist, and spends one long winter night trying to trace it.', genre: 'Thriller, Drama', cast: 'Ólafur Darri Ólafsson, Hera Hilmar', director: 'Baltasar Kormákur', releasedate: '2021-10-01', duration: '1h 38m', rating: '7.4', backdrop_path: [`${B}/img/bd.jpg`] }, movie_data: {} };
+    case 'get_series_info': {
+      const mk = (s, n) => Array.from({ length: n }, (_, e) => ({ id: String(70000 + s * 100 + e), episode_num: e + 1, title: `Episode ${e + 1}: ${['Arrival', 'The Storm', 'Whiteout', 'Thaw', 'Aftershock', 'Home'][e % 6]}`, container_extension: 'mp4', season: s, info: { plot: 'Snow closes the only road out of town just as a body turns up in the harbour.', duration: '00:52:10', movie_image: e % 3 ? `${B}/img/bd.jpg` : '' } }));
+      return { info: { name: 'x', plot: 'A small Icelandic town is cut off by a blizzard while the police chief investigates a murder.', genre: 'Crime, Drama', cast: 'Ólafur Darri Ólafsson', director: 'Baltasar Kormákur', releaseDate: '2015-12-27', rating: '8.1', backdrop_path: [`${B}/img/bd.jpg`] }, episodes: { 1: mk(1, 6), 2: mk(2, 8), 3: mk(3, 4) } };
+    }
+    case 'get_short_epg': {
+      const start = now - 1800 - (now % 1800);
+      const t = q.get('stream_id') === '1001' ? ['NBA Basketball: LA Clippers at Los Angeles Lakers', 'NBA Basketball: LA Clippers at Los Angeles Lakers', 'NBA Basketball: LA Clippers at Los Angeles Lakers', 'SportsCenter'] : ['Evening News', 'Weather', 'Match of the Day', 'Late Show', 'Documentary: Volcanoes', 'Night Music'];
+      return { epg_listings: t.map((title, k) => ({ title: b64(title), description: b64(k === 0 ? 'Top stories from Iceland and around the world, with sport and weather.' : 'Description'), start_timestamp: String(start + k * 1800), stop_timestamp: String(start + (k + 1) * 1800) })) };
+    }
+  }
+  return [];
+}
+
+function sendFile(req, res, file, type) {
+  if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
+  const size = fs.statSync(file).size;
+  const m = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '');
+  if (m) {
+    const a = +m[1], b = m[2] ? +m[2] : size - 1;
+    res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${a}-${b}/${size}`, 'Accept-Ranges': 'bytes', 'Content-Length': b - a + 1 });
+    return fs.createReadStream(file, { start: a, end: b }).pipe(res);
+  }
+  res.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes' });
+  fs.createReadStream(file).pipe(res);
+}
+
+const log = [];
+const reports = [];
+http.createServer((req, res) => {
+  const u = new URL(req.url, B);
+  log.push(`${req.method} ${u.pathname} ua=${req.headers['user-agent']} origin=${req.headers.origin || '-'}`);
+  if (u.pathname === '/_log') { res.end(log.slice(-60).join('\n')); return; }
+  if (u.pathname === '/_report' && req.method === 'POST') { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => { try { reports.push(JSON.parse(b)); } catch {} res.writeHead(200, { 'Access-Control-Allow-Origin': '*' }); res.end('ok'); }); return; }
+  if (u.pathname === '/_reports') { res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify(reports)); return; }
+  if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams))); }
+  if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');
+  if (u.pathname === '/espn/summary') return sendFile(req, res, path.join(ESPN, `summary-${u.searchParams.get('event')}.json`), 'application/json');
+  if (u.pathname.startsWith('/img/')) return sendFile(req, res, path.join(MEDIA, 'img', path.basename(u.pathname)), u.pathname.endsWith('png') ? 'image/png' : 'image/jpeg');
+  let m;
+  if ((m = /^\/live\/demo\/demo\/(\d+)\.m3u8$/.exec(u.pathname))) {
+    const id = +m[1];
+    if (id % 5 === 2) { res.writeHead(404); return res.end(); } // HLS missing -> falls back to TS
+    if (id === 1003) { res.writeHead(404); return res.end(); } // fully dead channel (both formats)
+    if (id === 1005 || id === 1013) { res.writeHead(404); return res.end(); } // HEVC channels only offer TS
+    return sendFile(req, res, path.join(MEDIA, 'hls/index.m3u8'), 'application/vnd.apple.mpegurl');
+  }
+  if ((m = /^\/live\/demo\/demo\/(seg\d+\.ts)$/.exec(u.pathname))) return sendFile(req, res, path.join(MEDIA, 'hls', m[1]), 'video/mp2t');
+  if ((m = /^\/live\/demo\/demo\/(\d+)\.ts$/.exec(u.pathname))) {
+    if (+m[1] === 1003) { res.writeHead(404); return res.end(); }
+    if (+m[1] === 1005 || +m[1] === 1013) return sendFile(req, res, path.join(MEDIA, 'uhd.ts'), 'video/mp2t'); // 4K HEVC
+    return sendFile(req, res, path.join(MEDIA, 'live.ts'), 'video/mp2t');
+  }
+  if (/^\/(movie|series)\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'movie.mp4'), 'video/mp4');
+  res.writeHead(404); res.end();
+}).listen(PORT, () => console.log('mock xtream on ' + B));

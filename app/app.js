@@ -6,6 +6,9 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const native = window.tuner || null; // Electron bridge (preload.js)
   if (native?.platform === 'darwin') document.documentElement.classList.add('mac');
+  // The iPhone app (Capacitor). It has no mpv; Apple's player does that job.
+  const IOS = window.Capacitor?.getPlatform?.() === 'ios' || /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (IOS) document.documentElement.classList.add('ios');
 
   // mpv, when present, is the full player for movies, episodes and full-screen TV.
   let mpvOk = false;
@@ -642,6 +645,7 @@
   // full window
   function toggleFull(force) {
     if (force !== false && !stage.classList.contains('full') && useMpv()) { liveMpv(); return; }
+    if (IOS && force !== false && liveVideo.webkitEnterFullscreen) { try { liveVideo.webkitEnterFullscreen(); } catch {} return; }
     const on = force ?? !stage.classList.contains('full');
     stage.classList.toggle('full', on);
     if (on) { stage.focus(); document.documentElement.requestFullscreen?.().catch(() => {}); }
@@ -667,7 +671,13 @@
   $('#lPlay').onclick = () => (liveVideo.paused ? liveVideo.play().catch(() => {}) : liveVideo.pause());
   $('#lMute').onclick = () => (liveVideo.muted = !liveVideo.muted);
   $('#lVol').oninput = (e) => { liveVideo.volume = +e.target.value; liveVideo.muted = false; };
-  $('#lPip').onclick = () => (document.pictureInPictureElement ? document.exitPictureInPicture() : liveVideo.requestPictureInPicture()).catch(() => {});
+  $('#lPip').onclick = () => {
+    if (liveVideo.webkitSetPresentationMode && !liveVideo.requestPictureInPicture) {
+      liveVideo.webkitSetPresentationMode(liveVideo.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+      return;
+    }
+    (document.pictureInPictureElement ? document.exitPictureInPicture() : liveVideo.requestPictureInPicture()).catch(() => {});
+  };
   $('#lFull').onclick = () => toggleFull();
   $('#nowFav').onclick = favCurrent;
   liveVideo.addEventListener('play', setPlayIcon);
@@ -911,11 +921,13 @@
     if (s === 'error' && vod.item) {
       $('#vodMsgText').textContent = native
         ? 'The built-in player cannot open this file. It often uses a format like HEVC video or AC3/DTS audio. VLC can play it.'
+        : IOS ? 'iPhone can’t open this file. It’s probably an MKV. The free VLC app from the App Store can play it.'
         : 'The built-in player cannot open this file. It may use a format like HEVC video or AC3/DTS audio.';
       const row = $('#vodMsgActions');
       row.innerHTML = '';
       const add = (label, fn, primary) => { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.textContent = label; b.onclick = fn; row.appendChild(b); };
       if (native) add('Open in VLC', openExternal, true);
+      if (IOS) add('Open in VLC', () => { location.href = `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(vod.item.url)}`; }, true);
       add('Try again', () => vodPlayer.retry(), !native);
       add('Copy link', copyLink);
       $('#vodMsg').hidden = false;
@@ -1139,7 +1151,7 @@
         </div>
         <div class="card">
           <h4>Playback</h4>
-          <div class="field">
+          <div class="field desktop-only">
             <label for="setPlayer">Movies, series and full-screen TV</label>
             <select id="setPlayer" ${mpvOk ? '' : 'disabled'}><option value="mpv">Full player (mpv) · plays every format</option><option value="builtin">Built-in player</option></select>
             <span class="hint">${mpvOk ? 'The full player handles HEVC, Dolby/DTS audio, MKV files, subtitles and extra audio tracks.' : native?.platform === 'win32' ? 'mpv was not found. Reinstall Tuner, or run <code>npm run get-mpv</code>, to get the full player.' : 'Install mpv to get the full player.'}</span>
@@ -1149,7 +1161,7 @@
             <select id="setFormat"><option value="hls">HLS first (smoother switching)</option><option value="ts">MPEG-TS first (some providers only offer this)</option></select>
             <span class="hint">If a channel won’t play, the other format is tried automatically.</span>
           </div>
-          <div class="field">
+          <div class="field desktop-only">
             <label for="setUa">User agent</label>
             <div class="row" style="flex-wrap:nowrap"><input id="setUa" type="text" placeholder="Default" value="${esc(s.ua)}" spellcheck="false"><button class="btn" id="setUaSave">Save</button></div>
             <span class="hint">Some providers only accept certain apps. Try <code>VLC/3.0.20 LibVLC/3.0.20</code> if streams refuse to start.</span>
@@ -1175,9 +1187,9 @@
         <div class="card">
           <h4>Tuner ${esc(appVersion)}</h4>
           <p class="hint" id="updateLine" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">${updateLine()}</p>
-          <div class="row"><button class="btn" data-update="check" ${native ? '' : 'disabled'}>Check for updates</button></div>
+          <div class="row desktop-only"><button class="btn" data-update="check" ${native ? '' : 'disabled'}>Check for updates</button></div>
         </div>
-        <div class="card">
+        <div class="card desktop-only">
           <h4>Keyboard</h4>
           <div class="keys">
             <kbd>↑ ↓</kbd><span>Change channel (or move through lists)</span>
@@ -1491,6 +1503,7 @@
     if (view !== 'live' || !ch) { card.hidden = bug.hidden = true; return; }
     const linked = linkedGame();
     const { g, s } = delayed(linked);
+    $('#livePtabs .ptab-dot').hidden = !linked;
     bug.hidden = !(g && g.state !== 'pre');
     if (!bug.hidden) bug.innerHTML = bugHtml(g);
     const live = nba.today.filter((x) => x.state === 'in');
@@ -1517,6 +1530,15 @@
       <div class="tabs gc-tabs">${tab('away', g.away.abbr, tlogo(g.away, 'sm'))}${tab('home', g.home.abbr, tlogo(g.home, 'sm'))}${tab('plays', 'Plays')}<button data-open-game="${g.id}">Full box score</button></div>
       ${body}`;
   }
+
+  // Phone layout: the live screen switches between the channel list and what's playing.
+  $('#livePtabs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-p]');
+    if (!b) return;
+    $('#view-live').dataset.p = b.dataset.p;
+    $$('#livePtabs [data-p]').forEach((x) => x.classList.toggle('on', x === b));
+    if (b.dataset.p === 'chans') requestAnimationFrame(renderLiveList);
+  });
 
   $('#gameCard').addEventListener('click', (e) => {
     const t = e.target.closest('[data-link], [data-gctab], [data-open-game]');
@@ -1605,7 +1627,9 @@
     else if (nba.tab === 'plays') body = `<div class="panel">${playsHtml(s, 60)}</div>`;
     else body = `<div class="panel">${boxHtml(s, nba.tab === 'home' ? g.home.abbr : g.away.abbr, false)}</div>`;
 
+    $('#view-nba').classList.toggle('detail-open', !!nba.phoneDetail);
     box.innerHTML = `
+      <button class="btn ghost nba-back" data-nba-back>‹ Games</button>
       <div class="sb-hero" style="${gameVars(g)}">
         ${team('away')}
         <div class="sb-mid">
@@ -1645,6 +1669,8 @@
     if (!b) return;
     nba.selected = b.dataset.g;
     nba.watchFor = null;
+    nba.phoneDetail = true;
+    $('#nbaDetail').scrollTop = 0;
     const g = gameById(nba.selected);
     nba.tab = g && g.home.abbr === favTeam() ? 'home' : 'away';
     nba.sumErr = '';
@@ -1652,6 +1678,7 @@
     sumTick();
   });
   $('#nbaDetail').addEventListener('click', (e) => {
+    if (e.target.closest('[data-nba-back]')) { nba.phoneDetail = false; $('#view-nba').classList.remove('detail-open'); return; }
     const t = e.target.closest('[data-ntab], [data-watch], [data-tune]');
     if (!t) return;
     if (t.dataset.ntab) { nba.tab = t.dataset.ntab; drawNbaDetail(); }
@@ -1694,7 +1721,7 @@
       case 'ready': return `Version ${esc(update.version)} is ready. <button class="btn primary" data-update="install">Restart to update</button>`;
       case 'error': return `Could not check for updates: ${esc(update.message)}`;
       case 'dev': return 'Updates are off when running from source.';
-      default: return 'Updates install automatically.';
+      default: return IOS ? 'Updates arrive through AltStore.' : 'Updates install automatically.';
     }
   }
   $('#updateNow').onclick = () => native?.updates.install();
@@ -1750,6 +1777,14 @@
     vp.hidden = true;
     $('#detail').hidden = true;
     exitFull();
+  }
+
+  // Lets the iPhone simulator test in CI drive the app. Only present in test builds.
+  if (window.TUNER_TEST) {
+    window.__tunerTest = {
+      go, tune: (i) => tune(S.live.list[i]), openGame: (id) => { nba.selected = id; go('nba'); nba.phoneDetail = true; drawNba(); },
+      state: () => ({ view, channels: S.live.list.length, playing: S.live.current?.name, w: liveVideo.videoWidth, t: liveVideo.currentTime, err: !$('#liveMsg').hidden && $('#liveMsgTitle').textContent, games: nba.today.length, logos: [...document.images].filter((i) => i.complete && i.naturalWidth).length }),
+    };
   }
 
   // ======================================================================

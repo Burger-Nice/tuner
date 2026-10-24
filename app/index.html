@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tuner</title>
 <link rel="stylesheet" href="../node_modules/@fontsource-variable/bricolage-grotesque/index.css">
 <link rel="stylesheet" href="../node_modules/@fontsource-variable/figtree/index.css">
@@ -117,7 +117,7 @@
   </nav>
 
   <!-- Live TV -->
-  <section class="view live" id="view-live" hidden>
+  <section class="view live" id="view-live" data-p="chans" hidden>
     <div class="col cats-col">
       <div class="col-head"><h2 class="view-title">Live TV</h2></div>
       <div class="search"><input id="liveQ" type="search" placeholder="Search channels" spellcheck="false"></div>
@@ -129,7 +129,7 @@
     </div>
     <div class="col stage-col">
       <div class="stage" id="liveStage" tabindex="0">
-        <video id="liveVideo" playsinline></video>
+        <video id="liveVideo" playsinline x-webkit-airplay="allow"></video>
         <div class="spin" id="liveSpin" hidden><div class="spinner"></div></div>
         <div class="osd" id="osd">
           <span class="osd-num" id="osdNum"></span>
@@ -152,6 +152,7 @@
           <button class="ib" id="lFull" title="Full screen (F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
         </div>
       </div>
+      <div class="ptabs" id="livePtabs"><button data-p="chans" class="on">Channels</button><button data-p="now">Now playing<i class="ptab-dot" hidden></i></button></div>
       <div class="game-card" id="gameCard" hidden></div>
       <div class="now-card" id="nowCard" hidden>
         <div class="now-head">
@@ -238,7 +239,7 @@
 
 <!-- Movie / episode player -->
 <div class="vplayer" id="vplayer" hidden>
-  <video id="vodVideo" controls playsinline></video>
+  <video id="vodVideo" controls playsinline x-webkit-airplay="allow"></video>
   <div class="spin" id="vodSpin" hidden><div class="spinner"></div></div>
   <div class="vp-top">
     <button class="ib lg" id="vpBack" title="Back (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button>
@@ -253,7 +254,7 @@
 </div>
 
 <!-- Shown behind the mpv window while it plays -->
-<div class="cover" id="cover" hidden>
+<div class="mpv-cover" id="cover" hidden>
   <div><div class="eyebrow">Now playing</div><h2 id="coverTitle"></h2><p>Press Esc in the player to come back.</p><button class="btn" id="coverClose">Close player</button></div>
 </div>
 

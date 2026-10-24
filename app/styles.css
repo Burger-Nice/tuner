@@ -330,9 +330,9 @@ input[type="range"] { accent-color: var(--fg); }
   box-shadow: 0 16px 40px #000a; font-weight: 600; max-width: calc(100% - 2.5rem);
 }
 .update-bar .btn { height: 2.125rem; }
-.cover { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 2rem; }
-.cover h2 { font: 700 2rem/1.1 var(--display); letter-spacing: -0.02em; margin: 0.5rem 0; text-wrap: balance; }
-.cover p { color: var(--muted); margin: 0 0 1.25rem; }
+.mpv-cover { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 2rem; }
+.mpv-cover h2 { font: 700 2rem/1.1 var(--display); letter-spacing: -0.02em; margin: 0.5rem 0; text-wrap: balance; }
+.mpv-cover p { color: var(--muted); margin: 0 0 1.25rem; }
 
 /* ---------- pages (saved, account) ---------- */
 .view.page { overflow-y: auto; }
@@ -488,6 +488,112 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .gc-chip:hover { border-color: var(--soft); }
 .gc-chip small { color: var(--accent); font-weight: 500; }
 .gc-tabs { margin: 0; }
+
+/* ---------- phone (iPhone app, narrow windows) ---------- */
+.ptabs, .nba-back { display: none; }
+.ios .desktop-only { display: none !important; }
+@media (max-width: 760px) {
+  input, select, textarea { font-size: 16px !important; } /* stops iOS zooming into fields */
+  .shell { grid-template-columns: 1fr; grid-template-rows: 1fr auto; grid-template-areas: "view" "tabs"; padding-top: env(safe-area-inset-top); }
+  .view { grid-area: view; }
+  .rail { grid-area: tabs; flex-direction: row; justify-content: space-around; gap: 0; padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); -webkit-app-region: no-drag; }
+  .rail-brand, .rail .grow { display: none; }
+  .nav { width: auto; flex: 1; padding: 0.5rem 0 0.375rem; font-size: 0.625rem; }
+  .nav.on { background: none; }
+  .nav-live { right: calc(50% - 1.1rem); }
+  .col { border-right: 0; }
+  .col-head { padding: 0.875rem 1rem 0.5rem; }
+  .view-title { font-size: 1.375rem; }
+
+  /* category lists become swipeable chips */
+  .view.live .cat-list, .view.lib .cat-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 0 0.75rem 0.625rem; gap: 0.375rem; flex-shrink: 0; scrollbar-width: none; }
+  .view.live .cat-list::-webkit-scrollbar, .view.lib .cat-list::-webkit-scrollbar { display: none; }
+  .view.live .cat, .view.lib .cat { border: 1px solid var(--line); border-radius: 99px; padding: 0.375rem 0.75rem; }
+  .view.live .cat.on, .view.lib .cat.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .view.live .cat.on small, .view.lib .cat.on small { color: var(--bg); opacity: 0.6; }
+  .cat-sep { display: none; }
+  .search { padding: 0 0.75rem 0.5rem; }
+
+  /* live TV: picture on top, then Channels / Now playing */
+  .view.live { display: flex; flex-direction: column; overflow: hidden; }
+  .view.live .col { display: contents; }
+  .view.live .col-head { display: none; }
+  .view.live .stage { order: 1; border-radius: 0; flex-shrink: 0; }
+  .ptabs { order: 2; display: flex; gap: 0.375rem; padding: 0.625rem 0.75rem; flex-shrink: 0; }
+  .ptabs button { flex: 1; height: 2.25rem; border-radius: 0.625rem; border: 1px solid var(--line); background: transparent; color: var(--muted); font-weight: 650; position: relative; }
+  .ptabs button.on { background: var(--surface-2); color: var(--fg); border-color: var(--surface-3); }
+  .ptab-dot { position: absolute; top: 0.4rem; right: 0.6rem; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--accent); }
+  .view.live .search { order: 3; }
+  .view.live .cat-list { order: 4; }
+  .view.live .vlist { order: 5; flex: 1; min-height: 0; }
+  .view.live .game-card { order: 6; margin: 0 0.75rem 0.75rem; }
+  .view.live .now-card { order: 7; margin: 0 0.75rem 1rem; }
+  .view.live[data-p="chans"] .game-card, .view.live[data-p="chans"] .now-card { display: none; }
+  .view.live[data-p="now"] .search, .view.live[data-p="now"] .cat-list, .view.live[data-p="now"] .vlist { display: none; }
+  .view.live[data-p="now"] { overflow-y: auto; }
+  .view.live[data-p="now"] .stage { position: sticky; top: 0; z-index: 5; }
+  .sc input[type="range"], .sc #lMute { display: none; }
+  .osd { top: 0.5rem; left: 0.5rem; padding: 0.375rem 0.75rem 0.375rem 0.5rem; gap: 0.5rem; }
+  .osd-num { font-size: 1.125rem; }
+  .osd-name { font-size: 0.875rem; }
+  .bug { top: 0.5rem; right: 0.5rem; font-size: 0.75rem; }
+  .bug .s { font-size: 0.875rem; }
+  .bug .tlogo.sm { width: 1rem; height: 1rem; }
+  .stage:has(.bug:not([hidden])) .osd { display: none; }
+
+  /* movies & series */
+  .view.lib { display: flex; flex-direction: column; }
+  .view.lib .cats-col { display: contents; }
+  .lib-main { flex: 1; min-height: 0; }
+  .lib-head { padding: 0.25rem 1rem 0.75rem; }
+  .lib-scroll { padding: 0.25rem 1rem 1.5rem; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: 1rem 0.625rem; }
+  .ptitle { font-size: 0.8125rem; }
+
+  /* NBA: list, then the game slides in */
+  .view.nba { display: block; position: relative; }
+  .view.nba .nba-list-col { height: 100%; }
+  .nba-games { padding: 0 0.75rem 1rem; }
+  .nba-detail { position: absolute; inset: 0; background: var(--bg); padding: 0.75rem 0.875rem 2rem; display: none; }
+  .view.nba.detail-open .nba-detail { display: block; }
+  .nba-back { display: inline-flex; margin: 0 0 0.75rem -0.5rem; }
+  .sb-hero { padding: 1.125rem 0.75rem 1.25rem; gap: 0.5rem; }
+  .sb-team, .sb-team.home { flex-direction: column; text-align: center; gap: 0.375rem; }
+  .sb-team .big, .sb-team.home .big { margin: 0; font-size: 2.25rem; }
+  .sb-team .nm { font-size: 0.9375rem; }
+  .tlogo.lg { width: 3rem; height: 3rem; }
+  .sb-mid .tv { display: none; }
+  .sb-actions { margin-top: 0.5rem; }
+  .sb-actions .btn { height: 2rem; padding: 0 0.75rem; font-size: 0.75rem; }
+  .nba-row > * { flex-basis: 100%; }
+  .tabs { margin-top: 1rem; }
+  .play { grid-template-columns: 3.5rem 2.5rem 1fr; }
+  .play .sco { display: none; }
+
+  /* details sheet and players go full screen */
+  .sheet-wrap { padding: 0; }
+  .sheet { border-radius: 0; height: 100%; max-height: none; border: 0; }
+  .hero { min-height: 0; border-radius: 0; }
+  .hero .close { top: calc(env(safe-area-inset-top) + 0.75rem); }
+  .hero-body { flex-direction: column; align-items: flex-start; padding: calc(env(safe-area-inset-top) + 4rem) 1rem 1rem; gap: 1rem; }
+  .hero .cover { width: 7.5rem; }
+  .hero h2 { font-size: 1.75rem; }
+  .credits { padding: 0 1rem 1.25rem; grid-template-columns: 5rem 1fr; }
+  .seasons { padding: 0 0.75rem 2rem; }
+  .ep { grid-template-columns: 7rem 1fr; gap: 0.75rem; }
+  .vp-top { padding-top: calc(env(safe-area-inset-top) + 0.75rem); }
+  .mpv-cover h2 { font-size: 1.5rem; }
+
+  /* pages */
+  .page-inner { padding: 1.25rem 1rem 2rem; gap: 1.5rem; }
+  .cards { grid-template-columns: 1fr; }
+  .page-title { font-size: 1.625rem; }
+  .login { padding: calc(env(safe-area-inset-top) + 2rem) 1.25rem calc(env(safe-area-inset-bottom) + 2rem); place-items: start center; }
+  .brand-lg .mark { width: 3.25rem; height: 3.25rem; }
+  .brand-lg .word { width: 7.5rem; height: 2.35rem; }
+  .form .two { grid-template-columns: 1fr; }
+  .toast { bottom: calc(5rem + env(safe-area-inset-bottom)); }
+}
 
 /* macOS: leave room for the window buttons */
 .mac .rail { padding-top: 2.25rem; }
