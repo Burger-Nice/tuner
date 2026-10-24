@@ -43,7 +43,7 @@
   document.addEventListener('error', (e) => {
     const img = e.target;
     if (img.tagName !== 'IMG') return;
-    img.parentNode?.classList.add('noimg');
+    if (img.parentNode?.dataset?.ini !== undefined) img.parentNode.classList.add('noimg');
     img.remove();
   }, true);
 
@@ -184,6 +184,7 @@
     $$('.nav[data-view="series"]').forEach((b) => (b.hidden = acc.type !== 'xtream'));
     view = null;
     go('live');
+    startNba();
   }
 
   function go(name) {
@@ -196,6 +197,9 @@
     else if (name === 'movie' || name === 'series') enterLib(name);
     else if (name === 'favs') renderFavs();
     else if (name === 'settings') renderSettings();
+    else if (name === 'nba') enterNba();
+    drawLiveGame();
+    sumTick();
   }
   $$('.nav').forEach((b) => b.addEventListener('click', () => go(b.dataset.view)));
 
@@ -443,6 +447,7 @@
     updateNow();
     showOsd();
     loadEpg(ch);
+    autoLink(ch, ch.name);
   }
 
   function zap(d) {
@@ -485,8 +490,10 @@
       const now = Date.now();
       const cur = list.find((p) => p.start <= now && p.end > now);
       const next = list.filter((p) => p.start >= (cur ? cur.end : now)).slice(0, 4);
+      const was = epgNow;
       epgNow = cur ? cur.title : '';
       $('#osdProg').textContent = epgNow;
+      if (epgNow !== was) autoLink(ch, `${ch.name} ${epgNow}`);
       if (!cur && !next.length) { box.innerHTML = '<div class="epg-empty">No guide information for this channel.</div>'; return; }
       let html = '';
       if (cur) {
@@ -571,9 +578,20 @@
   native?.mpv?.onEvent((e) => {
     const ctx = mpvCtx;
     if (!ctx || e.session !== ctx.session) return;
+    if (e.type === 'game' && ctx.kind === 'live') {
+      const ch = ctx.items[ctx.index];
+      const g = (nba.link?.chId === ch?.id && gameById(nba.link.gameId)) || NBA.matchGame(ch?.name, nba.today);
+      native.mpv.command(['show-text', g ? scoreLine(g) : 'No NBA game found for this channel', 6000]);
+      return;
+    }
     if (e.type === 'track') {
       ctx.index = e.index;
       const it = ctx.items[e.index];
+      if (ctx.kind === 'live' && it) {
+        autoLink(it, it.name);
+        const g = linkedGameFor(it);
+        if (g && g.state !== 'pre') native.mpv.command(['show-text', `${it.num} · ${it.name}\n${scoreLine(g)}`, 4000]);
+      }
       if (it) $('#coverTitle').textContent = it.kind === 'live' ? `${it.num} · ${it.name}` : it.kind === 'episode' ? `${it.seriesName} · S${it.season} E${it.ep}` : it.name;
     } else if (e.type === 'progress' && ctx.kind === 'vod') {
       recordProgress(ctx.items[e.index], e.t, e.d, !!e.final);
@@ -1115,6 +1133,14 @@
           </div>
         </div>
         <div class="card">
+          <h4>NBA</h4>
+          <div class="field">
+            <label for="setTeam">Your team</label>
+            <select id="setTeam">${[...NBA.TEAMS].sort((a, b) => a.city.localeCompare(b.city)).map((t) => `<option value="${t.abbr}">${esc(t.city === 'LA' || t.city === 'Los Angeles' ? 'Los Angeles' : t.city)} ${esc(t.name)}</option>`).join('')}</select>
+            <span class="hint">Their games stay pinned at the top, and Tuner tells you when they tip off. Scores come from ESPN.</span>
+          </div>
+        </div>
+        <div class="card">
           <h4>Tuner ${esc(appVersion)}</h4>
           <p class="hint" id="updateLine" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">${updateLine()}</p>
           <div class="row"><button class="btn" data-update="check" ${native ? '' : 'disabled'}>Check for updates</button></div>
@@ -1140,6 +1166,8 @@
       </div>`;
     $('#setPlayer').value = mpvOk ? s.player || 'mpv' : 'builtin';
     $('#setPlayer').onchange = (e) => { saveSettings({ player: e.target.value }); toast('Saved'); };
+    $('#setTeam').value = favTeam();
+    $('#setTeam').onchange = (e) => { saveSettings({ nbaTeam: e.target.value }); nba.today = sortGames(nba.today); onNba(); toast('Saved'); };
     $('#setFormat').value = s.liveFormat;
     $('#setScale').value = s.scale;
     $('#setOut').onclick = signOut;
@@ -1158,6 +1186,394 @@
       if (a.id === acc.id) signOut(); else renderSettings();
     }));
   }
+
+  // ======================================================================
+  // NBA: live scores, box scores and play-by-play
+  // ======================================================================
+  const nba = {
+    started: false, today: [], todayDay: '', offset: 0, other: [], err: '',
+    selected: null, sum: null, sumErr: '', tab: 'away', gcTab: 'away',
+    link: null, // { chId, gameId, manual } — which game the live channel is showing
+    timer: 0, otherTimer: 0, sumTimer: 0, alerted: new Set(), watchFor: null,
+  };
+  const favTeam = () => settings().nbaTeam || 'MEM';
+  const isFav = (g) => g.home.abbr === favTeam() || g.away.abbr === favTeam();
+  const dayGames = () => (nba.offset ? nba.other : nba.today);
+  const gameById = (id) => nba.today.find((g) => g.id === id) || nba.other.find((g) => g.id === id) || null;
+  const ordinal = (n) => (n <= 4 ? ['', '1st', '2nd', '3rd', '4th'][n] : n === 5 ? 'OT' : `${n - 4}OT`);
+  const tipTime = (g) => new Date(g.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const statusText = (g) => (g.state === 'pre' ? `${tipTime(g)}` : g.state === 'in' ? g.detail.replace(' - ', ' · ') : g.detail || 'Final');
+  const loser = (g, side) => g.state === 'post' && +g[side].score < +g[side === 'home' ? 'away' : 'home'].score;
+  const tlogo = (t, cls = '') => `<img class="tlogo ${cls}" src="${esc(t.logo)}" alt="">`;
+
+  // Team colors straight from ESPN can be near-black; use the alternate color then.
+  function teamColor(t) {
+    for (const c of [t.color, t.alt]) {
+      if (!c) continue;
+      const n = parseInt(c.slice(1), 16), lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+      if (lum > 0.18) return c;
+    }
+    return '#8a92a5';
+  }
+
+  function sortGames(list) {
+    const rank = (g) => (isFav(g) ? 0 : g.state === 'in' ? 1 : g.state === 'pre' ? 2 : 3);
+    return [...list].sort((a, b) => rank(a) - rank(b) || a.date - b.date);
+  }
+
+  function startNba() {
+    if (nba.started) return;
+    nba.started = true;
+    refreshToday();
+  }
+
+  async function refreshToday() {
+    clearTimeout(nba.timer);
+    try {
+      const r = await NBA.scoreboard('');
+      nba.today = sortGames(r.games);
+      nba.todayDay = r.day;
+      nba.err = '';
+    } catch (e) {
+      nba.err = e.message;
+    }
+    onNba();
+    nba.timer = setTimeout(refreshToday, nba.today.some((g) => g.state === 'in') ? 15000 : 120000);
+  }
+
+  async function refreshOther() {
+    clearTimeout(nba.otherTimer);
+    if (!nba.offset) return;
+    const base = nba.todayDay ? new Date(nba.todayDay + 'T12:00:00') : new Date();
+    base.setDate(base.getDate() + nba.offset);
+    const ymd = `${base.getFullYear()}${String(base.getMonth() + 1).padStart(2, '0')}${String(base.getDate()).padStart(2, '0')}`;
+    const want = nba.offset;
+    try {
+      const r = await NBA.scoreboard(ymd);
+      if (want !== nba.offset) return;
+      nba.loadingOther = false;
+      nba.other = sortGames(r.games);
+      nba.err = '';
+    } catch (e) {
+      nba.err = e.message;
+      nba.loadingOther = false;
+    }
+    if (view === 'nba') drawNba();
+    if (nba.other.some((g) => g.state === 'in')) nba.otherTimer = setTimeout(refreshOther, 15000);
+  }
+
+  function onNba() {
+    const fav = nba.today.find((g) => isFav(g) && g.state === 'in');
+    $('#nbaNavLive').hidden = !fav;
+    if (fav && !nba.alerted.has(fav.id)) {
+      nba.alerted.add(fav.id);
+      const me = fav.home.abbr === favTeam() ? fav.home : fav.away;
+      toast(`${me.name} are live: ${fav.away.abbr} ${fav.away.score} – ${fav.home.score} ${fav.home.abbr} · ${statusText(fav)}`, 6000);
+    }
+    if (S.live.current && !nba.link) autoLink(S.live.current, `${S.live.current.name} ${epgNow}`);
+    if (view === 'nba') drawNba();
+    drawLiveGame();
+  }
+
+  // Keep the scoreboard entry in step with the fresher summary.
+  function mergeGame(sg) {
+    const g = gameById(sg.id);
+    if (!g) return;
+    Object.assign(g, { state: sg.state, detail: sg.detail || g.detail, clock: sg.clock, period: sg.period, final: sg.final });
+    for (const side of ['home', 'away']) {
+      if (sg[side].score) g[side].score = sg[side].score;
+      if (sg[side].lines.length) g[side].lines = sg[side].lines;
+    }
+  }
+
+  function focusId() {
+    if (!$('#detail').hidden || !vp.hidden) return null;
+    if (view === 'nba') return nba.selected;
+    if (view === 'live' || mpvCtx?.kind === 'live') return nba.link?.gameId || null;
+    return null;
+  }
+
+  async function sumTick() {
+    clearTimeout(nba.sumTimer);
+    const id = focusId();
+    if (id) {
+      try {
+        const s = await NBA.summary(id);
+        if (focusId() === id) {
+          nba.sum = s;
+          nba.sumErr = '';
+          mergeGame(s.game);
+          if (view === 'nba') drawNba();
+          drawLiveGame();
+        }
+      } catch (e) {
+        nba.sumErr = e.message;
+        if (view === 'nba') drawNba();
+      }
+    }
+    const g = id && gameById(id);
+    nba.sumTimer = setTimeout(sumTick, g && g.state === 'in' ? 10000 : 60000);
+  }
+
+  // Work out which game a channel is showing from its name and what the guide says is on.
+  function autoLink(ch, text) {
+    if (!ch) return;
+    if (nba.link?.chId === ch.id && nba.link.manual) return;
+    const g = NBA.matchGame(text || ch.name, nba.today);
+    const prev = nba.link?.gameId;
+    nba.link = g ? { chId: ch.id, gameId: g.id } : null;
+    if (nba.link?.gameId !== prev) {
+      if (nba.sum?.game.id !== nba.link?.gameId) nba.sum = null;
+      nba.gcTab = g && g.home.abbr === favTeam() ? 'home' : 'away';
+      sumTick();
+    }
+    drawLiveGame();
+  }
+
+  function linkedGameFor(ch) {
+    return ch && nba.link?.chId === ch.id && nba.link.gameId ? gameById(nba.link.gameId) : null;
+  }
+
+  function linkedGame() {
+    const ch = S.live.current;
+    return ch && nba.link?.chId === ch.id && nba.link.gameId ? gameById(nba.link.gameId) : null;
+  }
+
+  function bugHtml(g) {
+    const t = (side) => `<span class="t">${tlogo(g[side], 'sm')}${esc(g[side].abbr)} <span class="s${loser(g, side) ? ' lose' : ''}">${esc(g[side].score)}</span></span>`;
+    return `${t('away')}${t('home')}<span class="st${g.state === 'post' ? ' done' : ''}">${esc(statusText(g))}</span>`;
+  }
+
+  function linesTable(g) {
+    const n = Math.max(4, g.away.lines.length, g.home.lines.length);
+    const head = Array.from({ length: n }, (_, i) => `<th>${i < 4 ? i + 1 : ordinal(i + 1)}</th>`).join('');
+    const row = (side) => `<tr><td>${tlogo(g[side], 'sm')} ${esc(g[side].abbr)}</td>${Array.from({ length: n }, (_, i) => `<td>${esc(g[side].lines[i] ?? '')}</td>`).join('')}<td class="tot">${esc(g[side].score)}</td></tr>`;
+    return `<div class="tbl-wrap"><table class="stat lines"><tr><th></th>${head}<th class="tot">T</th></tr>${row('away')}${row('home')}</table></div>`;
+  }
+
+  // Box score for one team. `compact` keeps the columns that fit under the live picture.
+  function boxHtml(s, abbr, compact) {
+    const team = s.box.find((b) => b.abbr === abbr);
+    if (!team || !team.players.length) return '<div class="epg-empty">No box score yet. It appears at tip-off.</div>';
+    const want = compact ? ['MIN', 'PTS', 'REB', 'AST', 'FG', '3PT', '+/-'] : team.labels;
+    const idx = want.map((l) => team.labels.indexOf(l)).filter((i) => i >= 0);
+    const hiCols = new Map(['PTS', 'REB', 'AST'].map((l) => [team.labels.indexOf(l), Math.max(...team.players.map((p) => +p.stats[team.labels.indexOf(l)] || 0))]));
+    const played = team.players.filter((p) => !p.dnp);
+    const rows = (list) => list.map((p) => `<tr><td>${esc(compact ? p.short : p.name)}<span class="pos">${esc(p.pos)}</span></td>${idx.map((i) => {
+      const v = p.stats[i] ?? '';
+      return `<td${hiCols.get(i) && +v === hiCols.get(i) ? ' class="hi"' : ''}>${esc(v)}</td>`;
+    }).join('')}</tr>`).join('');
+    const starters = played.filter((p) => p.starter), bench = played.filter((p) => !p.starter);
+    const dnp = compact ? '' : team.players.filter((p) => p.dnp).map((p) => `<tr class="dnp"><td>${esc(p.name)}<span class="pos">${esc(p.pos)}</span></td><td colspan="${idx.length}">${esc(p.reason ? p.reason.charAt(0) + p.reason.slice(1).toLowerCase() : 'Did not play')}</td></tr>`).join('');
+    const sub = (label) => `<tr class="sub"><td colspan="${idx.length + 1}">${label}</td></tr>`;
+    const totals = team.totals.length ? `<tr class="tot"><td>Team</td>${idx.map((i) => `<td>${esc(team.totals[i] ?? '')}</td>`).join('')}</tr>` : '';
+    return `<div class="tbl-wrap"><table class="stat"><tr><th>${compact ? '' : 'Starters'}</th>${idx.map((i) => `<th>${esc(team.labels[i])}</th>`).join('')}</tr>${rows(starters)}${bench.length ? sub('Bench') + rows(bench) : ''}${totals}${dnp}</table></div>`;
+  }
+
+  function playsHtml(s, limit) {
+    if (!s.plays.length) return '<div class="epg-empty">No plays yet.</div>';
+    return `<div class="plays">${s.plays.slice(0, limit).map((p) => `<div class="play${p.scoring ? ' scoring' : ''}"><span class="ck">${esc(ordinal(p.period))} ${esc(p.clock)}</span><span class="tm">${esc(p.team)}</span><span class="tx">${esc(p.text)}</span><span class="sco">${esc(p.away ?? '')}–${esc(p.home ?? '')}</span></div>`).join('')}</div>`;
+  }
+
+  const TEAM_STATS = [
+    ['fieldGoalsMade-fieldGoalsAttempted', 'Field goals'], ['fieldGoalPct', 'FG %'],
+    ['threePointFieldGoalsMade-threePointFieldGoalsAttempted', '3-pointers'], ['threePointFieldGoalPct', '3P %'],
+    ['freeThrowsMade-freeThrowsAttempted', 'Free throws'], ['totalRebounds', 'Rebounds'], ['offensiveRebounds', 'Off. rebounds'],
+    ['assists', 'Assists'], ['steals', 'Steals'], ['blocks', 'Blocks'], ['totalTurnovers', 'Turnovers'],
+    ['pointsInPaint', 'Points in paint'], ['fastBreakPoints', 'Fast break points'], ['fouls', 'Fouls'], ['largestLead', 'Largest lead'],
+  ];
+  function teamStatsHtml(s, g) {
+    const a = s.teams.find((t) => t.abbr === g.away.abbr)?.stats, h = s.teams.find((t) => t.abbr === g.home.abbr)?.stats;
+    if (!a || !h) return '<div class="epg-empty">Team stats appear at tip-off.</div>';
+    const ca = teamColor(g.away), ch = teamColor(g.home);
+    return `<div class="tstat">${TEAM_STATS.filter(([k]) => a[k] != null).map(([k, label]) => {
+      const av = parseFloat(a[k]) || 0, hv = parseFloat(h[k]) || 0, sum = av + hv || 1;
+      return `<span class="a">${esc(a[k])}</span><span class="l">${label}</span><span class="h">${esc(h[k])}</span><span class="bars"><i style="flex:${av / sum};background:${ca}"></i><i style="flex:${hv / sum};background:${ch}"></i></span>`;
+    }).join('')}</div>`;
+  }
+
+  // ---------- live TV: score bug + game card ----------
+  function drawLiveGame() {
+    const card = $('#gameCard'), bug = $('#scoreBug');
+    const ch = S.live.current;
+    if (view !== 'live' || !ch) { card.hidden = bug.hidden = true; return; }
+    const g = linkedGame();
+    bug.hidden = !(g && g.state !== 'pre');
+    if (!bug.hidden) bug.innerHTML = bugHtml(g);
+    const live = nba.today.filter((x) => x.state === 'in');
+    if (!g && !live.length) { card.hidden = true; return; }
+    card.hidden = false;
+    const picker = `<select data-relink title="Which game is on this channel?"><option value="">Not an NBA game</option>${nba.today.map((x) => `<option value="${x.id}"${g?.id === x.id ? ' selected' : ''}>${esc(x.away.abbr)} @ ${esc(x.home.abbr)} · ${esc(statusText(x))}</option>`).join('')}</select>`;
+    if (!g) {
+      card.innerHTML = `<div class="gc-head"><span class="title"><span class="live-dot"></span>NBA live now</span>${picker}</div>
+        <div class="gc-strip">${live.map((x) => `<button class="gc-chip" data-link="${x.id}">${tlogo(x.away, 'sm')}${esc(x.away.abbr)} ${esc(x.away.score)} – ${esc(x.home.score)} ${esc(x.home.abbr)}${tlogo(x.home, 'sm')}<small>${esc(statusText(x))}</small></button>`).join('')}</div>
+        <span class="hint">Watching one of these? Pick it to see the box score here.</span>`;
+      return;
+    }
+    const s = nba.sum?.game.id === g.id ? nba.sum : null;
+    const tab = (id, label, logo) => `<button data-gctab="${id}" class="${nba.gcTab === id ? 'on' : ''}">${logo || ''}${label}</button>`;
+    let body;
+    if (g.state === 'pre') body = `<div class="epg-empty">Tip-off at ${esc(tipTime(g))}${g.tv.length ? ' on ' + esc(g.tv.join(', ')) : ''}.</div>`;
+    else if (!s) body = '<div class="loading-note"><div class="spinner"></div>Loading box score…</div>';
+    else body = nba.gcTab === 'plays' ? playsHtml(s, 8) : boxHtml(s, nba.gcTab === 'home' ? g.home.abbr : g.away.abbr, true);
+    card.innerHTML = `<div class="gc-head"><span class="title">${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(g.away.name)} at ${esc(g.home.name)}</span>${picker}</div>
+      ${linesTable(g)}
+      <div class="tabs gc-tabs">${tab('away', g.away.abbr, tlogo(g.away, 'sm'))}${tab('home', g.home.abbr, tlogo(g.home, 'sm'))}${tab('plays', 'Plays')}<button data-open-game="${g.id}">Full box score</button></div>
+      ${body}`;
+  }
+
+  $('#gameCard').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-link], [data-gctab], [data-open-game]');
+    if (!t || !S.live.current) return;
+    if (t.dataset.link) { nba.link = { chId: S.live.current.id, gameId: t.dataset.link, manual: true }; nba.sum = null; sumTick(); drawLiveGame(); }
+    else if (t.dataset.gctab) { nba.gcTab = t.dataset.gctab; drawLiveGame(); }
+    else if (t.dataset.openGame) { nba.offset = 0; nba.selected = t.dataset.openGame; go('nba'); }
+  });
+  $('#gameCard').addEventListener('change', (e) => {
+    if (!e.target.matches('[data-relink]') || !S.live.current) return;
+    nba.link = { chId: S.live.current.id, gameId: e.target.value || null, manual: true };
+    nba.sum = null;
+    sumTick();
+    drawLiveGame();
+  });
+
+  // Text for mpv's on-screen display in full-screen TV.
+  function scoreLine(g) {
+    return `${g.away.abbr} ${g.away.score}  –  ${g.home.score} ${g.home.abbr}    ${statusText(g)}`;
+  }
+
+  // ---------- NBA view ----------
+  function enterNba() {
+    startNba();
+    if (!nba.selected || !dayGames().some((g) => g.id === nba.selected)) nba.selected = dayGames()[0]?.id || null;
+    nba.tab = nba.tab === 'plays' || nba.tab === 'team' ? nba.tab : 'away';
+    drawNba();
+  }
+
+  function dayLabel() {
+    if (nba.offset === 0) return 'Today';
+    if (nba.offset === -1) return 'Yesterday';
+    if (nba.offset === 1) return 'Tomorrow';
+    const d = nba.todayDay ? new Date(nba.todayDay + 'T12:00:00') : new Date();
+    d.setDate(d.getDate() + nba.offset);
+    return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  function gameCardHtml(g) {
+    const row = (side) => `<span class="trow">${tlogo(g[side])}<span style="min-width:0"><div class="tn">${esc(g[side].name)}</div><div class="rec">${esc(g[side].record)}</div></span></span><span class="gsc${loser(g, side) ? ' lose' : ''}">${g.state === 'pre' ? '' : esc(g[side].score)}</span>`;
+    const me = isFav(g) ? (g.home.abbr === favTeam() ? g.home : g.away) : null;
+    return `<button class="gcard${g.state === 'in' ? ' live' : ''}${me ? ' fav' : ''}${nba.selected === g.id ? ' on' : ''}" data-g="${g.id}"${me ? ` style="--fav:${teamColor(me)}"` : ''}>
+      ${row('away')}${row('home')}
+      <span class="gst"><span>${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(statusText(g))}</span><span class="tv">${esc(g.tv.join(', '))}</span></span></button>`;
+  }
+
+  function drawNba() {
+    $('#nbaDay').textContent = dayLabel();
+    const games = dayGames();
+    const list = $('#nbaGames');
+    if (!games.length) {
+      list.innerHTML = nba.loadingOther ? '<div class="loading-note"><div class="spinner"></div>Loading games…</div>' : nba.err ? `<div class="empty"><h3>Scores unavailable</h3><p>${esc(nba.err)}</p></div>` : !nba.todayDay && !nba.offset ? '<div class="loading-note"><div class="spinner"></div>Loading games…</div>' : '<div class="empty">No games on this day.</div>';
+      $('#nbaDetail').innerHTML = '';
+      return;
+    }
+    if (!games.some((g) => g.id === nba.selected)) nba.selected = games[0].id;
+    let html = '', last = '';
+    for (const g of games) {
+      const group = isFav(g) ? 'Your team' : g.state === 'in' ? 'Live' : g.state === 'pre' ? 'Upcoming' : 'Final';
+      if (group !== last) { html += `<div class="nba-sep">${group}</div>`; last = group; }
+      html += gameCardHtml(g);
+    }
+    const scroll = list.scrollTop;
+    list.innerHTML = html;
+    list.scrollTop = scroll;
+    drawNbaDetail();
+  }
+
+  function drawNbaDetail() {
+    const g = gameById(nba.selected);
+    const box = $('#nbaDetail');
+    if (!g) { box.innerHTML = ''; return; }
+    const s = nba.sum?.game.id === g.id ? nba.sum : null;
+    const team = (side) => `<div class="sb-team ${side}">${tlogo(g[side], 'lg')}<div><div class="nm">${esc(g[side].name)}</div><div class="rc">${esc(g[side].record)}${side === 'home' ? ' · Home' : ''}</div></div><div class="big${loser(g, side) ? ' lose' : ''}">${g.state === 'pre' ? '' : esc(g[side].score)}</div></div>`;
+    const leaders = ['PTS', 'REB', 'AST'].map((k) => {
+      const a = g.away.leaders.find((l) => l.stat === k), h = g.home.leaders.find((l) => l.stat === k);
+      return a || h ? `<span class="k">${k}</span><span class="v">${a ? `<b>${esc(a.value)}</b>${esc(a.who)}` : ''}</span><span class="v">${h ? `<b>${esc(h.value)}</b>${esc(h.who)}` : ''}</span>` : '';
+    }).join('');
+    const tab = (id, label, logo) => `<button data-ntab="${id}" class="${nba.tab === id ? 'on' : ''}">${logo || ''}${label}</button>`;
+    let body;
+    if (g.state === 'pre') body = '<div class="epg-empty">The box score fills in once the game starts.</div>';
+    else if (!s) body = nba.sumErr ? `<div class="epg-empty">${esc(nba.sumErr)}</div>` : '<div class="loading-note"><div class="spinner"></div>Loading box score…</div>';
+    else if (nba.tab === 'team') body = `<div class="panel">${teamStatsHtml(s, g)}</div>`;
+    else if (nba.tab === 'plays') body = `<div class="panel">${playsHtml(s, 60)}</div>`;
+    else body = `<div class="panel">${boxHtml(s, nba.tab === 'home' ? g.home.abbr : g.away.abbr, false)}</div>`;
+
+    box.innerHTML = `
+      <div class="sb-hero" style="--away:${teamColor(g.away)};--home:${teamColor(g.home)}">
+        ${team('away')}
+        <div class="sb-mid">
+          <div class="st${g.state === 'in' ? ' live' : ''}">${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(g.state === 'pre' ? `${new Date(g.date).toLocaleDateString([], { weekday: 'short' })} ${tipTime(g)}` : statusText(g))}</div>
+          ${g.tv.length ? `<div class="tv">${esc(g.tv.join(' · '))}</div>` : ''}
+          <div class="sb-actions"><button class="btn primary" data-watch="${g.id}">Find on TV</button></div>
+        </div>
+        ${team('home')}
+      </div>
+      <div class="watch-list" id="watchList"></div>
+      <div class="nba-row">
+        <div class="panel"><h4>By quarter</h4>${linesTable(g)}</div>
+        ${leaders ? `<div class="panel"><h4>Leaders</h4><div class="leaders"><span></span><span class="k">${esc(g.away.abbr)}</span><span class="k">${esc(g.home.abbr)}</span>${leaders}</div></div>` : ''}
+      </div>
+      <div class="tabs">${tab('away', g.away.name, tlogo(g.away, 'sm'))}${tab('home', g.home.name, tlogo(g.home, 'sm'))}${tab('team', 'Team stats')}${tab('plays', 'Play-by-play')}</div>
+      ${body}`;
+    if (nba.watchFor === g.id) drawWatchList(g);
+  }
+
+  async function drawWatchList(g) {
+    const box = $('#watchList');
+    if (!box) return;
+    box.innerHTML = '<div class="loading-note"><div class="spinner"></div>Searching your channels…</div>';
+    let c;
+    try { c = await ensure('live'); } catch (e) { box.innerHTML = `<div class="epg-empty">${esc(e.message)}</div>`; return; }
+    if (nba.selected !== g.id || view !== 'nba') return;
+    const exact = c.items.filter((ch) => NBA.matchGame(ch.name, [g]));
+    const general = c.items.filter((ch) => !exact.includes(ch) && /\bNBA\b|league pass/i.test(ch.name)).slice(0, 12);
+    const tile = (ch) => `<button class="chan-tile" data-tune="${esc(ch.id)}">${logo(ch.logo, ch.name)}<span>${esc(ch.name)}</span></button>`;
+    box.innerHTML = !exact.length && !general.length
+      ? `<div class="epg-empty">No channel names mention this game. It may be on ${esc(g.tv.join(', ') || 'a channel without the teams in its name')}. Try the guide on your sports channels.</div>`
+      : `${exact.length ? `<div class="nba-sep">Showing this game</div>${exact.slice(0, 12).map(tile).join('')}` : ''}${general.length ? `<div class="nba-sep">NBA channels</div>${general.map(tile).join('')}` : ''}`;
+  }
+
+  $('#nbaGames').addEventListener('click', (e) => {
+    const b = e.target.closest('.gcard');
+    if (!b) return;
+    nba.selected = b.dataset.g;
+    nba.watchFor = null;
+    const g = gameById(nba.selected);
+    nba.tab = g && g.home.abbr === favTeam() ? 'home' : 'away';
+    nba.sumErr = '';
+    drawNba();
+    sumTick();
+  });
+  $('#nbaDetail').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-ntab], [data-watch], [data-tune]');
+    if (!t) return;
+    if (t.dataset.ntab) { nba.tab = t.dataset.ntab; drawNbaDetail(); }
+    else if (t.dataset.watch) { nba.watchFor = nba.watchFor === t.dataset.watch ? null : t.dataset.watch; nba.watchFor ? drawWatchList(gameById(t.dataset.watch)) : ($('#watchList').innerHTML = ''); }
+    else if (t.dataset.tune) {
+      const ch = catalog.live?.byId.get(t.dataset.tune);
+      const gameId = nba.selected;
+      if (!ch) return;
+      go('live');
+      tune(ch);
+      nba.link = { chId: ch.id, gameId, manual: true };
+      nba.sum = null;
+      sumTick();
+      drawLiveGame();
+    }
+  });
+  const changeDay = (d) => { nba.offset += d; nba.other = []; nba.selected = null; nba.loadingOther = !!nba.offset; drawNba(); refreshOther(); };
+  $('#nbaPrev').onclick = () => changeDay(-1);
+  $('#nbaNext').onclick = () => changeDay(1);
+  $('#nbaDay').onclick = () => { nba.offset = 0; nba.selected = null; drawNba(); };
 
   // ======================================================================
   // Updates

@@ -9,7 +9,7 @@
     del(k) { try { localStorage.removeItem('tuner.' + k); } catch {} },
   };
 
-  const DEFAULTS = { liveFormat: 'hls', ua: '', scale: 'standard', player: 'mpv' };
+  const DEFAULTS = { liveFormat: 'hls', ua: '', scale: 'standard', player: 'mpv', nbaTeam: 'MEM' };
   const settings = () => ({ ...DEFAULTS, ...store.get('settings', {}) });
   const saveSettings = (patch) => { const s = { ...settings(), ...patch }; store.set('settings', s); return s; };
 

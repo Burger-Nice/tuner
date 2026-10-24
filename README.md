@@ -14,6 +14,12 @@ Movies, episodes and full-screen TV play in **mpv**, which comes bundled with th
 
 You can switch back to the simpler built-in player under **Account → Playback**.
 
+## NBA
+
+The **NBA** tab has every game for the day with live scores, plus the full box score, team stats and play-by-play for each one. **Find on TV** searches your channels for the game. Your team (Memphis by default; change it under **Account**) is pinned on top, and Tuner lets you know when they tip off.
+
+While you watch live TV, Tuner works out which game is on from the channel name or the guide. It then shows a score bug on the picture and a box score under it. If it guesses wrong, pick the right game from the menu on that card. In full-screen TV, press **G** for the score. Scores come from ESPN and update every 10–15 seconds.
+
 ## Run from source
 
 Install Node.js (LTS), then in this folder run `npm install` (on Windows this downloads mpv too) and `npm start`. `npm run dist` builds the Windows installer into `dist/`.
@@ -52,6 +58,7 @@ Plain HTML, CSS and JavaScript in an Electron window. No frameworks, so it stays
 
 - `app/core.js`: Xtream Codes API, M3U parsing and storage. No UI code, so it can be reused for a TV version.
 - `app/player.js`: playback. Tries HLS (hls.js), then MPEG-TS (mpegts.js), then the built-in player.
+- `app/nba.js`: live NBA scores, box scores and play-by-play from ESPN, and matching channels to games.
 - `app/nav.js`: remote-control style arrow-key navigation, with TV remote key codes for Samsung, LG and Android TV.
 - `app/app.js`, `app/index.html`, `app/styles.css`: the interface.
 - `main.js`, `preload.js`: the desktop window and request headers.

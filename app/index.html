@@ -13,6 +13,7 @@
 <script src="core.js"></script>
 <script src="player.js"></script>
 <script src="nav.js"></script>
+<script src="nba.js"></script>
 </head>
 <body>
 
@@ -64,6 +65,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="15.5" height="12" rx="2"/><path d="M2.5 7v12a2 2 0 0 0 2 2H17"/><path d="m12 6.5 4 2-4 2z" fill="currentColor"/></svg>
       <span>Series</span>
     </button>
+    <button class="nav" data-view="nba" title="NBA scores">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 2.5v19M2.5 12h19M5.3 5.3c3.2 3.4 3.2 10 0 13.4M18.7 5.3c-3.2 3.4-3.2 10 0 13.4"/></svg>
+      <span>NBA</span><i class="nav-live" id="nbaNavLive" hidden></i>
+    </button>
     <button class="nav" data-view="favs" title="Favorites">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg>
       <span>Saved</span>
@@ -95,6 +100,7 @@
           <div class="osd-body"><div class="osd-name" id="osdName"></div><div class="osd-prog" id="osdProg"></div></div>
         </div>
         <div class="digits" id="digits" hidden></div>
+        <div class="bug" id="scoreBug" hidden></div>
         <div class="stage-msg" id="liveMsg">
           <div><h3 id="liveMsgTitle">Pick a channel</h3><p id="liveMsgText">Choose one from the list, or press ↓ to start from the top.</p><div class="row" id="liveMsgActions"></div></div>
         </div>
@@ -110,6 +116,7 @@
           <button class="ib" id="lFull" title="Full screen (F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
         </div>
       </div>
+      <div class="game-card" id="gameCard" hidden></div>
       <div class="now-card" id="nowCard" hidden>
         <div class="now-head">
           <span class="logo lg" id="nowLogo"></span>
@@ -168,6 +175,22 @@
       </div>
       <div class="lib-scroll" id="seriesScroll"><div class="grid" id="seriesGrid"></div></div>
     </div>
+  </section>
+
+  <!-- NBA -->
+  <section class="view nba" id="view-nba" hidden>
+    <div class="col nba-list-col">
+      <div class="col-head">
+        <h2 class="view-title">NBA</h2>
+        <div class="day-nav">
+          <button class="ib" id="nbaPrev" title="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 5 8 12l7 7"/></svg></button>
+          <button class="day-label" id="nbaDay">Today</button>
+          <button class="ib" id="nbaNext" title="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 5 7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      <div class="nba-games" id="nbaGames"></div>
+    </div>
+    <div class="nba-detail" id="nbaDetail"></div>
   </section>
 
   <section class="view page" id="view-favs" hidden><div class="page-inner" id="favsPage"></div></section>

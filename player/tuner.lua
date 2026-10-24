@@ -42,6 +42,9 @@ if mode == "live" then
     end)
   end
 
+  -- G shows the score of the NBA game on this channel; Tuner answers with show-text.
+  mp.add_forced_key_binding("g", "tuner-game", function() mp.commandv("script-message", "tuner-game") end)
+
   mp.register_event("file-loaded", function() mp.osd_message(mp.get_property("media-title", ""), 3) end)
   mp.register_event("end-file", function(e)
     if e.reason == "error" then mp.osd_message("Channel not available, skipping", 3) end

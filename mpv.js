@@ -165,6 +165,8 @@ class Mpv {
         st.error = msg.file_error ? `mpv could not open the stream (${msg.file_error}).` : 'mpv could not open the stream.';
         this.emit({ type: 'failed', session: st.session, error: st.error });
       }
+    } else if (msg.event === 'client-message' && msg.args?.[0] === 'tuner-game') {
+      this.emit({ type: 'game', session: st.session });
     } else if (msg.request_id === 7 && typeof msg.data === 'number') {
       st.index = msg.data;
       st.loaded = true;
