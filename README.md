@@ -20,6 +20,8 @@ The **NBA** tab has every game for the day with live scores, plus the full box s
 
 While you watch live TV, Tuner works out which game is on from the channel name or the guide. It then shows a score bug on the picture and a box score under it. If it guesses wrong, pick the right game from the menu on that card. In full-screen TV, press **G** for the score. Scores come from ESPN and update every 10–15 seconds.
 
+IPTV streams run behind the real game, so the score bug can spoil a play. Set **Account → Score delay on live TV** to hold the score back to match your stream. The NBA tab always shows real time.
+
 ## Run from source
 
 Install Node.js (LTS), then in this folder run `npm install` (on Windows this downloads mpv too) and `npm start`. `npm run dist` builds the Windows installer into `dist/`.

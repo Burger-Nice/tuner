@@ -581,7 +581,7 @@
     if (e.type === 'game' && ctx.kind === 'live') {
       const ch = ctx.items[ctx.index];
       const g = (nba.link?.chId === ch?.id && gameById(nba.link.gameId)) || NBA.matchGame(ch?.name, nba.today);
-      native.mpv.command(['show-text', g ? scoreLine(g) : 'No NBA game found for this channel', 6000]);
+      native.mpv.command(['show-text', g ? scoreLine(delayed(g).g) : 'No NBA game found for this channel', 6000]);
       return;
     }
     if (e.type === 'track') {
@@ -590,7 +590,7 @@
       if (ctx.kind === 'live' && it) {
         autoLink(it, it.name);
         const g = linkedGameFor(it);
-        if (g && g.state !== 'pre') native.mpv.command(['show-text', `${it.num} · ${it.name}\n${scoreLine(g)}`, 4000]);
+        if (g && g.state !== 'pre') native.mpv.command(['show-text', `${it.num} · ${it.name}\n${scoreLine(delayed(g).g)}`, 4000]);
       }
       if (it) $('#coverTitle').textContent = it.kind === 'live' ? `${it.num} · ${it.name}` : it.kind === 'episode' ? `${it.seriesName} · S${it.season} E${it.ep}` : it.name;
     } else if (e.type === 'progress' && ctx.kind === 'vod') {
@@ -1139,6 +1139,11 @@
             <select id="setTeam">${[...NBA.TEAMS].sort((a, b) => a.city.localeCompare(b.city)).map((t) => `<option value="${t.abbr}">${esc(t.city === 'LA' || t.city === 'Los Angeles' ? 'Los Angeles' : t.city)} ${esc(t.name)}</option>`).join('')}</select>
             <span class="hint">Their games stay pinned at the top, and Tuner tells you when they tip off. Scores come from ESPN.</span>
           </div>
+          <div class="field">
+            <label for="setDelay">Score delay on live TV</label>
+            <select id="setDelay">${[[0, 'Off (real time)'], [15, '15 seconds'], [30, '30 seconds'], [45, '45 seconds'], [60, '1 minute'], [90, '1.5 minutes'], [120, '2 minutes']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+            <span class="hint">IPTV streams usually run 20–60 seconds behind the real game. Hold the score bug back so it doesn’t spoil a play before you see it. Tip: when a basket happens on your stream, see how long the score bug took to show it.</span>
+          </div>
         </div>
         <div class="card">
           <h4>Tuner ${esc(appVersion)}</h4>
@@ -1166,6 +1171,8 @@
       </div>`;
     $('#setPlayer').value = mpvOk ? s.player || 'mpv' : 'builtin';
     $('#setPlayer').onchange = (e) => { saveSettings({ player: e.target.value }); toast('Saved'); };
+    $('#setDelay').value = String(+s.scoreDelay || 0);
+    $('#setDelay').onchange = (e) => { saveSettings({ scoreDelay: +e.target.value }); toast(+e.target.value ? `Scores on live TV now run ${e.target.value} seconds behind` : 'Scores on live TV are real time'); };
     $('#setTeam').value = favTeam();
     $('#setTeam').onchange = (e) => { saveSettings({ nbaTeam: e.target.value }); nba.today = sortGames(nba.today); onNba(); toast('Saved'); };
     $('#setFormat').value = s.liveFormat;
@@ -1194,7 +1201,7 @@
     started: false, today: [], todayDay: '', offset: 0, other: [], err: '',
     selected: null, sum: null, sumErr: '', tab: 'away', gcTab: 'away',
     link: null, // { chId, gameId, manual } — which game the live channel is showing
-    timer: 0, otherTimer: 0, sumTimer: 0, alerted: new Set(), watchFor: null,
+    timer: 0, otherTimer: 0, sumTimer: 0, alerted: new Set(), watchFor: null, hist: new Map(), shownKey: null,
   };
   const favTeam = () => settings().nbaTeam || 'MEM';
   const isFav = (g) => g.home.abbr === favTeam() || g.away.abbr === favTeam();
@@ -1215,6 +1222,16 @@
     }
     return '#8a92a5';
   }
+
+  // Broadcast-style block colors: the team color that reads as a solid fill, with legible text on it.
+  function palette(t) {
+    const lum = (c) => { const n = parseInt(c.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
+    const cands = [t.color, t.alt].filter((c) => /^#[0-9a-f]{6}$/i.test(c || ''));
+    const bg = cands.find((c) => lum(c) > 0.1 && lum(c) < 0.8) || cands[0] || '#283040';
+    return { bg, fg: lum(bg) > 0.6 ? '#0b0d11' : '#ffffff' };
+  }
+  const teamVars = (t) => { const p = palette(t); return `--tb:${p.bg};--tf:${p.fg};--tc:${teamColor(t)}`; };
+  const gameVars = (g) => `--away:${teamColor(g.away)};--home:${teamColor(g.home)};--away-b:${palette(g.away).bg};--home-b:${palette(g.home).bg}`;
 
   function sortGames(list) {
     const rank = (g) => (isFav(g) ? 0 : g.state === 'in' ? 1 : g.state === 'pre' ? 2 : 3);
@@ -1271,6 +1288,7 @@
       toast(`${me.name} are live: ${fav.away.abbr} ${fav.away.score} – ${fav.home.score} ${fav.home.abbr} · ${statusText(fav)}`, 6000);
     }
     if (S.live.current && !nba.link) autoLink(S.live.current, `${S.live.current.name} ${epgNow}`);
+    if (nba.link?.gameId) remember(gameById(nba.link.gameId));
     if (view === 'nba') drawNba();
     drawLiveGame();
   }
@@ -1303,6 +1321,7 @@
           nba.sum = s;
           nba.sumErr = '';
           mergeGame(s.game);
+          if (nba.link?.gameId === id) remember(gameById(id));
           if (view === 'nba') drawNba();
           drawLiveGame();
         }
@@ -1340,14 +1359,14 @@
   }
 
   function bugHtml(g) {
-    const t = (side) => `<span class="t">${tlogo(g[side], 'sm')}${esc(g[side].abbr)} <span class="s${loser(g, side) ? ' lose' : ''}">${esc(g[side].score)}</span></span>`;
+    const t = (side) => `<span class="t" style="${teamVars(g[side])}">${tlogo(g[side], 'sm')}<b>${esc(g[side].abbr)}</b><span class="s">${esc(g[side].score)}</span></span>`;
     return `${t('away')}${t('home')}<span class="st${g.state === 'post' ? ' done' : ''}">${esc(statusText(g))}</span>`;
   }
 
   function linesTable(g) {
     const n = Math.max(4, g.away.lines.length, g.home.lines.length);
     const head = Array.from({ length: n }, (_, i) => `<th>${i < 4 ? i + 1 : ordinal(i + 1)}</th>`).join('');
-    const row = (side) => `<tr><td>${tlogo(g[side], 'sm')} ${esc(g[side].abbr)}</td>${Array.from({ length: n }, (_, i) => `<td>${esc(g[side].lines[i] ?? '')}</td>`).join('')}<td class="tot">${esc(g[side].score)}</td></tr>`;
+    const row = (side) => `<tr class="trow-c" style="${teamVars(g[side])}"><td>${tlogo(g[side], 'sm')} ${esc(g[side].abbr)}</td>${Array.from({ length: n }, (_, i) => `<td>${esc(g[side].lines[i] ?? '')}</td>`).join('')}<td class="tot">${esc(g[side].score)}</td></tr>`;
     return `<div class="tbl-wrap"><table class="stat lines"><tr><th></th>${head}<th class="tot">T</th></tr>${row('away')}${row('home')}</table></div>`;
   }
 
@@ -1367,12 +1386,14 @@
     const dnp = compact ? '' : team.players.filter((p) => p.dnp).map((p) => `<tr class="dnp"><td>${esc(p.name)}<span class="pos">${esc(p.pos)}</span></td><td colspan="${idx.length}">${esc(p.reason ? p.reason.charAt(0) + p.reason.slice(1).toLowerCase() : 'Did not play')}</td></tr>`).join('');
     const sub = (label) => `<tr class="sub"><td colspan="${idx.length + 1}">${label}</td></tr>`;
     const totals = team.totals.length ? `<tr class="tot"><td>Team</td>${idx.map((i) => `<td>${esc(team.totals[i] ?? '')}</td>`).join('')}</tr>` : '';
-    return `<div class="tbl-wrap"><table class="stat"><tr><th>${compact ? '' : 'Starters'}</th>${idx.map((i) => `<th>${esc(team.labels[i])}</th>`).join('')}</tr>${rows(starters)}${bench.length ? sub('Bench') + rows(bench) : ''}${totals}${dnp}</table></div>`;
+    const side = s.game.home.abbr === abbr ? s.game.home : s.game.away;
+    return `<div class="tbl-wrap" style="${teamVars(side)}"><table class="stat box"><tr><th>${compact ? '' : 'Starters'}</th>${idx.map((i) => `<th>${esc(team.labels[i])}</th>`).join('')}</tr>${rows(starters)}${bench.length ? sub('Bench') + rows(bench) : ''}${totals}${dnp}</table></div>`;
   }
 
   function playsHtml(s, limit) {
     if (!s.plays.length) return '<div class="epg-empty">No plays yet.</div>';
-    return `<div class="plays">${s.plays.slice(0, limit).map((p) => `<div class="play${p.scoring ? ' scoring' : ''}"><span class="ck">${esc(ordinal(p.period))} ${esc(p.clock)}</span><span class="tm">${esc(p.team)}</span><span class="tx">${esc(p.text)}</span><span class="sco">${esc(p.away ?? '')}–${esc(p.home ?? '')}</span></div>`).join('')}</div>`;
+    const sideOf = (abbr) => (s.game.home.abbr === abbr ? s.game.home : s.game.away.abbr === abbr ? s.game.away : null);
+    return `<div class="plays">${s.plays.slice(0, limit).map((p) => `<div class="play${p.scoring ? ' scoring' : ''}"><span class="ck">${esc(ordinal(p.period))} ${esc(p.clock)}</span><span class="tm"${sideOf(p.team) ? ` style="${teamVars(sideOf(p.team))}"` : ''}>${esc(p.team)}</span><span class="tx">${esc(p.text)}</span><span class="sco">${esc(p.away ?? '')}–${esc(p.home ?? '')}</span></div>`).join('')}</div>`;
   }
 
   const TEAM_STATS = [
@@ -1392,12 +1413,48 @@
     }).join('')}</div>`;
   }
 
+  // ---------- score delay ----------
+  // IPTV streams run behind the real game. Keep a short history of each watched game and show the
+  // state from `scoreDelay` seconds ago, so the score bug never spoils a play before you see it.
+  const delayMs = () => (+settings().scoreDelay || 0) * 1000;
+  function remember(g) {
+    if (!g) return;
+    let h = nba.hist.get(g.id);
+    if (!h) nba.hist.set(g.id, (h = []));
+    const s = nba.sum?.game.id === g.id ? nba.sum : null;
+    const last = h[h.length - 1];
+    const snap = JSON.stringify([g.state, g.detail, g.home.score, g.away.score, s?.plays[0]?.text, s?.plays.length]);
+    if (last && last.key === snap) return;
+    h.push({ t: Date.now(), key: snap, g: JSON.parse(JSON.stringify(g)), s });
+    const cutoff = Date.now() - delayMs() - 60000;
+    while (h.length > 2 && h[1].t < cutoff) h.shift();
+  }
+  // The game (and its box score) as it should look right now on a stream that is `scoreDelay` behind.
+  function delayed(g) {
+    const live = { g, s: g && nba.sum?.game.id === g.id ? nba.sum : null };
+    const d = delayMs();
+    const h = g && nba.hist.get(g.id);
+    if (!d || !h?.length || g.state !== 'in') return live;
+    const target = Date.now() - d;
+    let pick = h[0];
+    for (const e of h) if (e.t <= target) pick = e;
+    return { g: pick.g, s: pick.s || live.s, key: pick.t };
+  }
+  const delayNote = () => (delayMs() ? `<span class="pill dim" title="Scores are held back to match your stream. Change under Account.">${settings().scoreDelay}s delay</span>` : '');
+  setInterval(() => {
+    if (!delayMs() || view !== 'live') return;
+    const g = linkedGame();
+    const k = g && delayed(g).key;
+    if (k !== nba.shownKey) { nba.shownKey = k; drawLiveGame(); }
+  }, 1000);
+
   // ---------- live TV: score bug + game card ----------
   function drawLiveGame() {
     const card = $('#gameCard'), bug = $('#scoreBug');
     const ch = S.live.current;
     if (view !== 'live' || !ch) { card.hidden = bug.hidden = true; return; }
-    const g = linkedGame();
+    const linked = linkedGame();
+    const { g, s } = delayed(linked);
     bug.hidden = !(g && g.state !== 'pre');
     if (!bug.hidden) bug.innerHTML = bugHtml(g);
     const live = nba.today.filter((x) => x.state === 'in');
@@ -1405,18 +1462,21 @@
     card.hidden = false;
     const picker = `<select data-relink title="Which game is on this channel?"><option value="">Not an NBA game</option>${nba.today.map((x) => `<option value="${x.id}"${g?.id === x.id ? ' selected' : ''}>${esc(x.away.abbr)} @ ${esc(x.home.abbr)} · ${esc(statusText(x))}</option>`).join('')}</select>`;
     if (!g) {
+      card.style.cssText = '';
+      card.classList.remove('linked');
       card.innerHTML = `<div class="gc-head"><span class="title"><span class="live-dot"></span>NBA live now</span>${picker}</div>
         <div class="gc-strip">${live.map((x) => `<button class="gc-chip" data-link="${x.id}">${tlogo(x.away, 'sm')}${esc(x.away.abbr)} ${esc(x.away.score)} – ${esc(x.home.score)} ${esc(x.home.abbr)}${tlogo(x.home, 'sm')}<small>${esc(statusText(x))}</small></button>`).join('')}</div>
         <span class="hint">Watching one of these? Pick it to see the box score here.</span>`;
       return;
     }
-    const s = nba.sum?.game.id === g.id ? nba.sum : null;
-    const tab = (id, label, logo) => `<button data-gctab="${id}" class="${nba.gcTab === id ? 'on' : ''}">${logo || ''}${label}</button>`;
+    const tab = (id, label, logo) => `<button data-gctab="${id}" class="${nba.gcTab === id ? 'on' : ''}${id === 'plays' ? '' : ' team'}"${id === 'plays' ? '' : ` style="${teamVars(g[id])}"`}>${logo || ''}${label}</button>`;
     let body;
     if (g.state === 'pre') body = `<div class="epg-empty">Tip-off at ${esc(tipTime(g))}${g.tv.length ? ' on ' + esc(g.tv.join(', ')) : ''}.</div>`;
     else if (!s) body = '<div class="loading-note"><div class="spinner"></div>Loading box score…</div>';
     else body = nba.gcTab === 'plays' ? playsHtml(s, 8) : boxHtml(s, nba.gcTab === 'home' ? g.home.abbr : g.away.abbr, true);
-    card.innerHTML = `<div class="gc-head"><span class="title">${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(g.away.name)} at ${esc(g.home.name)}</span>${picker}</div>
+    card.style.cssText = gameVars(g);
+    card.classList.add('linked');
+    card.innerHTML = `<div class="gc-head"><span class="title">${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(g.away.name)} at ${esc(g.home.name)}</span>${delayNote()}${picker}</div>
       ${linesTable(g)}
       <div class="tabs gc-tabs">${tab('away', g.away.abbr, tlogo(g.away, 'sm'))}${tab('home', g.home.abbr, tlogo(g.home, 'sm'))}${tab('plays', 'Plays')}<button data-open-game="${g.id}">Full box score</button></div>
       ${body}`;
@@ -1460,7 +1520,7 @@
   }
 
   function gameCardHtml(g) {
-    const row = (side) => `<span class="trow">${tlogo(g[side])}<span style="min-width:0"><div class="tn">${esc(g[side].name)}</div><div class="rec">${esc(g[side].record)}</div></span></span><span class="gsc${loser(g, side) ? ' lose' : ''}">${g.state === 'pre' ? '' : esc(g[side].score)}</span>`;
+    const row = (side) => `<span class="trow" style="${teamVars(g[side])}">${tlogo(g[side])}<span style="min-width:0"><div class="tn">${esc(g[side].name)}</div><div class="rec">${esc(g[side].record)}</div></span></span><span class="gsc${loser(g, side) ? ' lose' : ''}">${g.state === 'pre' ? '' : esc(g[side].score)}</span>`;
     const me = isFav(g) ? (g.home.abbr === favTeam() ? g.home : g.away) : null;
     return `<button class="gcard${g.state === 'in' ? ' live' : ''}${me ? ' fav' : ''}${nba.selected === g.id ? ' on' : ''}" data-g="${g.id}"${me ? ` style="--fav:${teamColor(me)}"` : ''}>
       ${row('away')}${row('home')}
@@ -1497,9 +1557,9 @@
     const team = (side) => `<div class="sb-team ${side}">${tlogo(g[side], 'lg')}<div><div class="nm">${esc(g[side].name)}</div><div class="rc">${esc(g[side].record)}${side === 'home' ? ' · Home' : ''}</div></div><div class="big${loser(g, side) ? ' lose' : ''}">${g.state === 'pre' ? '' : esc(g[side].score)}</div></div>`;
     const leaders = ['PTS', 'REB', 'AST'].map((k) => {
       const a = g.away.leaders.find((l) => l.stat === k), h = g.home.leaders.find((l) => l.stat === k);
-      return a || h ? `<span class="k">${k}</span><span class="v">${a ? `<b>${esc(a.value)}</b>${esc(a.who)}` : ''}</span><span class="v">${h ? `<b>${esc(h.value)}</b>${esc(h.who)}` : ''}</span>` : '';
+      return a || h ? `<span class="k">${k}</span><span class="v" style="${teamVars(g.away)}">${a ? `<b>${esc(a.value)}</b>${esc(a.who)}` : ''}</span><span class="v" style="${teamVars(g.home)}">${h ? `<b>${esc(h.value)}</b>${esc(h.who)}` : ''}</span>` : '';
     }).join('');
-    const tab = (id, label, logo) => `<button data-ntab="${id}" class="${nba.tab === id ? 'on' : ''}">${logo || ''}${label}</button>`;
+    const tab = (id, label, logo) => `<button data-ntab="${id}" class="${nba.tab === id ? 'on' : ''}${g[id] ? ' team' : ''}"${g[id] ? ` style="${teamVars(g[id])}"` : ''}>${logo || ''}${label}</button>`;
     let body;
     if (g.state === 'pre') body = '<div class="epg-empty">The box score fills in once the game starts.</div>';
     else if (!s) body = nba.sumErr ? `<div class="epg-empty">${esc(nba.sumErr)}</div>` : '<div class="loading-note"><div class="spinner"></div>Loading box score…</div>';
@@ -1508,7 +1568,7 @@
     else body = `<div class="panel">${boxHtml(s, nba.tab === 'home' ? g.home.abbr : g.away.abbr, false)}</div>`;
 
     box.innerHTML = `
-      <div class="sb-hero" style="--away:${teamColor(g.away)};--home:${teamColor(g.home)}">
+      <div class="sb-hero" style="${gameVars(g)}">
         ${team('away')}
         <div class="sb-mid">
           <div class="st${g.state === 'in' ? ' live' : ''}">${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(g.state === 'pre' ? `${new Date(g.date).toLocaleDateString([], { weekday: 'short' })} ${tipTime(g)}` : statusText(g))}</div>
