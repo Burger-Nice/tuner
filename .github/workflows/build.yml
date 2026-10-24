@@ -3,6 +3,7 @@ name: Build Windows installer
 on:
   push:
     branches: [main]
+    paths-ignore: ['scripts/nba-probe.js', '.github/workflows/nba-probe.yml']
   workflow_dispatch:
 
 permissions:
