@@ -1,0 +1,113 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tuner logo concepts</title>
+<style>
+  body { margin: 0; background: #07080b; color: #e9ecf2; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; }
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; padding: 40px; }
+  .c { background: #0d0f14; border: 1px solid #1c2029; border-radius: 22px; padding: 30px 28px 26px; display: flex; flex-direction: column; gap: 26px; align-items: center; }
+  .label { align-self: stretch; display: flex; justify-content: space-between; font: 600 12px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; color: #6b7387; text-transform: uppercase; }
+  .label b { color: #e9ecf2; }
+  .icon { width: 230px; height: 230px; border-radius: 52px; overflow: hidden; box-shadow: 0 30px 60px #000c, 0 0 0 1px #ffffff12; }
+  .lock { height: 64px; }
+  .smalls { display: flex; gap: 22px; align-items: end; }
+  .smalls div { display: flex; flex-direction: column; align-items: center; gap: 8px; font: 11px ui-monospace, monospace; color: #6b7387; }
+  .s48 { width: 48px; height: 48px; border-radius: 11px; overflow: hidden; }
+  .s32 { width: 32px; height: 32px; border-radius: 7px; overflow: hidden; }
+  .s16 { width: 16px; height: 16px; border-radius: 4px; overflow: hidden; }
+  .note { color: #8a92a5; font-size: 13px; text-align: center; max-width: 330px; }
+  svg { display: block; width: 100%; height: 100%; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- Custom condensed wordmark, cap height 100 -->
+    <g id="word">
+      <path d="M0 0H58V22H40V100H18V22H0Z"/>
+      <path transform="translate(66 0)" d="M0 0H22V70Q22 79 29 79Q36 79 36 70V0H58V72Q58 100 29 100Q0 100 0 72Z"/>
+      <path transform="translate(132 0)" d="M0 100V0H21L37 50V0H58V100H37L21 50V100Z"/>
+      <path transform="translate(198 0)" d="M0 0H54V21H22V40H48V60H22V79H54V100H0Z"/>
+      <path transform="translate(260 0)" fill-rule="evenodd" d="M0 0H34Q58 0 58 28Q58 47 44 54L60 100H36L23 59H22V100H0ZM22 20V40H31Q36 40 36 30Q36 20 31 20Z"/>
+    </g>
+
+    <!-- 1 RIBBON -->
+    <linearGradient id="rStem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4b3a"/><stop offset="1" stop-color="#e3121f"/></linearGradient>
+    <linearGradient id="rArm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c40d18"/><stop offset="1" stop-color="#8f0a12"/></linearGradient>
+    <linearGradient id="rShadeL" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+    <linearGradient id="rShadeR" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+    <radialGradient id="bgGlowR" cx=".5" cy=".42" r=".7"><stop offset="0" stop-color="#2a0b0e"/><stop offset=".6" stop-color="#0b0b0f"/><stop offset="1" stop-color="#050507"/></radialGradient>
+    <g id="ribbonT">
+      <path d="M14 20H50V44H20Z" fill="url(#rArm)"/>
+      <path d="M86 20H50V44H80Z" fill="url(#rArm)"/>
+      <rect x="27" y="20" width="12" height="24" fill="url(#rShadeL)"/>
+      <rect x="61" y="20" width="12" height="24" fill="url(#rShadeR)"/>
+      <path d="M39 14H61V82L39 89Z" fill="url(#rStem)"/>
+      <path d="M39 82L61 82L39 89Z" fill="#000" opacity=".18"/>
+      <path d="M39 14H61V20H39Z" fill="#fff" opacity=".12"/>
+    </g>
+
+    <!-- 2 SIGNAL -->
+    <radialGradient id="dot" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#ff8a7a"/><stop offset=".5" stop-color="#ff3b30"/><stop offset="1" stop-color="#c3121c"/></radialGradient>
+    <radialGradient id="dotGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff3b30" stop-opacity=".7"/><stop offset="1" stop-color="#ff3b30" stop-opacity="0"/></radialGradient>
+    <linearGradient id="sBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#181b24"/><stop offset="1" stop-color="#08090c"/></linearGradient>
+    <g id="signalT">
+      <circle cx="50" cy="33" r="20" fill="url(#dotGlow)"/>
+      <path d="M36.14 25A16 16 0 0 1 63.86 25" fill="none" stroke="#f2f4f8" stroke-width="5.5" stroke-linecap="round" opacity=".6"/>
+      <path d="M27.48 20A26 26 0 0 1 72.52 20" fill="none" stroke="#f2f4f8" stroke-width="5.5" stroke-linecap="round" opacity=".28"/>
+      <rect x="20" y="45" width="60" height="15" rx="4" fill="#f2f4f8"/>
+      <rect x="41" y="45" width="18" height="43" rx="4" fill="#f2f4f8"/>
+      <circle cx="50" cy="33" r="8" fill="url(#dot)"/>
+    </g>
+
+    <!-- 3 SCANLINE -->
+    <linearGradient id="scan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb23e"/><stop offset=".45" stop-color="#ff3b30"/><stop offset="1" stop-color="#c2185b"/></linearGradient>
+    <clipPath id="tShape"><path d="M12 14H88V40H63V88H37V40H12Z"/></clipPath>
+    <g id="scanT">
+      <g clip-path="url(#tShape)">
+        <rect x="0" y="0" width="100" height="100" fill="url(#scan)"/>
+        <g fill="#07080b">
+          <rect x="0" y="22" width="100" height="2.2"/><rect x="0" y="30" width="100" height="2.2"/><rect x="0" y="48" width="100" height="2.2"/>
+          <rect x="0" y="56" width="100" height="2.2"/><rect x="0" y="64" width="100" height="2.2"/><rect x="0" y="72" width="100" height="2.2"/><rect x="0" y="80" width="100" height="2.2"/>
+        </g>
+      </g>
+      <path d="M12 14H88V17H12Z" fill="#fff" opacity=".35"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="board">
+  <!-- 1 -->
+  <div class="c">
+    <div class="label"><b>01 · Ribbon</b><span>Recommended</span></div>
+    <div class="icon"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#bgGlowR)"/><use href="#ribbonT"/></svg></div>
+    <svg class="lock" viewBox="-6 -6 470 112"><g transform="translate(0 0)"><use href="#ribbonT" transform="translate(-14 -14) scale(1.25)"/></g><g transform="translate(118 0)" fill="#f2f4f8"><use href="#word"/></g></svg>
+    <div class="smalls">
+      <div><span class="s48"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#bgGlowR)"/><use href="#ribbonT"/></svg></span>48</div>
+      <div><span class="s32"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#bgGlowR)"/><use href="#ribbonT"/></svg></span>32</div>
+      <div><span class="s16"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#bgGlowR)"/><use href="#ribbonT"/></svg></span>16</div>
+    </div>
+    <div class="note">A folded-ribbon T. The stem sits on top of the arms and casts a shadow, the way Netflix’s N folds. Broadcast red on black.</div>
+  </div>
+  <!-- 2 -->
+  <div class="c">
+    <div class="label"><b>02 · Signal</b><span>On air</span></div>
+    <div class="icon"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#sBg)"/><use href="#signalT"/></svg></div>
+    <svg class="lock" viewBox="-6 -6 470 112"><use href="#signalT" transform="translate(-14 -10) scale(1.2)"/><g transform="translate(118 0)" fill="#f2f4f8"><use href="#word"/></g></svg>
+    <div class="smalls">
+      <div><span class="s48"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#sBg)"/><use href="#signalT"/></svg></span>48</div>
+      <div><span class="s32"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#sBg)"/><use href="#signalT"/></svg></span>32</div>
+      <div><span class="s16"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#sBg)"/><use href="#signalT"/></svg></span>16</div>
+    </div>
+    <div class="note">The T becomes a transmitter: the red “on air” light sits on top, with the signal radiating out. Ties into the red dot already in the app.</div>
+  </div>
+  <!-- 3 -->
+  <div class="c">
+    <div class="label"><b>03 · Scanline</b><span>Retro-modern</span></div>
+    <div class="icon"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#07080b"/><use href="#scanT"/></svg></div>
+    <svg class="lock" viewBox="-6 -6 470 112"><use href="#scanT" transform="translate(-14 -14) scale(1.25)"/><g transform="translate(118 0)" fill="#f2f4f8"><use href="#word"/></g></svg>
+    <div class="smalls">
+      <div><span class="s48"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#07080b"/><use href="#scanT"/></svg></span>48</div>
+      <div><span class="s32"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#07080b"/><use href="#scanT"/></svg></span>32</div>
+      <div><span class="s16"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#07080b"/><use href="#scanT"/></svg></span>16</div>
+    </div>
+    <div class="note">A heavy T cut into CRT scanlines, with a sunset gradient from amber to red to magenta. Loud, and unmistakable in a taskbar.</div>
+  </div>
+</div>
+</body></html>
