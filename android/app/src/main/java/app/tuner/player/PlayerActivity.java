@@ -143,6 +143,8 @@ public class PlayerActivity extends AppCompatActivity {
         view.setShowNextButton(!live && urls.length > 1);
         view.setShowPreviousButton(false);
         view.setShowSubtitleButton(true);
+        // The controls come up when asked for (up/OK), so down always reaches subtitles & audio.
+        view.setControllerAutoShow(false);
         view.setKeepScreenOn(true);
         styleSubtitles(view.getSubtitleView());
         root.addView(view, new FrameLayout.LayoutParams(-1, -1));
@@ -391,7 +393,7 @@ public class PlayerActivity extends AppCompatActivity {
             bg.setColor(0xEB0B0D11);
             bg.setCornerRadius(dp(20));
             stats.setBackground(bg);
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(360), -2, Gravity.END | Gravity.CENTER_VERTICAL);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(400), -2, Gravity.END | Gravity.CENTER_VERTICAL);
             lp.setMargins(dp(28), dp(28), dp(28), dp(28));
             ((FrameLayout) view.getParent()).addView(stats, lp);
         }
@@ -412,16 +414,16 @@ public class PlayerActivity extends AppCompatActivity {
         if (stats == null || statsData == null) return;
         stats.removeAllViews();
         JSONObject d = statsData;
-        stats.addView(text(d.optString("score"), 21, Color.WHITE, true));
+        stats.addView(text(d.optString("score"), 23, Color.WHITE, true));
         String note = d.optString("note");
-        if (!note.isEmpty()) stats.addView(text(note, 12, 0x99FFFFFF, false));
+        if (!note.isEmpty()) stats.addView(text(note, 13, 0x99FFFFFF, false));
 
         LinearLayout tabs = new LinearLayout(this);
         tabs.setPadding(0, dp(12), 0, dp(8));
         for (int k = 0; k < 2; k++) {
             JSONObject t = d.optJSONObject(k == 0 ? "away" : "home");
             if (t == null) continue;
-            TextView tab = text(t.optString("abbr"), 15, k == statsTeam ? Color.WHITE : 0x80FFFFFF, true);
+            TextView tab = text(t.optString("abbr"), 16, k == statsTeam ? Color.WHITE : 0x80FFFFFF, true);
             tab.setPadding(dp(14), dp(5), dp(14), dp(5));
             if (k == statsTeam) {
                 GradientDrawable pill = new GradientDrawable();
@@ -433,7 +435,7 @@ public class PlayerActivity extends AppCompatActivity {
             lp.setMarginEnd(dp(8));
             tabs.addView(tab, lp);
         }
-        TextView switchHint = text("←/→", 12, 0x66FFFFFF, false);
+        TextView switchHint = text("←/→", 13, 0x80FFFFFF, false);
         switchHint.setPadding(dp(4), dp(6), 0, 0);
         tabs.addView(switchHint);
         stats.addView(tabs);
@@ -447,16 +449,16 @@ public class PlayerActivity extends AppCompatActivity {
             table.setColumnStretchable(0, true);
             table.setColumnShrinkable(0, true);
             String[] head = { "", "MIN", "PTS", "REB", "AST" };
-            table.addView(row(head, 11, 0x80FFFFFF, false));
+            table.addView(row(head, 12, 0x80FFFFFF, false));
             for (int i = 0; i < rows.length(); i++) {
                 JSONArray r = rows.optJSONArray(i);
                 String[] cells = new String[5];
                 for (int c = 0; c < 5; c++) cells[c] = r == null ? "" : r.optString(c, "");
-                table.addView(row(cells, 14, Color.WHITE, false));
+                table.addView(row(cells, 15, Color.WHITE, false));
             }
             stats.addView(table);
         }
-        TextView foot = text("OK or Back to close", 11, 0x66FFFFFF, false);
+        TextView foot = text("OK or Back to close", 12, 0x80FFFFFF, false);
         foot.setPadding(0, dp(10), 0, 0);
         stats.addView(foot);
     }
@@ -465,7 +467,7 @@ public class PlayerActivity extends AppCompatActivity {
         TableRow r = new TableRow(this);
         for (int c = 0; c < cells.length; c++) {
             TextView t = text(cells[c], sp, color, bold);
-            t.setPadding(c == 0 ? 0 : dp(10), dp(3), 0, dp(3));
+            t.setPadding(c == 0 ? 0 : dp(12), dp(2), 0, dp(2));
             if (c > 0) { t.setGravity(Gravity.END); t.setFontFeatureSettings("tnum"); }
             else { t.setSingleLine(true); t.setEllipsize(TextUtils.TruncateAt.END); }
             r.addView(t);
