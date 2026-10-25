@@ -87,8 +87,12 @@
 
 <!-- App -->
 <div class="shell" id="shell" hidden>
-  <nav class="rail">
+  <nav class="rail" data-nav="v-strict" data-nav-entry=".nav.on">
     <div class="rail-brand" title="Tuner"><svg class="mark" aria-hidden="true"><use href="#tuner-mark"/></svg><span class="tally" id="tally"></span></div>
+    <button class="nav tv-only" data-view="home" title="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11h13V9"/><path d="M10 20v-6h4v6"/></svg>
+      <span>Home</span>
+    </button>
     <button class="nav" data-view="live" title="Live TV">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="m8 2.5 4 3.5 4-3.5"/></svg>
       <span>Live</span>
@@ -116,16 +120,22 @@
     </button>
   </nav>
 
+  <!-- Home (TV) -->
+  <section class="view home" id="view-home" hidden>
+    <div class="tvhero" id="homeHero"></div>
+    <div class="home-rows" id="homeRows"></div>
+  </section>
+
   <!-- Live TV -->
   <section class="view live" id="view-live" data-p="chans" hidden>
-    <div class="col cats-col">
+    <div class="col cats-col" data-nav-entry=".cat.on">
       <div class="col-head"><h2 class="view-title">Live TV</h2></div>
       <div class="search"><input id="liveQ" type="search" placeholder="Search channels" spellcheck="false"></div>
-      <div class="cat-list" id="liveCats"></div>
+      <div class="cat-list" id="liveCats" data-nav="v"></div>
     </div>
     <div class="col chans-col">
       <div class="col-head small"><h3 id="liveTitle">All channels</h3><span class="count" id="liveCount"></span></div>
-      <div class="vlist" id="liveList"><div class="vinner" id="liveInner"></div></div>
+      <div class="vlist" id="liveList" data-nav="v"><div class="vinner" id="liveInner"></div></div>
     </div>
     <div class="col stage-col">
       <div class="stage" id="liveStage" tabindex="0">
@@ -170,10 +180,10 @@
 
   <!-- Movies -->
   <section class="view lib" id="view-movie" hidden>
-    <div class="col cats-col">
+    <div class="col cats-col" data-nav-entry=".cat.on">
       <div class="col-head"><h2 class="view-title">Movies</h2></div>
       <div class="search"><input id="movieQ" type="search" placeholder="Search movies" spellcheck="false"></div>
-      <div class="cat-list" id="movieCats"></div>
+      <div class="cat-list" id="movieCats" data-nav="v"></div>
     </div>
     <div class="lib-main">
       <div class="lib-head">
@@ -193,10 +203,10 @@
 
   <!-- Series -->
   <section class="view lib" id="view-series" hidden>
-    <div class="col cats-col">
+    <div class="col cats-col" data-nav-entry=".cat.on">
       <div class="col-head"><h2 class="view-title">Series</h2></div>
       <div class="search"><input id="seriesQ" type="search" placeholder="Search series" spellcheck="false"></div>
-      <div class="cat-list" id="seriesCats"></div>
+      <div class="cat-list" id="seriesCats" data-nav="v"></div>
     </div>
     <div class="lib-main">
       <div class="lib-head">

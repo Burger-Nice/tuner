@@ -16,6 +16,8 @@ Then sign in with the server address, username and password from your provider. 
 
 Tuner then appears on the home screen. It updates itself: when a new version is out it offers **Update**, downloads it and asks the TV to install it.
 
+The TV version opens on a Home screen (Google TV / Netflix style): the NBA games, then your channels, recently watched, your list and what's new. The menu on the left opens when you move into it. The guide previews whatever channel you're on, and **OK** watches it. The on-screen keyboard only comes up when you press **OK** on a search or text box.
+
 On the TV every channel plays in the built-in ExoPlayer engine at the TV's full resolution, 4K and HDR included. **↑/↓** or the channel buttons change channel, number keys jump to a channel, **OK** shows the channel, picture quality (e.g. *4K HDR*) and the NBA score, and **Back** returns to the guide.
 
 ## On your iPhone
@@ -32,9 +34,9 @@ You can switch back to the simpler built-in player under **Account → Playback*
 
 The **NBA** tab has every game for the day with live scores, plus the full box score, team stats and play-by-play for each one. **Find on TV** searches your channels for the game. Your team (Memphis by default; change it under **Account**) is pinned on top, and Tuner lets you know when they tip off.
 
-While you watch live TV, Tuner works out which game is on from the channel name or the guide. It then shows a score bug on the picture and a box score under it. If it guesses wrong, pick the right game from the menu on that card. In full-screen TV, press **G** for the score. Scores come from ESPN and update every 10–15 seconds.
+While you watch live TV, Tuner works out which game is on from the channel name or the guide, and shows its box score next to the channel. If it guesses wrong, pick the right game from the menu on that card. The picture itself stays clean: in full-screen TV, press **G** (or **OK** on the TV remote) when you want the score. If you'd rather keep a score bug in the corner, turn on **Account → Score on the picture**. Scores come from ESPN and update every 10–15 seconds.
 
-IPTV streams run behind the real game, so the score bug can spoil a play. Set **Account → Score delay on live TV** to hold the score back to match your stream. The NBA tab always shows real time.
+IPTV streams run behind the real game, so the score can spoil a play. Set **Account → Score delay on live TV** to hold the score back to match your stream. The NBA tab always shows real time.
 
 ## Run from source
 
@@ -83,4 +85,4 @@ Plain HTML, CSS and JavaScript in an Electron window. No frameworks, so it stays
 - `scripts/fetch-mpv.js`: downloads the Windows build of mpv.
 - `ios/`, `android/`: the iPhone and Android/Google TV apps (Capacitor). `android/.../PlayerActivity.java` is the TV player (Media3/ExoPlayer).
 - `tests/`: a fake IPTV provider with recorded NBA data, and scripts that drive the iPhone simulator and Android TV emulator on CI.
-- `.github/workflows/build.yml`: builds and tests Windows, iPhone and Android on every push, then publishes one release with all three.
+- `.github/workflows/build.yml`: builds and tests Windows, iPhone and Android on every push. The PC and TV apps are published as soon as they're built; the iPhone app is added to the same release when its (slower) build finishes.

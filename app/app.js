@@ -8,7 +8,8 @@
   // `window.tuner` interface the desktop app gets from preload.js, so the rest of the code is shared.
   const CAP = window.Capacitor;
   const ANDROID = CAP?.getPlatform?.() === 'android';
-  let TV = false;
+  let TV = /[?&]tv\b/.test(location.search) || (() => { try { return localStorage.getItem('tuner.forceTv') === 'true'; } catch { return false; } })();
+  if (TV) document.documentElement.classList.add('tv');
   if (ANDROID && !window.tuner && CAP.registerPlugin) {
     const TP = CAP.registerPlugin('TunerPlayer');
     const AppPlugin = CAP.registerPlugin('App');
@@ -42,6 +43,7 @@
       setUserAgent: () => {},
       openExternalPlayer: async () => false,
       version: async () => (await ready).version,
+      ready,
       updates: {
         status: async () => ustatus,
         check: ucheck,
@@ -132,7 +134,7 @@
     $('#login').hidden = false;
     loginError(err || null);
     renderAccounts();
-    setTimeout(() => $('#xtServer').focus(), 30);
+    setTimeout(() => { lockFields(); $('#xtServer').focus(); }, 30);
   }
 
   function loginError(msg) {
@@ -149,7 +151,9 @@
   }));
 
   // Pasting a full get.php link fills in the username and password.
-  $('#xtServer').addEventListener('input', (e) => {
+  // Split it only once the whole link is in: on paste, or when you leave the field.
+  // Doing it on every keystroke scrambled links typed letter by letter on a TV keyboard.
+  const splitLink = (e) => {
     const v = e.target.value;
     if (!/username=/.test(v)) return;
     try {
@@ -158,7 +162,9 @@
       if (p.password) $('#xtPass').value = p.password;
       e.target.value = p.server;
     } catch {}
-  });
+  };
+  $('#xtServer').addEventListener('input', (e) => { if (e.inputType === 'insertFromPaste' || e.inputType === undefined) splitLink(e); });
+  $('#xtServer').addEventListener('change', splitLink);
 
   $('#xtForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -246,7 +252,8 @@
     $('#shell').hidden = false;
     $$('.nav[data-view="series"]').forEach((b) => (b.hidden = acc.type !== 'xtream'));
     view = null;
-    go('live');
+    // On the TV, wait for the device check so the first screen is the right one.
+    Promise.resolve(native?.ready).catch(() => {}).then(() => { go(TV ? 'home' : 'live'); if (TV) lockFields(); });
     startNba();
   }
 
@@ -261,10 +268,25 @@
     else if (name === 'favs') renderFavs();
     else if (name === 'settings') renderSettings();
     else if (name === 'nba') enterNba();
+    else if (name === 'home') enterHome();
     drawLiveGame();
     sumTick();
   }
-  $$('.nav').forEach((b) => b.addEventListener('click', () => go(b.dataset.view)));
+  $$('.nav').forEach((b) => b.addEventListener('click', () => { go(b.dataset.view); if (TV) enterContent(b.dataset.view); }));
+
+  // On the TV, OK on a menu item goes into that section, once its first row has loaded.
+  const ENTRY = { home: '#homeRows .hcard', live: '#liveInner .ch.on, #liveInner .ch', movie: '#movieGrid .poster', series: '#seriesGrid .poster', nba: '#nbaGames .gcard.on, #nbaGames .gcard' };
+  function enterContent(name) {
+    const sel = ENTRY[name] || `#view-${name} :is(${Nav.FOCUSABLE})`;
+    let tries = 0;
+    const tick = () => {
+      if (view !== name || !document.activeElement?.closest?.('.rail')) return;
+      const el = $$(sel).find((x) => x.getClientRects().length);
+      if (el) el.focus();
+      else if (++tries < 40) setTimeout(tick, 100);
+    };
+    setTimeout(tick, 50);
+  }
 
   function ensure(kind) {
     if (catalog[kind]) return Promise.resolve(catalog[kind]);
@@ -458,7 +480,7 @@
       if (last) tune(last, { noFull: true });
       else liveMsg('Pick a channel', `${catalog.live.items.length.toLocaleString()} channels ready. Choose one from the list, or press ↓ to start from the top.`);
     } else liveMsg('Pick a channel', 'Choose one from the list, or press ↓ to start from the top.');
-    if (TV) setTimeout(() => { if (document.activeElement === document.body) ($('#liveMsgActions button') || $('#liveInner .ch.on') || $('#liveInner .ch'))?.focus(); }, 300);
+    if (TV) setTimeout(() => { if (document.activeElement === document.body) ($('#liveInner .ch.on') || $('#liveInner .ch'))?.focus(); }, 300);
   }
 
   function refreshLive() {
@@ -502,6 +524,23 @@
   listEl.addEventListener('scroll', () => { cancelAnimationFrame(rafList); rafList = requestAnimationFrame(renderLiveList); }, { passive: true });
   window.addEventListener('resize', () => view === 'live' && renderLiveList());
   inner.addEventListener('click', (e) => { const b = e.target.closest('.ch'); if (b) tune(S.live.list[+b.dataset.i]); });
+  let previewT;
+  inner.addEventListener('focusin', (e) => {
+    if (!TV) return;
+    const b = e.target.closest('.ch');
+    const ch = b && S.live.list[+b.dataset.i];
+    clearTimeout(previewT);
+    if (!ch || ch === S.live.current) return;
+    previewT = setTimeout(() => previewChannel(ch), 220);
+  });
+  function previewChannel(ch) {
+    S.live.current = ch;
+    $$('#liveInner .ch.on').forEach((x) => x.classList.remove('on'));
+    inner.querySelector(`.ch[data-i="${S.live.list.indexOf(ch)}"]`)?.classList.add('on');
+    updateNow();
+    loadEpg(ch);
+    autoLink(ch, ch.name);
+  }
 
   function scrollToCurrent() {
     const i = S.live.list.findIndex((c) => c.id === S.live.current?.id);
@@ -530,7 +569,7 @@
       livePlayer.stop();
       liveMsg(ch.name, TV ? 'Press OK to watch.' : 'Tap Watch to play full screen.', [['Watch', () => liveMpv(), true]]);
       if (!noFull) liveMpv();
-      else if (TV) setTimeout(() => $('#liveMsgActions button')?.focus(), 50);
+      else if (TV) setTimeout(() => { if (!document.activeElement?.closest?.('.view')) $('#liveInner .ch.on')?.focus({ preventScroll: true }); }, 60);
     } else if (useMpv() && needsFull(ch)) {
       livePlayer.stop();
       if (noFull) fullPlayerMsg('4K channel', 'This channel plays in the full player, which handles 4K and HEVC video.');
@@ -686,8 +725,6 @@
       const it = ctx.items[e.index];
       if (ctx.kind === 'live' && it) {
         autoLink(it, it.name);
-        const g = linkedGameFor(it);
-        if (g && g.state !== 'pre') native.mpv.command(['show-text', `${it.num} · ${it.name}\n${scoreLine(delayed(g).g)}`, 4000]);
       }
       if (it) $('#coverTitle').textContent = it.kind === 'live' ? `${it.num} · ${it.name}` : it.kind === 'episode' ? `${it.seriesName} · S${it.season} E${it.ep}` : it.name;
     } else if (e.type === 'progress' && ctx.kind === 'vod') {
@@ -759,7 +796,7 @@
     if (/^[0-9]$/.test(e.key)) { digit(e.key); return true; }
     if (k === 'chup') { zap(1); return true; }
     if (k === 'chdown') { zap(-1); return true; }
-    if (onStage) {
+    if (onStage && !TV) {
       if (k === 'up') { zap(-1); return true; }
       if (k === 'down') { zap(1); return true; }
       if (full && (k === 'left' || k === 'right')) { liveVideo.muted = false; liveVideo.volume = Math.min(1, Math.max(0, liveVideo.volume + (k === 'right' ? 0.05 : -0.05))); toast(`Volume ${Math.round(liveVideo.volume * 100)}%`, 900); return true; }
@@ -877,7 +914,7 @@
     drawDetail();
     if (hadFocus || !$('#sheet').contains(document.activeElement)) focusPrimary();
   }
-  const focusPrimary = () => $('#sheet [data-act="play"]')?.focus() || $('#sheet .close')?.focus();
+  const focusPrimary = () => ($('#sheet [data-act="play"]') || $('#sheet .close'))?.focus();
 
   function closeDetail() {
     $('#detail').hidden = true;
@@ -1199,6 +1236,7 @@
         ]
       : [['Source', esc(acc.url ? host(acc.url) : 'File on this computer')], ['Channels', (catalog.live?.items.length ?? '…').toLocaleString()]];
 
+    setTimeout(() => lockFields($('#settingsPage')), 0);
     $('#settingsPage').innerHTML = `
       <header><h2 class="page-title">Account</h2><p class="page-sub">Signed in as <b>${esc(acc.name)}</b>.</p></header>
       <div class="cards">
@@ -1247,6 +1285,10 @@
             <span class="hint">Their games stay pinned at the top, and Tuner tells you when they tip off. Scores come from ESPN.</span>
           </div>
           <div class="field">
+            <label for="setBug">Score on the picture</label>
+            <select id="setBug"><option value="off">Off · score only when I ask (OK, or G on the PC)</option><option value="on">Show a score bug while I watch</option></select>
+          </div>
+          <div class="field">
             <label for="setDelay">Score delay on live TV</label>
             <select id="setDelay">${[[0, 'Off (real time)'], [15, '15 seconds'], [30, '30 seconds'], [45, '45 seconds'], [60, '1 minute'], [90, '1.5 minutes'], [120, '2 minutes']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
             <span class="hint">IPTV streams usually run 20–60 seconds behind the real game. Hold the score bug back so it doesn’t spoil a play before you see it. Tip: when a basket happens on your stream, see how long the score bug took to show it.</span>
@@ -1278,6 +1320,8 @@
       </div>`;
     $('#setPlayer').value = mpvOk ? s.player || 'mpv' : 'builtin';
     $('#setPlayer').onchange = (e) => { saveSettings({ player: e.target.value }); toast('Saved'); };
+    $('#setBug').value = s.scoreBug ? 'on' : 'off';
+    $('#setBug').onchange = (e) => { saveSettings({ scoreBug: e.target.value === 'on' }); drawLiveGame(); toast('Saved'); };
     $('#setDelay').value = String(+s.scoreDelay || 0);
     $('#setDelay').onchange = (e) => { saveSettings({ scoreDelay: +e.target.value }); toast(+e.target.value ? `Scores on live TV now run ${e.target.value} seconds behind` : 'Scores on live TV are real time'); };
     $('#setTeam').value = favTeam();
@@ -1406,6 +1450,7 @@
     if (S.live.current && !nba.link) autoLink(S.live.current, `${S.live.current.name} ${epgNow}`);
     if (nba.link?.gameId) remember(gameById(nba.link.gameId));
     if (view === 'nba') drawNba();
+    if (view === 'home') drawHomeRow('nba');
     drawLiveGame();
   }
 
@@ -1572,7 +1617,7 @@
     const linked = linkedGame();
     const { g, s } = delayed(linked);
     $('#livePtabs .ptab-dot').hidden = !linked;
-    bug.hidden = !(g && g.state !== 'pre');
+    bug.hidden = !(g && g.state !== 'pre' && settings().scoreBug);
     if (!bug.hidden) bug.innerHTML = bugHtml(g);
     const live = nba.today.filter((x) => x.state === 'in');
     if (!g && !live.length) { card.hidden = true; return; }
@@ -1768,6 +1813,185 @@
   $('#nbaNext').onclick = () => changeDay(1);
   $('#nbaDay').onclick = () => { nba.offset = 0; nba.selected = null; drawNba(); };
 
+
+  // ======================================================================
+  // Home (TV): a hero for whatever is focused, then rows of things to watch
+  // ======================================================================
+  const home = { rows: [], epg: new Map(), heroT: 0, moved: false };
+
+  async function enterHome() {
+    drawHome();
+    // Fill in rows as the catalogs arrive.
+    for (const k of ['live', 'movie', 'series']) {
+      if (!src || (k === 'series' && acc.type !== 'xtream') || catalog[k]) continue;
+      ensure(k).then(() => { if (view === 'home') drawHome(); }).catch(() => {});
+    }
+  }
+
+  function homeRows() {
+    const rows = [];
+    const games = nba.today.filter((g) => g.state === 'in' || (g.state === 'pre' && g.date - Date.now() < 4 * 3600e3) || (g.state === 'post' && isFav(g)));
+    if (games.length) rows.push({ id: 'nba', title: games.some((g) => g.state === 'in') ? 'NBA · Live now' : 'NBA · Tonight', kind: 'game', items: sortGames(games) });
+    const cont = Object.values(progress).filter((p) => p.t > 30 && p.t < p.d * 0.94).sort((a, b) => b.at - a.at).slice(0, 20);
+    if (cont.length) rows.push({ id: 'cont', title: 'Continue watching', kind: 'cont', items: cont });
+    const byId = catalog.live?.byId;
+    const fav = favList('live').map((f) => byId?.get(f.id) || f);
+    if (fav.length) rows.push({ id: 'fav', title: 'Your channels', kind: 'ch', items: fav });
+    const rec = recents.map((id) => byId?.get(id)).filter(Boolean).slice(0, 24);
+    if (rec.length) rows.push({ id: 'recent', title: 'Recently watched', kind: 'ch', items: rec });
+    if (!fav.length && !rec.length && catalog.live) rows.push({ id: 'chans', title: 'Channels', kind: 'ch', items: catalog.live.items.slice(0, 30) });
+    const newest = (c) => [...c.items].sort((a, b) => b.added - a.added).slice(0, 30);
+    const favMovies = favList('movie'), favSeries = favList('series');
+    if (favMovies.length || favSeries.length) rows.push({ id: 'saved', title: 'My list', kind: 'poster', items: [...favMovies, ...favSeries] });
+    if (catalog.movie?.items.length) rows.push({ id: 'movies', title: 'New movies', kind: 'poster', items: newest(catalog.movie) });
+    if (catalog.series?.items.length) rows.push({ id: 'series', title: 'New series', kind: 'poster', items: newest(catalog.series) });
+    return rows;
+  }
+
+  function homeCard(row, it, i) {
+    const data = `data-row="${row.id}" data-i="${i}"`;
+    if (row.kind === 'game') {
+      const side = (s) => `<span class="hg-team">${tlogo(it[s])}<b>${it.state === 'pre' ? esc(it[s].abbr) : esc(it[s].score)}</b></span>`;
+      return `<button class="hcard wide" ${data}><span class="thumb game" style="${gameVars(it)}">${side('away')}${side('home')}</span>
+        <span class="cap">${it.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(it.away.abbr)} @ ${esc(it.home.abbr)} · ${esc(statusText(it))}</span></button>`;
+    }
+    if (row.kind === 'ch') {
+      return `<button class="hcard wide" ${data}><span class="thumb ch">${logo(it.logo, it.name, 'logo xl')}<span class="chnum">${it.num ?? ''}</span></span><span class="cap">${esc(it.name)}</span></button>`;
+    }
+    const item = row.kind === 'cont' ? it.item : it;
+    const pct = row.kind === 'cont' ? Math.min(100, (it.t / it.d) * 100) : 0;
+    const name = item.kind === 'episode' ? item.seriesName : item.name;
+    const poster = item.poster;
+    return `<button class="hcard tall" ${data}><span class="thumb art${poster ? '' : ' noimg'}" data-ini="${esc(initials(name))}" style="--h:${hue(name)}">${poster ? `<img loading="lazy" src="${esc(poster)}" alt="">` : ''}${pct ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
+      <span class="cap">${esc(item.kind === 'episode' ? `${name} · S${item.season} E${item.ep}` : name)}</span></button>`;
+  }
+
+  function rowHtml(row) {
+    return `<section class="hrow" data-rowid="${row.id}"><h3>${esc(row.title)}</h3><div class="hrow-scroll" data-nav="h">${row.items.map((it, i) => homeCard(row, it, i)).join('')}</div></section>`;
+  }
+
+  function drawHome() {
+    const box = $('#homeRows');
+    const f = document.activeElement?.closest?.('.hcard');
+    const keep = f && { row: f.dataset.row, i: f.dataset.i };
+    home.rows = homeRows();
+    if (!home.rows.length) {
+      box.innerHTML = `<div class="empty"><h3>${catalog.live ? 'Nothing here yet' : 'Loading your channels…'}</h3><p>Star channels and start watching, and they show up here.</p></div>`;
+      drawHero(null);
+      return;
+    }
+    box.innerHTML = home.rows.map(rowHtml).join('');
+    const back = keep && box.querySelector(`.hcard[data-row="${keep.row}"][data-i="${keep.i}"]`);
+    if (back && home.moved) back.focus({ preventScroll: true });
+    else if (document.activeElement === document.body) box.querySelector('.hcard')?.focus({ preventScroll: true });
+    const cur = document.activeElement?.closest?.('.hcard');
+    drawHero(cur ? homeItem(cur) : homeItem(box.querySelector('.hcard')));
+  }
+
+  // Redraw one row in place (the NBA row refreshes with the scores).
+  function drawHomeRow(id) {
+    const rows = homeRows();
+    const row = rows.find((r) => r.id === id);
+    const el = $(`#homeRows .hrow[data-rowid="${id}"]`);
+    if (!row || !el) { if (!!row !== !!el) { drawHome(); $('#homeRows').scrollTop = 0; } return; }
+    home.rows = rows;
+    const f = document.activeElement?.closest?.('.hcard');
+    const keepI = f && f.dataset.row === id ? f.dataset.i : null;
+    const scroll = el.querySelector('.hrow-scroll').scrollLeft;
+    el.outerHTML = rowHtml(row);
+    const fresh = $(`#homeRows .hrow[data-rowid="${id}"]`);
+    fresh.querySelector('.hrow-scroll').scrollLeft = scroll;
+    if (keepI != null) { const c = fresh.querySelector(`.hcard[data-i="${keepI}"]`); c?.focus({ preventScroll: true }); if (c) drawHero(homeItem(c)); }
+  }
+
+  function homeItem(card) {
+    if (!card) return null;
+    const row = home.rows.find((r) => r.id === card.dataset.row);
+    return row ? { row, it: row.items[+card.dataset.i] } : null;
+  }
+
+  async function heroEpg(ch) {
+    const hit = home.epg.get(ch.id);
+    if (hit && Date.now() - hit.at < 300000) return hit.list;
+    let list = [];
+    try { list = await src.epg(ch); } catch {}
+    home.epg.set(ch.id, { at: Date.now(), list });
+    return list;
+  }
+
+  function drawHero(sel) {
+    const hero = $('#homeHero');
+    if (!sel) { hero.innerHTML = `<div class="tvhero-body"><div class="eyebrow">Tuner</div><h1>${esc(acc?.name || '')}</h1></div>`; hero.style.cssText = ''; return; }
+    const { row, it } = sel;
+    let bg = '', eyebrow = '', title = '', meta = '', desc = '', art = '';
+    hero.style.cssText = '';
+    if (row.kind === 'game') {
+      hero.style.cssText = gameVars(it);
+      eyebrow = `NBA · ${it.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(statusText(it))}`;
+      title = `${esc(it.away.name)} <span class="at">at</span> ${esc(it.home.name)}`;
+      meta = it.state === 'pre' ? esc(`${it.away.record} · ${it.home.record}`) : `<span class="big-score">${esc(it.away.score)} – ${esc(it.home.score)}</span>`;
+      const lead = it.away.leaders.find((l) => l.stat === 'PTS'), lead2 = it.home.leaders.find((l) => l.stat === 'PTS');
+      desc = [lead && `${lead.who} ${lead.value} pts`, lead2 && `${lead2.who} ${lead2.value} pts`, it.tv.join(', ')].filter(Boolean).map(esc).join('  ·  ');
+      art = `<div class="hero-logos">${tlogo(it.away)}${tlogo(it.home)}</div>`;
+    } else if (row.kind === 'ch') {
+      eyebrow = `Live · CH ${esc(it.num)}`;
+      title = esc(it.name);
+      meta = esc(catalog.live?.catName.get(it.cat) || '');
+      desc = '<span class="dim">Loading what’s on…</span>';
+      art = `<div class="hero-chlogo">${logo(it.logo, it.name, 'logo xxl')}</div>`;
+      heroEpg(it).then((list) => {
+        if (homeItem(document.activeElement?.closest?.('.hcard'))?.it !== it) return;
+        const now = Date.now(), cur = list.find((p) => p.start <= now && p.end > now), next = list.find((p) => p.start >= (cur ? cur.end : now));
+        const d = $('#homeHero .tvhero-body p');
+        if (d) d.innerHTML = cur ? `<b>Now:</b> ${esc(cur.title)}${next ? `<br><span class="dim">Next ${hm(next.start)}: ${esc(next.title)}</span>` : ''}` : '<span class="dim">No guide information.</span>';
+      });
+    } else {
+      const item = row.kind === 'cont' ? it.item : it;
+      const isEp = item.kind === 'episode';
+      eyebrow = isEp ? 'Series' : item.kind === 'series' ? 'Series' : 'Movie';
+      title = esc(isEp ? item.seriesName : item.name);
+      meta = [isEp ? `S${item.season} E${item.ep} · ${item.name}` : item.year, item.rating && `★ ${item.rating}`].filter(Boolean).map(esc).join('   ');
+      if (row.kind === 'cont') desc = `Resume from ${fmtTime(it.t)} · ${Math.max(1, Math.round((it.d - it.t) / 60))} min left`;
+      if (item.poster) bg = `<img class="tvhero-bg" src="${esc(item.poster)}" alt="">`;
+    }
+    hero.innerHTML = `${bg}${art}<div class="tvhero-body"><div class="eyebrow">${eyebrow}</div><h1>${title}</h1>${meta ? `<div class="meta">${meta}</div>` : ''}<p>${desc}</p></div>`;
+  }
+
+  $('#homeRows').addEventListener('keydown', (e) => { if (Nav.keyOf(e)) home.moved = true; });
+  $('#homeRows').addEventListener('focusin', (e) => {
+    const card = e.target.closest('.hcard');
+    if (!card) return;
+    // Netflix-style: the focused row moves to the top, the focused card to the left.
+    const rowEl = card.closest('.hrow'), rows = $('#homeRows'), strip = card.parentElement;
+    rows.scrollTo({ top: rowEl.offsetTop - rows.offsetTop - 4, behavior: 'smooth' });
+    strip.scrollTo({ left: Math.max(0, card.offsetLeft - strip.offsetLeft - 6), behavior: 'smooth' });
+    clearTimeout(home.heroT);
+    home.heroT = setTimeout(() => drawHero(homeItem(card)), 120);
+  });
+
+  $('#homeRows').addEventListener('click', async (e) => {
+    const card = e.target.closest('.hcard');
+    const sel = homeItem(card);
+    if (!sel) return;
+    const { row, it } = sel;
+    if (row.kind === 'ch') return tune(catalog.live?.byId.get(it.id) || it);
+    if (row.kind === 'game') {
+      // Watch it if one of your channels is showing it, otherwise open the game.
+      const c = await ensure('live').catch(() => null);
+      const ch = c?.items.find((x) => NBA.matchGame(x.name, [it]));
+      if (ch) { nba.link = { chId: ch.id, gameId: it.id, manual: true }; return tune(ch); }
+      nba.offset = 0; nba.selected = it.id; nba.phoneDetail = true;
+      return go('nba');
+    }
+    if (row.kind === 'cont') {
+      const item = it.item;
+      if (item.kind === 'movie') return playVod(item);
+      const series = (await ensure('series').catch(() => null))?.byId.get(item.seriesId) || { kind: 'series', id: item.seriesId, name: item.seriesName, poster: item.poster, cat: '' };
+      return openDetail(series);
+    }
+    openDetail(it);
+  });
+
   // ======================================================================
   // Updates
   // ======================================================================
@@ -1809,6 +2033,11 @@
     let k = Nav.keyOf(e);
     const t = e.target;
     const typing = t.matches?.('input:not([type=range]):not([type=file]), textarea');
+    if (typing && TV && t.readOnly) {
+      if (k === 'ok') { e.preventDefault(); openField(t); return; }
+      if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, t.closest('.view, #login, #sheet') || document); return; }
+      if (k !== 'back') return;
+    }
     if (typing) {
       if (e.key === 'Escape') { t.blur(); e.preventDefault(); }
       else if ((k === 'down' || k === 'up') && !t.closest('#login')) { Nav.move(k, t.closest('.view') || document); e.preventDefault(); }
@@ -1853,6 +2082,29 @@
     $('#detail').hidden = true;
     exitFull();
   }
+
+  // TV: text fields stay read-only (no on-screen keyboard) until you press OK on one.
+  const FIELDS = 'input[type=search], input[type=text], input[type=url], input[type=password], input:not([type])';
+  function lockFields(root = document) {
+    if (!TV) return;
+    root.querySelectorAll(FIELDS).forEach((f) => { if (f !== document.activeElement || !f.dataset.editing) f.readOnly = true; });
+  }
+  // Re-focusing the now-editable field is what makes Android open the keyboard.
+  function openField(f) {
+    f.dataset.opening = '1';
+    f.blur();
+    f.readOnly = false;
+    f.dataset.editing = '1';
+    f.focus();
+    f.click();
+    delete f.dataset.opening;
+  }
+  document.addEventListener('focusout', (e) => {
+    if (TV && e.target.matches?.(FIELDS) && !e.target.dataset.opening) { e.target.readOnly = true; delete e.target.dataset.editing; }
+  });
+  document.addEventListener('focusin', (e) => {
+    if (TV && e.target.matches?.(FIELDS) && !e.target.dataset.editing) e.target.readOnly = true;
+  }, true);
 
   // The Android remote's Back button arrives here instead of as a key press.
   native?.onBack?.(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));

@@ -600,6 +600,159 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
   .toast { bottom: calc(5rem + env(safe-area-inset-bottom)); }
 }
 
+/* ---------- TV (Google TV / Android TV): 10-foot layout ----------
+   Designed on the 960×540 canvas Android TV uses, with a 5% safe margin, remote-first focus,
+   a rail that opens when you move into it, and no costly blur effects. */
+.tv-only { display: none !important; }
+.tv .tv-only { display: flex !important; }
+.tv body { font-size: 1rem; }
+.tv *, .tv *::before { backdrop-filter: none !important; }
+.tv :focus-visible { outline: none; }
+
+/* rail: icons only, opens with labels while you're in it */
+.tv .shell { grid-template-columns: 1fr; grid-template-rows: 1fr; padding-left: 5rem; }
+.tv .rail {
+  position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: 5rem; padding: 1.6rem 0.875rem; gap: 0.375rem;
+  align-items: stretch; border-right: 0; background: var(--bg); transition: width 0.18s ease, box-shadow 0.18s ease;
+}
+.tv .rail:focus-within { width: 15.5rem; box-shadow: 0 0 0 100vmax #05060aa8; }
+.tv .rail-brand { width: 2.75rem; height: 2.75rem; margin: 0 0 1rem 0.375rem; }
+.tv .nav { flex-direction: row; width: 100%; justify-content: flex-start; gap: 1.125rem; padding: 0.75rem 0.875rem; font-size: 1.0625rem; font-weight: 650; border-radius: 0.875rem; }
+.tv .nav svg { width: 1.5rem; height: 1.5rem; flex-shrink: 0; }
+.tv .nav span { opacity: 0; white-space: nowrap; transition: opacity 0.12s; }
+.tv .rail:focus-within .nav span { opacity: 1; }
+.tv .nav.on { background: transparent; color: var(--fg); }
+.tv .nav:focus-visible { background: var(--fg); color: var(--bg); }
+.tv .nav:focus-visible svg { color: var(--bg); }
+.tv .nav-live { top: 0.55rem; left: 2.15rem; right: auto; }
+
+/* views keep clear of the TV's edges */
+.tv .view { padding: 1.6rem 2.5rem 1.6rem 1.25rem; }
+.tv .view.page { padding: 0; }
+.tv .page-inner { padding: 1.6rem 2.5rem 2rem 1.25rem; }
+.tv .col { border-right: 0; }
+.tv .col-head { -webkit-app-region: none; padding: 0.25rem 0.75rem 0.875rem; }
+.tv .view-title { font-size: 1.875rem; }
+
+/* everything focusable turns solid white, Google TV style */
+.tv .btn { height: 2.75rem; padding: 0 1.375rem; font-size: 1rem; border-radius: 99px; }
+.tv .btn:focus-visible, .tv .cat:focus-visible, .tv .tabs button:focus-visible, .tv .season-tabs button:focus-visible, .tv .gc-chip:focus-visible, .tv .ptabs button:focus-visible, .tv .acct:focus-visible, .tv .chan-tile:focus-visible, .tv .day-label:focus-visible, .tv .ib:focus-visible {
+  background: var(--fg) !important; color: var(--bg) !important; border-color: var(--fg) !important; box-shadow: 0 8px 24px #0008;
+}
+.tv .btn:focus-visible { transform: scale(1.05); }
+.tv .cat:focus-visible small, .tv .btn:focus-visible small { color: var(--bg); opacity: 0.6; }
+.tv input:focus, .tv input:focus-visible, .tv select:focus-visible { border-color: var(--fg); box-shadow: 0 0 0 3px var(--fg); }
+.tv input[readonly] { caret-color: transparent; cursor: default; }
+.tv select { height: 2.75rem; font-size: 1rem; }
+.tv .search input { height: 2.75rem; font-size: 1rem; border-radius: 99px; padding: 0 1.125rem; }
+
+/* guide: categories | big channel rows | preview of the focused channel */
+.tv .view.live { grid-template-columns: 11rem 1fr 18rem; gap: 0.75rem; }
+.tv .stage, .tv .ptabs, .tv #liveMsg { display: none !important; }
+.tv .chans-col, .tv .cats-col { background: transparent; }
+.tv .cat-list { padding: 0 0.25rem 1rem; gap: 0.25rem; }
+.tv .cat { padding: 0.625rem 0.875rem; font-size: 1rem; border-radius: 0.75rem; }
+.tv .cat.on { background: var(--surface-2); }
+.tv .vlist { padding: 0 0.25rem; }
+.tv .ch { left: 0.25rem; right: 0.25rem; gap: 0.875rem; border-radius: 0.875rem; padding: 0 1rem 0 0.75rem; }
+.tv .ch .num { font-size: 0.875rem; width: 2.5rem; }
+.tv .ch .name { font-size: 1.0625rem; }
+.tv .ch.on { background: var(--surface-2); }
+.tv .ch:focus-visible { background: var(--fg); color: var(--bg); box-shadow: 0 8px 24px #0008; }
+.tv .ch:focus-visible .num, .tv .ch:focus-visible .sub { color: var(--bg); opacity: 0.65; }
+.tv .ch:focus-visible .eq i { background: var(--bg); }
+.tv .stage-col { padding: 0; gap: 0.875rem; overflow-y: auto; }
+.tv .now-card { padding: 1.25rem; border-radius: 1.125rem; }
+.tv .now-card .logo.lg { width: 4.5rem; height: 4.5rem; border-radius: 1rem; }
+.tv .now-name { font-size: 1.375rem; white-space: normal; }
+.tv .now-card::after { content: "Press OK to watch"; font: 600 0.8125rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+.tv .prog.now .pt { font-size: 1.125rem; }
+.tv .game-card { border-radius: 1.125rem; }
+
+/* movies & series */
+.tv .view.lib { grid-template-columns: 11rem 1fr; }
+.tv .lib-head { -webkit-app-region: none; padding: 0.25rem 0.5rem 1rem; }
+.tv .lib-scroll { padding: 0.5rem 0.75rem 3rem; }
+.tv .grid { grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr)); gap: 1.5rem 1.125rem; }
+.tv .poster:hover .art { transform: none; box-shadow: none; }
+.tv .poster:focus-visible .art { transform: scale(1.08); box-shadow: 0 0 0 3px var(--fg), 0 18px 40px #000c; }
+.tv .poster:focus-visible .ptitle { color: var(--fg); }
+
+/* details: full screen, Play focused */
+.tv .sheet-wrap { padding: 0; background: var(--bg); }
+.tv .sheet { width: 100%; height: 100%; max-height: none; border-radius: 0; border: 0; box-shadow: none; }
+.tv .hero { min-height: 21rem; border-radius: 0; }
+.tv .hero-body { padding: 2rem 3rem 1.5rem; }
+.tv .hero h2 { font-size: 2.75rem; }
+.tv .credits, .tv .seasons { padding-left: 3rem; padding-right: 3rem; }
+.tv .ep:focus-visible { background: var(--fg); color: var(--bg); }
+.tv .ep:focus-visible .ep-meta, .tv .ep:focus-visible .ep-plot, .tv .ep:focus-visible .ep-title .n { color: var(--bg); opacity: 0.7; }
+
+/* NBA */
+.tv .view.nba { grid-template-columns: 17.5rem 1fr; gap: 1rem; }
+.tv .gcard { padding: 0.875rem 1rem; border-radius: 1rem; }
+.tv .gcard:focus-visible { background: var(--fg); color: var(--bg); border-color: var(--fg); transform: scale(1.02); }
+.tv .gcard:focus-visible .rec, .tv .gcard:focus-visible .gst, .tv .gcard:focus-visible .gst .tv, .tv .gcard:focus-visible .gsc.lose { color: var(--bg); opacity: 0.75; }
+.tv .nba-detail { padding: 0 0.5rem 3rem; }
+.tv .sb-hero { padding: 1.25rem 1rem 1.375rem; gap: 0.75rem; }
+.tv .sb-team, .tv .sb-team.home { flex-direction: column; text-align: center; gap: 0.375rem; }
+.tv .sb-team .big, .tv .sb-team.home .big { margin: 0; font-size: 2.75rem; }
+.tv .sb-team .nm { font-size: 1.125rem; }
+.tv .sb-team .tlogo.lg { width: 3.5rem; height: 3.5rem; }
+.tv .sb-mid .tv { max-width: 9rem; }
+
+/* Home */
+.view.home { display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.tv .view.home { padding: 0; }
+.tvhero { position: relative; flex-shrink: 0; height: 17.5rem; display: flex; align-items: flex-end; padding: 0 2.5rem 1.25rem 1.25rem; overflow: hidden;
+  background: radial-gradient(ellipse 70% 120% at 90% 0%, color-mix(in srgb, var(--home-b, #ff5b4f) 28%, transparent), transparent 70%),
+              radial-gradient(ellipse 60% 120% at 55% 0%, color-mix(in srgb, var(--away-b, #2b0d12) 24%, transparent), transparent 70%); }
+.tvhero-bg { position: absolute; right: 0; top: 0; width: 58%; height: 100%; object-fit: cover; object-position: center 20%; opacity: 0.55; }
+.tvhero::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, var(--bg) 30%, transparent 75%), linear-gradient(0deg, var(--bg) 0%, transparent 45%); }
+.tvhero-body { position: relative; z-index: 1; max-width: 36rem; }
+.tvhero .eyebrow { font-size: 0.8125rem; color: var(--accent); }
+.tvhero h1 { font: 700 2.625rem/1.02 var(--display); letter-spacing: -0.03em; margin: 0.4rem 0 0.5rem; text-wrap: balance; }
+.tvhero h1 .at { font-weight: 500; color: var(--muted); }
+.tvhero .meta { font: 600 1rem var(--mono); color: var(--soft); }
+.tvhero .big-score { font: 700 2.25rem var(--display); color: var(--fg); letter-spacing: -0.02em; }
+.tvhero p { margin: 0.625rem 0 0; color: var(--soft); font-size: 1rem; line-height: 1.5; max-width: 34rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tvhero .dim { color: var(--muted); }
+.hero-logos { position: absolute; right: 3rem; top: 2.5rem; display: flex; gap: 1.5rem; z-index: 1; }
+.hero-logos .tlogo { width: 7rem; height: 7rem; }
+.hero-chlogo { position: absolute; right: 3.5rem; top: 2.75rem; z-index: 1; }
+.logo.xl { width: 4.5rem; height: 4.5rem; background: transparent; }
+.logo.xxl { width: 9rem; height: 9rem; border-radius: 1.5rem; background: var(--surface); }
+.logo.xxl.noimg::after, .logo.xl.noimg::after { font-size: 1.5rem; }
+.home-rows { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 0 8rem 1.25rem; }
+.hrow { margin-top: 0.5rem; }
+.hrow h3 { font: 650 1.0625rem var(--body); margin: 0 0 0.375rem; color: var(--soft); }
+.hrow-scroll { display: flex; gap: 0.875rem; overflow-x: auto; overflow-y: hidden; padding: 0.5rem 2.5rem 0.875rem 0.375rem; scrollbar-width: none; }
+.hrow-scroll::-webkit-scrollbar { display: none; }
+.hcard { flex-shrink: 0; border: 0; background: none; padding: 0; text-align: left; color: var(--muted); display: flex; flex-direction: column; gap: 0.5rem; }
+.hcard .thumb { position: relative; display: grid; place-items: center; overflow: hidden; border-radius: 0.75rem; background: var(--surface); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.hcard.wide { width: 12.5rem; }
+.hcard.wide .thumb { aspect-ratio: 16 / 9; }
+.hcard.tall { width: 7.75rem; }
+.hcard.tall .thumb { aspect-ratio: 2 / 3; }
+.hcard .thumb.art img { width: 100%; height: 100%; object-fit: cover; }
+.hcard .cap { font-size: 0.875rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hcard .chnum { position: absolute; left: 0.5rem; top: 0.375rem; font: 600 0.75rem var(--mono); color: var(--dim); }
+.hcard .thumb.game { grid-template-columns: 1fr 1fr; background: linear-gradient(110deg, var(--away-b) 0 50%, var(--home-b) 50% 100%); }
+.hg-team { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; color: #fff; text-shadow: 0 1px 4px #0009; }
+.hg-team .tlogo { width: 2.75rem; height: 2.75rem; filter: drop-shadow(0 2px 4px #0006); }
+.hg-team b { font: 700 1.25rem var(--display); }
+.hcard:focus-visible .thumb { transform: scale(1.07); box-shadow: 0 0 0 3px var(--fg), 0 16px 34px #000c; }
+.hcard:focus-visible .cap { color: var(--fg); }
+
+/* messages sit at the top on the TV, clear of the rows */
+.tv .toast { bottom: auto; top: 1.75rem; left: auto; right: 2.5rem; transform: none; }
+
+/* sign in */
+.tv .login { padding: 2rem 3rem; }
+.tv .login-card { width: min(34rem, 100%); }
+.tv .seg button:focus-visible { background: var(--fg); color: var(--bg); }
+.tv .form label input { height: 3rem; font-size: 1.0625rem; }
+
 /* macOS: leave room for the window buttons */
 .mac .rail { padding-top: 2.25rem; }
 .mac .vp-top { padding-left: 5.5rem; }

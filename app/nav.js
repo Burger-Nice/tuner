@@ -27,6 +27,31 @@
     const items = [...scope.querySelectorAll(FOCUSABLE)].filter((el) => el !== cur && visible(el));
     if (!cur || cur === document.body || !scope.contains(cur)) { items[0]?.focus(); return !!items[0]; }
 
+    // Groups (data-nav="v" / "h", optionally "-strict"): moves along a group's axis try its own items first.
+    // Strict groups never let that move escape (the menu rail keeps up/down to itself).
+    const group = cur.closest('[data-nav]');
+    if (group) {
+      const [axis, strict] = group.dataset.nav.split('-');
+      const along = axis === 'v' ? dir === 'up' || dir === 'down' : dir === 'left' || dir === 'right';
+      if (along) {
+        const hit = nearest(cur, dir, items.filter((el) => group.contains(el)));
+        if (hit || strict) { if (hit) focusEl(hit); return !!hit; }
+      }
+    }
+    let best = nearest(cur, dir, items);
+    // Entering a group with an entry point (the rail's current section) lands there, not on the nearest item.
+    const target = best?.closest('[data-nav-entry]');
+    if (target && !target.contains(cur)) {
+      const entry = target.querySelector(target.dataset.navEntry);
+      if (entry && visible(entry)) best = entry;
+    }
+    if (best) focusEl(best);
+    return !!best;
+  }
+
+  function focusEl(el) { el.focus(); el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+
+  function nearest(cur, dir, items) {
     const a = cur.getBoundingClientRect();
     let best = null, bestScore = Infinity;
     for (const el of items) {
@@ -39,8 +64,7 @@
       const score = Math.max(0, gap) + ortho * 3;
       if (score < bestScore) { bestScore = score; best = el; }
     }
-    if (best) { best.focus(); best.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
-    return !!best;
+    return best;
   }
 
   // Distance between two 1-D spans, 0 when they overlap.
