@@ -6,6 +6,7 @@ const fs = require('fs');
 fs.mkdirSync('android-shots', { recursive: true });
 const adb = (...a) => execFileSync('adb', a, { maxBuffer: 64 * 1024 * 1024, timeout: 20000 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const ack = (name) => fetch('http://127.0.0.1:8899/_report', { method: 'POST', body: JSON.stringify({ step: 'ack', data: { name } }) }).catch(() => {});
 let n = 0;
 const shot = (name) => {
   try { fs.writeFileSync(`android-shots/${String(++n).padStart(2, '0')}-${name}.png`, adb('exec-out', 'screencap', '-p')); } catch (e) { console.log(`screenshot ${name} failed: ${e.message}`); }
@@ -29,15 +30,17 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
     for (const [i, r] of reports.entries()) {
       if (seen.has(i)) continue;
       seen.add(i);
+      if (r.step === 'ack') continue;
       const s = r.data?.state;
       console.log(`${r.step} ${r.data?.name || ''} ${JSON.stringify(s ? { tv: s.tv, bridge: s.bridge, view: s.view, focus: s.focus, playing: s.playing } : r.data).slice(0, 400)}`);
-      if (r.step === 'shot') { shot(r.data.name); console.log(`${r.data.name}: keyboard ${keyboard()}`); }
+      if (r.step === 'shot') { shot(r.data.name); console.log(`${r.data.name}: keyboard ${keyboard()}`); await ack(r.data.name); }
       if (r.step === 'keys') {
         if (r.data.text) { try { adb('shell', 'input', 'text', r.data.text); } catch (e) { console.log(`typing failed: ${e.message}`); } }
         for (const k of r.data.keys) { key(k); await sleep(1200); }
         await sleep(r.data.name.startsWith('player') || r.data.name.startsWith('vod') ? 3500 : 900);
         shot(r.data.name);
         console.log(`${r.data.name}: keyboard ${keyboard()}`);
+        await ack(r.data.name);
       }
     }
     fs.writeFileSync('android-shots/reports.json', JSON.stringify(reports, null, 1));

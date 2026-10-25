@@ -8,9 +8,17 @@ window.TUNER_TEST = true;
   const $ = (s) => document.querySelector(s);
   const state = () => window.__tunerTest?.state();
   const until = async (fn, ms = 20000) => { for (let t = 0; t < ms && !fn(); t += 250) await wait(250); return !!fn(); };
-  const shot = async (name) => { report('shot', { name, state: state() }); await wait(3000); };
-  const press = async (keys, name, after = 3000) => { report('keys', { keys, name, state: state() }); await wait(keys.length * 1200 + after); report('after', { name, state: state() }); };
-  const type = async (text, name) => { report('keys', { keys: [], text, name, state: state() }); await wait(4000); report('after', { name, state: state() }); };
+  // Each step waits until android-shots.js says it has pressed the keys and taken the screenshot.
+  const acked = async (name) => {
+    for (let t = 0; t < 60000; t += 500) {
+      try { if ((await (await fetch(`${API}/_reports`)).json()).some((r) => r.step === 'ack' && r.data?.name === name)) return; } catch {}
+      await wait(500);
+    }
+  };
+  const step = async (data, after) => { report(data.keys ? 'keys' : 'shot', { ...data, state: state() }); await acked(data.name); if (after) await wait(after); report('after', { name: data.name, state: state() }); };
+  const shot = (name) => step({ name });
+  const press = (keys, name, after = 0) => step({ keys, name }, after);
+  const type = (text, name) => step({ keys: [], text, name });
   window.addEventListener('error', (e) => report('error', String(e.message)));
 
   window.addEventListener('load', async () => {
@@ -18,7 +26,7 @@ window.TUNER_TEST = true;
       localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`));
       await until(() => $('#xtServer') && !$('#login').hidden);
       await wait(1500);
-      report('boot', { tv: document.documentElement.classList.contains('tv'), bridge: !!window.tuner, state: state() });
+      report('boot', { tv: document.documentElement.classList.contains('tv'), bridge: !!window.tuner, ua: navigator.userAgent, size: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, font: getComputedStyle(document.documentElement).fontSize, state: state() });
 
       // Sign in: the keyboard must stay down while moving over the boxes, and come up on OK.
       $('#xtServer').focus();
@@ -38,8 +46,9 @@ window.TUNER_TEST = true;
       await press(['DPAD_LEFT', 'DPAD_LEFT', 'DPAD_LEFT'], 'menu-open');
 
       // Guide: Live in the menu, OK, then move through the channels
-      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'guide', 3500);
-      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_UP'], 'guide-preview', 2500);
+      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'guide');
+      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_UP'], 'guide-preview');
+      await press(['DPAD_DOWN'], 'guide-not-a-game');
 
       // Search: moving onto it keeps the keyboard down; OK brings it up; typing filters
       await press(['DPAD_LEFT', 'DPAD_UP'], 'search-focus-no-keyboard');
@@ -52,11 +61,11 @@ window.TUNER_TEST = true;
 
       // Watch in the native player: zap, OK for the info and score, Back
       ($('#liveInner .ch.on') || $('#liveInner .ch')).focus();
-      await press(['DPAD_CENTER'], 'player', 9000);
-      await press(['DPAD_DOWN'], 'player-zap', 6000);
-      await press(['DPAD_UP'], 'player-back-to-nba', 6000);
-      await press(['DPAD_CENTER'], 'player-ok-score', 2000);
-      await press(['BACK'], 'back-in-app', 3000);
+      await press(['DPAD_CENTER'], 'player');
+      await press(['DPAD_DOWN'], 'player-zap');
+      await press(['DPAD_UP'], 'player-back-to-nba');
+      await press(['DPAD_CENTER'], 'player-ok-score');
+      await press(['BACK'], 'back-in-app');
 
       window.__tunerTest.go('nba');
       await until(() => $('.gcard'));
@@ -69,10 +78,10 @@ window.TUNER_TEST = true;
       await wait(1500);
       $('#movieGrid .poster').focus();
       await press(['DPAD_RIGHT'], 'movies');
-      await press(['DPAD_CENTER'], 'detail', 2500);
-      await press(['DPAD_CENTER'], 'vod', 8000);
-      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-seek', 2000);
-      await press(['BACK'], 'vod-closed', 3000);
+      await press(['DPAD_CENTER'], 'detail');
+      await press(['DPAD_CENTER'], 'vod');
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-seek');
+      await press(['BACK'], 'vod-closed');
 
       window.__tunerTest.go('settings');
       await wait(1500);
