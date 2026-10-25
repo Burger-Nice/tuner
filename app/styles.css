@@ -847,20 +847,25 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .sgroup { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.375rem; }
 .sgroup h3 { font: 650 0.8125rem var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0 0 0.375rem 0.375rem; }
 .srow {
+  /* Colours live on the row and are inherited, so the focused (white) row recolours everything in it at once. */
+  --srow-fg: var(--fg); --srow-dim: var(--dim); --srow-soft: var(--soft); --srow-ico: var(--muted);
   display: flex; align-items: center; gap: 1rem; width: 100%; min-height: 4rem; padding: 0.625rem 1rem 0.625rem 1.125rem;
-  border: 0; border-radius: 1rem; background: var(--bg-raise); color: var(--fg); text-align: left; transition: transform 0.15s ease;
+  border: 0; border-radius: 1rem; background: var(--bg-raise); color: var(--srow-fg); text-align: left; transition: transform 0.15s ease;
 }
-.srow-ico { width: 1.5rem; height: 1.5rem; flex-shrink: 0; color: var(--muted); }
+.srow-ico { width: 1.5rem; height: 1.5rem; flex-shrink: 0; color: var(--srow-ico); }
 .srow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; }
-.srow-l { font: 650 1.0625rem var(--body); }
-.srow-h { font-size: 0.875rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.srow-v { font-size: 1rem; color: var(--soft); white-space: nowrap; }
-.srow-chev { width: 1.25rem; height: 1.25rem; flex-shrink: 0; color: var(--dim); }
-.srow.hot .srow-v { color: var(--accent); font-weight: 650; }
-.srow.danger .srow-l, .srow.danger .srow-ico { color: #ff7a70; }
-.srow:focus-visible { outline: none; background: var(--fg); transform: scale(1.02); box-shadow: 0 10px 30px #0009; }
-.srow:focus-visible .srow-l, .srow:focus-visible .srow-h, .srow:focus-visible .srow-v, .srow:focus-visible .srow-ico,
-.srow:focus-visible .srow-chev, .srow:focus-visible .pill, .srow.danger:focus-visible .srow-l, .srow.danger:focus-visible .srow-ico { color: var(--bg); }
+.srow-l { font: 650 1.0625rem var(--body); color: var(--srow-fg); }
+.srow-h { font-size: 0.875rem; color: var(--srow-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow-v { font-size: 1rem; color: var(--srow-soft); white-space: nowrap; }
+.srow-chev { width: 1.25rem; height: 1.25rem; flex-shrink: 0; color: var(--srow-dim); }
+.srow .pill { color: var(--srow-pill, var(--signal)); }
+.srow.hot { --srow-soft: var(--accent); }
+.srow.hot .srow-v { font-weight: 650; }
+.srow.danger { --srow-fg: #ff7a70; --srow-ico: #ff7a70; }
+.srow:focus-visible, .srow.danger:focus-visible, .srow.hot:focus-visible {
+  --srow-fg: var(--bg); --srow-dim: var(--bg); --srow-soft: var(--bg); --srow-ico: var(--bg); --srow-pill: var(--bg);
+  outline: none; background: var(--fg); color: var(--bg); transform: scale(1.02); box-shadow: 0 10px 30px #0009;
+}
 .srow:focus-visible .acct-av { box-shadow: 0 0 0 2px var(--bg); }
 
 /* the update prompt on the TV: centred, big, and it takes the remote until you choose */
