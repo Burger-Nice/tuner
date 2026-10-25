@@ -111,7 +111,7 @@
     }));
     const plays = (d.plays || []).slice(-60).reverse().map((p) => ({
       text: p.text || '', clock: p.clock?.displayValue || '', period: p.period?.number || 0,
-      away: p.awayScore, home: p.homeScore, scoring: !!p.scoringPlay, team: teamAbbr.get(String(p.team?.id)) || '',
+      away: p.awayScore, home: p.homeScore, scoring: !!p.scoringPlay, team: teamAbbr.get(String(p.team?.id)) || '', at: Date.parse(p.wallclock) || 0,
     }));
     return { game: g, box, teams, plays };
   }

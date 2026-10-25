@@ -9,6 +9,32 @@
     del(k) { try { localStorage.removeItem('tuner.' + k); } catch {} },
   };
 
+  // Channel, movie and series lists can be tens of thousands of entries, too big for localStorage.
+  // IndexedDB keeps them on the device so the app can open from them straight away.
+  const cache = (() => {
+    let opening = null;
+    const db = () => opening || (opening = new Promise((resolve, reject) => {
+      const r = indexedDB.open('tuner', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('catalog');
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    }));
+    const run = async (mode, fn) => {
+      const d = await db();
+      return new Promise((resolve, reject) => {
+        const t = d.transaction('catalog', mode);
+        const req = fn(t.objectStore('catalog'));
+        t.oncomplete = () => resolve(req.result);
+        t.onerror = t.onabort = () => reject(t.error);
+      });
+    };
+    return {
+      get: (k) => run('readonly', (st) => st.get(k)).catch(() => null),
+      set: (k, v) => run('readwrite', (st) => st.put(v, k)).catch(() => {}),
+      clear: () => run('readwrite', (st) => st.clear()).catch(() => {}),
+    };
+  })();
+
   const DEFAULTS = { liveFormat: 'hls', ua: '', scale: 'standard', player: 'mpv', nbaTeam: 'MEM' };
   const settings = () => ({ ...DEFAULTS, ...store.get('settings', {}) });
   const saveSettings = (patch) => { const s = { ...settings(), ...patch }; store.set('settings', s); return s; };
@@ -229,5 +255,5 @@
     };
   }
 
-  global.Core = { store, settings, saveSettings, parseLogin, parseM3U, xtream, m3u };
+  global.Core = { store, cache, settings, saveSettings, parseLogin, parseM3U, xtream, m3u };
 })(window);

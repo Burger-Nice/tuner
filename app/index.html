@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="../node_modules/@fontsource-variable/bricolage-grotesque/index.css">
 <link rel="stylesheet" href="../node_modules/@fontsource-variable/figtree/index.css">
 <link rel="stylesheet" href="../node_modules/@fontsource-variable/jetbrains-mono/index.css">
+<link rel="stylesheet" href="../node_modules/@fontsource-variable/inter/index.css">
 <link rel="stylesheet" href="styles.css">
 <script src="../node_modules/hls.js/dist/hls.min.js"></script>
 <script src="../node_modules/mpegts.js/dist/mpegts.js"></script>
@@ -87,7 +88,7 @@
 
 <!-- App -->
 <div class="shell" id="shell" hidden>
-  <nav class="rail" data-nav="v-strict" data-nav-entry=".nav.on">
+  <nav class="rail" data-nav="v-strict" data-nav-entry=".nav.on" data-nav-in="left">
     <div class="rail-brand" title="Tuner"><svg class="mark" aria-hidden="true"><use href="#tuner-mark"/></svg><span class="tally" id="tally"></span></div>
     <button class="nav tv-only" data-view="home" title="Home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11h13V9"/><path d="M10 20v-6h4v6"/></svg>
@@ -189,13 +190,7 @@
       <div class="lib-head">
         <h3 id="movieTitle">All movies</h3><span class="count" id="movieCount"></span>
         <span class="grow"></span>
-        <select id="movieSort" class="sort" title="Sort">
-          <option value="default">Provider order</option>
-          <option value="added">Recently added</option>
-          <option value="az">A–Z</option>
-          <option value="rating">Rating</option>
-          <option value="year">Newest year</option>
-        </select>
+        <div class="lib-filters" id="movieFilters"></div>
       </div>
       <div class="lib-scroll" id="movieScroll"><div class="grid" id="movieGrid"></div></div>
     </div>
@@ -212,13 +207,7 @@
       <div class="lib-head">
         <h3 id="seriesTitle">All series</h3><span class="count" id="seriesCount"></span>
         <span class="grow"></span>
-        <select id="seriesSort" class="sort" title="Sort">
-          <option value="default">Provider order</option>
-          <option value="added">Recently updated</option>
-          <option value="az">A–Z</option>
-          <option value="rating">Rating</option>
-          <option value="year">Newest year</option>
-        </select>
+        <div class="lib-filters" id="seriesFilters"></div>
       </div>
       <div class="lib-scroll" id="seriesScroll"><div class="grid" id="seriesGrid"></div></div>
     </div>

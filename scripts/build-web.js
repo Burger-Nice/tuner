@@ -15,6 +15,7 @@ for (const dep of [
   '@fontsource-variable/bricolage-grotesque',
   '@fontsource-variable/figtree',
   '@fontsource-variable/jetbrains-mono',
+  '@fontsource-variable/inter',
 ]) copy(path.join('node_modules', dep), path.join('node_modules', dep));
 const target = process.argv[2];
 if (!['tv', 'phone'].includes(target)) throw new Error('Say which build: node scripts/build-web.js tv|phone');

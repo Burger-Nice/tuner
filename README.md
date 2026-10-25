@@ -30,11 +30,29 @@ Tuner then appears on the home screen. It updates itself: when a new version is 
 
 The TV app opens on a Home screen (Google TV / Netflix style): the NBA games, then your channels, recently watched, your list and what's new. The menu on the left opens when you move into it. The guide previews whatever channel you're on, and **OK** watches it. The on-screen keyboard only comes up when you press **OK** on a search or text box.
 
-On the TV every channel plays in the built-in ExoPlayer engine at the TV's full resolution, 4K and HDR included. **↑/↓** or the channel buttons change channel, number keys jump to a channel, **OK** shows the channel, picture quality (e.g. *4K HDR*) and the NBA score, and **Back** returns to the guide.
+On the TV every channel plays in the built-in ExoPlayer engine at the TV's full resolution, 4K and HDR included. The channel banner shows the picture quality (e.g. *4K HDR*) and **CC** when there are subtitles.
+
+| In the TV player | Live TV | Movies and episodes |
+| --- | --- | --- |
+| **↑ / ↓**, channel buttons | Change channel | ↑ shows the controls, ↓ subtitles & audio |
+| **← / →** | Options: box score, sync the score, subtitles, audio | Back / forward 10 s |
+| **OK** | On an NBA game: the score and box score at the side (←/→ switch team, OK closes) | Pause / controls |
+| Number keys | Jump to a channel | |
+| **Back** | Back to the guide | Back to the details |
+
+Subtitles work when the movie, episode or channel carries them (most MKV and MP4 files do, and many channels have closed captions). Tuner remembers your choice: pick a language once and it's used from then on; pick **Off** and they stay off. Teletext subtitles, used by some European broadcasters, aren't supported.
+
+**Sync the score to your stream:** IPTV runs behind the real game, so Tuner can hold the score back to match. Right as you see a basket on the TV, press **←/→**, choose **Sync the score to this stream** and pick that basket from the list. Tuner works out the exact delay from ESPN's play-by-play times.
 
 ### iPhone
 
 Tuner installs through **AltStore** (free Apple ID; AltStore re-signs it every few days in the background while your phone is on home Wi-Fi and AltServer runs on your PC). In AltStore, go to **Sources → +** and add `https://github.com/Burger-Nice/tuner/releases/latest/download/altstore-source.json`, then install Tuner. Updates show up in AltStore.
+
+## Movies and series
+
+Movies and series open with English titles first. Sort by recently added, A–Z, rating or year, and filter by language, genre, picture quality (4K, Full HD) and subtitles. Most providers don't send those details separately, so Tuner reads them from the category and title names (like *EN | ACTION*, *4K*, *MULTI-SUB*); a filter only appears when your provider's names give Tuner something to go on.
+
+Channel, movie and series lists are saved on the device, so Tuner opens straight away; it checks your provider for changes in the background and picks them up the next time you open that section. **Account → Reload channels & library** fetches everything fresh.
 
 ## The full player
 

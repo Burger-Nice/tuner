@@ -194,9 +194,9 @@ input[type="range"] { accent-color: var(--fg); }
 .ch .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.75rem; color: var(--dim); }
 .ch .star { color: var(--gold); font-size: 0.8125rem; }
 .eq { display: flex; align-items: flex-end; gap: 2px; height: 0.875rem; }
-.eq i { width: 3px; background: var(--accent); border-radius: 1px; animation: eq 0.9s ease-in-out infinite; }
+.eq i { width: 3px; height: 100%; background: var(--accent); border-radius: 1px; transform-origin: bottom; animation: eq 0.9s ease-in-out infinite; }
 .eq i:nth-child(2) { animation-delay: -0.3s; } .eq i:nth-child(3) { animation-delay: -0.6s; }
-@keyframes eq { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+@keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
 
 .stage-col { padding: 1.25rem; gap: 1rem; overflow-y: auto; border-right: 0; }
 .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 0.875rem; overflow: hidden; flex-shrink: 0; }
@@ -252,6 +252,10 @@ input[type="range"] { accent-color: var(--fg); }
 .lib-head { padding: 1.5rem 1.75rem 1rem; display: flex; gap: 0.75rem; align-items: baseline; -webkit-app-region: drag; }
 .lib-head select { -webkit-app-region: no-drag; }
 .sort { width: auto; height: 2.125rem; font-size: 0.8125rem; align-self: center; }
+.lib-head { flex-wrap: wrap; }
+.lib-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; align-self: center; -webkit-app-region: no-drag; }
+.lib-filter { display: flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; color: var(--muted); }
+.lib-filter select { width: auto; max-width: 11rem; height: 2.125rem; font-size: 0.8125rem; }
 .lib-scroll { flex: 1; overflow-y: auto; padding: 0.25rem 1.75rem 2.5rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 1.5rem 1.125rem; }
 .poster { display: flex; flex-direction: column; gap: 0.5rem; text-align: left; background: none; border: 0; padding: 0; min-width: 0; }
@@ -551,6 +555,8 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
   .view.lib .cats-col { display: contents; }
   .lib-main { flex: 1; min-height: 0; }
   .lib-head { padding: 0.25rem 1rem 0.75rem; }
+  .lib-filters { flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .lib-filter span { display: none; }
   .lib-scroll { padding: 0.25rem 1rem 1.5rem; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: 1rem 0.625rem; }
   .ptitle { font-size: 0.8125rem; }
@@ -611,7 +617,18 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 
 /* Designed at 16px on 960×540; on a TV that reports a bigger screen everything scales up with it. */
 /* Width only: the on-screen keyboard shrinks the height, and that mustn't resize the whole interface. */
-:root.tv { font-size: calc(100vw / 60); }
+:root.tv {
+  font-size: calc(100vw / 60);
+  /* Across the room: Inter for text, labels and numbers (sturdy strokes, tall lowercase, even-width digits).
+     The expressive display face stays for big titles only, and no monospace. */
+  --body: "Inter Variable", Roboto, system-ui, sans-serif;
+  --mono: "Inter Variable", Roboto, system-ui, sans-serif;
+}
+.tv body { font-variant-numeric: tabular-nums; }
+/* Nothing smaller than about 13px on the 960px canvas (26px at 1080p). */
+.tv .count, .tv .cat small, .tv .gcard .rec, .tv .gcard .gst, .tv .psub, .tv .leaders .k, .tv .credits dt, .tv .play .ck, .tv .play .sco, .tv .acct .who small { font-size: 0.8125rem; }
+.tv .ch .sub, .tv .prog .time, .tv .now-sub, .tv .field .hint, .tv .hint, .tv .sb-team .rc, .tv .sb-mid .tv, .tv .hcard .chnum, .tv table.stat th, .tv table.stat td .pos { font-size: 0.875rem; }
+.tv .eyebrow, .tv .gc-head .title, .tv .nba-sep, .tv .panel h4, .tv .credits dt { font-size: 0.8125rem; letter-spacing: 0.07em; }
 /* The TV's built-in browser doesn't stretch boxes that keep an aspect ratio, so give them their width. */
 .tv .poster .art, .tv .hcard .thumb, .tv .hcard .cap { width: 100%; }
 
@@ -619,9 +636,12 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .tv .shell { grid-template-columns: 1fr; grid-template-rows: 1fr; padding-left: 5rem; }
 .tv .rail {
   position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: 5rem; padding: 1.6rem 0.875rem; gap: 0.375rem;
-  align-items: stretch; border-right: 0; background: var(--bg); transition: width 0.18s ease, box-shadow 0.18s ease;
+  align-items: stretch; border-right: 0; background: var(--bg); transition: width 0.18s ease;
 }
-.tv .rail:focus-within { width: 15.5rem; box-shadow: 0 0 0 100vmax #05060aa8; }
+.tv .rail:focus-within { width: 15.5rem; }
+/* When the menu opens it dims everything else. A fixed layer that only fades is cheap for the TV to draw. */
+.tv .rail::after { content: ""; position: fixed; top: 0; bottom: 0; left: 15.5rem; right: 0; background: #05060ad9; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
+.tv .rail:focus-within::after { opacity: 1; }
 .tv .rail-brand { width: 2.75rem; height: 2.75rem; margin: 0 0 1rem 0.375rem; }
 .tv .nav { flex-direction: row; width: 100%; justify-content: flex-start; gap: 1.125rem; padding: 0.75rem 0.875rem; font-size: 1.0625rem; font-weight: 650; border-radius: 0.875rem; }
 .tv .nav svg { width: 1.5rem; height: 1.5rem; flex-shrink: 0; }
@@ -677,6 +697,8 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .tv .ch:focus-visible { background: var(--fg); color: var(--bg); box-shadow: 0 8px 24px #0008; }
 .tv .ch:focus-visible .num, .tv .ch:focus-visible .sub { color: var(--bg); opacity: 0.65; }
 .tv .ch:focus-visible .eq i { background: var(--bg); }
+/* Only transform animates on the TV; shadows switch instantly instead of being redrawn every frame. */
+.tv .art, .tv .hcard .thumb { transition: transform 0.15s ease; }
 .tv .stage-col { padding: 0; gap: 0.875rem; overflow-y: auto; }
 .tv .now-card { padding: 1.25rem; border-radius: 1.125rem; }
 .tv .now-card .logo.lg { width: 4.5rem; height: 4.5rem; border-radius: 1rem; }
@@ -687,8 +709,11 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 
 /* movies & series */
 .tv .view.lib { grid-template-columns: 11rem 1fr; }
-.tv .lib-head { -webkit-app-region: none; padding: 0.25rem 0.5rem 1rem; }
-.tv .lib-scroll { padding: 0.5rem 0.75rem 3rem; }
+.tv .lib-head { -webkit-app-region: none; padding: 0.25rem 0.5rem 1rem; row-gap: 0.625rem; }
+.tv .lib-filters { flex-basis: 100%; gap: 0.625rem; }
+.tv .lib-filter { font-size: 0.875rem; }
+.tv .lib-filter select { height: 2.5rem; font-size: 0.9375rem; max-width: 12rem; }
+.tv .lib-scroll { padding: 1.25rem 0.875rem 3rem; scroll-padding: 1.25rem 0 1.75rem; }
 .tv .grid { grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr)); gap: 1.5rem 1.125rem; }
 .tv .poster:hover .art { transform: none; box-shadow: none; }
 .tv .poster:focus-visible .art { transform: scale(1.08); box-shadow: 0 0 0 3px var(--fg), 0 18px 40px #000c; }
@@ -720,7 +745,7 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 /* Home */
 .view.home { display: flex; flex-direction: column; overflow: hidden; position: relative; }
 .tv .view.home { padding: 0; }
-.tvhero { position: relative; flex-shrink: 0; height: 17.5rem; display: flex; align-items: flex-end; padding: 0 2.5rem 1.25rem 1.25rem; overflow: hidden;
+.tvhero { position: relative; flex-shrink: 0; height: 17.5rem; display: flex; align-items: flex-end; padding: 0 2.5rem 1.25rem 1.625rem; overflow: hidden;
   background: radial-gradient(ellipse 70% 120% at 90% 0%, color-mix(in srgb, var(--home-b, #ff5b4f) 28%, transparent), transparent 70%),
               radial-gradient(ellipse 60% 120% at 55% 0%, color-mix(in srgb, var(--away-b, #2b0d12) 24%, transparent), transparent 70%); }
 .tvhero-bg { position: absolute; right: 0; top: 0; width: 58%; height: 100%; object-fit: cover; object-position: center 20%; opacity: 0.55; }
@@ -739,10 +764,10 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .logo.xl { width: 4.5rem; height: 4.5rem; background: transparent; }
 .logo.xxl { width: 9rem; height: 9rem; border-radius: 1.5rem; background: var(--surface); }
 .logo.xxl.noimg::after, .logo.xl.noimg::after { font-size: 1.5rem; }
-.home-rows { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 0 8rem 1.25rem; }
+.home-rows { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 0 8rem 0.5rem; }
 .hrow { margin-top: 0.5rem; }
-.hrow h3 { font: 650 1.0625rem var(--body); margin: 0 0 0.375rem; color: var(--soft); }
-.hrow-scroll { display: flex; gap: 0.875rem; overflow-x: auto; overflow-y: hidden; padding: 0.5rem 2.5rem 0.875rem 0.375rem; scrollbar-width: none; }
+.hrow h3 { font: 650 1.0625rem var(--body); margin: 0 0 -0.25rem; padding-left: 1.125rem; color: var(--soft); }
+.hrow-scroll { display: flex; gap: 0.875rem; overflow-x: auto; overflow-y: hidden; padding: 0.75rem 2.5rem 1rem 1.125rem; scrollbar-width: none; }
 .hrow-scroll::-webkit-scrollbar { display: none; }
 .hcard { flex-shrink: 0; border: 0; background: none; padding: 0; text-align: left; color: var(--muted); display: flex; flex-direction: column; gap: 0.5rem; }
 .hcard .thumb { position: relative; display: grid; place-items: center; overflow: hidden; border-radius: 0.75rem; background: var(--surface); transition: transform 0.15s ease, box-shadow 0.15s ease; }
@@ -760,8 +785,8 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .hcard:focus-visible .thumb { transform: scale(1.07); box-shadow: 0 0 0 3px var(--fg), 0 16px 34px #000c; }
 .hcard:focus-visible .cap { color: var(--fg); }
 
-/* messages sit at the top on the TV, clear of the rows */
-.tv .toast { bottom: auto; top: 1.75rem; left: auto; right: 2.5rem; transform: none; }
+/* messages sit in the bottom corner on the TV, clear of titles and filters */
+.tv .toast { top: auto; bottom: 1.75rem; left: auto; right: 2.5rem; transform: none; }
 
 /* sign in */
 .tv .login { padding: 2rem 3rem; }

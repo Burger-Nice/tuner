@@ -1,5 +1,7 @@
 package app.tuner.player;
 
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -7,12 +9,21 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.accessibility.CaptioningManager;
+import android.text.TextUtils;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -28,22 +39,33 @@ import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Format;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.PlayerView;
+import androidx.media3.ui.SubtitleView;
 
 import com.getcapacitor.JSObject;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Full-screen player for live TV and movies, built on Media3 (ExoPlayer).
- * Live: up/down and channel keys zap, number keys jump to a channel, OK shows channel info and the NBA score.
- * Movies and episodes: the standard seek controls, resume position, and the next episode plays on its own.
+ * Live: up/down and channel keys zap, number keys jump to a channel, OK shows channel info and, on an NBA game,
+ * the score and box score at the side; left/right open the options (subtitles, audio, syncing the score).
+ * Movies and episodes: the standard seek controls, resume position, the next episode plays on its own, and down
+ * opens subtitles and audio. The subtitle choice is remembered for everything you watch.
  */
 public class PlayerActivity extends AppCompatActivity {
     static PlayerActivity current;
@@ -64,6 +86,13 @@ public class PlayerActivity extends AppCompatActivity {
     private String error;
     private String digits = "";
     private String quality = "";
+    private int textTracks, audioTracks;
+    private SharedPreferences prefs;
+    private AlertDialog menu;
+    private boolean gameLinked;
+    private LinearLayout stats;
+    private JSONObject statsData;
+    private int statsTeam;
 
     private final Runnable hideOsd = () -> osd.setVisibility(View.GONE);
     private final Runnable hideMessage = () -> message.setVisibility(View.GONE);
@@ -89,10 +118,13 @@ public class PlayerActivity extends AppCompatActivity {
         current = this;
         launching = false;
         Bundle x = getIntent().getExtras();
-        urls = x.getStringArray("urls");
-        titles = x.getStringArray("titles");
-        nums = x.getIntArray("nums");
-        starts = x.getLongArray("starts");
+        TunerPlayerPlugin.Playlist list = TunerPlayerPlugin.playlist;
+        if (x == null || list == null) { finish(); return; }
+        urls = list.urls;
+        titles = list.titles;
+        nums = list.nums;
+        starts = list.starts;
+        prefs = getSharedPreferences("player", MODE_PRIVATE);
         live = "live".equals(x.getString("mode"));
         session = x.getInt("session");
         index = Math.max(0, Math.min(urls.length - 1, x.getInt("index")));
@@ -110,7 +142,9 @@ public class PlayerActivity extends AppCompatActivity {
         view.setUseController(!live);
         view.setShowNextButton(!live && urls.length > 1);
         view.setShowPreviousButton(false);
+        view.setShowSubtitleButton(true);
         view.setKeepScreenOn(true);
+        styleSubtitles(view.getSubtitleView());
         root.addView(view, new FrameLayout.LayoutParams(-1, -1));
         osd = label(26, Gravity.TOP | Gravity.START);
         message = label(24, Gravity.TOP | Gravity.END);
@@ -138,6 +172,7 @@ public class PlayerActivity extends AppCompatActivity {
                 .clearViewportSizeConstraints()
                 .setForceHighestSupportedBitrate(true)
                 .build());
+        player.setTrackSelectionParameters(subtitlePreference(player.getTrackSelectionParameters().buildUpon()).build());
         player.setVideoChangeFrameRateStrategy(C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS);
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int s) {
@@ -150,6 +185,11 @@ public class PlayerActivity extends AppCompatActivity {
                 JSObject ev = event("failed");
                 ev.put("error", error);
                 TunerPlayerPlugin.emit(ev);
+            }
+            @Override public void onTracksChanged(@NonNull Tracks tracks) {
+                textTracks = count(tracks, C.TRACK_TYPE_TEXT);
+                audioTracks = count(tracks, C.TRACK_TYPE_AUDIO);
+                if (osd.getVisibility() == View.VISIBLE) showOsd();
             }
             @Override public void onVideoSizeChanged(@NonNull VideoSize size) {
                 quality = qualityLabel(size.height, player.getVideoFormat());
@@ -193,6 +233,7 @@ public class PlayerActivity extends AppCompatActivity {
         index = (i + urls.length) % urls.length;
         error = null;
         quality = "";
+        textTracks = audioTracks = 0;
         message.setVisibility(View.GONE);
         player.setMediaItem(item(index));
         player.prepare();
@@ -213,7 +254,18 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void showOsd() {
         // Live titles already start with the channel number.
-        osd.setText(quality.isEmpty() ? titles[index] : titles[index] + "   ·   " + quality);
+        SpannableStringBuilder t = new SpannableStringBuilder(titles[index]);
+        if (!quality.isEmpty()) t.append("   ·   ").append(quality);
+        if (textTracks > 0) t.append("   ·   CC");
+        String hint = live && gameLinked ? "OK  Score & stats      ←/→  Options"
+                : textTracks > 0 || audioTracks > 1 ? (live ? "←/→" : "↓") + "  Subtitles & audio" : "";
+        if (!hint.isEmpty()) {
+            int from = t.length();
+            t.append("\n").append(hint);
+            t.setSpan(new RelativeSizeSpan(0.62f), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            t.setSpan(new ForegroundColorSpan(0xB3FFFFFF), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        osd.setText(t);
         osd.setVisibility(View.VISIBLE);
         handler.removeCallbacks(hideOsd);
         handler.postDelayed(hideOsd, 4000);
@@ -229,9 +281,20 @@ public class PlayerActivity extends AppCompatActivity {
 
     @Override
     public boolean onKeyDown(int code, KeyEvent e) {
+        if (stats != null && stats.getVisibility() == View.VISIBLE) {
+            switch (code) {
+                case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_ESCAPE: case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
+                    hideStats(true); return true;
+                case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    statsTeam ^= 1; renderStats(); return true;
+            }
+        }
         if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) { finish(); return true; }
+        if (code == KeyEvent.KEYCODE_CAPTIONS) { openTrackMenu(); return true; }
+        if (code == KeyEvent.KEYCODE_MENU) { if (live) openOptions(); else openTrackMenu(); return true; }
         if (live) {
             switch (code) {
+                case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: openOptions(); return true;
                 case KeyEvent.KEYCODE_DPAD_UP: case KeyEvent.KEYCODE_CHANNEL_DOWN: case KeyEvent.KEYCODE_PAGE_UP: tuneTo(index - 1); return true;
                 case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_CHANNEL_UP: case KeyEvent.KEYCODE_PAGE_DOWN: tuneTo(index + 1); return true;
                 case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_INFO: case KeyEvent.KEYCODE_GUIDE: case KeyEvent.KEYCODE_G:
@@ -256,9 +319,290 @@ public class PlayerActivity extends AppCompatActivity {
             // Seek without opening the controls; any other key brings them up.
             if (code == KeyEvent.KEYCODE_DPAD_LEFT) { player.seekTo(Math.max(0, player.getCurrentPosition() - 10000)); showText("−10s", 900); return true; }
             if (code == KeyEvent.KEYCODE_DPAD_RIGHT) { player.seekTo(player.getCurrentPosition() + 10000); showText("+10s", 900); return true; }
-            if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN) { view.showController(); return true; }
+            if (code == KeyEvent.KEYCODE_DPAD_DOWN) { openTrackMenu(); return true; }
+            if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_DPAD_UP) { view.showController(); return true; }
         }
         return super.onKeyDown(code, e);
+    }
+
+    // ---------- options (live) ----------
+
+    /** Left/right on a live channel. On an NBA game: the box score and syncing the score to this stream, then subtitles and audio. */
+    private void openOptions() {
+        if (player == null || isFinishing() || (menu != null && menu.isShowing())) return;
+        long seenAt = System.currentTimeMillis();
+        List<String> labels = new ArrayList<>();
+        List<Runnable> acts = new ArrayList<>();
+        if (gameLinked) {
+            labels.add("Score & box score");
+            acts.add(() -> TunerPlayerPlugin.emit(event("game")));
+            labels.add("Sync the score to this stream");
+            acts.add(() -> { JSObject ev = event("sync-start"); ev.put("seenAt", seenAt); TunerPlayerPlugin.emit(ev); });
+        }
+        if (textTracks > 0) { labels.add("Subtitles"); acts.add(this::openTrackMenu); }
+        if (audioTracks > 1) { labels.add("Audio track"); acts.add(() -> openAudioMenu("Audio")); }
+        if (labels.isEmpty()) { showText("No subtitles or other audio on this channel", 3000); return; }
+        if (labels.size() == 1) { acts.get(0).run(); return; }
+        menu = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(titles[index])
+                .setItems(labels.toArray(new String[0]), (dlg, which) -> { dlg.dismiss(); acts.get(which).run(); })
+                .show();
+    }
+
+    /** The app's answer to "Sync the score": the latest baskets, to pick the one just seen on screen. */
+    void askSync(String json) {
+        try {
+            JSONObject d = new JSONObject(json);
+            JSONArray plays = d.getJSONArray("plays");
+            long seenAt = d.getLong("seenAt");
+            String[] labels = new String[plays.length()];
+            long[] at = new long[plays.length()];
+            for (int i = 0; i < plays.length(); i++) { labels[i] = plays.getJSONObject(i).getString("label"); at[i] = plays.getJSONObject(i).getLong("at"); }
+            if (menu != null) menu.dismiss();
+            menu = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("Which basket did you just see?")
+                    .setItems(labels, (dlg, which) -> {
+                        JSObject ev = event("sync");
+                        ev.put("at", at[which]);
+                        ev.put("seenAt", seenAt);
+                        TunerPlayerPlugin.emit(ev);
+                    })
+                    .show();
+        } catch (Exception ignored) {}
+    }
+
+    void setGameLinked(boolean on) {
+        gameLinked = on;
+        if (osd.getVisibility() == View.VISIBLE) showOsd();
+    }
+
+    // ---------- NBA score & box score at the side ----------
+
+    /** Shows or refreshes the panel with data from the app; empty data closes it. */
+    void showStats(String json) {
+        if (json == null || json.isEmpty()) { hideStats(false); return; }
+        try { statsData = new JSONObject(json); } catch (Exception e) { return; }
+        if (stats == null) {
+            stats = new LinearLayout(this);
+            stats.setOrientation(LinearLayout.VERTICAL);
+            int p = dp(20);
+            stats.setPadding(p, p, p, p);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(0xEB0B0D11);
+            bg.setCornerRadius(dp(20));
+            stats.setBackground(bg);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(360), -2, Gravity.END | Gravity.CENTER_VERTICAL);
+            lp.setMargins(dp(28), dp(28), dp(28), dp(28));
+            ((FrameLayout) view.getParent()).addView(stats, lp);
+        }
+        if (stats.getVisibility() != View.VISIBLE) statsTeam = statsData.optInt("first", 0);
+        stats.setVisibility(View.VISIBLE);
+        osd.setVisibility(View.GONE);
+        message.setVisibility(View.GONE);
+        renderStats();
+    }
+
+    private void hideStats(boolean tellApp) {
+        if (stats == null || stats.getVisibility() != View.VISIBLE) return;
+        stats.setVisibility(View.GONE);
+        if (tellApp) TunerPlayerPlugin.emit(event("stats-closed"));
+    }
+
+    private void renderStats() {
+        if (stats == null || statsData == null) return;
+        stats.removeAllViews();
+        JSONObject d = statsData;
+        stats.addView(text(d.optString("score"), 21, Color.WHITE, true));
+        String note = d.optString("note");
+        if (!note.isEmpty()) stats.addView(text(note, 12, 0x99FFFFFF, false));
+
+        LinearLayout tabs = new LinearLayout(this);
+        tabs.setPadding(0, dp(12), 0, dp(8));
+        for (int k = 0; k < 2; k++) {
+            JSONObject t = d.optJSONObject(k == 0 ? "away" : "home");
+            if (t == null) continue;
+            TextView tab = text(t.optString("abbr"), 15, k == statsTeam ? Color.WHITE : 0x80FFFFFF, true);
+            tab.setPadding(dp(14), dp(5), dp(14), dp(5));
+            if (k == statsTeam) {
+                GradientDrawable pill = new GradientDrawable();
+                pill.setColor(parseColor(t.optString("color"), 0xFF3A3F4B));
+                pill.setCornerRadius(dp(99));
+                tab.setBackground(pill);
+            }
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+            lp.setMarginEnd(dp(8));
+            tabs.addView(tab, lp);
+        }
+        TextView switchHint = text("←/→", 12, 0x66FFFFFF, false);
+        switchHint.setPadding(dp(4), dp(6), 0, 0);
+        tabs.addView(switchHint);
+        stats.addView(tabs);
+
+        JSONObject team = d.optJSONObject(statsTeam == 0 ? "away" : "home");
+        JSONArray rows = team == null ? null : team.optJSONArray("rows");
+        if (rows == null || rows.length() == 0) {
+            stats.addView(text(d.optBoolean("loading") ? "Loading box score…" : "No box score yet. It appears at tip-off.", 14, 0xB3FFFFFF, false));
+        } else {
+            TableLayout table = new TableLayout(this);
+            table.setColumnStretchable(0, true);
+            table.setColumnShrinkable(0, true);
+            String[] head = { "", "MIN", "PTS", "REB", "AST" };
+            table.addView(row(head, 11, 0x80FFFFFF, false));
+            for (int i = 0; i < rows.length(); i++) {
+                JSONArray r = rows.optJSONArray(i);
+                String[] cells = new String[5];
+                for (int c = 0; c < 5; c++) cells[c] = r == null ? "" : r.optString(c, "");
+                table.addView(row(cells, 14, Color.WHITE, false));
+            }
+            stats.addView(table);
+        }
+        TextView foot = text("OK or Back to close", 11, 0x66FFFFFF, false);
+        foot.setPadding(0, dp(10), 0, 0);
+        stats.addView(foot);
+    }
+
+    private TableRow row(String[] cells, int sp, int color, boolean bold) {
+        TableRow r = new TableRow(this);
+        for (int c = 0; c < cells.length; c++) {
+            TextView t = text(cells[c], sp, color, bold);
+            t.setPadding(c == 0 ? 0 : dp(10), dp(3), 0, dp(3));
+            if (c > 0) { t.setGravity(Gravity.END); t.setFontFeatureSettings("tnum"); }
+            else { t.setSingleLine(true); t.setEllipsize(TextUtils.TruncateAt.END); }
+            r.addView(t);
+        }
+        return r;
+    }
+
+    private TextView text(String s, int sp, int color, boolean bold) {
+        TextView t = new TextView(this);
+        t.setText(s);
+        t.setTextColor(color);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+        t.setTypeface(bold ? Typeface.create("sans-serif-medium", Typeface.NORMAL) : Typeface.create("sans-serif", Typeface.NORMAL));
+        return t;
+    }
+
+    private static int parseColor(String c, int fallback) {
+        try { return Color.parseColor(c); } catch (Exception e) { return fallback; }
+    }
+
+    // ---------- subtitles & audio ----------
+
+    private static int count(Tracks tracks, int type) {
+        int n = 0;
+        for (Tracks.Group g : tracks.getGroups()) if (g.getType() == type) for (int i = 0; i < g.length; i++) if (g.isTrackSupported(i)) n++;
+        return n;
+    }
+
+    /** The remembered choice: nothing chosen yet (the file decides), off, or a language. */
+    private TrackSelectionParameters.Builder subtitlePreference(TrackSelectionParameters.Builder b) {
+        String sub = prefs.getString("sub", "auto");
+        if ("off".equals(sub)) return b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
+        if ("und".equals(sub)) b.setSelectUndeterminedTextLanguage(true);
+        else if (!"auto".equals(sub)) b.setPreferredTextLanguage(sub);
+        String audio = prefs.getString("audio", "");
+        if (!audio.isEmpty()) b.setPreferredAudioLanguage(audio);
+        return b;
+    }
+
+    private void openTrackMenu() {
+        if (player == null || isFinishing()) return;
+        if (menu != null && menu.isShowing()) return;
+        Tracks tracks = player.getCurrentTracks();
+        boolean off = player.getTrackSelectionParameters().disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
+        List<String> labels = new ArrayList<>();
+        List<Runnable> picks = new ArrayList<>();
+        labels.add("Off");
+        picks.add(() -> pickText(null, 0));
+        int checked = 0, n = 0;
+        for (Tracks.Group g : tracks.getGroups()) {
+            if (g.getType() != C.TRACK_TYPE_TEXT) continue;
+            for (int i = 0; i < g.length; i++) {
+                if (!g.isTrackSupported(i)) continue;
+                labels.add(trackName(g.getTrackFormat(i), ++n));
+                final Tracks.Group fg = g;
+                final int fi = i;
+                picks.add(() -> pickText(fg, fi));
+                if (!off && g.isTrackSelected(i)) checked = labels.size() - 1;
+            }
+        }
+        if (n == 0) {
+            if (audioTracks > 1) openAudioMenu("Audio · no subtitles here");
+            else showText(live ? "This channel has no subtitles" : "This video has no subtitles", 3000);
+            return;
+        }
+        AlertDialog.Builder d = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Subtitles")
+                .setSingleChoiceItems(labels.toArray(new String[0]), checked, (dlg, which) -> { picks.get(which).run(); dlg.dismiss(); });
+        if (audioTracks > 1) d.setNeutralButton("Audio track", (dlg, w) -> openAudioMenu("Audio"));
+        menu = d.show();
+    }
+
+    private void openAudioMenu(String title) {
+        Tracks tracks = player.getCurrentTracks();
+        List<String> labels = new ArrayList<>();
+        List<Tracks.Group> groups = new ArrayList<>();
+        List<Integer> idx = new ArrayList<>();
+        int checked = 0;
+        for (Tracks.Group g : tracks.getGroups()) {
+            if (g.getType() != C.TRACK_TYPE_AUDIO) continue;
+            for (int i = 0; i < g.length; i++) {
+                if (!g.isTrackSupported(i)) continue;
+                Format f = g.getTrackFormat(i);
+                String name = trackName(f, labels.size() + 1);
+                if (f.channelCount >= 6) name += " · " + (f.channelCount == 8 ? "7.1" : "5.1");
+                labels.add(name);
+                groups.add(g);
+                idx.add(i);
+                if (g.isTrackSelected(i)) checked = labels.size() - 1;
+            }
+        }
+        menu = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(title)
+                .setSingleChoiceItems(labels.toArray(new String[0]), checked, (dlg, which) -> {
+                    Format f = groups.get(which).getTrackFormat(idx.get(which));
+                    player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
+                            .setOverrideForType(new TrackSelectionOverride(groups.get(which).getMediaTrackGroup(), idx.get(which))).build());
+                    if (f.language != null) prefs.edit().putString("audio", f.language).apply();
+                    dlg.dismiss();
+                })
+                .show();
+    }
+
+    private void pickText(Tracks.Group g, int i) {
+        TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT);
+        if (g == null) {
+            b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
+            prefs.edit().putString("sub", "off").apply();
+            showText("Subtitles off", 1500);
+        } else {
+            Format f = g.getTrackFormat(i);
+            String lang = f.language == null || f.language.isEmpty() ? "und" : f.language;
+            b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(), i));
+            if ("und".equals(lang)) b.setSelectUndeterminedTextLanguage(true); else b.setPreferredTextLanguage(lang);
+            prefs.edit().putString("sub", lang).apply();
+            showText("Subtitles: " + trackName(f, 1), 1500);
+        }
+        player.setTrackSelectionParameters(b.build());
+    }
+
+    private static String trackName(Format f, int n) {
+        String lang = f.language == null || f.language.isEmpty() || "und".equals(f.language) ? null : new Locale(f.language).getDisplayLanguage(Locale.ENGLISH);
+        boolean cc = MimeTypes.APPLICATION_CEA608.equals(f.sampleMimeType) || MimeTypes.APPLICATION_CEA708.equals(f.sampleMimeType);
+        String name = f.label != null && !f.label.isEmpty() ? f.label : lang != null ? lang : cc ? "Closed captions" : "Track " + n;
+        if (lang != null && !name.toLowerCase(Locale.ROOT).contains(lang.toLowerCase(Locale.ROOT))) name += " (" + lang + ")";
+        if ((f.selectionFlags & C.SELECTION_FLAG_FORCED) != 0) name += " · forced";
+        return name;
+    }
+
+    /** Clean white subtitles with a soft outline, unless the TV's own caption style has been set up. */
+    private void styleSubtitles(SubtitleView sv) {
+        if (sv == null) return;
+        CaptioningManager cm = (CaptioningManager) getSystemService(CAPTIONING_SERVICE);
+        if (cm != null && cm.isEnabled()) return;
+        sv.setStyle(new CaptionStyleCompat(Color.WHITE, Color.TRANSPARENT, Color.TRANSPARENT,
+                CaptionStyleCompat.EDGE_TYPE_OUTLINE, 0xE6000000, Typeface.create("sans-serif-medium", Typeface.NORMAL)));
+        sv.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.1f);
     }
 
     @Override protected void onStop() { super.onStop(); if (player != null && !isFinishing()) player.pause(); }
@@ -267,6 +611,7 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        if (menu != null) menu.dismiss();
         if (!exited) {
             exited = true;
             JSObject e = event("exit");

@@ -59,12 +59,17 @@ window.TUNER_TEST = true;
       $('#liveQ').dispatchEvent(new Event('input', { bubbles: true }));
       await wait(800);
 
-      // Watch in the native player: zap, OK for the info and score, Back
-      ($('#liveInner .ch.on') || $('#liveInner .ch')).focus();
+      // Watch the NBA channel in the native player: OK opens the score and box score at the side, left/right
+      // switch team, OK closes it; left/right then open the options; zap down and back up; Back
+      $('#liveInner .ch').focus();
       await press(['DPAD_CENTER'], 'player');
+      await press(['DPAD_CENTER'], 'player-stats', 3000);
+      await press(['DPAD_RIGHT'], 'player-stats-other-team');
+      await press(['DPAD_CENTER'], 'player-stats-closed');
+      await press(['DPAD_RIGHT'], 'player-options');
+      await press(['BACK'], 'player-options-closed');
       await press(['DPAD_DOWN'], 'player-zap');
       await press(['DPAD_UP'], 'player-back-to-nba');
-      await press(['DPAD_CENTER'], 'player-ok-score');
       await press(['BACK'], 'back-in-app');
 
       window.__tunerTest.go('nba');
@@ -72,6 +77,13 @@ window.TUNER_TEST = true;
       await wait(1500);
       ($('.gcard.on') || $('.gcard')).focus();
       await shot('nba');
+      // Picking a team's box score keeps focus on that tab, so the other team is one press away
+      await until(() => $('#nbaDetail [data-ntab="home"]'));
+      $('#nbaDetail [data-ntab="home"]').focus();
+      await press(['DPAD_CENTER'], 'nba-home-tab');
+      report('nba-tab-focus', { focus: document.activeElement?.dataset?.ntab || document.activeElement?.className || '' });
+      await press(['DPAD_LEFT', 'DPAD_CENTER'], 'nba-away-tab');
+      report('nba-tab-focus', { focus: document.activeElement?.dataset?.ntab || document.activeElement?.className || '' });
 
       window.__tunerTest.go('movie');
       await until(() => $('#movieGrid .poster'), 30000);
@@ -80,6 +92,9 @@ window.TUNER_TEST = true;
       await press(['DPAD_RIGHT'], 'movies');
       await press(['DPAD_CENTER'], 'detail');
       await press(['DPAD_CENTER'], 'vod');
+      // Subtitles: down opens the menu, pick English
+      await press(['DPAD_DOWN'], 'vod-subtitle-menu');
+      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'vod-subtitles-on', 2000);
       await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-seek');
       await press(['BACK'], 'vod-closed');
 

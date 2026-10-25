@@ -38,7 +38,9 @@
         if (hit || strict) { if (hit) focusEl(hit); return !!hit; }
       }
     }
-    let best = nearest(cur, dir, items);
+    // A container with data-nav-in (the menu rail: "left") can only be entered by pressing that direction.
+    const allowed = (el) => { const gate = el.closest('[data-nav-in]'); return !gate || gate.contains(cur) || gate.dataset.navIn === dir; };
+    let best = nearest(cur, dir, items.filter(allowed));
     // Entering a group with an entry point (the rail's current section) lands there, not on the nearest item.
     const target = best?.closest('[data-nav-entry]');
     if (target && !target.contains(cur)) {

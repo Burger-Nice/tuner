@@ -78,6 +78,9 @@
   // mpv, when present, is the full player for movies, episodes and full-screen TV.
   let mpvOk = false;
   let mpvCtx = null; // { kind: 'vod' | 'live', items, session }
+  // The TV's own player is on screen: the app underneath skips drawing and only keeps what the player needs.
+  const watching = () => ANDROID && !!mpvCtx;
+  let sentList = ''; // the channel list the TV player already has
   native?.mpv?.available().then((ok) => (mpvOk = ok));
   const useMpv = () => mpvOk && settings().player !== 'builtin';
 
@@ -89,8 +92,8 @@
   const pending = {};
   const S = {
     live: { cat: '*', q: '', list: [], current: null, last: null },
-    movie: { cat: '*', q: '', list: [], shown: 0, sort: 'default' },
-    series: { cat: '*', q: '', list: [], shown: 0, sort: 'default' },
+    movie: { cat: '*', q: '', list: [], shown: 0, sort: 'rec', f: {} },
+    series: { cat: '*', q: '', list: [], shown: 0, sort: 'rec', f: {} },
   };
   let view = null;
 
@@ -102,6 +105,19 @@
   const hm = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
   const host = (u) => { try { return new URL(u).host; } catch { return u; } };
+
+  // Redraw a block only when its content changed, and keep focus on the same control, so live score
+  // updates and tab switches don't throw the remote's position out of the section.
+  const focusKey = (el) => el.getAttributeNames().filter((n) => n.startsWith('data-')).map((n) => `[${n}="${CSS.escape(el.getAttribute(n))}"]`).join('') || (el.id ? `#${CSS.escape(el.id)}` : '');
+  function setHtml(el, html) {
+    if (el._html === html && el.childNodes.length) return false;
+    const a = document.activeElement;
+    const key = a && a !== el && el.contains(a) ? focusKey(a) : null;
+    el.innerHTML = html;
+    el._html = html;
+    if (key !== null) (el.querySelector(key || ':not(*)') || el.querySelector(Nav.FOCUSABLE))?.focus({ preventScroll: true });
+    return true;
+  }
 
   // The TV layout sizes itself to the screen, so the interface size setting is for the PC and phone only.
   function applyScale() { if (TV) delete document.documentElement.dataset.scale; else document.documentElement.dataset.scale = settings().scale; }
@@ -117,7 +133,7 @@
   }, true);
 
   function logo(url, name, cls = 'logo') {
-    return `<span class="${cls}${url ? '' : ' noimg'}" data-ini="${esc(initials(name))}">${url ? `<img loading="lazy" src="${esc(url)}" alt="">` : ''}</span>`;
+    return `<span class="${cls}${url ? '' : ' noimg'}" data-ini="${esc(initials(name))}">${url ? `<img loading="lazy" decoding="async" src="${esc(url)}" alt="">` : ''}</span>`;
   }
 
   let toastT;
@@ -246,12 +262,10 @@
     favs = store.get(scoped('favs'), {});
     progress = store.get(scoped('progress'), {});
     recents = store.get(scoped('recents'), []);
-    for (const k in catalog) catalog[k] = null;
+    for (const k in catalog) { catalog[k] = null; delete fresh[k]; }
     S.live = { cat: store.get(scoped('liveCat'), '*'), q: '', list: [], current: null, last: null, autoResume: true };
-    S.movie = { cat: '*', q: '', list: [], shown: 0, sort: 'default' };
-    S.series = { cat: '*', q: '', list: [], shown: 0, sort: 'default' };
+    for (const k of ['movie', 'series']) S[k] = { cat: '*', q: '', list: [], shown: 0, sort: 'rec', f: {}, ...store.get(scoped(k + 'View'), {}) };
     ['liveQ', 'movieQ', 'seriesQ'].forEach((id) => ($('#' + id).value = ''));
-    $('#movieSort').value = $('#seriesSort').value = 'default';
     $('#login').hidden = true;
     $('#shell').hidden = false;
     $$('.nav[data-view="series"]').forEach((b) => (b.hidden = acc.type !== 'xtream'));
@@ -293,21 +307,68 @@
     setTimeout(tick, 50);
   }
 
+  // Catalogs open from the copy saved on the device, so Tuner starts instantly. The provider is checked for
+  // changes in the background, one list at a time and never while the TV player is up, and the new list is used
+  // the next time you open that section.
+  const fresh = {};
+  let refreshQ = Promise.resolve();
+  const cacheable = () => acc && (acc.type === 'xtream' || !!acc.url);
+  function cacheKey(kind) {
+    const who = `${acc.type}|${acc.server || ''}|${acc.username || ''}|${acc.password || ''}|${acc.url || ''}`;
+    let h = 2166136261;
+    for (let i = 0; i < who.length; i++) h = Math.imul(h ^ who.charCodeAt(i), 16777619);
+    return `${acc.id}:${(h >>> 0).toString(36)}:${kind}`;
+  }
+  function adopt(kind, c) {
+    for (const x of c.items) x._s = x.name.toLowerCase();
+    if (kind !== 'live') tagLib(c);
+    c.byId = new Map(c.items.map((x) => [x.id, x]));
+    c.catName = new Map(c.cats.map((x) => [x.id, x.name]));
+    return (catalog[kind] = c);
+  }
   function ensure(kind) {
     if (catalog[kind]) return Promise.resolve(catalog[kind]);
     if (!pending[kind]) {
       const my = epoch;
-      pending[kind] = src[kind]()
-        .then((c) => {
+      const load = async () => {
+        if (cacheable()) {
+          const hit = await Core.cache.get(cacheKey(kind));
           if (my !== epoch) throw new Error('stale');
-          for (const x of c.items) x._s = x.name.toLowerCase();
-          c.byId = new Map(c.items.map((x) => [x.id, x]));
-          c.catName = new Map(c.cats.map((x) => [x.id, x.name]));
-          return (catalog[kind] = c);
-        })
+          if (hit?.items?.length) {
+            if (Date.now() - hit.at > 20 * 60e3) refreshLater(kind, my);
+            return hit;
+          }
+        }
+        const c = await src[kind]();
+        if (my !== epoch) throw new Error('stale');
+        if (cacheable()) Core.cache.set(cacheKey(kind), { at: Date.now(), cats: c.cats, items: c.items });
+        return c;
+      };
+      pending[kind] = load()
+        .then((c) => { if (my !== epoch) throw new Error('stale'); return adopt(kind, c); })
         .finally(() => delete pending[kind]);
     }
     return pending[kind];
+  }
+  function refreshLater(kind, my) {
+    refreshQ = refreshQ.then(async () => {
+      await new Promise((r) => setTimeout(r, 5000));
+      while (watching()) await new Promise((r) => setTimeout(r, 30000));
+      if (my !== epoch) return;
+      try {
+        const c = await src[kind]();
+        if (my !== epoch) return;
+        Core.cache.set(cacheKey(kind), { at: Date.now(), cats: c.cats, items: c.items });
+        fresh[kind] = c;
+      } catch {}
+    });
+  }
+  function takeFresh(kind) {
+    const c = fresh[kind];
+    if (!c) return;
+    delete fresh[kind];
+    adopt(kind, c);
+    if (kind === 'live' && S.live.current) S.live.current = catalog.live.byId.get(S.live.current.id) || S.live.current;
   }
 
   // ---------- shared: categories & filtering ----------
@@ -357,6 +418,88 @@
     if (st.cat === 'recent') return recents.map((id) => c.byId.get(id)).filter(Boolean);
     if (st.cat === 'continue') return continueList(kind);
     return c.items.filter((x) => x.cat === st.cat);
+  }
+
+  // ---------- movies & series: language, genre, quality and subtitles ----------
+  // Xtream lists don't carry these, but providers put them in their category and title names
+  // ("EN | ACTION", "|FR| Title", "4K", "MULTI-SUB"), so they're read from there.
+  const LANG_CODES = {
+    EN: 'English', ENG: 'English', US: 'English', USA: 'English', UK: 'English', GB: 'English', AU: 'English',
+    FR: 'French', FRA: 'French', FRE: 'French', VF: 'French', DE: 'German', GER: 'German', DEU: 'German',
+    ES: 'Spanish', ESP: 'Spanish', SPA: 'Spanish', LAT: 'Spanish', IT: 'Italian', ITA: 'Italian',
+    PT: 'Portuguese', POR: 'Portuguese', BR: 'Portuguese', NL: 'Dutch', DUT: 'Dutch', NED: 'Dutch',
+    TR: 'Turkish', TUR: 'Turkish', AR: 'Arabic', ARA: 'Arabic', ARAB: 'Arabic', PL: 'Polish', POL: 'Polish',
+    RU: 'Russian', RUS: 'Russian', HI: 'Hindi', HIN: 'Hindi', IN: 'Hindi', SE: 'Swedish', SV: 'Swedish', SWE: 'Swedish',
+    NO: 'Norwegian', NOR: 'Norwegian', DK: 'Danish', DA: 'Danish', DAN: 'Danish', FI: 'Finnish', FIN: 'Finnish',
+    IS: 'Icelandic', ISL: 'Icelandic', ICE: 'Icelandic', GR: 'Greek', GRE: 'Greek', RO: 'Romanian', ROM: 'Romanian',
+    HU: 'Hungarian', HUN: 'Hungarian', CZ: 'Czech', CZE: 'Czech', AL: 'Albanian', ALB: 'Albanian',
+    EXYU: 'Balkan', YU: 'Balkan', HR: 'Balkan', RS: 'Balkan', KR: 'Korean', KOR: 'Korean', JP: 'Japanese', JPN: 'Japanese',
+    CN: 'Chinese', CHI: 'Chinese', FA: 'Persian', IR: 'Persian', KU: 'Kurdish', KUR: 'Kurdish', UR: 'Urdu', PK: 'Urdu',
+    TA: 'Tamil', TAM: 'Tamil', TE: 'Telugu', PH: 'Filipino', TH: 'Thai', VN: 'Vietnamese', HE: 'Hebrew', IL: 'Hebrew',
+    BG: 'Bulgarian', UA: 'Ukrainian', UKR: 'Ukrainian',
+  };
+  const LANG_WORDS = [
+    [/\b(english)\b/i, 'English'], [/\b(french|fran[cç]ais)\b/i, 'French'], [/\b(german|deutsch)\b/i, 'German'],
+    [/\b(spanish|espa[nñ]ol|castellano|latino)\b/i, 'Spanish'], [/\b(italian|italiano)\b/i, 'Italian'],
+    [/\b(portuguese|portugu[eê]s|brasil)\b/i, 'Portuguese'], [/\b(dutch|nederlands)\b/i, 'Dutch'], [/\b(turkish|t[uü]rk)/i, 'Turkish'],
+    [/\b(arabic)\b|عربي/i, 'Arabic'], [/\b(polish|polski)\b/i, 'Polish'], [/\b(russian)\b/i, 'Russian'], [/\b(hindi|bollywood)\b/i, 'Hindi'],
+    [/\b(swedish|svensk)/i, 'Swedish'], [/\b(norwegian|norsk)/i, 'Norwegian'], [/\b(danish|dansk)/i, 'Danish'], [/\b(finnish|suomi)\b/i, 'Finnish'],
+    [/\b(icelandic|[ií]slensk)/i, 'Icelandic'], [/\b(greek)\b/i, 'Greek'], [/\b(korean|k-?drama)\b/i, 'Korean'], [/\b(japanese)\b/i, 'Japanese'],
+    [/\b(chinese|mandarin|cantonese)\b/i, 'Chinese'], [/\b(persian|farsi)\b/i, 'Persian'], [/\b(tamil)\b/i, 'Tamil'], [/\b(telugu)\b/i, 'Telugu'],
+  ];
+  const GENRES = [
+    [/action/i, 'Action'], [/advent/i, 'Adventure'], [/anim(?!e)|cartoon/i, 'Animation'], [/\banime\b/i, 'Anime'], [/comed|com[ée]di|kom[öo]d|commedia|stand.?up/i, 'Comedy'],
+    [/crime|gangster/i, 'Crime'], [/docu/i, 'Documentary'], [/dram/i, 'Drama'], [/family/i, 'Family'], [/fantas/i, 'Fantasy'],
+    [/horr|terror|grusel/i, 'Horror'], [/\bkids?\b|child|enfant|kinder|infantil|junior/i, 'Kids'], [/music|concert/i, 'Music'], [/myster/i, 'Mystery'],
+    [/roman/i, 'Romance'], [/sci.?fi|science fiction/i, 'Sci-Fi'], [/sport/i, 'Sport'], [/thrill|suspense/i, 'Thriller'], [/\bwar\b/i, 'War'],
+    [/western/i, 'Western'], [/christmas|holiday/i, 'Christmas'], [/reality/i, 'Reality'], [/history|historic/i, 'History'],
+  ];
+  const codeAt = (s, re) => { const m = s.match(re); return m && LANG_CODES[m[1].toUpperCase().replace(/[^A-Z]/g, '')]; };
+  const PREFIX = /^\W*([A-Za-z]{2,4}(?:-?YU)?)\s*[|:\-–—\]\)•▎▶►»]/, SUFFIX = /[|:\-–—\[(•]\s*([A-Z]{2,4})\W*$/;
+  function langOf(s, strict) {
+    const c = codeAt(s, PREFIX) || (!strict && codeAt(s, SUFFIX));
+    if (c) return c;
+    if (strict) return '';
+    for (const [re, name] of LANG_WORDS) if (re.test(s)) return name;
+    return '';
+  }
+  function qualityOf(s) {
+    return /\b(4k|uhd|2160p?)\b/i.test(s) ? '4K' : /\b(fhd|1080p?)\b/i.test(s) ? 'Full HD' : /\b(hd|720p?)\b/i.test(s) ? 'HD' : /\bsd\b/i.test(s) ? 'SD' : '';
+  }
+  const SUBS = /multi[ -]?subs?|\bsubs?\b|subtitle|vostfr|\bsubbed\b/i;
+  function tagLib(c) {
+    const byCat = new Map();
+    for (const k of c.cats) byCat.set(k.id, { lang: langOf(k.name), q: qualityOf(k.name), sub: SUBS.test(k.name), genres: GENRES.filter(([re]) => re.test(k.name)).map(([, g]) => g) });
+    const none = { lang: '', q: '', sub: false, genres: [] };
+    for (const x of c.items) {
+      const k = byCat.get(x.cat) || none;
+      x._lang = langOf(x.name, true) || k.lang;
+      x._q = qualityOf(x.name) || k.q;
+      x._sub = k.sub || SUBS.test(x.name);
+      x._genres = x.genre ? [...new Set([...k.genres, ...String(x.genre).split(/[,/|]/).map((g) => g.trim()).filter(Boolean)])] : k.genres;
+    }
+    // English first, then categories with no language in the name, then the rest, each in the provider's order.
+    const rank = (l) => (l === 'English' ? 0 : l ? 2 : 1);
+    c.cats = c.cats.map((k, i) => ({ k, i, r: rank(byCat.get(k.id).lang) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.k);
+    const count = (get) => { const m = new Map(); for (const x of c.items) for (const v of [].concat(get(x))) if (v) m.set(v, (m.get(v) || 0) + 1); return m; };
+    c.facets = { lang: count((x) => x._lang), genre: count((x) => x._genres), q: count((x) => x._q), sub: count((x) => (x._sub ? 'yes' : '')) };
+  }
+  const QUALITY_ORDER = ['4K', 'Full HD', 'HD', 'SD'];
+  function facetFilter(kind, list) {
+    const f = S[kind].f;
+    if (!f.lang && !f.genre && !f.q && !f.sub) return list;
+    return list.filter((x) => (!f.lang || x._lang === f.lang) && (!f.genre || x._genres?.includes(f.genre)) && (!f.q || x._q === f.q) && (!f.sub || x._sub));
+  }
+  function renderFilters(kind) {
+    const st = S[kind], fc = catalog[kind].facets;
+    const sel = (key, label, opts, value) => `<label class="lib-filter"><span>${label}</span><select data-f="${key}">${opts.map(([v, l]) => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+    const byCount = (m) => [...m.entries()].sort((a, b) => b[1] - a[1]);
+    const parts = [sel('sort', 'Sort', [['rec', fc.lang.has('English') ? 'English first' : 'Provider order'], ['added', kind === 'movie' ? 'Recently added' : 'Recently updated'], ['az', 'A–Z'], ['rating', 'Top rated'], ['year', 'Newest']], st.sort)];
+    if (fc.lang.size > 1) parts.push(sel('lang', 'Language', [['', 'All languages'], ...byCount(fc.lang).sort((a, b) => (b[0] === 'English') - (a[0] === 'English')).map(([v, n]) => [v, `${v} · ${n.toLocaleString()}`])], st.f.lang || ''));
+    if (fc.genre.size > 1) parts.push(sel('genre', 'Genre', [['', 'All genres'], ...[...fc.genre.keys()].sort().map((v) => [v, v])], st.f.genre || ''));
+    if (fc.q.size > 1 || (fc.q.size === 1 && !fc.q.has('HD'))) parts.push(sel('q', 'Quality', [['', 'Any quality'], ...QUALITY_ORDER.filter((q) => fc.q.has(q)).map((q) => [q, q])], st.f.q || ''));
+    if (fc.sub.size) parts.push(sel('sub', 'Subtitles', [['', 'Subtitles or not'], ['yes', 'With subtitles']], st.f.sub || ''));
+    setHtml($(`#${kind}Filters`), parts.join(''));
   }
 
   function wireCats(kind, refresh) {
@@ -461,6 +604,7 @@
   }
 
   async function enterLive() {
+    takeFresh('live');
     const st = S.live;
     if (!catalog.live) {
       $('#liveInner').style.height = '';
@@ -702,12 +846,20 @@
     const index = Math.max(0, list.findIndex((c) => c.id === st.current?.id));
     // MPEG-TS is the one format every Xtream server offers, and mpv plays it best.
     const engine = 'mpegts';
-    const entries = list.map((c) => ({ url: (c.sources.find((s) => s.engine === engine) || c.sources[0]).url, title: `${c.num} · ${c.name}`, num: c.num }));
+    const entries = () => list.map((c) => ({ url: (c.sources.find((s) => s.engine === engine) || c.sources[0]).url, title: `${c.num} · ${c.name}`, num: c.num }));
     livePlayer.stop();
-    const r = await native.mpv.play({ mode: 'live', entries, index, ua: settings().ua });
+    let r;
+    if (ANDROID) {
+      // Big channel lists cross over to the TV player once; after that only the position does.
+      const key = `${epoch}:${list.length}:${list[0].id}:${list[list.length - 1].id}:${st.cat}:${st.q}`;
+      const opts = { mode: 'live', index, ua: settings().ua, key };
+      r = key === sentList ? await native.mpv.play(opts).catch(() => null) : null;
+      if (!r) r = await native.mpv.play({ ...opts, entries: entries() });
+      if (r?.ok) sentList = key;
+    } else r = await native.mpv.play({ mode: 'live', entries: entries(), index, ua: settings().ua });
     if (!r.ok) { toast(r.error, 4000); return tune(st.current || list[index]); }
     mpvCtx = { kind: 'live', items: list, session: r.session, index };
-    showCover(entries[index].title);
+    showCover(`${list[index].num} · ${list[index].name}`);
   }
 
   function showCover(title) {
@@ -722,21 +874,38 @@
     if (e.type === 'game' && ctx.kind === 'live') {
       const ch = ctx.items[ctx.index];
       const g = (nba.link?.chId === ch?.id && gameById(nba.link.gameId)) || NBA.matchGame(ch?.name, nba.today);
-      native.mpv.command(['show-text', g ? scoreLine(delayed(g).g) : 'No NBA game found for this channel', 6000]);
+      if (!g) { native.mpv.command(['show-text', 'No NBA game found for this channel', 4000]); return; }
+      if (!ANDROID) { native.mpv.command(['show-text', scoreLine(delayed(g).g), 6000]); return; }
+      // The TV player shows the score and box score at the side, and keeps it up to date while it's open.
+      nba.panel = g.id;
+      nba.panelJson = '';
+      pushPanel();
+      sumTick();
       return;
     }
+    if (e.type === 'stats-closed') { nba.panel = null; return; }
+    if (e.type === 'sync-start') { startSync(e.seenAt); return; }
+    if (e.type === 'sync') { finishSync(e.at, e.seenAt); return; }
     if (e.type === 'track') {
       ctx.index = e.index;
       const it = ctx.items[e.index];
       if (ctx.kind === 'live' && it) {
         autoLink(it, it.name);
+        if (ANDROID) {
+          const g = linkedGameFor(it);
+          native.mpv.command(['linked', !!g]);
+          if (nba.panel) { if (g) { nba.panel = g.id; pushPanel(); } else { nba.panel = null; native.mpv.command(['stats', '']); } }
+        }
       }
       if (it) $('#coverTitle').textContent = it.kind === 'live' ? `${it.num} · ${it.name}` : it.kind === 'episode' ? `${it.seriesName} · S${it.season} E${it.ep}` : it.name;
     } else if (e.type === 'progress' && ctx.kind === 'vod') {
       recordProgress(ctx.items[e.index], e.t, e.d, !!e.final);
     } else if (e.type === 'exit') {
       mpvCtx = null;
+      nba.panel = null;
       $('#cover').hidden = true;
+      // Catch up on what changed while the player was up.
+      if (ANDROID) { onNba(); sumTick(); }
       if (ctx.kind === 'vod') {
         recordProgress(ctx.items[e.index], e.t, e.d, true);
         if (e.error) toast(`This video would not play. ${e.error}`, 6000);
@@ -820,6 +989,7 @@
   // ======================================================================
   const PAGE = 90;
   async function enterLib(kind) {
+    takeFresh(kind);
     const grid = $(`#${kind}Grid`);
     if (!catalog[kind]) {
       $(`#${kind}Cats`).innerHTML = '';
@@ -839,6 +1009,7 @@
   }
 
   const sorters = {
+    rec: (a, b) => (a._lang === 'English' ? 0 : a._lang ? 2 : 1) - (b._lang === 'English' ? 0 : b._lang ? 2 : 1),
     added: (a, b) => b.added - a.added,
     az: (a, b) => a.name.localeCompare(b.name),
     rating: (a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0),
@@ -848,6 +1019,8 @@
   function refreshLib(kind) {
     const st = S[kind];
     let list = filtered(kind);
+    if (!['fav', 'continue', 'recent'].includes(st.cat)) list = facetFilter(kind, list);
+    renderFilters(kind);
     if (sorters[st.sort] && st.cat !== 'continue') list = [...list].sort(sorters[st.sort]);
     st.list = list;
     st.shown = 0;
@@ -856,7 +1029,9 @@
     const grid = $(`#${kind}Grid`);
     $(`#${kind}Scroll`).scrollTop = 0;
     if (!list.length) {
-      grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${st.cat === 'fav' && !st.q ? `<h3>Nothing saved yet</h3><p>Open any title and choose Add to favorites.</p>` : 'Nothing matches.'}</div>`;
+      const filtering = Object.values(st.f).some(Boolean) && !['fav', 'continue', 'recent'].includes(st.cat);
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${st.cat === 'fav' && !st.q ? `<h3>Nothing saved yet</h3><p>Open any title and choose Add to favorites.</p>` : filtering ? `<p>Nothing matches these filters.</p><button class="btn" data-clear-filters>Clear filters</button>` : 'Nothing matches.'}</div>`;
+      grid.querySelector('[data-clear-filters]')?.addEventListener('click', () => { st.f = {}; store.set(scoped(kind + 'View'), { sort: st.sort, f: st.f }); refreshLib(kind); $(`#${kind}Filters select`)?.focus(); });
       return;
     }
     grid.innerHTML = '';
@@ -882,13 +1057,20 @@
     const pct = it.kind === 'movie' ? progressPct(it) : 0;
     const meta = [it.year, it.rating ? '★ ' + it.rating : ''].filter(Boolean).join('  ·  ');
     return `<button class="poster" data-i="${i}">
-      <span class="art${it.poster ? '' : ' noimg'}" data-ini="${esc(initials(it.name))}" style="--h:${hue(it.name)}">${it.poster ? `<img loading="lazy" src="${esc(it.poster)}" alt="">` : ''}${favs[keyOf(it)] ? '<span class="pfav">★</span>' : ''}${pct > 1 && pct < 95 ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
+      <span class="art${it.poster ? '' : ' noimg'}" data-ini="${esc(initials(it.name))}" style="--h:${hue(it.name)}">${it.poster ? `<img loading="lazy" decoding="async" src="${esc(it.poster)}" alt="">` : ''}${favs[keyOf(it)] ? '<span class="pfav">★</span>' : ''}${pct > 1 && pct < 95 ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
       <span class="ptitle">${esc(it.name)}</span>${meta ? `<span class="psub">${esc(meta)}</span>` : ''}</button>`;
   }
 
   for (const kind of ['movie', 'series']) {
     wireCats(kind, () => refreshLib(kind));
-    $(`#${kind}Sort`).addEventListener('change', (e) => { S[kind].sort = e.target.value; refreshLib(kind); });
+    $(`#${kind}Filters`).addEventListener('change', (e) => {
+      const key = e.target.dataset.f;
+      if (!key) return;
+      const st = S[kind];
+      if (key === 'sort') st.sort = e.target.value; else st.f = { ...st.f, [key]: e.target.value };
+      store.set(scoped(kind + 'View'), { sort: st.sort, f: st.f });
+      refreshLib(kind);
+    });
     const sc = $(`#${kind}Scroll`);
     sc.addEventListener('scroll', () => { if (sc.scrollTop + sc.clientHeight > sc.scrollHeight - 900) moreLib(kind); }, { passive: true });
     $(`#${kind}Grid`).addEventListener('click', (e) => { const b = e.target.closest('.poster'); if (b) openDetail(S[kind].list[+b.dataset.i]); });
@@ -972,7 +1154,7 @@
           <div class="episodes">${season.eps.map((e, i) => {
             const pct = progressPct(e);
             return `<button class="ep${resumeEp === e ? ' current' : ''}" data-ep="${i}">
-              <span class="ep-still${e.still ? '' : ' noimg'}" data-ini="E${e.ep}">${e.still ? `<img loading="lazy" src="${esc(e.still)}" alt="">` : ''}${pct > 1 ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
+              <span class="ep-still${e.still ? '' : ' noimg'}" data-ini="E${e.ep}">${e.still ? `<img loading="lazy" decoding="async" src="${esc(e.still)}" alt="">` : ''}${pct > 1 ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
               <span><span class="ep-title"><span class="n">E${e.ep}</span>${esc(e.name)}</span>${e.duration ? `<span class="ep-meta">${esc(e.duration)}</span>` : ''}${e.plot ? `<span class="ep-plot">${esc(e.plot)}</span>` : ''}</span>
             </button>`;
           }).join('')}</div></div>`;
@@ -1296,8 +1478,13 @@
           </div>
           <div class="field">
             <label for="setDelay">Score delay on live TV</label>
-            <select id="setDelay">${[[0, 'Off (real time)'], [15, '15 seconds'], [30, '30 seconds'], [45, '45 seconds'], [60, '1 minute'], [90, '1.5 minutes'], [120, '2 minutes']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
-            <span class="hint">IPTV streams usually run 20–60 seconds behind the real game. Hold the score bug back so it doesn’t spoil a play before you see it. Tip: when a basket happens on your stream, see how long the score bug took to show it.</span>
+            <select id="setDelay">${(() => {
+              const opts = [[0, 'Off (real time)'], [15, '15 seconds'], [30, '30 seconds'], [45, '45 seconds'], [60, '1 minute'], [90, '1.5 minutes'], [120, '2 minutes']];
+              const cur = +s.scoreDelay || 0;
+              if (!opts.some(([v]) => v === cur)) opts.push([cur, `${cur} seconds (synced)`]);
+              return opts.sort((a, b) => a[0] - b[0]).map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+            })()}</select>
+            <span class="hint">IPTV streams usually run 20–60 seconds behind the real game. Hold the score bug back so it doesn’t spoil a play before you see it. ${TV ? 'Easiest: while watching a game, press ←/→ right as you see a basket and choose <b>Sync the score to this stream</b>.' : 'Tip: when a basket happens on your stream, see how long the score bug took to show it.'}</span>
           </div>
         </div>
         <div class="card">
@@ -1336,7 +1523,12 @@
     $('#setScale').value = s.scale;
     $('#setOut').onclick = signOut;
     $('#setAdd').onclick = () => showLogin();
-    $('#setReload').onclick = () => { for (const k in catalog) catalog[k] = null; toast('Channels and library will reload'); go('live'); };
+    $('#setReload').onclick = () => {
+      for (const k in catalog) { catalog[k] = null; delete fresh[k]; }
+      Core.cache.clear();
+      toast('Channels and library will reload');
+      go(TV ? 'home' : 'live');
+    };
     $('#setFormat').onchange = (e) => { saveSettings({ liveFormat: e.target.value }); catalog.live = null; toast('Saved. Channels will reload with the new format.'); };
     $('#setScale').onchange = (e) => { saveSettings({ scale: e.target.value }); applyScale(); };
     $('#setUaSave').onclick = () => { const ua = $('#setUa').value.trim(); saveSettings({ ua }); native?.setUserAgent(ua); toast(native ? 'User agent saved' : 'Saved. User agent only applies in the desktop app.'); };
@@ -1368,7 +1560,7 @@
   const tipTime = (g) => new Date(g.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const statusText = (g) => (g.state === 'pre' ? `${tipTime(g)}` : g.state === 'in' ? g.detail.replace(' - ', ' · ') : g.detail || 'Final');
   const loser = (g, side) => g.state === 'post' && +g[side].score < +g[side === 'home' ? 'away' : 'home'].score;
-  const tlogo = (t, cls = '') => `<img class="tlogo ${cls}" src="${esc(t.logo)}" alt="">`;
+  const tlogo = (t, cls = '') => `<img class="tlogo ${cls}" decoding="async" src="${esc(t.logo)}" alt="">`;
 
   // Team colors straight from ESPN can be near-black; use the alternate color then.
   function teamColor(t) {
@@ -1451,10 +1643,13 @@
     if (fav && !nba.alerted.has(fav.id)) {
       nba.alerted.add(fav.id);
       const me = fav.home.abbr === favTeam() ? fav.home : fav.away;
-      toast(`${me.name} are live: ${fav.away.abbr} ${fav.away.score} – ${fav.home.score} ${fav.home.abbr} · ${statusText(fav)}`, 6000);
+      const msg = `${me.name} are live: ${fav.away.abbr} ${fav.away.score} – ${fav.home.score} ${fav.home.abbr} · ${statusText(fav)}`;
+      if (watching()) native.mpv.command(['show-text', msg, 6000]); else toast(msg, 6000);
     }
     if (S.live.current && !nba.link) autoLink(S.live.current, `${S.live.current.name} ${epgNow}`);
     if (nba.link?.gameId) remember(gameById(nba.link.gameId));
+    if (nba.panel) pushPanel();
+    if (watching()) return; // the screens underneath catch up when the player closes
     if (view === 'nba') drawNba();
     if (view === 'home') drawHomeRow('nba');
     drawLiveGame();
@@ -1480,7 +1675,8 @@
 
   async function sumTick() {
     clearTimeout(nba.sumTimer);
-    const id = focusId();
+    // Behind the TV player the full box score is only needed while its panel is open.
+    const id = watching() && !nba.panel ? null : focusId();
     if (id) {
       try {
         const s = await NBA.summary(id);
@@ -1489,15 +1685,15 @@
           nba.sumErr = '';
           mergeGame(s.game);
           if (nba.link?.gameId === id) remember(gameById(id));
-          if (view === 'nba') drawNba();
-          drawLiveGame();
+          if (nba.panel === id) pushPanel();
+          if (!watching()) { if (view === 'nba') drawNba(); drawLiveGame(); }
         }
       } catch (e) {
         nba.sumErr = e.message;
-        if (view === 'nba') drawNba();
+        if (view === 'nba' && !watching()) drawNba();
       }
     }
-    const g = id && gameById(id);
+    const g = (id || nba.link?.gameId) && gameById(id || nba.link.gameId);
     nba.sumTimer = setTimeout(sumTick, g && g.state === 'in' ? 10000 : 60000);
   }
 
@@ -1610,15 +1806,58 @@
   const delayNote = () => (delayMs() ? `<span class="pill dim" title="Scores are held back to match your stream. Change under Account.">${settings().scoreDelay}s delay</span>` : '');
   setInterval(() => {
     if (!delayMs() || view !== 'live') return;
-    const g = linkedGame();
+    const g = (nba.panel && gameById(nba.panel)) || linkedGame();
     const k = g && delayed(g).key;
-    if (k !== nba.shownKey) { nba.shownKey = k; drawLiveGame(); }
+    if (k !== nba.shownKey) { nba.shownKey = k; if (nba.panel) pushPanel(); if (!watching()) drawLiveGame(); }
   }, 1000);
+
+  // ---------- NBA in the TV player: the score and box score at the side, and syncing the score to the stream ----------
+  function panelData(g) {
+    const { g: dg, s } = delayed(g);
+    const team = (side) => {
+      const t = dg[side];
+      const b = s?.box.find((x) => x.abbr === t.abbr);
+      const cols = ['MIN', 'PTS', 'REB', 'AST'].map((l) => (b ? b.labels.indexOf(l) : -1));
+      const rows = b ? b.players.filter((p) => !p.dnp).map((p) => [p.short || p.name, ...cols.map((i) => (i >= 0 ? String(p.stats[i] ?? '') : ''))]) : [];
+      return { abbr: t.abbr, color: teamColor(t), rows };
+    };
+    return {
+      score: `${dg.away.abbr} ${dg.away.score ?? ''} – ${dg.home.score ?? ''} ${dg.home.abbr}   ${statusText(dg)}`,
+      note: delayMs() ? `${settings().scoreDelay}s behind live, to match your stream` : '',
+      away: team('away'), home: team('home'), first: dg.home.abbr === favTeam() ? 1 : 0, loading: !s,
+    };
+  }
+  function pushPanel() {
+    const g = nba.panel && gameById(nba.panel);
+    if (!g || !watching()) return;
+    const json = JSON.stringify(panelData(g));
+    if (json === nba.panelJson) return;
+    nba.panelJson = json;
+    native.mpv.command(['stats', json]);
+  }
+  // You press left/right as you see a basket, pick it from the latest ones, and the score is held back by exactly that much.
+  async function startSync(seenAt) {
+    const g = linkedGame() || (nba.link?.gameId && gameById(nba.link.gameId));
+    if (!g) { native.mpv.command(['show-text', 'No NBA game found for this channel', 4000]); return; }
+    let s;
+    try { s = await NBA.summary(g.id); } catch { native.mpv.command(['show-text', 'Couldn’t reach the scores right now', 4000]); return; }
+    const plays = s.plays.filter((p) => p.scoring && p.at && p.at < seenAt).slice(0, 6);
+    if (!plays.length) { native.mpv.command(['show-text', 'No baskets yet to sync with', 4000]); return; }
+    native.mpv.command(['sync-plays', JSON.stringify({ seenAt, plays: plays.map((p) => ({ at: p.at, label: `${g.away.abbr} ${p.away} – ${p.home} ${g.home.abbr}    ${p.text}` })) })]);
+  }
+  function finishSync(at, seenAt) {
+    const sec = Math.max(0, Math.min(600, Math.round((seenAt - at) / 1000) - 1));
+    saveSettings({ scoreDelay: sec });
+    native.mpv.command(['show-text', sec ? `Score synced: it now runs ${sec} s behind live, like your stream` : 'Score synced: your stream is live', 5000]);
+    nba.panelJson = '';
+    pushPanel();
+  }
 
   // ---------- live TV: score bug + game card ----------
   // The TV keeps the picture clean unless you turn the bug on; the PC and phone show it unless you turn it off.
   const scoreBugOn = () => settings().scoreBug ?? !TV;
   function drawLiveGame() {
+    if (watching()) return;
     const card = $('#gameCard'), bug = $('#scoreBug');
     const ch = S.live.current;
     if (view !== 'live' || !ch) { card.hidden = bug.hidden = true; return; }
@@ -1626,7 +1865,7 @@
     const { g, s } = delayed(linked);
     $('#livePtabs .ptab-dot').hidden = !linked;
     bug.hidden = !(g && g.state !== 'pre' && scoreBugOn());
-    if (!bug.hidden) bug.innerHTML = bugHtml(g);
+    if (!bug.hidden) setHtml(bug, bugHtml(g));
     const live = nba.today.filter((x) => x.state === 'in');
     if (!g && !live.length) { card.hidden = true; return; }
     card.hidden = false;
@@ -1634,9 +1873,9 @@
     if (!g) {
       card.style.cssText = '';
       card.classList.remove('linked');
-      card.innerHTML = `<div class="gc-head"><span class="title"><span class="live-dot"></span>NBA live now</span>${picker}</div>
+      setHtml(card, `<div class="gc-head"><span class="title"><span class="live-dot"></span>NBA live now</span>${picker}</div>
         <div class="gc-strip">${live.map((x) => `<button class="gc-chip" data-link="${x.id}">${tlogo(x.away, 'sm')}${esc(x.away.abbr)} ${esc(x.away.score)} – ${esc(x.home.score)} ${esc(x.home.abbr)}${tlogo(x.home, 'sm')}<small>${esc(statusText(x))}</small></button>`).join('')}</div>
-        <span class="hint">Watching one of these? Pick it to see the box score here.</span>`;
+        <span class="hint">Watching one of these? Pick it to see the box score here.</span>`);
       return;
     }
     const tab = (id, label, logo) => `<button data-gctab="${id}" class="${nba.gcTab === id ? 'on' : ''}${id === 'plays' ? '' : ' team'}"${id === 'plays' ? '' : ` style="${teamVars(g[id])}"`}>${logo || ''}${label}</button>`;
@@ -1646,10 +1885,10 @@
     else body = nba.gcTab === 'plays' ? playsHtml(s, 8) : boxHtml(s, nba.gcTab === 'home' ? g.home.abbr : g.away.abbr, true);
     card.style.cssText = gameVars(g);
     card.classList.add('linked');
-    card.innerHTML = `<div class="gc-head"><span class="title">${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(g.away.name)} at ${esc(g.home.name)}</span>${delayNote()}${picker}</div>
+    setHtml(card, `<div class="gc-head"><span class="title">${g.state === 'in' ? '<span class="live-dot"></span>' : ''}${esc(g.away.name)} at ${esc(g.home.name)}</span>${delayNote()}${picker}</div>
       ${linesTable(g)}
       <div class="tabs gc-tabs">${tab('away', g.away.abbr, tlogo(g.away, 'sm'))}${tab('home', g.home.abbr, tlogo(g.home, 'sm'))}${tab('plays', 'Plays')}<button data-open-game="${g.id}">Full box score</button></div>
-      ${body}`;
+      ${body}`);
   }
 
   // Phone layout: the live screen switches between the channel list and what's playing.
@@ -1725,15 +1964,14 @@
       html += gameCardHtml(g);
     }
     const scroll = list.scrollTop;
-    list.innerHTML = html;
-    list.scrollTop = scroll;
+    if (setHtml(list, html)) list.scrollTop = scroll;
     drawNbaDetail();
   }
 
   function drawNbaDetail() {
     const g = gameById(nba.selected);
     const box = $('#nbaDetail');
-    if (!g) { box.innerHTML = ''; return; }
+    if (!g) { setHtml(box, ''); return; }
     const s = nba.sum?.game.id === g.id ? nba.sum : null;
     const team = (side) => `<div class="sb-team ${side}">${tlogo(g[side], 'lg')}<div><div class="nm">${esc(g[side].name)}</div><div class="rc">${esc(g[side].record)}${side === 'home' ? ' · Home' : ''}</div></div><div class="big${loser(g, side) ? ' lose' : ''}">${g.state === 'pre' ? '' : esc(g[side].score)}</div></div>`;
     const leaders = ['PTS', 'REB', 'AST'].map((k) => {
@@ -1746,10 +1984,10 @@
     else if (!s) body = nba.sumErr ? `<div class="epg-empty">${esc(nba.sumErr)}</div>` : '<div class="loading-note"><div class="spinner"></div>Loading box score…</div>';
     else if (nba.tab === 'team') body = `<div class="panel">${teamStatsHtml(s, g)}</div>`;
     else if (nba.tab === 'plays') body = `<div class="panel">${playsHtml(s, 60)}</div>`;
-    else body = `<div class="panel">${boxHtml(s, nba.tab === 'home' ? g.home.abbr : g.away.abbr, false)}</div>`;
+    else body = `<div class="panel">${boxHtml(s, nba.tab === 'home' ? g.home.abbr : g.away.abbr, TV)}</div>`; // the remote can't scroll a wide table sideways
 
     $('#view-nba').classList.toggle('detail-open', !!nba.phoneDetail);
-    box.innerHTML = `
+    const changed = setHtml(box, `
       <button class="btn ghost nba-back" data-nba-back>‹ Games</button>
       <div class="sb-hero" style="${gameVars(g)}">
         ${team('away')}
@@ -1766,23 +2004,27 @@
         ${leaders ? `<div class="panel"><h4>Leaders</h4><div class="leaders"><span></span><span class="k">${esc(g.away.abbr)}</span><span class="k">${esc(g.home.abbr)}</span>${leaders}</div></div>` : ''}
       </div>
       <div class="tabs">${tab('away', g.away.name, tlogo(g.away, 'sm'))}${tab('home', g.home.name, tlogo(g.home, 'sm'))}${tab('team', 'Team stats')}${tab('plays', 'Play-by-play')}</div>
-      ${body}`;
-    if (nba.watchFor === g.id) drawWatchList(g);
+      ${body}`);
+    if (changed && nba.watchFor === g.id) drawWatchList(g);
   }
 
   async function drawWatchList(g) {
     const box = $('#watchList');
     if (!box) return;
-    box.innerHTML = '<div class="loading-note"><div class="spinner"></div>Searching your channels…</div>';
+    // A redraw of the game puts back the last results straight away instead of searching again from blank.
+    if (nba.watchHtml?.id === g.id) setHtml(box, nba.watchHtml.html);
+    else box.innerHTML = '<div class="loading-note"><div class="spinner"></div>Searching your channels…</div>';
     let c;
     try { c = await ensure('live'); } catch (e) { box.innerHTML = `<div class="epg-empty">${esc(e.message)}</div>`; return; }
     if (nba.selected !== g.id || view !== 'nba') return;
     const exact = c.items.filter((ch) => NBA.matchGame(ch.name, [g]));
     const general = c.items.filter((ch) => !exact.includes(ch) && /\bNBA\b|league pass/i.test(ch.name)).slice(0, 12);
     const tile = (ch) => `<button class="chan-tile" data-tune="${esc(ch.id)}">${logo(ch.logo, ch.name)}<span>${esc(ch.name)}</span></button>`;
-    box.innerHTML = !exact.length && !general.length
+    const html = !exact.length && !general.length
       ? `<div class="epg-empty">No channel names mention this game. It may be on ${esc(g.tv.join(', ') || 'a channel without the teams in its name')}. Try the guide on your sports channels.</div>`
       : `${exact.length ? `<div class="nba-sep">Showing this game</div>${exact.slice(0, 12).map(tile).join('')}` : ''}${general.length ? `<div class="nba-sep">NBA channels</div>${general.map(tile).join('')}` : ''}`;
+    nba.watchHtml = { id: g.id, html };
+    setHtml(box, html);
   }
 
   $('#nbaGames').addEventListener('click', (e) => {
@@ -1828,6 +2070,7 @@
   const home = { rows: [], epg: new Map(), heroT: 0, moved: false };
 
   async function enterHome() {
+    ['live', 'movie', 'series'].forEach(takeFresh);
     drawHome();
     // Fill in rows as the catalogs arrive.
     for (const k of ['live', 'movie', 'series']) {
@@ -1848,7 +2091,15 @@
     const rec = recents.map((id) => byId?.get(id)).filter(Boolean).slice(0, 24);
     if (rec.length) rows.push({ id: 'recent', title: 'Recently watched', kind: 'ch', items: rec });
     if (!fav.length && !rec.length && catalog.live) rows.push({ id: 'chans', title: 'Channels', kind: 'ch', items: catalog.live.items.slice(0, 30) });
-    const newest = (c) => [...c.items].sort((a, b) => b.added - a.added).slice(0, 30);
+    // Worked out once per list (the NBA row redraws often); English titles first when the provider marks languages.
+    const newest = (c) => {
+      if (!c._newest) {
+        const all = [...c.items].sort((a, b) => b.added - a.added);
+        const en = all.filter((x) => x._lang === 'English');
+        c._newest = (en.length >= 12 ? en : all).slice(0, 30);
+      }
+      return c._newest;
+    };
     const favMovies = favList('movie'), favSeries = favList('series');
     if (favMovies.length || favSeries.length) rows.push({ id: 'saved', title: 'My list', kind: 'poster', items: [...favMovies, ...favSeries] });
     if (catalog.movie?.items.length) rows.push({ id: 'movies', title: 'New movies', kind: 'poster', items: newest(catalog.movie) });
@@ -1870,7 +2121,7 @@
     const pct = row.kind === 'cont' ? Math.min(100, (it.t / it.d) * 100) : 0;
     const name = item.kind === 'episode' ? item.seriesName : item.name;
     const poster = item.poster;
-    return `<button class="hcard tall" ${data}><span class="thumb art${poster ? '' : ' noimg'}" data-ini="${esc(initials(name))}" style="--h:${hue(name)}">${poster ? `<img loading="lazy" src="${esc(poster)}" alt="">` : ''}${pct ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
+    return `<button class="hcard tall" ${data}><span class="thumb art${poster ? '' : ' noimg'}" data-ini="${esc(initials(name))}" style="--h:${hue(name)}">${poster ? `<img loading="lazy" decoding="async" src="${esc(poster)}" alt="">` : ''}${pct ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
       <span class="cap">${esc(item.kind === 'episode' ? `${name} · S${item.season} E${item.ep}` : name)}</span></button>`;
   }
 
@@ -1960,7 +2211,7 @@
       title = esc(isEp ? item.seriesName : item.name);
       meta = [isEp ? `S${item.season} E${item.ep} · ${item.name}` : item.year, item.rating && `★ ${item.rating}`].filter(Boolean).map(esc).join('   ');
       if (row.kind === 'cont') desc = `Resume from ${fmtTime(it.t)} · ${Math.max(1, Math.round((it.d - it.t) / 60))} min left`;
-      if (item.poster) bg = `<img class="tvhero-bg" src="${esc(item.poster)}" alt="">`;
+      if (item.poster) bg = `<img class="tvhero-bg" decoding="async" src="${esc(item.poster)}" alt="">`;
     }
     hero.innerHTML = `${bg}${art}<div class="tvhero-body"><div class="eyebrow">${eyebrow}</div><h1>${title}</h1>${meta ? `<div class="meta">${meta}</div>` : ''}<p>${desc}</p></div>`;
   }
@@ -1972,7 +2223,8 @@
     // Netflix-style: the focused row moves to the top, the focused card to the left.
     const rowEl = card.closest('.hrow'), rows = $('#homeRows'), strip = card.parentElement;
     rows.scrollTo({ top: rowEl.offsetTop - rows.offsetTop - 4, behavior: 'smooth' });
-    strip.scrollTo({ left: Math.max(0, card.offsetLeft - strip.offsetLeft - 6), behavior: 'smooth' });
+    // The focused card lines up where the first one sits, with room for it to grow without being cut off.
+    strip.scrollTo({ left: Math.max(0, card.offsetLeft - strip.offsetLeft - parseFloat(getComputedStyle(strip).paddingLeft)), behavior: 'smooth' });
     clearTimeout(home.heroT);
     home.heroT = setTimeout(() => drawHero(homeItem(card)), 120);
   });

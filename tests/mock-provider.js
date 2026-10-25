@@ -16,7 +16,8 @@ const live = Array.from({ length: 320 }, (_, i) => ({
   num: i + 1, name: i < names.length ? names[i] + (i % 3 === 0 ? ' HD' : '') : `Channel ${i + 1}`, stream_type: 'live', stream_id: 1000 + i,
   stream_icon: i % 4 === 3 ? '' : `${B}/img/l${i % 8}.png`, epg_channel_id: 'x', category_id: String((i % 8) + 1), tv_archive: 0,
 }));
-const vodCats = ['New Releases', 'Action', 'Comedy', 'Drama', 'Kids', 'Documentary'].map((n, i) => ({ category_id: String(10 + i), category_name: n }));
+// Named the way real providers do, with the language and quality in the category name.
+const vodCats = ['FR | DRAMA', 'EN | NEW RELEASES', 'EN | ACTION', '4K | UHD MOVIES', 'KIDS | MULTI-SUB', 'DE - KOMÖDIE'].map((n, i) => ({ category_id: String(10 + i), category_name: n }));
 const titles = ['The Long Night', 'Northern Lights', 'Fast Lane', 'Glacier', 'Midnight Ferry', 'The Last Signal', 'Reykjavík Blues', 'Paper Moon', 'Static', 'Harbour'];
 const vod = Array.from({ length: 640 }, (_, i) => ({
   num: i + 1, name: `${titles[i % 10]}${i >= 10 ? ' ' + (Math.floor(i / 10) + 1) : ''} (${2000 + (i % 25)})`, stream_type: 'movie', stream_id: 5000 + i,
