@@ -12,6 +12,17 @@ const shot = (name) => {
   try { fs.writeFileSync(`android-shots/${String(++n).padStart(2, '0')}-${name}.png`, adb('exec-out', 'screencap', '-p')); } catch (e) { console.log(`screenshot ${name} failed: ${e.message}`); }
 };
 const key = (k) => { try { adb('shell', 'input', 'keyevent', `KEYCODE_${k}`); } catch (e) { console.log(`key ${k} failed: ${e.message}`); } };
+// The emulator's home screen sometimes comes up over the app; put Tuner back in front before each step.
+const front = () => {
+  try {
+    const out = adb('shell', 'dumpsys', 'activity', 'activities').toString();
+    const m = out.match(/(?:topResumedActivity|mResumedActivity|ResumedActivity)[^\n]*?\s([\w.]+)\/([\w.$]+)/);
+    if (m && m[1] === 'app.tuner.player') return;
+    console.log(`Tuner was not in front (${m ? `${m[1]}/${m[2]}` : 'unknown'}), bringing it back`);
+    adb('shell', 'am', 'start', '-n', 'app.tuner.player/.MainActivity');
+    execFileSync('sleep', ['3']);
+  } catch (e) { console.log(`front check failed: ${e.message}`); }
+};
 const keyboard = () => {
   try {
     const out = adb('shell', 'dumpsys', 'input_method').toString();
@@ -33,6 +44,7 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
       if (r.step === 'ack') continue;
       const s = r.data?.state;
       console.log(`${r.step} ${r.data?.name || ''} ${JSON.stringify(s ? { tv: s.tv, bridge: s.bridge, view: s.view, focus: s.focus, playing: s.playing } : r.data).slice(0, 400)}`);
+      if (r.step === 'shot' || r.step === 'keys') front();
       if (r.step === 'shot') { shot(r.data.name); console.log(`${r.data.name}: keyboard ${keyboard()}`); await ack(r.data.name); }
       if (r.step === 'keys') {
         if (r.data.text) { try { adb('shell', 'input', 'text', r.data.text); } catch (e) { console.log(`typing failed: ${e.message}`); } }
