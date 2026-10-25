@@ -8,8 +8,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // CI passes these; see .github/workflows/build.yml
-        versionCode (project.findProperty('tunerVersionCode') ?: '1').toInteger()
-        versionName project.findProperty('tunerVersionName') ?: '0.0.0'
+        versionCode = (project.findProperty('tunerVersionCode') ?: '1').toInteger()
+        versionName = (project.findProperty('tunerVersionName') ?: '0.0.0').toString()
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
