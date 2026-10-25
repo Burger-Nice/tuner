@@ -110,9 +110,15 @@ window.TUNER_TEST = true;
       await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-seek');
       await press(['BACK'], 'vod-closed');
 
+      $('#sheet .close')?.click();
+      await wait(500);
       window.__tunerTest.go('settings');
       await wait(1500);
+      $('#settingsPage .srow')?.focus();
       await shot('account');
+      $('#settingsPage [data-set="team"]')?.focus();
+      await press(['DPAD_CENTER'], 'account-team-sheet');
+      await press(['BACK'], 'account-sheet-closed');
       report('done', state());
     } catch (e) {
       report('error', String((e && e.stack) || e));

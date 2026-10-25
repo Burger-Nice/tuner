@@ -1272,7 +1272,7 @@
         <div class="hero-body">
           <span class="art cover${it.poster ? '' : ' noimg'}" data-ini="${esc(initials(it.name))}" style="--h:${hue(it.name)}">${it.poster ? `<img src="${esc(it.poster)}" alt="">` : ''}</span>
           <div class="hero-text">
-            <div class="eyebrow">${isMovie ? 'Movie' : 'Series'}${catalog[it.kind]?.catName.get(it.cat) ? ' · ' + esc(catalog[it.kind].catName.get(it.cat)) : ''}</div>
+            <div class="eyebrow">${isMovie ? 'Movie' : 'Series'}${catalog[it.kind]?.catName.get(it.cat) ? ' · ' + esc(prettyCat(catalog[it.kind].catName.get(it.cat)).name) : ''}</div>
             <h2>${esc(it.name)}</h2>
             <div class="facts">${facts}</div>
             ${d.plot ? `<p class="plot">${esc(d.plot)}</p>` : !detailInfo ? '<p class="plot" style="color:var(--dim)">Loading details…</p>' : '<p class="plot"></p>'}
