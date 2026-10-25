@@ -118,6 +118,7 @@ window.TUNER_TEST = true;
       window.__tunerTest.go('settings');
       await wait(1500);
       $('#settingsPage .srow')?.focus();
+      await wait(600); // let the WebView repaint the focused row before the capture
       await shot('account');
       $('#settingsPage [data-set="team"]')?.focus();
       await press(['DPAD_CENTER'], 'account-team-sheet');
