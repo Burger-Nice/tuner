@@ -281,6 +281,28 @@ public class PlayerActivity extends AppCompatActivity {
         handler.postDelayed(hideMessage, ms);
     }
 
+    /**
+     * Movies and episodes: the player's own view takes the arrow keys to bring up its controls, so while the
+     * controls are hidden, left/right (seek) and down (subtitles & audio) are caught here first.
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        int code = e.getKeyCode();
+        if (!live && view != null && player != null && !view.isControllerFullyVisible()
+                && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_DPAD_DOWN)) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN) {
+                if (code == KeyEvent.KEYCODE_DPAD_DOWN) { if (e.getRepeatCount() == 0) openTrackMenu(); }
+                else {
+                    long to = player.getCurrentPosition() + (code == KeyEvent.KEYCODE_DPAD_LEFT ? -10000 : 10000);
+                    player.seekTo(Math.max(0, to));
+                    showText(code == KeyEvent.KEYCODE_DPAD_LEFT ? "−10s" : "+10s", 900);
+                }
+            }
+            return true;
+        }
+        return super.dispatchKeyEvent(e);
+    }
+
     @Override
     public boolean onKeyDown(int code, KeyEvent e) {
         if (stats != null && stats.getVisibility() == View.VISIBLE) {
@@ -318,10 +340,7 @@ public class PlayerActivity extends AppCompatActivity {
                     }
             }
         } else if (!view.isControllerFullyVisible()) {
-            // Seek without opening the controls; any other key brings them up.
-            if (code == KeyEvent.KEYCODE_DPAD_LEFT) { player.seekTo(Math.max(0, player.getCurrentPosition() - 10000)); showText("−10s", 900); return true; }
-            if (code == KeyEvent.KEYCODE_DPAD_RIGHT) { player.seekTo(player.getCurrentPosition() + 10000); showText("+10s", 900); return true; }
-            if (code == KeyEvent.KEYCODE_DPAD_DOWN) { openTrackMenu(); return true; }
+            // Up or OK brings up the controls (left/right/down are handled in dispatchKeyEvent).
             if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_DPAD_UP) { view.showController(); return true; }
         }
         return super.onKeyDown(code, e);
