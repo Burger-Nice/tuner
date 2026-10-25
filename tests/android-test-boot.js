@@ -104,9 +104,12 @@ window.TUNER_TEST = true;
       await press(['DPAD_RIGHT'], 'movies');
       await press(['DPAD_CENTER'], 'detail');
       await press(['DPAD_CENTER'], 'vod');
-      // Subtitles: down opens the menu, pick English
-      await press(['DPAD_DOWN'], 'vod-subtitle-menu');
+      // Down opens the options: Subtitles (pick English), then Picture size (Zoom)
+      await press(['DPAD_DOWN'], 'vod-options');
+      await press(['DPAD_CENTER'], 'vod-subtitle-menu');
       await press(['DPAD_DOWN', 'DPAD_CENTER'], 'vod-subtitles-on', 2000);
+      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_CENTER'], 'vod-picture-menu');
+      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'vod-zoom');
       await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-seek');
       await press(['BACK'], 'vod-closed');
 

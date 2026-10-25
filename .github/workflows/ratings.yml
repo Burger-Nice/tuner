@@ -1,0 +1,31 @@
+name: IMDb ratings
+
+# Builds the ratings file the apps use for Popular and Top rated, from IMDb's free datasets
+# (personal and non-commercial use), and publishes it as a release asset the apps download.
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['scripts/build-ratings.js', 'app/titles.js', '.github/workflows/ratings.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  ratings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: Build the ratings file
+        run: node scripts/build-ratings.js ratings.json 1000 | sed 's/^/::notice title=Ratings::/'
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view ratings >/dev/null 2>&1 || gh release create ratings --prerelease --latest=false --title "IMDb ratings" --notes "Ratings data for Tuner, built weekly from IMDb's non-commercial datasets. Not an app release."
+          gh release upload ratings ratings.json --clobber

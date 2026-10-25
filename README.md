@@ -34,11 +34,13 @@ On the TV every channel plays in the built-in ExoPlayer engine at the TV's full 
 
 | In the TV player | Live TV | Movies and episodes |
 | --- | --- | --- |
-| **↑ / ↓**, channel buttons | Change channel | ↑ shows the controls, ↓ subtitles & audio |
-| **← / →** | Options: box score, sync the score, subtitles, audio | Back / forward 10 s |
+| **↑ / ↓**, channel buttons | Change channel | ↑ shows the controls, ↓ options: subtitles, audio, picture size |
+| **← / →** | Options: box score, sync the score, subtitles, audio, picture size | Back / forward 10 s |
 | **OK** | On an NBA game: the score and box score at the side (←/→ switch team, OK closes) | Pause / controls |
 | Number keys | Jump to a channel | |
 | **Back** | Back to the guide | Back to the details |
+
+**Black bars** above and below a movie are normal: most films are wider than a TV, and the player shows the whole picture. **Picture size → Zoom** fills the screen instead (trimming the sides), and **Stretch** fills it by stretching; Tuner remembers your choice.
 
 Subtitles work when the movie, episode or channel carries them (most MKV and MP4 files do, and many channels have closed captions). Tuner remembers your choice: pick a language once and it's used from then on; pick **Off** and they stay off. Teletext subtitles, used by some European broadcasters, aren't supported.
 
@@ -52,7 +54,7 @@ Tuner installs through **AltStore** (free Apple ID; AltStore re-signs it every f
 
 Movies and series open sorted by **Popular**, with English titles first. The chips above the posters change the sort (Popular, Recently added, Top rated, Newest releases, A–Z), the language (English first, any, or just one), the genre, the picture quality (4K, Full HD) and subtitles; press OK on a chip and its choices slide in from the right.
 
-Providers don't share what people watch, so *Popular* ranks well-rated, recent titles first and lifts anything your provider files under trending, popular or top-10 style categories. Most providers don't send language, genre or quality separately either, so Tuner reads them from the category and title names (like *EN | ACTION*, *4K*, *MULTI-SUB*), and shows those categories as plain names with a small language tag. A filter only appears when your provider's names give Tuner something to go on.
+**Popular** and **Top rated** use IMDb: Tuner downloads a small ratings file once a week (built from [IMDb's free datasets](https://developer.imdb.com/non-commercial-datasets/), for personal use) and matches your provider's titles to it by name and year. *Popular* ranks by how many people rated a title, leaning towards recent releases and anything your provider files under trending or top-10 style categories; *Top rated* uses IMDb's rating, held back until a title has enough votes. Posters and details show the IMDb score. Titles IMDb doesn't know fall back to your provider's rating. Rotten Tomatoes has no free source, so it isn't included. Most providers don't send language, genre or quality separately either, so Tuner reads them from the category and title names (like *EN | ACTION*, *4K*, *MULTI-SUB*), and shows those categories as plain names with a small language tag. A filter only appears when your provider's names give Tuner something to go on.
 
 Channel, movie and series lists are saved on the device, so Tuner opens straight away; it checks your provider for changes in the background and picks them up the next time you open that section. **Account → Reload channels & library** fetches everything fresh.
 

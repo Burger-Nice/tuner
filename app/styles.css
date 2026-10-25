@@ -170,6 +170,7 @@ input[type="range"] { accent-color: var(--fg); }
 }
 .cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cat small { font: 0.6875rem var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.imdb { display: inline-block; font: 800 0.75em/1 var(--body); background: #f5c518; color: #000; padding: 0.2em 0.35em; border-radius: 0.25rem; vertical-align: 0.08em; letter-spacing: 0; }
 .cat-tag { font: normal 600 0.625rem var(--mono); letter-spacing: 0.06em; color: var(--dim); border: 1px solid var(--line); border-radius: 0.3rem; padding: 0.05rem 0.3rem; margin-left: 0.4rem; vertical-align: 0.1em; }
 .tv .cat-tag { font-size: 0.6875rem; }
 .cat:focus-visible .cat-tag { color: var(--bg); border-color: currentColor; opacity: 0.6; }
@@ -858,7 +859,8 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .srow.hot .srow-v { color: var(--accent); font-weight: 650; }
 .srow.danger .srow-l, .srow.danger .srow-ico { color: #ff7a70; }
 .srow:focus-visible { outline: none; background: var(--fg); transform: scale(1.02); box-shadow: 0 10px 30px #0009; }
-.srow:focus-visible :is(.srow-l, .srow-h, .srow-v, .srow-ico, .srow-chev, .pill) { color: var(--bg); }
+.srow:focus-visible .srow-l, .srow:focus-visible .srow-h, .srow:focus-visible .srow-v, .srow:focus-visible .srow-ico,
+.srow:focus-visible .srow-chev, .srow:focus-visible .pill, .srow.danger:focus-visible .srow-l, .srow.danger:focus-visible .srow-ico { color: var(--bg); }
 .srow:focus-visible .acct-av { box-shadow: 0 0 0 2px var(--bg); }
 
 /* the update prompt on the TV: centred, big, and it takes the remote until you choose */

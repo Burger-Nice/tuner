@@ -313,18 +313,36 @@
   const fresh = {};
   let refreshQ = Promise.resolve();
   const cacheable = () => acc && (acc.type === 'xtream' || !!acc.url);
+  // What gets saved is the provider's data only; tags and ratings are worked out again when a list is opened.
+  const lean = (c) => ({ at: Date.now(), cats: c.cats, items: c.items.map((x) => { const o = {}; for (const k in x) if (k[0] !== '_') o[k] = x[k]; return o; }) });
+  // Thousands of titles share the same few genre lists; keep one copy of each.
+  const genreSets = new Map();
+  const sharedGenres = (list) => { const key = list.join('|'); let g = genreSets.get(key); if (!g) genreSets.set(key, (g = list)); return g; };
   function cacheKey(kind) {
     const who = `${acc.type}|${acc.server || ''}|${acc.username || ''}|${acc.password || ''}|${acc.url || ''}`;
     let h = 2166136261;
     for (let i = 0; i < who.length; i++) h = Math.imul(h ^ who.charCodeAt(i), 16777619);
     return `${acc.id}:${(h >>> 0).toString(36)}:${kind}`;
   }
-  function adopt(kind, c) {
-    for (const x of c.items) x._s = x.name.toLowerCase();
-    if (kind !== 'live') tagLib(c);
+  // Gets a list ready to use: search keys, tags, lookups. Done in chunks, so a big list being prepared in the
+  // background never freezes the remote.
+  async function prepare(kind, c) {
+    for (let i = 0; i < c.items.length; i++) { c.items[i]._s = c.items[i].name.toLowerCase(); if (i % 5000 === 4999) await breathe(); }
+    if (kind !== 'live') await tagLib(c);
     c.byId = new Map(c.items.map((x) => [x.id, x]));
     c.catName = new Map(c.cats.map((x) => [x.id, x.name]));
-    return (catalog[kind] = c);
+    return c;
+  }
+  async function adopt(kind, c) {
+    catalog[kind] = await prepare(kind, c);
+    if (kind !== 'live') rateLib(kind, c).then(() => ratingsArrived(kind, c));
+    return c;
+  }
+  // When IMDb data lands while you're looking at the list, re-sort it, but only if you haven't started browsing it.
+  function ratingsArrived(kind, c) {
+    if (view !== kind || catalog[kind] !== c) return;
+    const sc = $(`#${kind}Scroll`);
+    if (sc.scrollTop < 40 && !document.activeElement?.closest?.(`#${kind}Grid, #optSheet`)) refreshLib(kind);
   }
   function ensure(kind) {
     if (catalog[kind]) return Promise.resolve(catalog[kind]);
@@ -335,31 +353,41 @@
           const hit = await Core.cache.get(cacheKey(kind));
           if (my !== epoch) throw new Error('stale');
           if (hit?.items?.length) {
-            if (Date.now() - hit.at > 20 * 60e3) refreshLater(kind, my);
+            // Channels are checked for changes every couple of hours, films and series every six.
+            if (Date.now() - hit.at > (kind === 'live' ? 2 : 6) * 3600e3) refreshLater(kind, my);
             return hit;
           }
         }
         const c = await src[kind]();
         if (my !== epoch) throw new Error('stale');
-        if (cacheable()) Core.cache.set(cacheKey(kind), { at: Date.now(), cats: c.cats, items: c.items });
+        if (cacheable()) Core.cache.set(cacheKey(kind), lean(c));
         return c;
       };
       pending[kind] = load()
         .then((c) => { if (my !== epoch) throw new Error('stale'); return adopt(kind, c); })
+        .then((c) => { if (my !== epoch) throw new Error('stale'); return c; })
         .finally(() => delete pending[kind]);
     }
     return pending[kind];
   }
+  // The provider is only asked when the remote has been idle for a while and the TV player isn't up, since
+  // reading a big list takes the TV a moment. The new list is fully prepared before it's swapped in.
+  let lastKey = Date.now();
+  document.addEventListener('keydown', () => (lastKey = Date.now()), true);
+  const settled = async () => { while (watching() || Date.now() - lastKey < 10000) await new Promise((r) => setTimeout(r, 3000)); };
   function refreshLater(kind, my) {
     refreshQ = refreshQ.then(async () => {
       await new Promise((r) => setTimeout(r, 5000));
-      while (watching()) await new Promise((r) => setTimeout(r, 30000));
+      await settled();
       if (my !== epoch) return;
       try {
         const c = await src[kind]();
         if (my !== epoch) return;
-        Core.cache.set(cacheKey(kind), { at: Date.now(), cats: c.cats, items: c.items });
-        fresh[kind] = c;
+        await prepare(kind, c);
+        if (kind !== 'live') await rateLib(kind, c);
+        await settled();
+        Core.cache.set(cacheKey(kind), lean(c));
+        if (my === epoch) fresh[kind] = c;
       } catch {}
     });
   }
@@ -367,8 +395,8 @@
     const c = fresh[kind];
     if (!c) return;
     delete fresh[kind];
-    adopt(kind, c);
-    if (kind === 'live' && S.live.current) S.live.current = catalog.live.byId.get(S.live.current.id) || S.live.current;
+    catalog[kind] = c;
+    if (kind === 'live' && S.live.current) S.live.current = c.byId.get(S.live.current.id) || S.live.current;
   }
 
   // ---------- shared: categories & filtering ----------
@@ -485,34 +513,110 @@
     }
     return { name: rest || name, tag };
   }
-  // Providers don't share view counts, so "Popular" means well rated and recent, with a lift for anything
-  // the provider files under trending, popular or top-10 style categories.
+  // Popular: how many people rated it on IMDb, weighted towards recent releases, with a lift for anything the
+  // provider files under trending, popular or top-10 style categories. Titles IMDb doesn't know fall back to
+  // the provider's rating and the release year, and rank below well-known ones.
   const HOT = /popular|trending|\btop ?(10|20|50|100)\b|most watched|box ?office|blockbuster|\bhot\b/i;
-  function popularity(x, hot) {
-    const year = new Date().getFullYear();
-    const rating = parseFloat(x.rating) || 5.5;
-    const age = Math.max(0, year - (+x.year || year - 5));
-    const fresh = x.added && Date.now() / 1000 - x.added < 60 * 86400 ? 0.6 : 0;
-    return rating / (1 + age / 4) + fresh + (hot ? 2.5 : 0);
+  const YEAR = new Date().getFullYear();
+  function popularity(x) {
+    const recent = 1 / (1 + Math.max(0, YEAR - (+x.year || YEAR - 5)) / 3);
+    const hot = x._hot ? 1.5 : 0;
+    if (x._iv) return Math.log10(x._iv + 10) * (1 + 1.5 * recent) + x._ir / 10 + hot;
+    const fresh = x.added && Date.now() / 1000 - x.added < 60 * 86400 ? 0.5 : 0;
+    return ((parseFloat(x.rating) || 5.5) / 10) * 3 * (1 + 1.5 * recent) + fresh + hot;
   }
-  function tagLib(c) {
+  // Top rated: IMDb's rating, pulled towards the average until a title has enough votes (so 9.8 from 12 votes
+  // doesn't win). Without IMDb data, the provider's rating counts for less.
+  const topScore = (x) => (x._iv ? (x._iv / (x._iv + 5000)) * x._ir + (5000 / (x._iv + 5000)) * 6.6 : (parseFloat(x.rating) || 0) * 0.6);
+  async function tagLib(c) {
     const byCat = new Map();
     for (const k of c.cats) byCat.set(k.id, { lang: langOf(k.name), q: qualityOf(k.name), sub: SUBS.test(k.name), hot: HOT.test(k.name), genres: GENRES.filter(([re]) => re.test(k.name)).map(([, g]) => g) });
     const none = { lang: '', q: '', sub: false, hot: false, genres: [] };
-    for (const x of c.items) {
-      const k = byCat.get(x.cat) || none;
+    for (let i = 0; i < c.items.length; i++) {
+      if (i % 2000 === 1999) await breathe();
+      const x = c.items[i], k = byCat.get(x.cat) || none;
       x._lang = langOf(x.name, true) || k.lang;
       x._q = qualityOf(x.name) || k.q;
       x._sub = k.sub || SUBS.test(x.name);
-      x._genres = x.genre ? [...new Set([...k.genres, ...String(x.genre).split(/[,/|]/).map((g) => g.trim()).filter(Boolean)])] : k.genres;
-      x._pop = popularity(x, k.hot);
+      x._genres = x.genre ? sharedGenres([...new Set([...k.genres, ...String(x.genre).split(/[,/|]/).map((g) => g.trim()).filter(Boolean)])]) : k.genres;
+      x._hot = k.hot;
+      x._pop = popularity(x);
+      x._top = topScore(x);
     }
     // English first, then categories with no language in the name, then the rest, each in the provider's order.
     const rank = (l) => (l === 'English' ? 0 : l ? 2 : 1);
     c.cats = c.cats.map((k, i) => ({ k, i, r: rank(byCat.get(k.id).lang) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.k);
     const count = (get) => { const m = new Map(); for (const x of c.items) for (const v of [].concat(get(x))) if (v) m.set(v, (m.get(v) || 0) + 1); return m; };
     c.facets = { lang: count((x) => x._lang), genre: count((x) => x._genres), q: count((x) => x._q), sub: count((x) => (x._sub ? 'yes' : '')) };
+    c.count = count;
   }
+
+  // ---------- IMDb ratings: a weekly file built from IMDb's free datasets (scripts/build-ratings.js) ----------
+  const RATINGS_URL = 'https://github.com/Burger-Nice/tuner/releases/download/ratings/ratings.json';
+  const imdb = { m: null, s: null, genres: [], loading: null };
+  const breathe = () => new Promise((r) => setTimeout(r, 0)); // let the remote's key presses through between chunks
+  function loadRatings() {
+    if (imdb.loading) return imdb.loading;
+    imdb.loading = (async () => {
+      let d = await Core.cache.get('ratings');
+      if (!d?.movies || Date.now() - (d.fetched || 0) > 7 * 86400e3) {
+        try {
+          const r = await fetch(RATINGS_URL, { cache: 'no-store' });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const fresh = await r.json();
+          if (!fresh?.movies) throw new Error('no data');
+          fresh.fetched = Date.now();
+          d = fresh;
+          Core.cache.set('ratings', d);
+        } catch (e) { if (!d?.movies) return false; }
+      }
+      const index = async (rows) => {
+        const byKey = new Map(), byTitle = new Map();
+        for (let i = 0; i < rows.length; i++) {
+          const [key, year, r10, votes, g, alt] = rows[i];
+          const e = { r: r10 / 10, n: votes, g };
+          for (const k of alt ? [key, alt] : [key]) {
+            if (!byKey.has(k + '|' + year)) byKey.set(k + '|' + year, e);
+            if (!byTitle.has(k)) byTitle.set(k, e); // rows come most-voted first
+          }
+          if (i % 5000 === 4999) await breathe();
+        }
+        return { byKey, byTitle };
+      };
+      imdb.genres = d.genres || [];
+      imdb.m = await index(d.movies);
+      imdb.s = await index(d.series || []);
+      return true;
+    })();
+    return imdb.loading;
+  }
+  function matchImdb(x, kind) {
+    const ix = kind === 'movie' ? imdb.m : imdb.s;
+    const { key, year } = Titles.clean(x.name);
+    if (!ix || !key) return null;
+    const y = +x.year || year;
+    if (y) for (const yy of [y, y - 1, y + 1]) { const e = ix.byKey.get(key + '|' + yy); if (e) return e; }
+    // Series years differ a lot between providers; films without a year take the best-known match.
+    return !y || kind === 'series' ? ix.byTitle.get(key) || null : null;
+  }
+  // Adds IMDb's rating, votes and genres to a catalog, in chunks so the remote stays responsive.
+  async function rateLib(kind, c) {
+    if (!c || c._rated || !(await loadRatings())) return;
+    c._rated = true;
+    for (let i = 0; i < c.items.length; i++) {
+      const x = c.items[i], e = matchImdb(x, kind);
+      if (e) {
+        x._ir = e.r; x._iv = e.n;
+        if (e.g?.length) x._genres = sharedGenres([...new Set([...(x._genres || []), ...e.g.map((g) => imdb.genres[g])])]);
+        x._pop = popularity(x);
+        x._top = topScore(x);
+      }
+      if (i % 1500 === 1499) await breathe();
+    }
+    c.facets.genre = c.count((x) => x._genres);
+    c._newest = null;
+  }
+  const fmtVotes = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n));
   const QUALITY_ORDER = ['4K', 'Full HD', 'HD', 'SD'];
   // Language: "first" lists English titles first (the default when the provider marks languages), "any" keeps
   // every language mixed, and a language name shows only that language.
@@ -1110,8 +1214,8 @@
     popular: (a, b) => (b._pop || 0) - (a._pop || 0),
     added: (a, b) => b.added - a.added,
     az: (a, b) => a.name.localeCompare(b.name),
-    rating: (a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0),
-    year: (a, b) => (+b.year || 0) - (+a.year || 0),
+    rating: (a, b) => (b._top || 0) - (a._top || 0),
+    year: (a, b) => (+b.year || 0) - (+a.year || 0) || b.added - a.added,
   };
 
   function refreshLib(kind) {
@@ -1157,7 +1261,7 @@
 
   function posterCard(it, i) {
     const pct = it.kind === 'movie' ? progressPct(it) : 0;
-    const meta = [it.year, it.rating ? '★ ' + it.rating : ''].filter(Boolean).join('  ·  ');
+    const meta = [it.year, it._ir ? 'IMDb ' + it._ir.toFixed(1) : it.rating ? '★ ' + it.rating : ''].filter(Boolean).join('  ·  ');
     return `<button class="poster" data-i="${i}">
       <span class="art${it.poster ? '' : ' noimg'}" data-ini="${esc(initials(it.name))}" style="--h:${hue(it.name)}">${it.poster ? `<img loading="lazy" decoding="async" src="${esc(it.poster)}" alt="">` : ''}${favs[keyOf(it)] ? '<span class="pfav">★</span>' : ''}${pct > 1 && pct < 95 ? `<span class="pprog"><i style="width:${pct}%"></i></span>` : ''}</span>
       <span class="ptitle">${esc(it.name)}</span>${meta ? `<span class="psub">${esc(meta)}</span>` : ''}</button>`;
@@ -1231,7 +1335,7 @@
     const fav = !!favs[keyOf(it)];
     const p = isMovie ? progress[keyOf(it)] : null;
     const canResume = p && p.t > 30 && p.t < p.d * 0.94;
-    const facts = [d.year || it.year, d.duration, (d.rating || it.rating) ? `<span class="star">★</span> ${esc(d.rating || it.rating)}` : '', !isMovie && d.seasons?.length ? `${d.seasons.length} season${d.seasons.length > 1 ? 's' : ''}` : '']
+    const facts = [d.year || it.year, d.duration, it._ir ? `<span class="imdb">IMDb</span> ${it._ir.toFixed(1)} <span class="dim">· ${fmtVotes(it._iv)} votes</span>` : (d.rating || it.rating) ? `<span class="star">★</span> ${esc(d.rating || it.rating)}` : '', !isMovie && d.seasons?.length ? `${d.seasons.length} season${d.seasons.length > 1 ? 's' : ''}` : '']
       .filter(Boolean).map((x) => `<span>${String(x).startsWith('<') ? x : esc(x)}</span>`).join('');
     let actions = '';
     if (isMovie) {

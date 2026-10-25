@@ -47,6 +47,7 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.ui.SubtitleView;
@@ -147,6 +148,7 @@ public class PlayerActivity extends AppCompatActivity {
         view.setControllerAutoShow(false);
         view.setKeepScreenOn(true);
         styleSubtitles(view.getSubtitleView());
+        view.setResizeMode(resizeMode(prefs.getString("picture", "fit")));
         root.addView(view, new FrameLayout.LayoutParams(-1, -1));
         osd = label(26, Gravity.TOP | Gravity.START);
         message = label(24, Gravity.TOP | Gravity.END);
@@ -260,7 +262,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (!quality.isEmpty()) t.append("   ·   ").append(quality);
         if (textTracks > 0) t.append("   ·   CC");
         String hint = live && gameLinked ? "OK  Score & stats      ←/→  Options"
-                : textTracks > 0 || audioTracks > 1 ? (live ? "←/→" : "↓") + "  Subtitles & audio" : "";
+                : live ? "←/→  Options" : "↓  Subtitles & picture";
         if (!hint.isEmpty()) {
             int from = t.length();
             t.append("\n").append(hint);
@@ -291,7 +293,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (!live && view != null && player != null && !view.isControllerFullyVisible()
                 && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_DPAD_DOWN)) {
             if (e.getAction() == KeyEvent.ACTION_DOWN) {
-                if (code == KeyEvent.KEYCODE_DPAD_DOWN) { if (e.getRepeatCount() == 0) openTrackMenu(); }
+                if (code == KeyEvent.KEYCODE_DPAD_DOWN) { if (e.getRepeatCount() == 0) openOptions(); }
                 else {
                     long to = player.getCurrentPosition() + (code == KeyEvent.KEYCODE_DPAD_LEFT ? -10000 : 10000);
                     player.seekTo(Math.max(0, to));
@@ -315,7 +317,7 @@ public class PlayerActivity extends AppCompatActivity {
         }
         if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) { finish(); return true; }
         if (code == KeyEvent.KEYCODE_CAPTIONS) { openTrackMenu(); return true; }
-        if (code == KeyEvent.KEYCODE_MENU) { if (live) openOptions(); else openTrackMenu(); return true; }
+        if (code == KeyEvent.KEYCODE_MENU) { openOptions(); return true; }
         if (live) {
             switch (code) {
                 case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: openOptions(); return true;
@@ -348,7 +350,10 @@ public class PlayerActivity extends AppCompatActivity {
 
     // ---------- options (live) ----------
 
-    /** Left/right on a live channel. On an NBA game: the box score and syncing the score to this stream, then subtitles and audio. */
+    /**
+     * Left/right on live TV, down in movies: on an NBA game the box score and syncing the score to the stream,
+     * then subtitles, audio and the picture size.
+     */
     private void openOptions() {
         if (player == null || isFinishing() || (menu != null && menu.isShowing())) return;
         long seenAt = System.currentTimeMillis();
@@ -362,11 +367,36 @@ public class PlayerActivity extends AppCompatActivity {
         }
         if (textTracks > 0) { labels.add("Subtitles"); acts.add(this::openTrackMenu); }
         if (audioTracks > 1) { labels.add("Audio track"); acts.add(() -> openAudioMenu("Audio")); }
-        if (labels.isEmpty()) { showText("No subtitles or other audio on this channel", 3000); return; }
-        if (labels.size() == 1) { acts.get(0).run(); return; }
+        labels.add("Picture size · " + PICTURE_NAMES[pictureIndex()]);
+        acts.add(this::openPictureMenu);
         menu = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(titles[index])
                 .setItems(labels.toArray(new String[0]), (dlg, which) -> { dlg.dismiss(); acts.get(which).run(); })
+                .show();
+    }
+
+    // Fit shows the whole picture (bars where the film is wider or narrower than the TV), Zoom fills the screen
+    // and trims the edges, Stretch fills it by stretching.
+    private static final String[] PICTURES = { "fit", "zoom", "stretch" };
+    private static final String[] PICTURE_NAMES = { "Fit", "Zoom", "Stretch" };
+    private static int resizeMode(String p) {
+        return "zoom".equals(p) ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : "stretch".equals(p) ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT;
+    }
+    private int pictureIndex() {
+        String p = prefs.getString("picture", "fit");
+        for (int i = 0; i < PICTURES.length; i++) if (PICTURES[i].equals(p)) return i;
+        return 0;
+    }
+    private void openPictureMenu() {
+        String[] labels = { "Fit · the whole picture", "Zoom · fill the screen, trim the edges", "Stretch · fill the screen" };
+        menu = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Picture size")
+                .setSingleChoiceItems(labels, pictureIndex(), (dlg, which) -> {
+                    prefs.edit().putString("picture", PICTURES[which]).apply();
+                    view.setResizeMode(resizeMode(PICTURES[which]));
+                    showText("Picture: " + PICTURE_NAMES[which], 1500);
+                    dlg.dismiss();
+                })
                 .show();
     }
 
