@@ -60,7 +60,7 @@ window.TUNER_TEST = true;
       await wait(800);
 
       // Watch the NBA channel in the native player: OK opens the score and box score at the side, left/right
-      // switch team, OK closes it; left/right then open the options; zap down and back up; Back
+      // switch team, OK closes it; left/right then open the options; zap down, the channel list, back up; Back
       $('#liveInner .ch').focus();
       await press(['DPAD_CENTER'], 'player');
       await press(['DPAD_CENTER'], 'player-stats', 3000);
@@ -69,6 +69,9 @@ window.TUNER_TEST = true;
       await press(['DPAD_RIGHT'], 'player-options');
       await press(['BACK'], 'player-options-closed');
       await press(['DPAD_DOWN'], 'player-zap');
+      // Off a game, OK brings up the channel list over the picture
+      await press(['DPAD_CENTER'], 'player-channels');
+      await press(['BACK'], 'player-channels-closed');
       await press(['DPAD_UP'], 'player-back-to-nba');
       await press(['BACK'], 'back-in-app');
 

@@ -319,7 +319,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (!quality.isEmpty()) t.append("   ·   ").append(quality);
         if (textTracks > 0) t.append("   ·   CC");
         String hint = live && gameLinked ? "OK  Score & stats      Hold OK  Last channel      ←/→  Options"
-                : live ? "Hold OK  Last channel      ←/→  Options" : "↓  Subtitles & picture";
+                : live ? "OK  Channels      Hold OK  Last channel      ←/→  Options" : "↓  Subtitles & picture";
         if (!hint.isEmpty()) {
             int from = t.length();
             t.append("\n").append(hint);
@@ -428,6 +428,7 @@ public class PlayerActivity extends AppCompatActivity {
             labels.add("Sync the score to this stream");
             acts.add(() -> { JSObject ev = event("sync-start"); ev.put("seenAt", seenAt); TunerPlayerPlugin.emit(ev); });
         }
+        if (live && urls.length > 1) { labels.add("Channels"); acts.add(this::openChannels); }
         if (live && lastIndex >= 0 && lastIndex < urls.length && lastIndex != index) { labels.add("Last channel · " + titles[lastIndex]); acts.add(this::lastChannel); }
         if (textTracks > 0) { labels.add("Subtitles"); acts.add(this::openTrackMenu); }
         if (audioTracks > 1) { labels.add("Audio track"); acts.add(() -> openAudioMenu("Audio")); }
@@ -765,11 +766,22 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     public boolean onKeyUp(int code, KeyEvent e) {
         if (live && (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) && (stats == null || stats.getVisibility() != View.VISIBLE)) {
-            if (!longOk && !e.isCanceled()) { showOsd(); TunerPlayerPlugin.emit(event("game")); }
+            if (!longOk && !e.isCanceled()) { if (gameLinked) { showOsd(); TunerPlayerPlugin.emit(event("game")); } else openChannels(); }
             longOk = false;
             return true;
         }
         return super.onKeyUp(code, e);
+    }
+
+    /** The channel list over the picture, opened on the one you're watching: OK tunes, Back closes. */
+    private void openChannels() {
+        if (player == null || isFinishing() || (menu != null && menu.isShowing())) return;
+        String[] labels = new String[urls.length];
+        for (int i = 0; i < urls.length; i++) labels[i] = (nums != null && i < nums.length && nums[i] > 0 ? nums[i] + "   " : "") + titles[i];
+        menu = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Channels")
+                .setSingleChoiceItems(labels, index, (dlg, which) -> { dlg.dismiss(); if (which != index) tuneTo(which); })
+                .show();
     }
 
     private void lastChannel() {

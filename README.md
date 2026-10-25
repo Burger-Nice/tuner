@@ -35,8 +35,9 @@ On the TV every channel plays in the built-in ExoPlayer engine at the TV's full 
 | In the TV player | Live TV | Movies and episodes |
 | --- | --- | --- |
 | **↑ / ↓**, channel buttons | Change channel | ↑ shows the controls, ↓ options: subtitles, audio, picture size |
-| **← / →** | Options: box score, sync the score, subtitles, audio, picture size | Back / forward 10 s |
-| **OK** | On an NBA game: the score and box score at the side (←/→ switch team, OK closes) | Pause / controls |
+| **← / →** | Options: box score, sync the score, channels, subtitles, audio, picture size | Back / forward 10 s |
+| **OK** | The channel list (on an NBA game: the score and box score at the side, ←/→ switch team, OK closes) | Pause / controls |
+| **Hold OK** | Last channel | |
 | Number keys | Jump to a channel | |
 | **Back** | Back to the guide | Back to the details |
 
