@@ -396,14 +396,18 @@
     special.push(['fav', 'Favorites', favList(kind).length]);
     const cats = c.cats.filter((k) => counts.get(k.id));
     if (!cats.length && counts.size > 1) for (const id of counts.keys()) cats.push({ id, name: id || 'Other' });
-    const btn = (id, name, n) => `<button class="cat${id === st.cat ? ' on' : ''}" data-cat="${esc(id)}"><span>${esc(name)}</span><small>${n.toLocaleString()}</small></button>`;
+    const btn = (id, name, n) => {
+      const p = kind === 'live' ? { name } : prettyCat(name);
+      return `<button class="cat${id === st.cat ? ' on' : ''}" data-cat="${esc(id)}"><span>${esc(p.name)}${p.tag ? `<em class="cat-tag">${esc(p.tag)}</em>` : ''}</span><small>${n.toLocaleString()}</small></button>`;
+    };
     $(`#${kind}Cats`).innerHTML = special.map((x) => btn(...x)).join('') + (cats.length ? '<div class="cat-sep"></div>' : '') + cats.map((k) => btn(k.id, k.name, counts.get(k.id))).join('');
   }
 
   function catTitle(kind) {
     const st = S[kind];
     if (st.q.trim()) return `Results for “${st.q.trim()}”`;
-    return { '*': $(`#${kind}Cats .cat`)?.firstChild.textContent, fav: 'Favorites', recent: 'Recently watched', continue: 'Continue watching' }[st.cat] || catalog[kind].catName.get(st.cat) || st.cat;
+    const name = catalog[kind].catName.get(st.cat);
+    return { '*': $(`#${kind}Cats .cat`)?.firstChild.textContent, fav: 'Favorites', recent: 'Recently watched', continue: 'Continue watching' }[st.cat] || (name && kind !== 'live' ? prettyCat(name).name : name) || st.cat;
   }
 
   function filtered(kind) {
@@ -467,16 +471,41 @@
     return /\b(4k|uhd|2160p?)\b/i.test(s) ? '4K' : /\b(fhd|1080p?)\b/i.test(s) ? 'Full HD' : /\b(hd|720p?)\b/i.test(s) ? 'HD' : /\bsd\b/i.test(s) ? 'SD' : '';
   }
   const SUBS = /multi[ -]?subs?|\bsubs?\b|subtitle|vostfr|\bsubbed\b/i;
+  // "EN | NEW RELEASES" reads as "New Releases" with a small EN tag.
+  const KEEP_CAPS = /^(4K|UHD|FHD|HD|SD|HDR|TV|UK|US|USA|EN|NBA|NFL|MLB|NHL|UFC|WWE|BBC|HBO|DC|3D|VIP|II|III|IV)$/;
+  function prettyCat(name) {
+    let rest = name, tag = '';
+    const m = name.match(PREFIX) || name.match(SUFFIX);
+    if (m && LANG_CODES[m[1].toUpperCase().replace(/[^A-Z]/g, '')]) {
+      tag = m[1].toUpperCase();
+      rest = (name.slice(0, m.index) + name.slice(m.index + m[0].length)).replace(/^[\s|:\-–—•▎]+|[\s|:\-–—•▎]+$/g, '');
+    }
+    if (rest === rest.toUpperCase() && /[A-Z]{3}/.test(rest)) {
+      rest = rest.toLowerCase().replace(/[\p{L}\p{N}+]+/gu, (w) => (KEEP_CAPS.test(w.toUpperCase()) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)));
+    }
+    return { name: rest || name, tag };
+  }
+  // Providers don't share view counts, so "Popular" means well rated and recent, with a lift for anything
+  // the provider files under trending, popular or top-10 style categories.
+  const HOT = /popular|trending|\btop ?(10|20|50|100)\b|most watched|box ?office|blockbuster|\bhot\b/i;
+  function popularity(x, hot) {
+    const year = new Date().getFullYear();
+    const rating = parseFloat(x.rating) || 5.5;
+    const age = Math.max(0, year - (+x.year || year - 5));
+    const fresh = x.added && Date.now() / 1000 - x.added < 60 * 86400 ? 0.6 : 0;
+    return rating / (1 + age / 4) + fresh + (hot ? 2.5 : 0);
+  }
   function tagLib(c) {
     const byCat = new Map();
-    for (const k of c.cats) byCat.set(k.id, { lang: langOf(k.name), q: qualityOf(k.name), sub: SUBS.test(k.name), genres: GENRES.filter(([re]) => re.test(k.name)).map(([, g]) => g) });
-    const none = { lang: '', q: '', sub: false, genres: [] };
+    for (const k of c.cats) byCat.set(k.id, { lang: langOf(k.name), q: qualityOf(k.name), sub: SUBS.test(k.name), hot: HOT.test(k.name), genres: GENRES.filter(([re]) => re.test(k.name)).map(([, g]) => g) });
+    const none = { lang: '', q: '', sub: false, hot: false, genres: [] };
     for (const x of c.items) {
       const k = byCat.get(x.cat) || none;
       x._lang = langOf(x.name, true) || k.lang;
       x._q = qualityOf(x.name) || k.q;
       x._sub = k.sub || SUBS.test(x.name);
       x._genres = x.genre ? [...new Set([...k.genres, ...String(x.genre).split(/[,/|]/).map((g) => g.trim()).filter(Boolean)])] : k.genres;
+      x._pop = popularity(x, k.hot);
     }
     // English first, then categories with no language in the name, then the rest, each in the provider's order.
     const rank = (l) => (l === 'English' ? 0 : l ? 2 : 1);
@@ -485,22 +514,91 @@
     c.facets = { lang: count((x) => x._lang), genre: count((x) => x._genres), q: count((x) => x._q), sub: count((x) => (x._sub ? 'yes' : '')) };
   }
   const QUALITY_ORDER = ['4K', 'Full HD', 'HD', 'SD'];
+  // Language: "first" lists English titles first (the default when the provider marks languages), "any" keeps
+  // every language mixed, and a language name shows only that language.
+  const langMode = (kind) => S[kind].f.lang || (catalog[kind]?.facets.lang.has('English') ? 'first' : 'any');
   function facetFilter(kind, list) {
-    const f = S[kind].f;
-    if (!f.lang && !f.genre && !f.q && !f.sub) return list;
-    return list.filter((x) => (!f.lang || x._lang === f.lang) && (!f.genre || x._genres?.includes(f.genre)) && (!f.q || x._q === f.q) && (!f.sub || x._sub));
+    const f = S[kind].f, lang = langMode(kind);
+    const only = lang !== 'first' && lang !== 'any' ? lang : '';
+    if (!only && !f.genre && !f.q && !f.sub) return list;
+    return list.filter((x) => (!only || x._lang === only) && (!f.genre || x._genres?.includes(f.genre)) && (!f.q || x._q === f.q) && (!f.sub || x._sub));
   }
-  function renderFilters(kind) {
-    const st = S[kind], fc = catalog[kind].facets;
-    const sel = (key, label, opts, value) => `<label class="lib-filter"><span>${label}</span><select data-f="${key}">${opts.map(([v, l]) => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+  const englishFirst = (list) => {
+    const rank = (x) => (x._lang === 'English' ? 0 : x._lang ? 2 : 1);
+    return list.map((x, i) => [rank(x), i, x]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((e) => e[2]);
+  };
+
+  // Sort and filters as a row of chips; OK on one slides in its choices from the right.
+  function libChoices(kind) {
+    const fc = catalog[kind].facets;
     const byCount = (m) => [...m.entries()].sort((a, b) => b[1] - a[1]);
-    const parts = [sel('sort', 'Sort', [['rec', fc.lang.has('English') ? 'English first' : 'Provider order'], ['added', kind === 'movie' ? 'Recently added' : 'Recently updated'], ['az', 'A–Z'], ['rating', 'Top rated'], ['year', 'Newest']], st.sort)];
-    if (fc.lang.size > 1) parts.push(sel('lang', 'Language', [['', 'All languages'], ...byCount(fc.lang).sort((a, b) => (b[0] === 'English') - (a[0] === 'English')).map(([v, n]) => [v, `${v} · ${n.toLocaleString()}`])], st.f.lang || ''));
-    if (fc.genre.size > 1) parts.push(sel('genre', 'Genre', [['', 'All genres'], ...[...fc.genre.keys()].sort().map((v) => [v, v])], st.f.genre || ''));
-    if (fc.q.size > 1 || (fc.q.size === 1 && !fc.q.has('HD'))) parts.push(sel('q', 'Quality', [['', 'Any quality'], ...QUALITY_ORDER.filter((q) => fc.q.has(q)).map((q) => [q, q])], st.f.q || ''));
-    if (fc.sub.size) parts.push(sel('sub', 'Subtitles', [['', 'Subtitles or not'], ['yes', 'With subtitles']], st.f.sub || ''));
-    setHtml($(`#${kind}Filters`), parts.join(''));
+    const out = [{ key: 'sort', label: 'Sort', options: [['popular', 'Popular'], ['added', kind === 'movie' ? 'Recently added' : 'Recently updated'], ['rating', 'Top rated'], ['year', 'Newest releases'], ['az', 'A–Z']].map(([v, l]) => ({ v, l })) }];
+    if (fc.lang.size > 1 || (fc.lang.size === 1 && !fc.lang.has('English'))) {
+      out.push({ key: 'lang', label: 'Language', options: [
+        ...(fc.lang.has('English') ? [{ v: 'first', l: 'English first' }] : []), { v: 'any', l: 'Any language' },
+        ...byCount(fc.lang).map(([v, n]) => ({ v, l: v, n })),
+      ] });
+    }
+    if (fc.genre.size > 1) out.push({ key: 'genre', label: 'Genre', options: [{ v: '', l: 'All genres' }, ...byCount(fc.genre).map(([v, n]) => ({ v, l: v, n }))] });
+    if (fc.q.size > 1 || (fc.q.size === 1 && !fc.q.has('HD'))) out.push({ key: 'q', label: 'Quality', options: [{ v: '', l: 'Any quality' }, ...QUALITY_ORDER.filter((q) => fc.q.has(q)).map((q) => ({ v: q, l: q, n: fc.q.get(q) }))] });
+    if (fc.sub.size) out.push({ key: 'sub', label: 'Subtitles', options: [{ v: '', l: 'Any' }, { v: 'yes', l: 'With subtitles', n: fc.sub.get('yes') }] });
+    return out;
   }
+  const choiceValue = (kind, key) => (key === 'sort' ? S[kind].sort : key === 'lang' ? langMode(kind) : S[kind].f[key] || '');
+  const filtersActive = (kind) => { const f = S[kind].f; return !!(f.genre || f.q || f.sub || (f.lang && f.lang !== 'first' && f.lang !== 'any')); };
+  const CHEVRON = '<svg class="chip-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const SORT_ICON = '<svg class="chip-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4m-3.5 3.5L17 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function renderFilters(kind) {
+    // Short chips: the sort and language show their value; a filter shows its name until it's set.
+    const chips = libChoices(kind).map((c) => {
+      const v = choiceValue(kind, c.key);
+      const opt = c.options.find((o) => o.v === v) || c.options[0];
+      const set = c.key === 'lang' ? v !== 'first' && v !== 'any' : c.key !== 'sort' && !!v;
+      const text = c.key === 'sort' || c.key === 'lang' || set ? opt.l : c.label;
+      return `<button class="chip${set ? ' set' : ''}" data-chip="${c.key}">${c.key === 'sort' ? SORT_ICON : ''}<span class="chip-v">${esc(text)}</span>${CHEVRON}</button>`;
+    });
+    if (filtersActive(kind)) chips.push('<button class="chip clear" data-chip="clear"><span class="chip-v">Clear</span></button>');
+    setHtml($(`#${kind}Filters`), chips.join(''));
+  }
+  function setChoice(kind, key, v) {
+    const st = S[kind];
+    if (key === 'clear') st.f = st.f.lang === 'first' || st.f.lang === 'any' ? { lang: st.f.lang } : {};
+    else if (key === 'sort') st.sort = v;
+    else st.f = { ...st.f, [key]: v };
+    store.set(scoped(kind + 'View'), { sort: st.sort, f: st.f });
+    refreshLib(kind);
+  }
+
+  // ---------- option sheet: a list of choices that slides in from the right ----------
+  let sheet = null;
+  function openSheet(title, options, value, onPick, back) {
+    const box = $('#optSheet');
+    box.innerHTML = `<div class="opt-scrim" data-close></div><div class="opt-panel" role="dialog" aria-label="${esc(title)}"><div class="opt-title">${esc(title)}</div><div class="opt-list" data-nav="v-strict">${options.map((o) => `<button class="opt${o.v === value ? ' on' : ''}" data-v="${esc(o.v)}"><svg class="opt-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="opt-l">${esc(o.l)}</span>${o.n != null ? `<small>${o.n.toLocaleString()}</small>` : ''}</button>`).join('')}</div></div>`;
+    box.hidden = false;
+    sheet = { onPick, back };
+    requestAnimationFrame(() => box.classList.add('open'));
+    const cur = box.querySelector('.opt.on') || box.querySelector('.opt');
+    cur?.focus({ preventScroll: true });
+    cur?.scrollIntoView({ block: 'center' });
+  }
+  function closeSheet() {
+    const box = $('#optSheet');
+    if (box.hidden) return;
+    box.classList.remove('open');
+    box.hidden = true;
+    box.innerHTML = '';
+    const back = sheet?.back;
+    sheet = null;
+    back?.();
+  }
+  $('#optSheet').addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]')) return closeSheet();
+    const o = e.target.closest('.opt');
+    if (!o || !sheet) return;
+    const pick = sheet.onPick;
+    closeSheet();
+    pick(o.dataset.v);
+  });
 
   function wireCats(kind, refresh) {
     $(`#${kind}Cats`).addEventListener('click', (e) => {
@@ -1009,7 +1107,7 @@
   }
 
   const sorters = {
-    rec: (a, b) => (a._lang === 'English' ? 0 : a._lang ? 2 : 1) - (b._lang === 'English' ? 0 : b._lang ? 2 : 1),
+    popular: (a, b) => (b._pop || 0) - (a._pop || 0),
     added: (a, b) => b.added - a.added,
     az: (a, b) => a.name.localeCompare(b.name),
     rating: (a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0),
@@ -1019,9 +1117,13 @@
   function refreshLib(kind) {
     const st = S[kind];
     let list = filtered(kind);
-    if (!['fav', 'continue', 'recent'].includes(st.cat)) list = facetFilter(kind, list);
+    const own = ['fav', 'continue', 'recent'].includes(st.cat); // your own lists keep their order
+    if (!sorters[st.sort]) st.sort = 'popular';
+    if (!own) {
+      list = [...facetFilter(kind, list)].sort(sorters[st.sort]);
+      if (langMode(kind) === 'first') list = englishFirst(list);
+    }
     renderFilters(kind);
-    if (sorters[st.sort] && st.cat !== 'continue') list = [...list].sort(sorters[st.sort]);
     st.list = list;
     st.shown = 0;
     $(`#${kind}Title`).textContent = catTitle(kind);
@@ -1029,9 +1131,9 @@
     const grid = $(`#${kind}Grid`);
     $(`#${kind}Scroll`).scrollTop = 0;
     if (!list.length) {
-      const filtering = Object.values(st.f).some(Boolean) && !['fav', 'continue', 'recent'].includes(st.cat);
+      const filtering = filtersActive(kind) && !own;
       grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${st.cat === 'fav' && !st.q ? `<h3>Nothing saved yet</h3><p>Open any title and choose Add to favorites.</p>` : filtering ? `<p>Nothing matches these filters.</p><button class="btn" data-clear-filters>Clear filters</button>` : 'Nothing matches.'}</div>`;
-      grid.querySelector('[data-clear-filters]')?.addEventListener('click', () => { st.f = {}; store.set(scoped(kind + 'View'), { sort: st.sort, f: st.f }); refreshLib(kind); $(`#${kind}Filters select`)?.focus(); });
+      grid.querySelector('[data-clear-filters]')?.addEventListener('click', () => { setChoice(kind, 'clear'); $(`#${kind}Filters .chip`)?.focus(); });
       return;
     }
     grid.innerHTML = '';
@@ -1063,13 +1165,14 @@
 
   for (const kind of ['movie', 'series']) {
     wireCats(kind, () => refreshLib(kind));
-    $(`#${kind}Filters`).addEventListener('change', (e) => {
-      const key = e.target.dataset.f;
-      if (!key) return;
-      const st = S[kind];
-      if (key === 'sort') st.sort = e.target.value; else st.f = { ...st.f, [key]: e.target.value };
-      store.set(scoped(kind + 'View'), { sort: st.sort, f: st.f });
-      refreshLib(kind);
+    $(`#${kind}Filters`).addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      const key = chip.dataset.chip;
+      const refocus = () => $(`#${kind}Filters [data-chip="${key === 'clear' ? 'sort' : key}"]`)?.focus({ preventScroll: true });
+      if (key === 'clear') { setChoice(kind, 'clear'); refocus(); return; }
+      const c = libChoices(kind).find((x) => x.key === key);
+      openSheet(c.label, c.options, choiceValue(kind, key), (v) => setChoice(kind, key, v), refocus);
     });
     const sc = $(`#${kind}Scroll`);
     sc.addEventListener('scroll', () => { if (sc.scrollTop + sc.clientHeight > sc.scrollHeight - 900) moreLib(kind); }, { passive: true });
@@ -2306,7 +2409,7 @@
     const typing = t.matches?.('input:not([type=range]):not([type=file]), textarea');
     if (typing && TV && t.readOnly) {
       if (k === 'ok') { e.preventDefault(); openField(t); return; }
-      if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, t.closest('.view, #login, #sheet') || document); return; }
+      if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, t.closest('#login, #sheet') || $('#shell')); return; }
       if (k !== 'back') return;
     }
     if (typing) {
@@ -2315,9 +2418,18 @@
       else if (k === 'down' || k === 'up') { Nav.move(k, $('#login')); e.preventDefault(); }
       return;
     }
-    if (t.tagName === 'SELECT' && (k === 'up' || k === 'down')) return;
+    // On a computer ↑/↓ change a dropdown's value; on the TV they move focus like everywhere else (OK opens it),
+    // so the TV's browser never gets to move focus on its own.
+    if (t.tagName === 'SELECT' && (k === 'up' || k === 'down') && !TV) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'Backspace') k = 'back';
+
+    if (!$('#optSheet').hidden) {
+      if (k === 'back') { e.preventDefault(); closeSheet(); }
+      else if (k === 'up' || k === 'down') { e.preventDefault(); Nav.move(k, $('#optSheet .opt-list')); }
+      else if (k === 'left' || k === 'right') e.preventDefault();
+      return;
+    }
 
     if (!$('#cover').hidden) { if (k === 'back') { e.preventDefault(); native?.mpv?.stop(); } return; }
     if (!vp.hidden) return vodKeys(e, k);

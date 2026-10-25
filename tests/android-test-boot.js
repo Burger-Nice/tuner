@@ -88,6 +88,18 @@ window.TUNER_TEST = true;
       window.__tunerTest.go('movie');
       await until(() => $('#movieGrid .poster'), 30000);
       await wait(1500);
+      // Sort & filter chips: OK opens the choices from the right, down + OK picks, focus comes back to the chip;
+      // down from the chips goes into the grid, never the menu
+      $('#movieFilters [data-chip="sort"]').focus();
+      await press(['DPAD_CENTER'], 'movies-sort-sheet');
+      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'movies-sorted');
+      report('chip-focus', { focus: document.activeElement?.dataset?.chip || document.activeElement?.className || '' });
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_CENTER'], 'movies-genre-sheet');
+      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'movies-genre-picked');
+      await press(['DPAD_DOWN'], 'movies-down-into-grid');
+      report('chip-down', { focus: document.activeElement?.className || '', inMenu: !!document.activeElement?.closest('.rail') });
+      $('#movieFilters [data-chip="clear"]')?.click();
+      await wait(800);
       $('#movieGrid .poster').focus();
       await press(['DPAD_RIGHT'], 'movies');
       await press(['DPAD_CENTER'], 'detail');

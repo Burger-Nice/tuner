@@ -25,7 +25,16 @@
   function move(dir, scope = document) {
     const cur = document.activeElement;
     const items = [...scope.querySelectorAll(FOCUSABLE)].filter((el) => el !== cur && visible(el));
-    if (!cur || cur === document.body || !scope.contains(cur)) { items[0]?.focus(); return !!items[0]; }
+    // Nothing focused: start in the content. A gated container (the menu rail) is only entered the gated way.
+    if (!cur || cur === document.body || !scope.contains(cur)) {
+      let first = items.find((el) => !el.closest('[data-nav-in]'));
+      if (!first) {
+        const gate = items[0]?.closest('[data-nav-in]');
+        if (gate && gate.dataset.navIn === dir) first = (gate.dataset.navEntry && gate.querySelector(gate.dataset.navEntry)) || items[0];
+      }
+      first?.focus();
+      return !!first;
+    }
 
     // Groups (data-nav="v" / "h", optionally "-strict"): moves along a group's axis try its own items first.
     // Strict groups never let that move escape (the menu rail keeps up/down to itself).

@@ -50,7 +50,9 @@ Tuner installs through **AltStore** (free Apple ID; AltStore re-signs it every f
 
 ## Movies and series
 
-Movies and series open with English titles first. Sort by recently added, A–Z, rating or year, and filter by language, genre, picture quality (4K, Full HD) and subtitles. Most providers don't send those details separately, so Tuner reads them from the category and title names (like *EN | ACTION*, *4K*, *MULTI-SUB*); a filter only appears when your provider's names give Tuner something to go on.
+Movies and series open sorted by **Popular**, with English titles first. The chips above the posters change the sort (Popular, Recently added, Top rated, Newest releases, A–Z), the language (English first, any, or just one), the genre, the picture quality (4K, Full HD) and subtitles; press OK on a chip and its choices slide in from the right.
+
+Providers don't share what people watch, so *Popular* ranks well-rated, recent titles first and lifts anything your provider files under trending, popular or top-10 style categories. Most providers don't send language, genre or quality separately either, so Tuner reads them from the category and title names (like *EN | ACTION*, *4K*, *MULTI-SUB*), and shows those categories as plain names with a small language tag. A filter only appears when your provider's names give Tuner something to go on.
 
 Channel, movie and series lists are saved on the device, so Tuner opens straight away; it checks your provider for changes in the background and picks them up the next time you open that section. **Account → Reload channels & library** fetches everything fresh.
 
