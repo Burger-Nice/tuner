@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
-  <!-- Android adaptive-icon FOREGROUND layer on the 108dp grid (transparent). Pair with a solid #13161B background layer (ic_launcher_background).
-       Scale 4.5 px-per-grid-unit on a 1024 icon = 0.4746 on the 108 grid: T = 450/1024 of the canvas, bar corners 300.8px from the centre,
-       inside the 66dp safe circle (radius 313 of 1024). -->
-  <g transform="translate(54 54) scale(0.4746) translate(-48.5 -46)">
-    <path fill="#FABA25" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z"/>
-    <path fill="#F2F3F6" d="M37.5 0H59.5L62.5 100H34.5Z"/>
+  <!-- Android adaptive-icon FOREGROUND layer on the 108dp grid (transparent). Pair with a solid #FABA26 background layer (ic_launcher_background).
+       Scale 4.7 px-per-grid-unit on a 1024 icon = 0.4957 on the 108 grid: T = 470/1024 of the canvas; the bar's top corners are
+       296.25px from the centre, inside the 66dp safe circle (radius 313 of 1024). -->
+  <g transform="translate(54 54) scale(0.4957) translate(-42 -47)">
+    <path fill="#12161D" d="M0 0H27.5V23H0ZM56.5 0H84V23H56.5ZM30.5 0H53.5V100H30.5Z"/>
   </g>
 </svg>

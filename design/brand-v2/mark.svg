@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 97 100" width="97" height="100" role="img" aria-label="Tuner">
-  <!-- Tuner mark "Needle" v2.1 = the T of TUNER. Grid: height 100 (= wordmark cap height), width 97.
-       Scale bar 97x23 (= wordmark stem 23), six 3.9x11.5 ticks knocked out of its lower edge, pitch 10.5.
-       Needle 22 wide at the top, 28 at the baseline (avg 25), passes through the scale. Same drawing is used 1:1 in lockup.svg. -->
-  <path fill="#FABA25" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z"/>
-  <path fill="#F2F3F6" d="M37.5 0H59.5L62.5 100H34.5Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 100" width="84" height="100" role="img" aria-label="Tuner">
+  <!-- Tuner mark v2.2 = the T of TUNER. The stem is the needle (full height, straight, 23 wide = wordmark stem) and it cuts the scale
+       (the crossbar, 84x23) in two with a 3-unit channel either side. One colour, amber, so it carries at distance and in greyscale.
+       Grid: height 100 (= wordmark cap height), width 84. Same drawing is used 1:1 in lockup.svg. Use mark-small.svg below 64 device px. -->
+  <path fill="#FABA26" d="M0 0H27.5V23H0ZM56.5 0H84V23H56.5ZM30.5 0H53.5V100H30.5Z"/>
 </svg>

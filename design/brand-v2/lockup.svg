@@ -1,9 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 499 100" width="499" height="100" role="img" aria-label="Tuner">
-  <!-- Horizontal lockup v2.1: the mark is the T. Cap height 100, mark at 1:1 (x 0-97), gap 10, UNER from x=107. Clear space = 50 (half cap) all round.
-       Amber scale bar, needle + letters #F2F3F6. Use on #13161B/#1C1F26 only. -->
-  <path fill="#FABA25" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z"/>
-  <path fill="#F2F3F6" d="M37.5 0H59.5L62.5 100H34.5Z"/>
-  <g fill="#F2F3F6" transform="translate(107 0)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 484 100" width="484" height="100" role="img" aria-label="Tuner">
+  <!-- Horizontal lockup v2.2: the mark is the T. Cap height 100, mark at 1:1 (x 0-84), gap 8, UNER from x=92. Stem-to-U = 38.5. Clear space = 50 (half cap) all round.
+       Amber T, #F1F4F9 letters. Use on #12161D/#1C2027 only. -->
+  <path fill="#FABA26" d="M0 0H27.5V23H0ZM56.5 0H84V23H56.5ZM30.5 0H53.5V100H30.5Z"/>
+  <g fill="#F1F4F9" transform="translate(92 0)">
     <path d="M0 0H23V57C23 69.5 31.5 77 45 77C58.5 77 67 69.5 67 57V0H90V59C90 86 72 100 45 100C18 100 0 86 0 59Z"/>
     <path transform="translate(104 0)" d="M0 100V0H25L67 61V0H92V100H67L25 39V100Z"/>
     <path transform="translate(210 0)" d="M0 0H78V23H23V39H72V61H23V77H78V100H0Z"/>

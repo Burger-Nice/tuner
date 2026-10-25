@@ -1,25 +1,19 @@
-// Tuner logo geometry. Units: cap height = 100 (needle top y=0, baseline y=100).
-// The mark IS the T of the wordmark: one drawing, used 1:1 in the lockup.
+// Tuner logo geometry v2.2. Units: cap height = 100 (T top y=0, baseline y=100).
+// The mark IS the T of the wordmark: one drawing, used 1:1 in the lockup. Concept: the stem is the needle and it cuts the scale (the crossbar) in two.
 const r = n => +n.toFixed(2);
 
-// ---- the mark / the T ----
 const T = {
-  W: 97,            // scale bar width
-  H: 23,            // scale bar thickness = wordmark stem (23)
-  tw: 3.9, th: 11.5,// tick width / height (knocked out of the bar's lower edge)
-  ticks: [20, 30.5, 41], // tick centres, distance from the needle axis (mirrored), pitch 10.5
-  nt: 22, nb: 28,   // needle width at the top / at the baseline (avg 25 ~ stem 23)
+  W: 84,    // overall width (= the v1 wordmark T)
+  H: 23,    // crossbar thickness = wordmark stem (23)
+  nW: 23,   // stem / needle width, straight (v2.1 tapered 22->28; the taper is gone)
+  g: 3,     // channel between the stem and each half of the scale
 };
 function tParts(s = T) {
-  const cx = s.W / 2, tk = [];
-  for (const d of s.ticks) { tk.push([cx - d - s.tw / 2, cx - d + s.tw / 2]); tk.push([cx + d - s.tw / 2, cx + d + s.tw / 2]); }
-  tk.sort((a, b) => b[0] - a[0]);
-  let bar = `M0 0H${r(s.W)}V${r(s.H)}`;
-  for (const [a, b] of tk) bar += `H${r(b)}V${r(s.H - s.th)}H${r(a)}V${r(s.H)}`;
-  bar += 'H0Z';
-  const barSmall = `M0 0H${r(s.W)}V${r(s.H)}H0Z`;
-  const needle = `M${r(cx - s.nt / 2)} 0H${r(cx + s.nt / 2)}L${r(cx + s.nb / 2)} 100H${r(cx - s.nb / 2)}Z`;
-  return { bar, barSmall, needle, cx };
+  const cx = s.W / 2, nl = cx - s.nW / 2, nr = cx + s.nW / 2;
+  const needle = `M${r(nl)} 0H${r(nr)}V100H${r(nl)}Z`;                                  // the needle: full height
+  const barL = `M0 0H${r(nl - s.g)}V${s.H}H0Z`, barR = `M${r(nr + s.g)} 0H${r(s.W)}V${s.H}H${r(nr + s.g)}Z`; // the scale, cut by the needle
+  const solid = `M0 0H${s.W}V${s.H}H${r(nr)}V100H${r(nl)}V${s.H}H0Z`;                  // channel-free T for small sizes
+  return { needle, bar: barL + barR, full: `${barL}${barR}${needle}`, solid, cx };
 }
 
 // ---- UNER (outlined, custom wide grotesque; stem 23, cap 100). Offsets relative to the U origin. ----
@@ -30,5 +24,5 @@ const UNER = [
   { x: 302, e: 1, d: 'M0 0H52C74 0 88 12 88 33C88 47 80 57 67 61L90 100H64L45 64H23V100H0Z M23 21V44H50C57 44 64 40 64 32.5C64 25 57 21 50 21Z' },
 ];
 const UNER_W = 392;
-const GAP = 10; // bar end -> U. The bar is only 23 tall, so the open space under its arm adds optical gap; 10 matches the U-N-E-R rhythm
+const GAP = 8; // bar end -> U. Stem-to-U = 38.5 (v2.1: 44.5 + taper); 14 between the other letters, but a T always needs optical kerning
 module.exports = { T, tParts, UNER, UNER_W, GAP, r };

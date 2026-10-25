@@ -1,16 +1,18 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
-body{margin:0;background:#13161b;color:#abb0b9;font:11px system-ui,sans-serif;padding:24px;display:flex;gap:40px;align-items:flex-end}
+body{margin:0;background:#12161d;color:#acb0b7;font:11px system-ui,sans-serif;padding:24px;display:flex;gap:36px;align-items:flex-end}
 .v{display:flex;flex-direction:column;gap:8px;align-items:center}
 img{display:block;image-rendering:auto}
-.tile{border-radius:22%;overflow:hidden;background:#13161b;box-shadow:0 0 0 1px #ffffff14}
-.light{background:#f2f3f6;padding:24px;color:#555}
+.tile{border-radius:22%;overflow:hidden;box-shadow:0 0 0 1px #ffffff14}
+.light{background:#f1f4f9;padding:20px;color:#12161d}
+.amber{background:#faba26;padding:20px;color:#12161d}
 .ban{box-shadow:0 0 0 1px #ffffff14}
+.row{display:flex;gap:14px;align-items:flex-end}
 </style></head><body>
-<div class="v"><img src="../mark.svg" width="64"><img src="../mark.svg" width="48"><img src="../mark.svg" width="32"><img src="../mark.svg" width="24"><img src="../mark.svg" width="16">mark 64/48/32/24/16</div>
-<div class="v"><img src="../mark-small.svg" width="32"><img src="../mark-small.svg" width="24"><img src="../mark-small.svg" width="16">mark-small 32/24/16</div>
+<div class="v"><div class="row"><img src="../mark.svg" height="64"><img src="../mark.svg" height="48"><img src="../mark.svg" height="32"><img src="../mark.svg" height="24"><img src="../mark.svg" height="16"></div>mark 64/48/32/24/16 CSS px (x2 device px)
+<div class="row" style="margin-top:14px"><img src="../mark-small.svg" height="48"><img src="../mark-small.svg" height="32"><img src="../mark-small.svg" height="24"><img src="../mark-small.svg" height="16"></div>mark-small 48/32/24/16</div>
 <div class="v"><div class="tile"><img src="../icon-1024.svg" width="96"></div><div class="tile"><img src="../icon-1024.svg" width="48"></div><div class="tile"><img src="../icon-1024.svg" width="24"></div>icon 96/48/24</div>
-<div class="v"><img class="ban" src="../tv-banner.svg" width="320"><img class="ban" src="../tv-banner.svg" width="160">banner 320 / 160</div>
-<div class="v"><img src="../lockup.svg" width="320"><img src="../lockup.svg" width="200"><img src="../lockup.svg" width="120">lockup 320/200/120</div>
-<div class="v light" style="color:#13161b"><img src="../lockup-mono.svg" width="240"><img src="../mark-mono.svg" width="48">mono on light</div>
-<div class="v" style="color:#f2f3f6"><img src="../lockup-mono.svg" width="240" style="filter:invert(1)"><img src="../mark-mono.svg" width="48" style="filter:invert(1)"><span style="color:#abb0b9">mono on dark</span></div>
+<div class="v"><img class="ban" src="../tv-banner.svg" width="320"><img class="ban" src="../tv-banner.svg" width="160"><img class="ban" src="../tv-banner-dark.svg" width="160">banner 320 / 160 / dark alt</div>
+<div class="v"><img src="../lockup.svg" width="320"><img src="../lockup.svg" width="200"><img src="../lockup.svg" width="140"><img src="../lockup.svg" width="90">lockup 320/200/140/90</div>
+<div class="v light"><img src="../lockup-mono.svg" width="240" style="filter:brightness(0) saturate(100%)"><img src="../mark-mono.svg" height="48" style="filter:brightness(0)">mono on light</div>
+<div class="v" style="color:#f1f4f9"><img src="../lockup-mono.svg" width="240" style="filter:invert(1)"><img src="../mark-mono.svg" height="48" style="filter:invert(1)"><span style="color:#acb0b7">mono on dark</span></div>
 </body></html>

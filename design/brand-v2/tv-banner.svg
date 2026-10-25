@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">
   <!-- Android TV / Google TV launcher banner, 320x180 (xhdpi). Export 1x (320x180), 1.5x (480x270), 2x (640x360).
-       Full lockup (icon + text, as Google asks), cap height 46, 229.54 wide, centred inside the 80% x 60% safe area. No border, no glow, no gradient. -->
-  <rect width="320" height="180" fill="#13161B"/>
-  <g transform="translate(45.23 67) scale(0.46)">
-    <path fill="#FABA25" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z"/>
-    <path fill="#F2F3F6" d="M37.5 0H59.5L62.5 100H34.5Z"/>
-    <g fill="#F2F3F6" transform="translate(107 0)">
+       Amber banner, ink lockup (10.5:1): in a launcher row of dark and blue tiles this is the one that stands out (checks/study22/banners.png). Full lockup (icon + text, as Google asks), cap height 46, 222.64 wide, centred inside the 80% x 60% safe area. No border, no glow, no gradient. -->
+  <rect width="320" height="180" fill="#FABA26"/>
+  <g transform="translate(48.68 67) scale(0.46)">
+    <path fill="#12161D" d="M0 0H27.5V23H0ZM56.5 0H84V23H56.5ZM30.5 0H53.5V100H30.5Z"/>
+    <g fill="#12161D" transform="translate(92 0)">
       <path d="M0 0H23V57C23 69.5 31.5 77 45 77C58.5 77 67 69.5 67 57V0H90V59C90 86 72 100 45 100C18 100 0 86 0 59Z"/>
       <path transform="translate(104 0)" d="M0 100V0H25L67 61V0H92V100H67L25 39V100Z"/>
       <path transform="translate(210 0)" d="M0 0H78V23H23V39H72V61H23V77H78V100H0Z"/>

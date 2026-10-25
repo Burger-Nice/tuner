@@ -1,10 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!-- Tuner app icon, 1024 square, flat, square-cornered (iOS/Windows/store apply their own masks; do not pre-round).
-       Mark scale 5.4: T = 540px tall, 523.8px wide, visual centre at grid (48.5,46) = icon centre.
+       Amber tile #FABA26, T in #12161D (10.5:1). Scale 5.4: T = 540px tall, 453.6px wide, visual centre at grid (42,47) = icon centre.
        NOT for Android adaptive masks (circle clips the bar's corners): use icon-foreground-108.svg there. -->
-  <rect width="1024" height="1024" fill="#13161B"/>
-  <g transform="translate(512 512) scale(5.4) translate(-48.5 -46)">
-    <path fill="#FABA25" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z"/>
-    <path fill="#F2F3F6" d="M37.5 0H59.5L62.5 100H34.5Z"/>
+  <rect width="1024" height="1024" fill="#FABA26"/>
+  <g transform="translate(512 512) scale(5.4) translate(-42 -47)">
+    <path fill="#12161D" d="M0 0H27.5V23H0ZM56.5 0H84V23H56.5ZM30.5 0H53.5V100H30.5Z"/>
   </g>
 </svg>

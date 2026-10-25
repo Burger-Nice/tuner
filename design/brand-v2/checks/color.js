@@ -28,3 +28,17 @@ const M = { // Machado et al. 2009, severity 1.0, linear RGB
 function cvd(h,t){ const c=hex2rgb(h).map(toLin); const m=M[t]; return rgb2hex(m.map(r=>toGam(r[0]*c[0]+r[1]*c[1]+r[2]*c[2]))); }
 const dE = (a,b)=>{ const x=lin2oklab(hex2rgb(a).map(toLin)), y=lin2oklab(hex2rgb(b).map(toLin)); return Math.hypot(x[0]-y[0],x[1]-y[1],x[2]-y[2])*100; };
 module.exports={hex2oklch,oklch2hex,fit,lum,ratio,cvd,dE,inGamut,oklch2lin,hex2rgb};
+// Dark neutrals: 8-bit rounding of a C .013 colour drifts +-5 degrees of hue, so search +-5 codes for the colour whose lightness is within
+// tolL of the target and whose hue is closest to h (chroma kept within [Cmin,Cmax]). Keeps the ramp on ONE hue with even lightness steps.
+module.exports.neutral = function (L, h, C = 0.013, tolL = 0.0035, Cmin = 0.010, Cmax = 0.017) {
+  const base = module.exports.hex2rgb(module.exports.fit(L, C, h)).map(v => Math.round(v * 255));
+  let best = null;
+  for (let dr = -5; dr <= 5; dr++) for (let dg = -5; dg <= 5; dg++) for (let db = -5; db <= 5; db++) {
+    const rgb = [base[0] + dr, base[1] + dg, base[2] + db]; if (rgb.some(v => v < 0 || v > 255)) continue;
+    const hex = rgb2hex(rgb.map(v => v / 255)); const [l, cc, hh] = module.exports.hex2oklch(hex);
+    if (Math.abs(l - L) > tolL || cc < Cmin || cc > Cmax) continue;
+    const dh = Math.abs(((hh - h + 540) % 360) - 180), score = dh + Math.abs(l - L) * 300 + Math.abs(cc - C) * 100;
+    if (!best || score < best.score) best = { score, hex };
+  }
+  return best ? best.hex : module.exports.fit(L, C, h);
+};

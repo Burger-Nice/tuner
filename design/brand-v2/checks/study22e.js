@@ -1,0 +1,11 @@
+// icon / tile study: dark tile + amber T vs amber tile + ink T, in a mock launcher row. node checks/study22e.js
+const fs=require('fs'),path=require('path');const {tParts,T}=require('./geometry.js');const P=require('./palette.js');const t=tParts();
+const tile=(bg,fg,sz,glyph)=>`<div style="width:${sz}px;height:${sz}px;border-radius:${sz*.2237}px;background:${bg};display:grid;place-items:center">${glyph||`<svg viewBox="-2 -2 ${T.W+4} 104" width="${sz*.52}" height="${sz*.52*104/(T.W+4)}"><path fill="${fg}" d="${sz<70?t.solid:t.full}"/></svg>`}</div>`;
+// neutral placeholder neighbours (no real brand marks): coloured tiles with simple generic shapes
+const ph=(bg,sh,sz)=>`<div style="width:${sz}px;height:${sz}px;border-radius:${sz*.2237}px;background:${bg};display:grid;place-items:center">${sh}</div>`;
+const shapes=[['#0b0b0e','<div style="width:34%;height:46%;background:#e5252d;border-radius:3px"></div>'],['#f3f3f3','<div style="width:48%;height:34%;background:#e02d2d;border-radius:8px"></div>'],['#1d2230','<div style="width:46%;height:46%;border:5px solid #e5a00d;border-radius:50%"></div>'],['#1b3d8f','<div style="width:46%;height:20%;background:#fff;border-radius:99px"></div>'],['#101a3a','<div style="width:46%;height:46%;border:5px solid #9bd;border-radius:50%"></div>'],['#17a05d','<div style="width:30%;height:48%;background:#fff;border-radius:99px"></div>']];
+const row=(sz,mid)=>`<div style="display:flex;gap:${sz*.12}px;align-items:center;padding:16px;background:#0e1014;border-radius:14px">${shapes.slice(0,3).map(s=>ph(s[0],s[1],sz)).join('')}${mid}${shapes.slice(3).map(s=>ph(s[0],s[1],sz)).join('')}</div>`;
+let h=`<body style="margin:0;background:#07080a;padding:24px;color:#8a909a;font:12px sans-serif;width:1500px">`;
+for(const [n,bg,fg] of [['A  dark tile, amber T',P['bg-0'],P.accent],['B  amber tile, ink T',P.accent,P['bg-0']],['C  white-ish tile, amber? (ink T on text-1)',P['text-1'],P['bg-0']]]){
+ h+=`<div style="margin-bottom:22px"><div style="margin-bottom:6px">${n}</div><div style="display:flex;gap:30px;align-items:flex-end">${row(120,tile(bg,fg,120))}${row(64,tile(bg,fg,64))}${tile(bg,fg,48)}${tile(bg,fg,24)}</div></div>`;}
+fs.writeFileSync(path.join(__dirname,'study22','icons.html'),h);

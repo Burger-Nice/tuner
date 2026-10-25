@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 392 100" width="392" height="100" role="img" aria-label="UNER">
   <!-- "UNER": the wordmark WITHOUT its T. The T is the mark (mark.svg); the two only ever appear together as lockup.svg.
-       Custom wide grotesque, cap height 100, stem 23, outlined paths, no font. Exact bounds 392x100 (v1 clipped the R leg by 2 units).
-       Inherits currentColor: #F2F3F6 on dark, #13161B on light. -->
+       Custom wide grotesque, cap height 100, stem 23, outlined paths, no font. Exact bounds 392x100.
+       Inherits currentColor: #F1F4F9 on dark, #12161D on light. -->
   <g fill="currentColor">
     <path d="M0 0H23V57C23 69.5 31.5 77 45 77C58.5 77 67 69.5 67 57V0H90V59C90 86 72 100 45 100C18 100 0 86 0 59Z"/>
     <path transform="translate(104 0)" d="M0 100V0H25L67 61V0H92V100H67L25 39V100Z"/>
