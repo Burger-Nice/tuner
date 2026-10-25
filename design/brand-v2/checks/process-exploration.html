@@ -1,0 +1,63 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:"Archivo Variable";src:url(../fonts/archivo-latin-standard-normal.woff2) format("woff2-variations");font-weight:100 900;font-stretch:62% 125%}
+@font-face{font-family:"Inter Variable";src:url(../fonts/inter-latin-wght-normal.woff2) format("woff2-variations");font-weight:100 900}
+body{margin:0;background:#0d0e12;color:#f2f3f5;font:13px "Inter Variable",system-ui,sans-serif;padding:32px}
+.row{display:flex;gap:36px;align-items:flex-end;margin-bottom:30px}
+.v{display:flex;flex-direction:column;gap:10px;align-items:center}
+.lab{color:#8a92a0;letter-spacing:.1em;text-transform:uppercase;font-size:11px}
+svg{display:block}
+.tile{border-radius:22%;overflow:hidden;background:#0d0e12;box-shadow:0 0 0 1px #ffffff14}
+.light{background:#f2f3f5}
+.arch{font-family:"Archivo Variable";font-weight:800;font-stretch:112%;font-size:58px;letter-spacing:-.01em;color:#f2f3f5}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<!-- Mark v3: amber scale with knocked-out ticks, white needle through it -->
+<g id="M">
+  <path fill="#ffb020" fill-rule="evenodd" d="M6 14H94V32H6Z M13 25H15V32H13Z M21 25H23V32H21Z M29 25H31V32H29Z M37 25H39V32H37Z M61 25H63V32H61Z M69 25H71V32H69Z M77 25H79V32H77Z M85 25H87V32H85Z"/>
+  <path fill="#f2f3f5" d="M43 14H57L60 90H40Z"/>
+</g>
+<!-- ticks taller + wider -->
+<g id="M2">
+  <path fill="#ffb020" fill-rule="evenodd" d="M6 14H94V32H6Z M12.5 23H15.5V32H12.5Z M20.5 23H23.5V32H20.5Z M28.5 23H31.5V32H28.5Z M36.5 23H39.5V32H36.5Z M60.5 23H63.5V32H60.5Z M68.5 23H71.5V32H68.5Z M76.5 23H79.5V32H76.5Z M84.5 23H87.5V32H84.5Z"/>
+  <path fill="#f2f3f5" d="M43 14H57L60 90H40Z"/>
+</g>
+<!-- ticks from the top edge instead -->
+<g id="M3">
+  <path fill="#ffb020" fill-rule="evenodd" d="M6 14H94V32H6Z M12.5 14H15.5V23H12.5Z M20.5 14H23.5V23H20.5Z M28.5 14H31.5V23H28.5Z M36.5 14H39.5V23H36.5Z M60.5 14H63.5V23H60.5Z M68.5 14H71.5V23H68.5Z M76.5 14H79.5V23H76.5Z M84.5 14H87.5V23H84.5Z"/>
+  <path fill="#f2f3f5" d="M43 14H57L60 90H40Z"/>
+</g>
+<!-- mono -->
+<g id="Mm">
+  <path fill-rule="evenodd" d="M6 14H94V32H6Z M12.5 23H15.5V32H12.5Z M20.5 23H23.5V32H20.5Z M28.5 23H31.5V32H28.5Z M36.5 23H39.5V32H36.5Z M60.5 23H63.5V32H60.5Z M68.5 23H71.5V32H68.5Z M76.5 23H79.5V32H76.5Z M84.5 23H87.5V32H84.5Z"/>
+  <path d="M43 14H57L60 90H40Z"/>
+</g>
+<!-- wordmark, cap height 100 -->
+<g id="W">
+  <path d="M0 0H84V23H53.5V100H30.5V23H0Z"/>
+  <path transform="translate(98 0)" d="M0 0H23V57C23 69.5 31.5 77 45 77C58.5 77 67 69.5 67 57V0H90V59C90 86 72 100 45 100C18 100 0 86 0 59Z"/>
+  <path transform="translate(202 0)" d="M0 100V0H25L67 61V0H92V100H67L25 39V100Z"/>
+  <path transform="translate(308 0)" d="M0 0H78V23H23V39H72V61H23V77H78V100H0Z"/>
+  <path transform="translate(400 0)" fill-rule="evenodd" d="M0 0H52C74 0 88 12 88 33C88 47 80 57 67 61L90 100H64L45 64H23V100H0Z M23 21V44H50C57 44 64 40 64 32.5C64 25 57 21 50 21Z"/>
+</g>
+</defs></svg>
+
+<div class="row">
+ <div class="v"><svg width="240" height="240" viewBox="0 0 100 100"><use href="#M"/></svg><span class="lab">M ticks 2×7 bottom</span></div>
+ <div class="v"><svg width="240" height="240" viewBox="0 0 100 100"><use href="#M2"/></svg><span class="lab">M2 ticks 3×9 bottom</span></div>
+ <div class="v"><svg width="240" height="240" viewBox="0 0 100 100"><use href="#M3"/></svg><span class="lab">M3 ticks top</span></div>
+ <div class="v"><svg width="240" height="240" viewBox="0 0 100 100" fill="#f2f3f5"><use href="#Mm"/></svg><span class="lab">mono white</span></div>
+ <div class="v light"><svg width="240" height="240" viewBox="0 0 100 100" fill="#0d0e12"><use href="#Mm"/></svg><span class="lab" style="color:#555">mono on light</span></div>
+</div>
+<div class="row">
+ <div class="v"><svg width="520" height="110" viewBox="0 0 488 100" fill="#f2f3f5"><use href="#W"/></svg><span class="lab">wordmark drawn</span></div>
+ <div class="v"><div class="arch">TUNER</div><span class="lab">Archivo 800 wdth112 (reference)</span></div>
+</div>
+<div class="row">
+ <div class="v"><svg width="700" height="130" viewBox="-4 -14 700 130"><use href="#M2" transform="translate(-8 -14) scale(1.3)"/><g transform="translate(140 0)" fill="#f2f3f5"><use href="#W"/></g></svg><span class="lab">lockup 1</span></div>
+</div>
+<div class="row">
+ <div class="v"><svg width="64" height="64" viewBox="0 0 100 100"><use href="#M2"/></svg><svg width="48" height="48" viewBox="0 0 100 100"><use href="#M2"/></svg><svg width="32" height="32" viewBox="0 0 100 100"><use href="#M2"/></svg><svg width="24" height="24" viewBox="0 0 100 100"><use href="#M2"/></svg><svg width="16" height="16" viewBox="0 0 100 100"><use href="#M2"/></svg><span class="lab">M2 64/48/32/24/16</span></div>
+ <div class="v"><div class="tile"><svg width="96" height="96" viewBox="0 0 100 100"><use href="#M2" transform="translate(50 50) scale(.66) translate(-50 -52)"/></svg></div><div class="tile"><svg width="48" height="48" viewBox="0 0 100 100"><use href="#M2" transform="translate(50 50) scale(.66) translate(-50 -52)"/></svg></div><div class="tile"><svg width="24" height="24" viewBox="0 0 100 100"><use href="#M2" transform="translate(50 50) scale(.66) translate(-50 -52)"/></svg></div><span class="lab">tile 96/48/24</span></div>
+ <div class="v"><svg width="300" height="56" viewBox="-4 -14 700 130"><use href="#M2" transform="translate(-8 -14) scale(1.3)"/><g transform="translate(140 0)" fill="#f2f3f5"><use href="#W"/></g></svg><svg width="160" height="30" viewBox="-4 -14 700 130"><use href="#M2" transform="translate(-8 -14) scale(1.3)"/><g transform="translate(140 0)" fill="#f2f3f5"><use href="#W"/></g></svg><span class="lab">lockup small</span></div>
+</div>
+</body></html>

@@ -1,0 +1,65 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../tokens.css">
+<style>
+@font-face{font-family:"Archivo Variable";src:url(../fonts/archivo-latin-standard-normal.woff2) format("woff2-variations");font-weight:100 900;font-stretch:62% 125%}
+@font-face{font-family:"Inter Variable";src:url(../fonts/inter-latin-wght-normal.woff2) format("woff2-variations");font-weight:100 900}
+/* 960x540 CSS canvas, rendered at deviceScaleFactor 2 = 1920x1080 */
+html,body{margin:0;width:960px;height:540px;overflow:hidden;background:var(--t-bg-0);color:var(--t-text-1);font-family:var(--t-font-text);font-variant-numeric:tabular-nums}
+.rail{position:absolute;left:0;top:0;bottom:0;width:80px;background:var(--t-bg-0);display:flex;flex-direction:column;align-items:center;padding-top:26px;gap:22px}
+.rail .brand{width:44px;height:44px;margin-bottom:14px}
+.rail .ic{width:28px;height:28px;border-radius:8px;color:var(--t-text-3);display:grid;place-items:center}
+.rail .ic.on{color:var(--t-accent)}
+.rail svg{width:24px;height:24px}
+main{position:absolute;left:80px;right:0;top:0;bottom:0;padding:var(--t-tv-safe-y) var(--t-tv-safe-x) 0 32px}
+.head{display:flex;align-items:baseline;gap:20px}
+.head .date{font-size:var(--t-size-title);color:var(--t-text-2);font-weight:500}
+.eyebrow{margin:24px 0 8px}
+.card{background:var(--t-surface-1);border-radius:var(--t-radius-lg);padding:16px 18px;width:420px;box-shadow:var(--t-focus-ring);position:relative}
+.team{display:flex;align-items:center;gap:12px;height:40px}
+.team .bar{width:4px;height:32px;border-radius:2px;background:#5D76A9}
+.team .bar.g{background:#FFC72C}
+.team .n{flex:1}
+.team .n b{display:block;font-size:var(--t-size-title);font-weight:650;line-height:1.1}
+.team .n small{color:var(--t-text-3);font-size:var(--t-size-caption)}
+.team .s{font-family:var(--t-font-display);font-weight:800;font-size:30px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.meta{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--t-text-3);font-size:var(--t-size-caption)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--t-live)}
+.meta .lt{color:var(--t-live-text);font-weight:650}
+.row{display:flex;gap:16px;margin-top:22px}
+.ch{width:150px;height:84px;border-radius:var(--t-radius);background:var(--t-surface-1);display:grid;place-items:center;position:relative;color:var(--t-text-3);font-family:var(--t-font-display);font-weight:800;font-size:28px}
+.ch .num{position:absolute;left:10px;top:8px;font:500 var(--t-size-caption)/1 var(--t-font-text);color:var(--t-text-4)}
+.ch.on{box-shadow:var(--t-focus-ring);color:var(--t-text-1)}
+.cap{font-size:var(--t-size-body);color:var(--t-text-2);margin-top:6px;width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{display:inline-flex;align-items:center;height:40px;padding:0 20px;border-radius:var(--t-radius-pill);background:var(--t-accent);color:var(--t-on-accent);font-weight:700;font-size:var(--t-size-body-lg);margin-top:18px}
+.hero{position:absolute;right:var(--t-tv-safe-x);top:var(--t-tv-safe-y);width:380px}
+.hero .lock{width:200px;display:block;margin-left:auto}
+.hero p{text-align:right;color:var(--t-text-3);font-size:var(--t-size-caption);margin:8px 0 0}
+</style></head><body>
+<nav class="rail">
+  <img class="brand" src="../mark.svg" alt="Tuner">
+  <div class="ic on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M8 3l4 3 4-3"/></svg></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg></div>
+</nav>
+<main>
+  <div class="head"><h1 class="t-display" style="margin:0">Home</h1><span class="date">Fri, Oct 23</span></div>
+  <div class="t-label eyebrow">Your team</div>
+  <div class="card">
+    <div class="team"><span class="bar"></span><span class="n"><b>Grizzlies</b><small>1-0</small></span><span class="s">77</span></div>
+    <div class="team"><span class="bar g"></span><span class="n"><b>Warriors</b><small>0-1 · Home</small></span><span class="s">70</span></div>
+    <div class="meta"><span class="dot"></span><span class="lt">7:29 · 3rd</span><span>NBA League Pass</span><span class="t-live-pill" style="margin-left:auto">Live</span></div>
+  </div>
+  <div class="btn">Watch on NBA 01</div>
+  <div class="t-label eyebrow">Live now</div>
+  <div class="row">
+    <div><div class="ch on"><span class="num">1</span>NBA</div><div class="cap">Memphis Grizzlies @ Golden State</div></div>
+    <div><div class="ch"><span class="num">2</span>EH</div><div class="cap">US: ESPN HD</div></div>
+    <div><div class="ch"><span class="num">3</span>NL</div><div class="cap">NBA League Pass 3</div></div>
+    <div><div class="ch"><span class="num">4</span>BO</div><div class="cap">BBC One HD</div></div>
+    <div><div class="ch"><span class="num">5</span>TN</div><div class="cap">TNT Sports 1</div></div>
+  </div>
+  <div class="hero"><img class="lock" src="../lockup.svg" alt="Tuner"><p>lockup at 200px CSS = 400px on the panel</p></div>
+</main>
+</body></html>

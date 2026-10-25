@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Tuner">
+  <!-- Small-size Tuner mark (favicon, 16-32px, tray/taskbar): same geometry, ticks dropped so nothing aliases. -->
+  <path fill="#FFB020" d="M6 14H94V32H6Z"/>
+  <path fill="#F2F3F5" d="M43 14H57L60 90H40Z"/>
+</svg>

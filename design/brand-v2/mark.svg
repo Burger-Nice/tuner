@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Tuner">
+  <!-- Tuner mark "Needle": a dial scale (amber, ticks knocked out) with the needle (white) locked through it.
+       Grid 100. Scale bar: x6-94 y14-32. Needle: 14 wide at the scale, 20 at the base, y14-90. Ticks 3x9 every 8 units. -->
+  <path fill="#FFB020" fill-rule="evenodd" d="M6 14H94V32H6Z M12.5 23H15.5V32H12.5Z M20.5 23H23.5V32H20.5Z M28.5 23H31.5V32H28.5Z M36.5 23H39.5V32H36.5Z M60.5 23H63.5V32H60.5Z M68.5 23H71.5V32H68.5Z M76.5 23H79.5V32H76.5Z M84.5 23H87.5V32H84.5Z"/>
+  <path fill="#F2F3F5" d="M43 14H57L60 90H40Z"/>
+</svg>

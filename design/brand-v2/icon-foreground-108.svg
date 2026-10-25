@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <!-- Android adaptive-icon FOREGROUND layer on the 108dp grid (transparent). Pair with a solid #0D0E12 background layer.
+       Same placement as icon-1024.svg (icon-1024 / 9.481 = 108). Mark stays inside the 66dp safe circle. -->
+  <g transform="translate(54 54) scale(0.6191) translate(-50 -44)">
+    <path fill="#FFB020" fill-rule="evenodd" d="M6 14H94V32H6Z M12.5 23H15.5V32H12.5Z M20.5 23H23.5V32H20.5Z M28.5 23H31.5V32H28.5Z M36.5 23H39.5V32H36.5Z M60.5 23H63.5V32H60.5Z M68.5 23H71.5V32H68.5Z M76.5 23H79.5V32H76.5Z M84.5 23H87.5V32H84.5Z"/>
+    <path fill="#F2F3F5" d="M43 14H57L60 90H40Z"/>
+  </g>
+</svg>

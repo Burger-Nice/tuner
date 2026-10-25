@@ -1,0 +1,93 @@
+/* Tuner brand tokens v2 — dark, TV-first.
+   Contrast ratios (WCAG 2.x, computed in checks/contrast.js, listed in BRAND.md).
+   Canvas assumptions: TV renders at a 960x540 CSS canvas (1rem = 16px = 32 device px at 1080p); desktop 1rem = 15px. */
+
+:root {
+  /* ---- backgrounds & surfaces (every step ≥ #13 so nothing falls into TV black crush at 16/255) ---- */
+  --t-bg-0:        #0D0E12;  /* app canvas, player letterbox, rails. Not pure black: video black stays distinguishable, no OLED "hole". */
+  --t-bg-1:        #13151B;  /* raised regions: nav rail, sheets, headers */
+  --t-surface-1:   #1A1D24;  /* cards, rows, inputs */
+  --t-surface-2:   #22262F;  /* hover / selected row */
+  --t-surface-3:   #2C313C;  /* pressed, chips, skeletons */
+  --t-line:        #2A2F3A;  /* hairlines on bg-0 / bg-1 */
+  --t-line-strong: #3A4150;  /* hairlines on surface-2/3, input borders */
+  --t-scrim:       rgba(13, 14, 18, 0.72);  /* over video */
+
+  /* ---- text (on any bg/surface unless noted) ---- */
+  --t-text-1:      #F2F3F5;  /* primary. Off-white on purpose: pure #FFF flickers/glares on TV panels. */
+  --t-text-2:      #B9BFCB;  /* secondary */
+  --t-text-3:      #868D9B;  /* tertiary: meta, timestamps. ≥4.5:1 on bg-0..surface-2; on surface-3 only at ≥18px/24px bold. */
+  --t-text-4:      #5C6372;  /* disabled only (3.2:1 on bg-0). Never for information. */
+  --t-on-accent:   #16110A;  /* text on amber */
+  --t-on-light:    #0D0E12;  /* mark/text on light backgrounds (docs, store listings) */
+
+  /* ---- brand accent: dial amber. The one brand colour. Luminous, so it carries on luma (survives 4:2:0 chroma blur) and does not bloom like saturated red/blue. ---- */
+  --t-accent:        #FFB020;  /* mark scale, primary buttons, selected tab, progress, "your team" */
+  --t-accent-text:   #FFC14D;  /* amber as small text/icons on dark (11.9:1) */
+  --t-accent-hover:  #FFC14D;
+  --t-accent-press:  #E89C10;
+  --t-accent-soft:   rgba(255, 176, 32, 0.14);  /* tinted fills behind amber text */
+
+  /* ---- focus (TV d-pad). White ring + lift. Never colour alone. ---- */
+  --t-focus:         #FFFFFF;
+  --t-focus-ring:    0 0 0 3px #FFFFFF;             /* 3px CSS = 6px at 1080p; nothing thinner than 2px on TV */
+  --t-focus-ring-in: inset 0 0 0 3px #FFFFFF;
+
+  /* ---- status. Red means LIVE and only live (no red buttons, no red brand). ---- */
+  --t-live:          #FF5A4F;  /* live dot, LIVE pill border, on-air tally */
+  --t-live-text:     #FF7A70;  /* live as text on dark (7.6:1) */
+  --t-live-soft:     rgba(255, 90, 79, 0.16);
+  --t-success:       #3DD68C;  /* connected, stream healthy */
+  --t-warning:       #FF8A3D;  /* buffering, weak signal, expiring account */
+  --t-danger:        #FF5A4F;  /* errors share the live hue but always with an icon + text, never a dot alone */
+
+  /* ---- type ---- */
+  --t-font-display: "Archivo Variable", "Archivo", "Roboto", system-ui, sans-serif;   /* @fontsource-variable/archivo (standard.css: wght + wdth) */
+  --t-font-text:    "Inter Variable", "Inter", "Roboto", system-ui, sans-serif;       /* @fontsource-variable/inter (wght.css) */
+  --t-wdth-display: 112%;   /* headings: wide = broadcast */
+  --t-wdth-score:   100%;   /* scoreboard numerals */
+  --t-wdth-compact: 84%;    /* dense tables, channel numbers */
+
+  /* ---- type scale, TV canvas 960x540 (px). Floor is 13px (26 device px). ---- */
+  --t-size-display-xl: 56px;  --t-lh-display-xl: 60px;  /* game title, hero */
+  --t-size-display:    40px;  --t-lh-display:    44px;  /* page title, big scores */
+  --t-size-headline:   28px;  --t-lh-headline:   32px;  /* section headers, card titles */
+  --t-size-title:      22px;  --t-lh-title:      28px;  /* list rows, channel names */
+  --t-size-body-lg:    18px;  --t-lh-body-lg:    26px;  /* descriptions */
+  --t-size-body:       16px;  --t-lh-body:       24px;  /* default */
+  --t-size-label:      14px;  --t-lh-label:      18px;  /* eyebrows, pills (uppercase, +0.08em) */
+  --t-size-caption:    13px;  --t-lh-caption:    16px;  /* meta; minimum on TV */
+
+  /* ---- radius, spacing ---- */
+  --t-radius-sm: 6px;  --t-radius: 10px;  --t-radius-lg: 16px;  --t-radius-pill: 999px;
+  --t-space-1: 4px; --t-space-2: 8px; --t-space-3: 12px; --t-space-4: 16px; --t-space-6: 24px; --t-space-8: 32px; --t-space-12: 48px;
+  --t-tv-safe-x: 48px;  --t-tv-safe-y: 27px;   /* overscan margins on the 960x540 canvas (5%) */
+
+  color-scheme: dark;
+}
+
+/* Desktop / phone: same tokens, smaller scale. */
+:root[data-scale="desktop"], :root.desktop {
+  --t-size-display-xl: 44px; --t-lh-display-xl: 48px;
+  --t-size-display:    34px; --t-lh-display:    38px;
+  --t-size-headline:   24px; --t-lh-headline:   28px;
+  --t-size-title:      18px; --t-lh-title:      24px;
+  --t-size-body-lg:    16px; --t-lh-body-lg:    24px;
+  --t-size-body:       14px; --t-lh-body:       20px;
+  --t-size-label:      12px; --t-lh-label:      16px;
+  --t-size-caption:    12px; --t-lh-caption:    16px;
+  --t-focus-ring:      0 0 0 2px #FFFFFF;
+}
+
+/* Ready-made text styles */
+.t-display-xl, .t-display, .t-headline { font-family: var(--t-font-display); font-stretch: var(--t-wdth-display); font-weight: 800; letter-spacing: -0.015em; color: var(--t-text-1); }
+.t-display-xl { font-size: var(--t-size-display-xl); line-height: var(--t-lh-display-xl); letter-spacing: -0.02em; }
+.t-display    { font-size: var(--t-size-display);    line-height: var(--t-lh-display); }
+.t-headline   { font-size: var(--t-size-headline);   line-height: var(--t-lh-headline); font-weight: 700; letter-spacing: -0.01em; }
+.t-score      { font-family: var(--t-font-display); font-stretch: var(--t-wdth-score); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.t-title      { font-family: var(--t-font-text); font-size: var(--t-size-title);   line-height: var(--t-lh-title);   font-weight: 650; color: var(--t-text-1); }
+.t-body-lg    { font-family: var(--t-font-text); font-size: var(--t-size-body-lg); line-height: var(--t-lh-body-lg); font-weight: 500; color: var(--t-text-2); }
+.t-body       { font-family: var(--t-font-text); font-size: var(--t-size-body);    line-height: var(--t-lh-body);    font-weight: 500; color: var(--t-text-2); }
+.t-label      { font-family: var(--t-font-text); font-size: var(--t-size-label);   line-height: var(--t-lh-label);   font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t-text-3); }
+.t-caption    { font-family: var(--t-font-text); font-size: var(--t-size-caption); line-height: var(--t-lh-caption); font-weight: 500; color: var(--t-text-3); font-variant-numeric: tabular-nums; }
+.t-live-pill  { font-family: var(--t-font-text); font-size: var(--t-size-label); font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; color: var(--t-live-text); background: var(--t-live-soft); border: 2px solid var(--t-live); border-radius: var(--t-radius-pill); padding: 0.2em 0.7em; }
