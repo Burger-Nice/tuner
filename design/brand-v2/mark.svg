@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Tuner">
-  <!-- Tuner mark "Needle": a dial scale (amber, ticks knocked out) with the needle (white) locked through it.
-       Grid 100. Scale bar: x6-94 y14-32. Needle: 14 wide at the scale, 20 at the base, y14-90. Ticks 3x9 every 8 units. -->
-  <path fill="#FFB020" fill-rule="evenodd" d="M6 14H94V32H6Z M12.5 23H15.5V32H12.5Z M20.5 23H23.5V32H20.5Z M28.5 23H31.5V32H28.5Z M36.5 23H39.5V32H36.5Z M60.5 23H63.5V32H60.5Z M68.5 23H71.5V32H68.5Z M76.5 23H79.5V32H76.5Z M84.5 23H87.5V32H84.5Z"/>
-  <path fill="#F2F3F5" d="M43 14H57L60 90H40Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 97 100" width="97" height="100" role="img" aria-label="Tuner">
+  <!-- Tuner mark "Needle" v2.1 = the T of TUNER. Grid: height 100 (= wordmark cap height), width 97.
+       Scale bar 97x23 (= wordmark stem 23), six 3.9x11.5 ticks knocked out of its lower edge, pitch 10.5.
+       Needle 22 wide at the top, 28 at the baseline (avg 25), passes through the scale. Same drawing is used 1:1 in lockup.svg. -->
+  <path fill="#FABA25" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z"/>
+  <path fill="#F2F3F6" d="M37.5 0H59.5L62.5 100H34.5Z"/>
 </svg>

@@ -1,45 +1,54 @@
-/* Tuner brand tokens v2 — dark, TV-first.
-   Contrast ratios (WCAG 2.x, computed in checks/contrast.js, listed in BRAND.md).
-   Canvas assumptions: TV renders at a 960x540 CSS canvas (1rem = 16px = 32 device px at 1080p); desktop 1rem = 15px. */
+/* Tuner brand tokens v2.1 — dark, TV-first. "Needle", colour re-evaluated.
+   Source of truth: checks/palette.js (OKLCH). Every hex below is an OKLCH value fitted to sRGB; L/C/h in the comments.
+   Contrast ratios (WCAG 2.x) are computed in checks/contrast.js and listed in BRAND.md.
+   Canvas assumptions: TV renders at a 960x540 CSS canvas (1rem = 16px = 32 device px at 1080p); desktop 1rem = 15px.
+   Hex is used on purpose (no oklch()) so old Android TV WebViews render it. */
 
 :root {
-  /* ---- backgrounds & surfaces (every step ≥ #13 so nothing falls into TV black crush at 16/255) ---- */
-  --t-bg-0:        #0D0E12;  /* app canvas, player letterbox, rails. Not pure black: video black stays distinguishable, no OLED "hole". */
-  --t-bg-1:        #13151B;  /* raised regions: nav rail, sheets, headers */
-  --t-surface-1:   #1A1D24;  /* cards, rows, inputs */
-  --t-surface-2:   #22262F;  /* hover / selected row */
-  --t-surface-3:   #2C313C;  /* pressed, chips, skeletons */
-  --t-line:        #2A2F3A;  /* hairlines on bg-0 / bg-1 */
-  --t-line-strong: #3A4150;  /* hairlines on surface-2/3, input borders */
-  --t-scrim:       rgba(13, 14, 18, 0.72);  /* over video */
+  /* ---- neutrals: ONE hue (262, midnight blue = complement of the gold accent, near Grizzlies navy), constant low chroma (~0.012-0.016),
+          lightness in even steps of ~0.042 so every surface step is equally visible on a panel with lifted blacks.
+          The canvas is lifted from v1's #0D0E12 (R,G = 13,14, below legal video black 16) to 19,22,27: no channel can clip to black. ---- */
+  --t-bg-0:        #13161B;  /* L.199 C.011 h261  app canvas, rails, letterbox. Not pure black: no OLED hole, no crush. */
+  --t-bg-1:        #1C1F26;  /* L.239  raised regions: nav rail, sheets, headers */
+  --t-surface-1:   #262A30;  /* L.284  cards, rows, inputs */
+  --t-surface-2:   #30343C;  /* L.324  hover / selected row */
+  --t-surface-3:   #3A3F47;  /* L.366  pressed, chips, skeletons */
+  --t-line:        #333840;  /* L.339  decorative hairlines (not required to reach 3:1) */
+  --t-line-strong: #4A505B;  /* L.430  dividers on surface-2/3 */
+  --t-outline:     #7B828E;  /* L.605  borders of controls that must be seen (inputs, unselected chips): >= 3:1 on bg-0..surface-2 */
+  --t-scrim:       rgba(19, 22, 27, 0.72);  /* over video */
 
-  /* ---- text (on any bg/surface unless noted) ---- */
-  --t-text-1:      #F2F3F5;  /* primary. Off-white on purpose: pure #FFF flickers/glares on TV panels. */
-  --t-text-2:      #B9BFCB;  /* secondary */
-  --t-text-3:      #868D9B;  /* tertiary: meta, timestamps. ≥4.5:1 on bg-0..surface-2; on surface-3 only at ≥18px/24px bold. */
-  --t-text-4:      #5C6372;  /* disabled only (3.2:1 on bg-0). Never for information. */
-  --t-on-accent:   #16110A;  /* text on amber */
-  --t-on-light:    #0D0E12;  /* mark/text on light backgrounds (docs, store listings) */
+  /* ---- text (every text token is >= 4.5:1 on ALL five surfaces except text-4) ---- */
+  --t-text-1:      #F2F3F6;  /* L.964  primary. Off-white on purpose: pure #FFF glares/blooms on LCD local dimming. */
+  --t-text-2:      #CACED5;  /* L.850  secondary */
+  --t-text-3:      #ABB0B9;  /* L.756  tertiary: meta, timestamps. 4.9:1 even on surface-3 (v1 needed a size exception). */
+  --t-text-4:      #696F79;  /* L.540  disabled only (3.6:1 on bg-0). Never for information. */
+  --t-on-accent:   #1D1409;  /* text on amber (warm near-black, 10.5:1) */
+  --t-on-light:    #13161B;  /* mark/text on light backgrounds (docs, store listings) */
 
-  /* ---- brand accent: dial amber. The one brand colour. Luminous, so it carries on luma (survives 4:2:0 chroma blur) and does not bloom like saturated red/blue. ---- */
-  --t-accent:        #FFB020;  /* mark scale, primary buttons, selected tab, progress, "your team" */
-  --t-accent-text:   #FFC14D;  /* amber as small text/icons on dark (11.9:1) */
-  --t-accent-hover:  #FFC14D;
-  --t-accent-press:  #E89C10;
-  --t-accent-soft:   rgba(255, 176, 32, 0.14);  /* tinted fills behind amber text */
+  /* ---- brand accent: dial amber-gold, L.826 C.162 h82 (v1: h75, at the sRGB gamut edge). Pulled onto the Grizzlies gold hue (80) and
+          off the gamut edge so wide-gamut / "Vivid" TV modes do not push it to neon orange. Complement of the neutral hue (262): 180 degrees. ---- */
+  --t-accent:        #FABA25;  /* mark scale, primary buttons, selected tab, progress, "your team" */
+  --t-accent-text:   #FABA25;  /* amber as text/icons: already 10.5:1 on bg-0, so no separate lighter tone (v1 had one) */
+  --t-accent-hover:  #FECA54;  /* L.864 (+.04) */
+  --t-accent-press:  #E09F19;  /* L.746 (-.08) */
+  --t-accent-soft:   rgba(250, 186, 37, 0.14);  /* tinted fills behind amber text (6.1:1 on surface-1) */
 
-  /* ---- focus (TV d-pad). White ring + lift. Never colour alone. ---- */
+  /* ---- focus (TV d-pad): white ring with a 2px canvas-coloured gap, plus lift. The gap keeps the ring against bg-0 (18:1) even when the
+          focused thing is amber (white ring touching amber is only 1.7:1). Never colour alone. ---- */
   --t-focus:         #FFFFFF;
-  --t-focus-ring:    0 0 0 3px #FFFFFF;             /* 3px CSS = 6px at 1080p; nothing thinner than 2px on TV */
-  --t-focus-ring-in: inset 0 0 0 3px #FFFFFF;
+  --t-focus-ring:    0 0 0 2px #13161B, 0 0 0 5px #FFFFFF;                  /* 2px gap + 3px ring (CSS px; x2 at 1080p) */
+  --t-focus-ring-in: inset 0 0 0 3px #FFFFFF, inset 0 0 0 5px #13161B;
 
-  /* ---- status. Red means LIVE and only live (no red buttons, no red brand). ---- */
-  --t-live:          #FF5A4F;  /* live dot, LIVE pill border, on-air tally */
-  --t-live-text:     #FF7A70;  /* live as text on dark (7.6:1) */
-  --t-live-soft:     rgba(255, 90, 79, 0.16);
-  --t-success:       #3DD68C;  /* connected, stream healthy */
-  --t-warning:       #FF8A3D;  /* buffering, weak signal, expiring account */
-  --t-danger:        #FF5A4F;  /* errors share the live hue but always with an icon + text, never a dot alone */
+  /* ---- status: one lightness ladder, matched chroma (~0.15), hues spread so they separate for red-green colour blindness too.
+          Red means LIVE and only live. Danger is its own rose hue (v1 shared live's hue). ---- */
+  --t-live:          #F35250;  /* L.659 C.198 h25  live dot, LIVE pill border, on-air tally. Never a fill behind text. */
+  --t-live-text:     #FF9890;  /* L.785  live as text on dark (5.1:1 even on surface-3) */
+  --t-live-soft:     rgba(243, 82, 80, 0.16);
+  --t-danger:        #F16A94;  /* L.700 C.170 h3   errors: always icon + text. Rose, not live's coral. */
+  --t-danger-text:   #FC93AF;  /* L.781 */
+  --t-success:       #48D394;  /* L.776 C.151 h160 connected, stream healthy (teal-leaning green, 78 degrees from the accent) */
+  --t-warning:       #F89547;  /* L.760 C.150 h56  buffering, weak signal, expiring. Always with a triangle icon + words; never selected/primary. */
 
   /* ---- type ---- */
   --t-font-display: "Archivo Variable", "Archivo", "Roboto", system-ui, sans-serif;   /* @fontsource-variable/archivo (standard.css: wght + wdth) */
@@ -76,7 +85,7 @@
   --t-size-body:       14px; --t-lh-body:       20px;
   --t-size-label:      12px; --t-lh-label:      16px;
   --t-size-caption:    12px; --t-lh-caption:    16px;
-  --t-focus-ring:      0 0 0 2px #FFFFFF;
+  --t-focus-ring:      0 0 0 1px #13161B, 0 0 0 3px #FFFFFF;
 }
 
 /* Ready-made text styles */

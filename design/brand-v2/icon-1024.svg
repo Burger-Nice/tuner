@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Tuner app icon, 1024 square, flat. Square-cornered: iOS/Windows/Android apply their own masks.
-       Everything important sits inside the Android adaptive safe circle (66/108 = 61.1% = 626px diameter, centred).
-       Mark scale 5.87 (grid unit = 5.87px), visual centre at grid (50,44) → bar 517px wide, needle base 27px above the circle. -->
-  <rect width="1024" height="1024" fill="#0D0E12"/>
-  <g transform="translate(512 512) scale(5.87) translate(-50 -44)">
-    <path fill="#FFB020" fill-rule="evenodd" d="M6 14H94V32H6Z M12.5 23H15.5V32H12.5Z M20.5 23H23.5V32H20.5Z M28.5 23H31.5V32H28.5Z M36.5 23H39.5V32H36.5Z M60.5 23H63.5V32H60.5Z M68.5 23H71.5V32H68.5Z M76.5 23H79.5V32H76.5Z M84.5 23H87.5V32H84.5Z"/>
-    <path fill="#F2F3F5" d="M43 14H57L60 90H40Z"/>
+  <!-- Tuner app icon, 1024 square, flat, square-cornered (iOS/Windows/store apply their own masks; do not pre-round).
+       Mark scale 5.4: T = 540px tall, 523.8px wide, visual centre at grid (48.5,46) = icon centre.
+       NOT for Android adaptive masks (circle clips the bar's corners): use icon-foreground-108.svg there. -->
+  <rect width="1024" height="1024" fill="#13161B"/>
+  <g transform="translate(512 512) scale(5.4) translate(-48.5 -46)">
+    <path fill="#FABA25" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z"/>
+    <path fill="#F2F3F6" d="M37.5 0H59.5L62.5 100H34.5Z"/>
   </g>
 </svg>

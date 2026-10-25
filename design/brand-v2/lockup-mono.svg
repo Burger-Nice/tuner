@@ -1,13 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 636 100" width="636" height="100" role="img" aria-label="Tuner">
-  <!-- One-colour horizontal lockup. Inherits currentColor. -->
-  <g fill="currentColor">
-    <path fill-rule="evenodd" transform="translate(-7.895 -18.421) scale(1.3158)" d="M6 14H94V32H6Z M12.5 23H15.5V32H12.5Z M20.5 23H23.5V32H20.5Z M28.5 23H31.5V32H28.5Z M36.5 23H39.5V32H36.5Z M60.5 23H63.5V32H60.5Z M68.5 23H71.5V32H68.5Z M76.5 23H79.5V32H76.5Z M84.5 23H87.5V32H84.5Z M43 14H57L60 90H40Z"/>
-    <g transform="translate(148 0)">
-      <path d="M0 0H84V23H53.5V100H30.5V23H0Z"/>
-      <path transform="translate(98 0)" d="M0 0H23V57C23 69.5 31.5 77 45 77C58.5 77 67 69.5 67 57V0H90V59C90 86 72 100 45 100C18 100 0 86 0 59Z"/>
-      <path transform="translate(202 0)" d="M0 100V0H25L67 61V0H92V100H67L25 39V100Z"/>
-      <path transform="translate(308 0)" d="M0 0H78V23H23V39H72V61H23V77H78V100H0Z"/>
-      <path transform="translate(400 0)" fill-rule="evenodd" d="M0 0H52C74 0 88 12 88 33C88 47 80 57 67 61L90 100H64L45 64H23V100H0Z M23 21V44H50C57 44 64 40 64 32.5C64 25 57 21 50 21Z"/>
-    </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 499 100" width="499" height="100" role="img" aria-label="Tuner">
+  <!-- Horizontal lockup v2.1: the mark is the T. Cap height 100, mark at 1:1 (x 0-97), gap 10, UNER from x=107. Clear space = 50 (half cap) all round.
+       One colour, inherits currentColor. -->
+  <path fill="currentColor" d="M0 0H97V23H91.45V11.5H87.55V23H80.95V11.5H77.05V23H70.45V11.5H66.55V23H30.45V11.5H26.55V23H19.95V11.5H16.05V23H9.45V11.5H5.55V23H0Z M37.5 0H59.5L62.5 100H34.5Z"/>
+  <g fill="currentColor" transform="translate(107 0)">
+    <path d="M0 0H23V57C23 69.5 31.5 77 45 77C58.5 77 67 69.5 67 57V0H90V59C90 86 72 100 45 100C18 100 0 86 0 59Z"/>
+    <path transform="translate(104 0)" d="M0 100V0H25L67 61V0H92V100H67L25 39V100Z"/>
+    <path transform="translate(210 0)" d="M0 0H78V23H23V39H72V61H23V77H78V100H0Z"/>
+    <path transform="translate(302 0)" fill-rule="evenodd" d="M0 0H52C74 0 88 12 88 33C88 47 80 57 67 61L90 100H64L45 64H23V100H0Z M23 21V44H50C57 44 64 40 64 32.5C64 25 57 21 50 21Z"/>
   </g>
 </svg>

@@ -1,6 +1,90 @@
-# Tuner — brand v2 ("Needle")
+# Tuner — brand v2.1 ("Needle", revised)
 
-Independent brand review and new identity system for Tuner, a personal, ad-free IPTV player used mostly on a Philips Google TV for live NBA (Memphis Grizzlies), plus movies, series and live TV; also Windows and iPhone. Everything in this folder is self-contained: hand-drawn SVG, OFL fonts, CSS tokens, a presentation board and the render checks used to judge it.
+Independent brand review and identity system (v2.1 revision: colour re-evaluated, the mark is now the T of the wordmark; see section 0) for Tuner, a personal, ad-free IPTV player used mostly on a Philips Google TV for live NBA (Memphis Grizzlies), plus movies, series and live TV; also Windows and iPhone. Everything in this folder is self-contained: hand-drawn SVG, OFL fonts, CSS tokens, a presentation board and the render checks used to judge it.
+
+---
+
+## 0. Revision v2.1 — colour re-evaluated, the mark is the T
+
+Owner feedback (verbatim): *"lets just ask it to maybe think more about the colors, I do like them don't get me wrong but just do some color theory research and stuff and re evaluate that, otherwise I fw it heavy and I am thinking when the logo is next to tuner, shouldnt the T in tuner be the logo itself?"*
+
+Reviewed by a second designer with no stake in v1. Verdict: **the owner is right about the T, and right to like the colours: the core colour call survives the research. The supporting cast does not**, and several of v1's colour claims were wrong or self-contradictory. They are listed first because they drove the changes.
+
+### 0.1 What v1 got wrong (bluntly)
+
+1. **The canvas broke the rule v1 wrote for it.** v1 said "nothing used as a surface is darker than `#13`, so no step disappears on a panel that crushes below video black (16/255)". The canvas `#0D0E12` is R 13, G 14, B 18: two of three channels are *below* 16. Any TV or HDMI path that treats the signal as limited range (16–235) clips R and G to zero and leaves a blue-only canvas, with `bg-1` (19,21,27) only a few codes above it.
+2. **The neutral ramp was uneven and its tint drifted.** ΔL per step .032 / .034 / .038 / .044 (growing, when dark panels with raised blacks need the *low* steps to be the biggest), and chroma climbed from .009 (canvas) to .021 (surface-3), so the canvas read as neutral black while the chips read blue.
+3. **`text-3` failed body contrast on `surface-3`** (3.9:1) and v1 papered over it with a size exception.
+4. **Red meant two things.** `danger` was the same hex as `live` (`#FF5A4F`), contradicting v1's own rule "red means live and only live".
+5. **The accent sat on the sRGB gamut edge** (C .165 at h75; the maximum possible there is .165). "Vivid" picture modes and wide-gamut expansion push exactly that colour to neon orange, and it was only 24° (hue) from the warning orange.
+6. **The focus ring failed on the one thing most often focused.** White on amber is 1.7:1; v1's ring touched the amber primary button directly.
+7. **The chroma-subsampling argument was oversold.** 4:2:0 hurts *video* and *HDMI sources* (a Windows PC on a TV at 4K60 outside PC mode) most; RTINGS shows it as worst for small text on flat colour. A native Google TV UI is rendered by the app/compositor, not subsampled. It is still a cheap reason to keep luminance doing the work (and it stays in the rationale), but it is not why amber won.
+8. **Asset bugs:** `wordmark.svg` / `lockup.svg` were 2 units too narrow, so the R's leg was clipped; `accent-text` and `accent-hover` were the same hex.
+
+### 0.2 Colour: research → decision
+
+Colour spaces and harmony are guides, not law (harmony is a "widely accepted rule of thumb", per [Wikipedia: Harmony (color)](https://en.wikipedia.org/wiki/Harmony_(color)) and [the fuzzy-harmony paper, arXiv 2310.00791](https://arxiv.org/pdf/2310.00791)); every decision below is also checked numerically (`checks/palette-report.js`, `checks/contrast.js`).
+
+| # | Finding (source) | Decision |
+|---|---|---|
+| 1 | **Work in OKLCH.** Oklab/OKLCH ([Ottosson 2020](https://bottosson.github.io/posts/oklab/), [overview](https://uploadcare.com/blog/oklch-in-css/)) holds hue and chroma while lightness steps evenly; Material's HCT does the same job ([material-color-utilities](https://github.com/material-foundation/material-color-utilities)). "Uniform" is an approximation, esp. at high chroma. | `checks/palette.js` defines every colour as L/C/h and fits it to sRGB. Neutrals: one hue, constant low chroma, **ΔL .040–.044 per step**. Tokens stay hex (no `oklch()`) for old WebViews. |
+| 2 | **Complementary tension, but with the right neutral.** Opposite hues give the strongest contrast ([Itten schemes via Wikipedia](https://en.wikipedia.org/wiki/Harmony_(color))). Amber vs a blue-grey field is the cinema "orange vs blue" pair, and the Grizzlies are exactly that pair: gold (~h80) and Midnight/Beale Street blue (h264–273) ([unofficial hex list; the club publishes no brand book](https://www.brandcolorcode.com/memphis-grizzlies)). | **Keep** amber on a blue-tinted dark. Move the accent from h75 to **h82** (gold) and the neutrals to **h262**: now a 180° complement, not 'roughly opposite'. |
+| 3 | **Amber/blue is also the most colour-blind-safe pairing.** Red-green deficiency (~8% of men, [Wikipedia](https://en.wikipedia.org/wiki/Color_blindness)) leaves the yellow-blue axis intact; amber is 11:1 vs the canvas even through deuteranopia/protanopia simulation. | Another reason to keep it. |
+| 4 | **Saturated colours look brighter than their luminance (Helmholtz–Kohlrausch)**, strongest for red/blue, weak for yellow/green ([Wikipedia](https://en.wikipedia.org/wiki/Helmholtz%E2%80%93Kohlrausch_effect), [Pridmore, *The Brightness of Colour*](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2659800/)). | Amber is a safe 'big' colour: its apparent brightness tracks its luminance, so the contrast numbers are honest. Red is the colour that out-shouts its number, hence small areas only. |
+| 5 | **Dark UIs: desaturate, don't max out the accent** ([Material dark theme codelab](https://codelabs.developers.google.com/codelabs/design-material-darktheme/): saturated colours "vibrate" on dark; base surface #121212, not black). TV UIs are best tested in *Standard* picture mode and sRGB; "Vivid" modes raise saturation ([Android TV: colour on TV](https://developer.android.com/design/ui/tv/guides/foundations/color-on-tv)); Amazon advises less-saturated colours ([Fire TV guidelines](https://developer.amazon.com/docs/fire-tv/design-and-user-experience-guidelines.html)). | Accent C .165 → **.162** (off the gamut edge); status colours matched at C ≈ .15; live (the one allowed 'loud' colour) .198 and small. |
+| 6 | **Black crush and raised blacks.** Near-black detail is lost when a display mis-tracks gamma or black level ([How-To Geek](https://www.howtogeek.com/728797/what-is-black-crush-on-a-display/), [TFT Central](https://tftcentral.co.uk/articles/does-oled-have-a-black-crush-problem-understanding-and-testing-oled-shadow-detail), which also notes VA/IPS differ); IPS TVs have low native contrast ([RTINGS](https://www.rtings.com/tv/learn/what-is-ips)), so low steps need to be *bigger*. Video black is code 16. | Canvas lifted `#0D0E12` → **`#13161B`** (L .165 → .199): lowest channel 19, no channel can clip. Equal steps ≥ .040. Still darker than Netflix's reported `#141414` neighbourhood. |
+| 7 | **Bloom / halo.** Bright objects on dark spill light on local-dimming LCDs; white subtitles, scoreboards and credits are the classic triggers ([Trusted Reviews](https://www.trustedreviews.com/explainer/what-is-blooming-on-a-tv-4415791), [Display Ninja](https://www.displayninja.com/what-is-fald-blooming-halo-effect/)). | Keep text off-white (`#F2F3F6`, not `#FFF`), no glows, all bright shapes small and flat. Focus ring stays white but is a 3 px line (see 10). |
+| 8 | **TV white points drift cool** (factory modes often not D65; [What Hi-Fi](https://www.whathifi.com/features/what-is-colour-temperature-on-tvs)). | Neutral tint kept subtle (C ≤ .020) so a cool preset reads 'navy', never 'blue'. Text is near-neutral (C .004–.014). |
+| 9 | **Chroma subsampling** hits small text on flat colour hardest, e.g. a PC at 4K60 outside PC mode ([RTINGS](https://www.rtings.com/tv/learn/chroma-subsampling)). | Windows build: keep the 13 px floor and 500+ weights; the luminance-led accent already helps. Honest scope: not a native Google TV issue. |
+| 10 | **Don't rely on colour alone; high contrast; sRGB for UI** ([Android TV](https://developer.android.com/design/ui/tv/guides/foundations/color-on-tv)). WCAG 2.2: text 4.5:1 / large 3:1 ([1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)), UI and focus 3:1 ([1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)). WCAG 2 ratios are known to be a weak predictor on dark backgrounds (an APCA advocate's case: [W3C list](https://lists.w3.org/Archives/Public/public-silver/2023Aug/0015.html); a position, not a standard), so ratios are the gate and the rendered screens are the judge. | Every text token ≥ 4.5:1 on **all five** surfaces (v1 had an exception); focus ring gets a 2 px canvas gap so it is 18:1 against its neighbour even on amber; `outline` token for input borders (≥ 3:1). |
+| 11 | **How streaming/sports brands build palettes:** one ownable colour on a near-black field and content art supplies the rest: Netflix red reserved for logo and primary action on a `#141414`-ish canvas, Hulu green on near-black (both from [unofficial token write-ups](https://kombai.com/examples/design-systems/netflix-kombai), [Hulu](https://www.webdesignhot.com/design.md/hulu/)); Max went monochrome; Disney+ moved one colour; Plex defines accents as swappable tokens ([Plex](https://plex.tv/blog/finding-your-true-colors-with-plex)). Posters are the loud colour; chrome stays quiet (the 60-30-10 idea: ~90% neutral, ≤ 10% accent). | **One accent**, kept to ≤ 10% of any screen. Rule added: amber is never a status colour (amber is also the universal 'caution' colour, so the brand must not wear it for state). |
+| 12 | **Semantic colours follow convention, not harmony.** Red/amber/green are fixed by user expectation; what the designer controls is lightness, chroma and spacing. | Laddered lightness (live .66 · danger .70 · warning .76 · success .78 · accent .83) so they differ even in greyscale; hues spread (3 / 25 / 56 / 82 / 160). |
+
+**What changed, and why (v1 → v2.1)**
+
+| Token | v1 | v2.1 | Reason |
+|---|---|---|---|
+| bg-0 / bg-1 / surface-1 / 2 / 3 | `#0D0E12` `#13151B` `#1A1D24` `#22262F` `#2C313C` | `#13161B` `#1C1F26` `#262A30` `#30343C` `#3A3F47` | 0.1 #1–2, research 6/8: lifted, even ΔL, constant chroma, one hue (262) |
+| text-1 / 2 / 3 / 4 | `#F2F3F5` `#B9BFCB` `#868D9B` `#5C6372` | `#F2F3F6` `#CACED5` `#ABB0B9` `#696F79` | text-3 now ≥ 4.5 on every surface; text-2 lighter to keep its separation from text-1 on the lifted canvas |
+| accent | `#FFB020` (L.813 C.165 h75) | `#FABA25` (L.826 C.162 h82) | gold hue, off the gamut edge |
+| accent-text / hover / press | `#FFC14D` / `#FFC14D` / `#E89C10` | `#FABA25` / `#FECA54` / `#E09F19` | accent is already 10.5:1; hover/press are ±.04/−.08 L in OKLCH |
+| on-accent | `#16110A` | `#1D1409` | 10.5:1 on the new amber |
+| live / live-text | `#FF5A4F` / `#FF7A70` | `#F35250` / `#FF9890` | deeper, less orange; 14 ΔE from warning (v1 10) |
+| danger | `#FF5A4F` (= live) | `#F16A94` / text `#FC93AF` | red no longer means two things |
+| warning | `#FF8A3D` | `#F89547` | h51→56, L .75→.76 so it passes 4.5 on surface-3 |
+| success | `#3DD68C` | `#48D394` | h157→160 |
+| focus | `#FFFFFF` ring | `#FFFFFF` ring **+ 2 px canvas gap** | 1.7:1 → 18:1 against its neighbour |
+| *new* outline | — | `#7B828E` | input borders need 3:1; `line-strong` was 2.2 |
+
+**Kept, because it holds up:** amber as the single brand colour; a cool, dark, near-black UI (not pure black); off-white text; red reserved for on-air; flat colour, no gradients; the white focus ring; the surface-step elevation model; the overscan margins; the type system (Archivo + Inter; the heavy wide wordmark and Archivo wdth 112 rhyme).
+
+**Not resolved by colour alone:** accent, warning and live are all warm. ΔE: accent–warning 9.8 (v1 9.5), warning–live 14.4 (v1 10.3), and under deuteranopia accent–warning is still only 7.2. There is no hue room to fix that on a dark TV UI without abandoning amber or red/orange conventions, so the rule is structural: warning always has a ⚠ icon and words and is never primary or selected; amber never carries a ⚠; live always has the word LIVE or a clock.
+
+### 0.3 Lockup: should the T be the logo?
+
+Yes. v1's lockup read "T TUNER" (two T's), and the mark was also lighter than the wordmark (needle 18 wide at the top vs 23-unit letter stems). Four options were rendered (`checks/lockup-options.html/.png`, files in `checks/options/`) and judged at 104 / 34 / 22 / 14 px, blurred (squint / TV distance) and one-colour on light:
+
+| Option | Verdict |
+|---|---|
+| 0 v1: mark beside TUNER | Two T's. The problem. |
+| 1 v1 mark dropped in as the T | Reads as TUNER, but the T is 16% wider than any other letter and its thin needle is the lightest thing in the word: a logo stuck into a word. |
+| **2 T redrawn as the mark (chosen)** | One drawing, used 1:1 as the T and as the standalone mark. Reads "TUNER" at 14 px and under blur; two-tone at every size; one-colour version works on light. |
+| 3 all-amber T | Loudest at 14 px and the most colour, but the white needle (the idea) is gone and it no longer matches the standalone mark. Documented as the fallback if the amber bar proves too quiet on the real TV. |
+| 4 scale spans the word | The most ownable idea, but UNER shrinks to 74%, amber becomes ~40% of the lockup (it stops being an accent) and it turns to mush below 22 px. Rejected. |
+
+**Decision: option 2.** The mark was redrawn on the letter grid (this changes the standalone mark too; they are one drawing now): bar 97×23 (thickness = the wordmark stem, 23), needle 22 wide at the top and 28 at the baseline (average 25 against 23 stems), six ticks instead of nine, aspect 1.16 → 0.97. Gap bar-to-U = 10 (the bar is 23 tall, so the open space under its arm adds optical gap; 3 collides, 16 breaks the word). The needle is white and sits among white letters, so the amber bar reads as the T's crossbar and the white notch where the needle crosses it is the signature.
+
+Cost, stated plainly: the amber area in the lockup is smaller than in v1 (a 97×23 bar vs v1's 116×24), and the standalone icon T is a little smaller in the Android circle (T is taller than it is wide). The heavier needle and bar compensate; the icon for iOS/Windows is scaled up to 53% of the tile.
+
+`wordmark.svg` is now **UNER** only (outlined, `currentColor`) and is never used without the mark.
+
+### 0.4 Files touched in this revision
+
+`mark.svg`, `mark-small.svg`, `mark-mono.svg`, `wordmark.svg`, `lockup.svg`, `lockup-mono.svg`, `icon-1024.svg/.png`, `icon-foreground-108.svg`, `tv-banner.svg/.png/@2x.png`, `tokens.css`, `board.html/.png`, `checks/` (see 7). All SVGs are generated from `checks/geometry.js` + `checks/palette.js` by `node checks/build-logo.js` and contain plain hand-readable paths: no raster, no live text.
+
+### 0.5 Not verified
+
+Everything here is judged on rendered PNGs and computed ratios, not on the owner's Philips panel. Before shipping, look at the lifted canvas, the amber/warning pair and the focus ring on the real TV in *Standard* and *Vivid* modes. If the amber bar looks too quiet there, fall back to option 3. Some research pages (Ottosson's post, RTINGS, Wikipedia) could not be fetched in this environment; those citations rest on search summaries of the same pages.
 
 ---
 
@@ -48,22 +132,23 @@ Tuner is one person's private broadcast desk: every channel, game and film they 
 - **Yours** — personal, not corporate; the brand never talks like a service.
 
 ### The idea: "Needle"
-Tuner = the moment static snaps into picture. The mark is a **dial scale with the needle locked through it**: an amber scale bar (the back-lit frequency scale of a radio tuner, ticks knocked out of its lower edge) and a white needle that passes through it, 14 units wide at the scale and 20 at the base. The silhouette is a T; the story is a tuner. It is one gesture, two shapes, two colours, no effects. At 16 px it is still a two-tone T; at 1080p the ticks read as a scale.
+Tuner = the moment static snaps into picture. The mark is a **dial scale with the needle locked through it**: an amber scale bar (the back-lit frequency scale of a radio tuner, six ticks knocked out of its lower edge) and a white needle that passes through it. The silhouette is a T; the story is a tuner; **and since v2.1 it is the T of the word**. One gesture, two shapes, two colours, no effects.
 
-Why amber, not red: the owner's app lives on a dark LCD TV where saturated red and blue bloom and smear under 4:2:0 chroma subsampling (colour is stored at quarter resolution; edges live in luminance — see [Transloadit: chroma subsampling](https://transloadit.com/glossary/chroma-subsampling/)). Amber #FFB020 has luminance ≈ 0.53, so it carries on luma alone, reads across the room, and never competes with the one thing that must stay red: LIVE. It is also the colour of a tuner's dial lamp, and a nod (not a copy) of Grizzlies gold.
+Why amber: it is the colour of a tuner's dial lamp and of Grizzlies gold (h80), it is a straight complement of the navy-tinted neutrals (h262), it is luminous (L .83) so it carries on luma alone, its apparent brightness tracks its luminance (weak Helmholtz–Kohlrausch for yellow), and amber/blue is the pairing that survives red-green colour blindness. See section 0.2 for the sources and for what was re-checked.
 
 ### Do
-- Put the mark only on `bg-0`/`bg-1`; scale in `accent`, needle in `text-1`. Light backgrounds (docs, store pages) use the one-colour versions in `#0D0E12`.
+- Put the mark only on `bg-0`/`bg-1`; bar in `accent`, needle and letters in `text-1`. Light backgrounds (docs, store pages) use the one-colour versions in `#13161B`.
 - Use amber for: the mark, **one** primary action per screen, the selected tab/nav item, progress, "your team".
-- Red (`live`) only for on-air: the live dot always paired with the word LIVE or a clock. Errors use `danger` with an icon and text.
-- Focus on TV = white 3 px ring plus a lift/scale; never colour alone.
+- Red (`live`) only for on-air: the live dot always paired with the word LIVE or a clock. Errors use `danger` (rose) with an icon and text. Warnings use `warning` with a ⚠ icon and words.
+- Focus on TV = white 3 px ring with a 2 px canvas-coloured gap, plus a lift/scale; never colour alone.
 - Archivo (wide, 700–800) for page titles, section headers, scores; Inter 500+ for everything you read. Nothing under 13 px on the 960×540 canvas.
 - Flat colour; elevation by surface step; lines ≥ 2 px on TV; overscan safe margins 48×27 px on the 960×540 canvas.
-- Keep clear space of half the mark's height on every side of mark and lockup.
+- Keep clear space of half the cap height on every side of mark and lockup.
 
 ### Don't
 - No gradients, glows, radial halos, drop shadows, scanlines, arcs, ribbons or any third colour on the mark or in UI chrome.
-- No red buttons, red headings, red brand use, red nav.
+- No red buttons, red headings, red brand use, red nav. No amber warnings.
+- Don't place a second T next to the mark, and don't set the word without its mark-T. `wordmark.svg` is "UNER" and is not a standalone wordmark.
 - Don't rotate, outline, stroke, recolour, pattern or animate the needle (a 1.4 s opacity pulse on boot is the only motion allowed, on the whole mark).
 - Don't set the wordmark in a font; it is outlined paths. Don't letterspace it or add "TV", "+" or "Player".
 - Don't use Bricolage Grotesque, Figtree, JetBrains Mono or system fonts in product UI.
@@ -75,74 +160,109 @@ Why amber, not red: the owner's app lives on a dark LCD TV where saturated red a
 
 | File | Use |
 |---|---|
-| `mark.svg` | the symbol, two-colour (amber scale, white needle), 100-unit grid |
+| `mark.svg` | the symbol = the T, two-colour (amber bar, white needle), viewBox 97×100 |
 | `mark-mono.svg` | one-colour symbol, `currentColor` |
 | `mark-small.svg` | ≤32 px: same geometry, ticks removed |
-| `wordmark.svg` | custom wide grotesque "TUNER", outlined, `currentColor`, cap height 100, 488 wide |
-| `lockup.svg` | horizontal lockup, mark height = cap height, 32-unit gap, 636×100 |
+| `wordmark.svg` | **UNER** only (custom wide grotesque, outlined, `currentColor`, cap height 100, 392 wide). Never used alone |
+| `lockup.svg` | the lockup: mark (T) + UNER, cap height 100, 499×100 |
 | `lockup-mono.svg` | one-colour lockup, `currentColor` |
 
-Geometry (grid 100): scale bar x6–94, y14–32 (88×18); nine ticks 3×9 every 8 units from the bar's lower edge; needle 43–57 at the scale, 40–60 at y90. The needle base (20) scaled into the lockup = 26, the wordmark stroke = 23 — they read as one weight.
+Geometry (cap height 100): bar 97×23 (= wordmark stem); six ticks 3.9×11.5, centres 20 / 30.5 / 41 from the needle axis (pitch 10.5); needle 22 wide at the top, 28 at the baseline; gap bar → U = 10. The needle average (25) matches the stems (23), so the T reads as one weight with U-N-E-R.
 
-Minimum sizes: mark 24 px (16 px with `mark-small.svg`); lockup 90 px wide desktop, 140 px TV canvas. Clear space: half the mark height all round (50 units on the lockup's 100 grid).
+Minimum sizes: mark 24 px tall (16 px with `mark-small.svg`); lockup 90 px wide desktop, 140 px TV canvas. Clear space: half the cap height all round (50 units).
 
 Where the mark goes in the app:
-- **Rail brand** (`.rail-brand`): `mark.svg` at 44 px CSS on TV (88 device px — checked in `checks/tv-1080.png`), 36–40 px desktop. The tally dot sits *outside* the clear space, bottom-right, and uses `live`.
-- **Boot splash / sign-in**: `lockup.svg` at 200 px wide on the TV canvas (400 device px), 160 px desktop.
+- **Rail brand** (`.rail-brand`): `mark.svg` at 44 px tall CSS on TV (88 device px, checked in `checks/tv-1080.png`), 36–40 px desktop. The tally dot sits *outside* the clear space, bottom-right, and uses `live`.
+- **Boot splash / sign-in**: `lockup.svg` at 200 px wide on the TV canvas (cap height 40 CSS px, 80 device px), 160 px desktop.
 - **Player overlays**: no mark. The channel name is the brand there.
-- **Windows**: `icon-1024.png` for the installer/taskbar (Windows masks nothing; the mark is centred at 50 % width, which is normal for a tile), `mark-small.svg` for the 16/24/32 px tray and title-bar icons.
+- **Windows**: `icon-1024.png` for the installer/taskbar, `mark-small.svg` for the 16/24/32 px tray and title-bar icons.
 
 ---
 
 ## 4. App icons
 
-- `icon-1024.svg` / `icon-1024.png` — flat square, `#0D0E12`, mark centred with visual centre at grid (50,44), scale ×5.87. The whole mark sits inside the Android adaptive safe circle (66/108 dp = 626 px). iOS and Windows apply their own corner masks; do not pre-round.
-- `icon-foreground-108.svg` — the same placement on the 108 dp adaptive grid, transparent, for `res/drawable/ic_launcher_foreground.xml` (convert with Android Studio's Vector Asset tool or `svg2vector`). Background layer: solid `#0D0E12` (`ic_launcher_background`). Android TV does not use monochrome/themed icons, so no monochrome layer is needed ([TV app icon guidelines](https://developer.android.com/design/ui/tv/guides/system/tv-app-icon-guidelines)).
-- `tv-banner.svg` / `tv-banner.png` (320×180, xhdpi) / `tv-banner@2x.png` (640×360, xxxhdpi) — full lockup on flat near-black, inside the central 80×60 % safe area, no border (borders get cropped in the launcher), text baked in as Google requires ([Android TV getting started](https://developer.android.com/training/tv/start/start)). Export 480×270 for xxhdpi from the SVG.
+- `icon-1024.svg` / `icon-1024.png` — flat square, `#13161B`, T 540 px tall (scale 5.4), visual centre at grid (48.5,46). For iOS, Windows and store listings, which apply their own corner masks (do not pre-round). **Not for Android adaptive masks.**
+- `icon-foreground-108.svg` — the T at scale 4.5 (450 px of 1024) on the 108 dp adaptive grid, transparent, for `res/drawable/ic_launcher_foreground.xml` (convert with Android Studio's Vector Asset tool or `svg2vector`). The bar's top corners sit 301 px from the centre, inside the 313 px safe circle (66/108 dp). Background layer: solid `#13161B` (`ic_launcher_background`). Android TV does not use monochrome/themed icons ([TV app icon guidelines](https://developer.android.com/design/ui/tv/guides/system/tv-app-icon-guidelines)).
+- `tv-banner.svg` / `tv-banner.png` (320×180, xhdpi) / `tv-banner@2x.png` (640×360, xxxhdpi) — the lockup at cap height 46 (v1: 35; the compact T-in-word lockup grows 30% in the same safe area), centred inside the central 80×60 % safe area, no border, text baked in as Google requires ([Android TV getting started](https://developer.android.com/training/tv/start/start)). Export 480×270 for xxhdpi from the SVG.
 
 ---
 
 ## 5. Colour — `tokens.css`
 
-TV-first, near-black. Nothing used as a surface is darker than `#13`, so no step disappears on a panel that crushes below video black (16/255), and the canvas `#0D0E12` is still clearly above letterboxed video black. Pure white is avoided for text (glare/flicker at 10 ft); `#F2F3F5` is the top text level.
+TV-first, cool near-black. The source of truth is `checks/palette.js` (OKLCH); `tokens.css` carries the fitted hex values and their L/C/h. Ground rules: no channel of any surface below 19/255; neutrals one hue (262) at constant low chroma, lightness in even steps of ~.042; off-white text; status colours never used as a fill behind text.
 
-| Token | Hex | Role |
-|---|---|---|
-| bg-0 | #0D0E12 | canvas, rails, letterbox |
-| bg-1 | #13151B | raised regions, sheets |
-| surface-1 | #1A1D24 | cards, rows, inputs |
-| surface-2 | #22262F | hover / selected |
-| surface-3 | #2C313C | pressed, chips |
-| line / line-strong | #2A2F3A / #3A4150 | hairlines |
-| text-1 / 2 / 3 / 4 | #F2F3F5 / #B9BFCB / #868D9B / #5C6372 | primary / secondary / tertiary / disabled-only |
-| accent | #FFB020 | the brand colour (mark scale, primary action, selection) |
-| accent-text | #FFC14D | amber used as small text/icons |
-| on-accent | #16110A | text on amber |
-| focus | #FFFFFF | 3 px d-pad ring |
-| live / live-text | #FF5A4F / #FF7A70 | on-air only |
-| success | #3DD68C | connected, healthy stream |
-| warning | #FF8A3D | buffering, weak signal, expiring |
+| Token | Hex | OKLCH (L C h) | Role |
+|---|---|---|---|
+| bg-0 | #13161B | .199 .011 261 | canvas, rails, letterbox |
+| bg-1 | #1C1F26 | .239 .014 267 | raised regions, sheets |
+| surface-1 | #262A30 | .284 .012 258 | cards, rows, inputs |
+| surface-2 | #30343C | .324 .015 264 | hover / selected |
+| surface-3 | #3A3F47 | .366 .015 260 | pressed, chips |
+| line / line-strong | #333840 / #4A505B | .339 / .430 | decorative hairlines / dividers |
+| outline | #7B828E | .605 .020 261 | control borders (≥ 3:1) |
+| text-1 / 2 / 3 / 4 | #F2F3F6 / #CACED5 / #ABB0B9 / #696F79 | .964 / .850 / .756 / .540 | primary / secondary / tertiary / disabled-only |
+| accent | #FABA25 | .826 .162 82 | brand: mark bar, primary action, selection |
+| accent-hover / press | #FECA54 / #E09F19 | .864 / .746 | states |
+| on-accent | #1D1409 | .199 .025 71 | text on amber |
+| focus | #FFFFFF | — | 3 px ring + 2 px canvas gap |
+| live / live-text | #F35250 / #FF9890 | .659 .198 25 / .785 .125 25 | on-air only |
+| danger / danger-text | #F16A94 / #FC93AF | .700 .170 3 / .781 .130 3 | errors, icon + text |
+| success | #48D394 | .776 .151 160 | connected, healthy stream |
+| warning | #F89547 | .760 .150 56 | buffering, weak signal, expiring; ⚠ + words |
 
-WCAG 2.x contrast (full table from `node checks/contrast.js`; body text needs ≥ 4.5:1, large ≥ 3:1):
+### Contrast, every text/background pair (`node checks/contrast.js`; body ≥ 4.5:1, large ≥ 3:1, non-text ≥ 3:1)
+
+Text tokens on every surface (**all pass 4.5:1 body; no exceptions**):
+
+| Text token (hex) | bg-0 | bg-1 | surface-1 | surface-2 | surface-3 |
+|---|---|---|---|---|---|
+| text-1 #F2F3F6 | 16.3 | 14.9 | 13.0 | 11.3 | 9.5 |
+| text-2 #CACED5 | 11.5 | 10.4 | 9.1 | 7.9 | 6.7 |
+| text-3 #ABB0B9 | 8.3 | 7.6 | 6.6 | 5.7 | 4.9 |
+| accent #FABA25 | 10.5 | 9.5 | 8.3 | 7.2 | 6.1 |
+| accent-hover #FECA54 | 11.9 | 10.8 | 9.5 | 8.2 | 7.0 |
+| live-text #FF9890 | 8.8 | 8.0 | 7.0 | 6.0 | 5.1 |
+| danger-text #FC93AF | 8.6 | 7.8 | 6.8 | 5.9 | 5.0 |
+| success #48D394 | 9.5 | 8.7 | 7.6 | 6.6 | 5.6 |
+| warning #F89547 | 8.1 | 7.4 | 6.4 | 5.6 | 4.7 |
+
+Non-text (icons, dots, borders, focus; >= 3:1):
+
+| Token (hex) | bg-0 | bg-1 | surface-1 | surface-2 | surface-3 |
+|---|---|---|---|---|---|
+| accent #FABA25 | 10.5 | 9.5 | 8.3 | 7.2 | 6.1 |
+| live #F35250 | 5.3 | 4.8 | 4.2 | 3.6 | 3.1 |
+| danger #F16A94 | 6.2 | 5.7 | 5.0 | 4.3 | 3.6 |
+| focus #FFFFFF | 18.1 | 16.5 | 14.4 | 12.5 | 10.6 |
+| outline #7B828E | 4.7 | 4.3 | 3.7 | 3.2 | n/a (not used there) |
+
+
+Other pairs:
 
 | Pair | Ratio | Verdict |
 |---|---|---|
-| text-1 on bg-0 / bg-1 / surface-1 / surface-2 / surface-3 | 17.4 / 16.4 / 15.2 / 13.6 / 11.7 | body ✓ everywhere |
-| text-2 on bg-0 / bg-1 / surface-1 / surface-2 / surface-3 | 10.5 / 9.9 / 9.1 / 8.2 / 7.1 | body ✓ everywhere |
-| text-3 on bg-0 / bg-1 / surface-1 / surface-2 | 5.8 / 5.5 / 5.1 / 4.5 | body ✓ |
-| text-3 on surface-3 | 3.9 | large text only (≥ 18 px / 24 px bold) — rule in tokens.css |
-| text-4 on bg-0 / bg-1 | 3.2 / 3.0 | disabled only, never for information |
-| accent on bg-0 / surface-1 / surface-3 | 10.6 / 9.2 / 7.1 | ✓ (icons, large labels) |
-| accent-text on bg-0 / surface-3 | 11.9 / 8.1 | body ✓ |
-| on-accent on accent | 10.3 | body ✓ (buttons) |
-| live-text on bg-0 / surface-1 / surface-3 | 7.6 / 6.6 / 5.1 | body ✓ |
-| live (dot/border) on bg-0 / surface-1 | 6.3 / 5.5 | non-text ✓ |
-| success on bg-0 / surface-3 | 10.3 / 7.0 | body ✓ |
-| warning on bg-0 / surface-3 | 8.2 / 5.6 | body ✓ |
-| focus ring on bg-0 … surface-3 | 19.3 … 13.0 | non-text ✓ |
-| on-light (#0D0E12) on accent | 10.6 | ✓ (mono mark on amber if ever needed) |
+| on-accent on accent / hover / press | 10.5 / 11.9 / 7.9 | body ✓ (buttons) |
+| bg-0 (one-colour mark on amber) on accent | 10.5 | ✓ |
+| live-text on live-soft over surface-1 / surface-2 (LIVE pill) | 5.8 / 5.1 | body ✓ |
+| accent on accent-soft over surface-1 / surface-2 (chip) | 6.1 / 5.3 | body ✓ |
+| text-1 on a solid `live` fill | 3.1 | large/bold only: so no white text on red fills; the LIVE pill is outlined |
+| focus ring against the 2 px canvas gap | 18.1 | non-text ✓ |
+| focus ring touching an amber button (no gap) | 1.7 | ✗, why the gap exists |
+| text-4 on bg-0 / bg-1 | 3.6 / 3.3 | disabled only, never information |
+| line on bg-0 | 1.5 | decorative, not required |
 
-Bloom notes: amber and green are luminance-heavy, so they survive panel sharpening and chroma blur; the live red is deliberately desaturated toward coral (`#FF5A4F`) and only ever used in small areas (dot, pill border, short text), never as a fill behind text.
+Colour-vision check (simulated, ΔE_OK ×100; `node checks/palette-report.js`):
+
+| Pair | normal | deuteranopia | protanopia |
+|---|---|---|---|
+| accent / warning | 9.8 | 7.2 | 9.7 |
+| accent / live | 24.2 | 17.6 | 25.2 |
+| warning / live | 14.4 | 10.4 | 15.5 |
+| live / danger | 8.5 | 8.3 | 10.1 |
+| danger / success | 32.3 | 6.9 | 21.5 |
+| accent / bg-0 (luma ratio) | — | 11.1:1 | 9.4:1 |
+
+Bloom notes: amber and green are luminance-heavy, so they survive panel sharpening and chroma blur; live red is a small, flat area only (dot, pill border, short text), never a fill behind text.
 
 ---
 
@@ -171,12 +291,17 @@ Desktop (`:root.desktop`, 1 rem = 15 px): display-xl 44/48, display 34/38, headl
 
 ## 7. Board and checks
 
-- `board.html` / `board.png` — the one-page presentation: lockups on dark and light, mark anatomy, minimum sizes, icon and banner, palette with ratios, type, a sample TV home screen, do/don't.
-- `checks/tv-1080.html` → `checks/tv-1080.png` — the sample screen rendered at a real 1920×1080 (960×540 canvas × 2): rail mark at 88 device px, lockup at 400 px.
-- `checks/sizes.html` → `checks/sizes.png` — 64/48/32/24/16 px mark, icon tiles at 96/48/24, banner at 320/160, lockup at 320/200/120, mono on light and dark.
-- `checks/process-exploration.html/.png` — the tick/needle study the final mark came from.
-- `checks/contrast.js` — the ratio table. `checks/render.js` — Playwright renderer (`NODE_PATH=$(npm root -g) node checks/render.js in.html out.png w h scale`).
+- `board.html` / `board.png` — the one-page presentation (generated by `checks/build-board.js` from the palette, so it cannot drift): lockups on dark and light, the lockup study, mark anatomy, minimum sizes, icons and banner, colour revision with hue map and colour-vision check, v1 → v2.1 decisions, type, rules, sample TV home screen.
+- `checks/lockup-options.html` / `.png` and `checks/options/*.svg` — the five lockup options and the gap study.
+- `checks/tv-1080.html` → `checks/tv-1080.png` — the sample screen rendered at a real 1920×1080 (960×540 canvas × 2).
+- `checks/sizes.html` → `checks/sizes.png` — 64/48/32/24/16 px marks, icon tiles, banner at 320/160, lockup at 320/200/120, mono on light and dark.
+- `checks/palette.js` (OKLCH source of truth), `color.js` (OKLab/OKLCH, WCAG, colour-vision simulation, ΔE), `geometry.js` (logo geometry), `build-logo.js` (writes every SVG), `build-board.js`, `options.js`.
+- `checks/contrast.js` — the full contrast table; `checks/palette-report.js` — OKLCH table and colour-vision separation.
+- `checks/render.js` — Playwright renderer (`NODE_PATH=$(npm root -g) node checks/render.js in.html out.png w h scale`); `checks/shot.js` — full-page screenshot.
+- `checks/process-exploration.*` — v1's tick/needle study, kept as history (superseded by the T redraw).
 - `fonts/` — the two woff2 files used by the board plus their OFL licences.
+
+Rebuild everything: `node checks/build-logo.js && node checks/options.js && node checks/build-board.js`, then render PNGs.
 
 ---
 
@@ -199,3 +324,7 @@ Desktop (`:root.desktop`, 1 rem = 15 px): display-xl 44/48, display 34/38, headl
 - Apple TV 2025 rebrand (custom "SF TV", flat lockup): https://www.macworld.com/article/2939653/apple-tv-is-getting-a-surprising-rebrand-see-the-new-logo-here.html
 - NBA app redesign (full-screen video, bigger type): https://www.pressreader.com/usa/fast-company/20230601/281930252409865
 - Fonts: https://www.npmjs.com/package/@fontsource-variable/archivo , https://www.npmjs.com/package/@fontsource-variable/inter (both OFL-1.1)
+- **v2.1 colour research:** Oklab/OKLCH: https://bottosson.github.io/posts/oklab/ , https://uploadcare.com/blog/oklch-in-css/ ; Material HCT: https://github.com/material-foundation/material-color-utilities ; colour harmony: https://en.wikipedia.org/wiki/Harmony_(color) , https://arxiv.org/pdf/2310.00791 ; Helmholtz–Kohlrausch: https://en.wikipedia.org/wiki/Helmholtz%E2%80%93Kohlrausch_effect , https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2659800/ ; colour blindness prevalence: https://en.wikipedia.org/wiki/Color_blindness
+- **TV panels:** black crush https://www.howtogeek.com/728797/what-is-black-crush-on-a-display/ , https://tftcentral.co.uk/articles/does-oled-have-a-black-crush-problem-understanding-and-testing-oled-shadow-detail ; IPS low native contrast https://www.rtings.com/tv/learn/what-is-ips ; blooming https://www.trustedreviews.com/explainer/what-is-blooming-on-a-tv-4415791 , https://www.displayninja.com/what-is-fald-blooming-halo-effect/ ; chroma subsampling https://www.rtings.com/tv/learn/chroma-subsampling ; TV colour temperature https://www.whathifi.com/features/what-is-colour-temperature-on-tvs
+- **Platform guidance:** Android TV colour https://developer.android.com/design/ui/tv/guides/foundations/color-on-tv ; Fire TV https://developer.amazon.com/docs/fire-tv/design-and-user-experience-guidelines.html ; Material dark theme https://codelabs.developers.google.com/codelabs/design-material-darktheme/ ; WCAG 2.2 https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html , https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html ; APCA argument (position, not standard) https://lists.w3.org/Archives/Public/public-silver/2023Aug/0015.html
+- **Brands:** Plex tokens https://plex.tv/blog/finding-your-true-colors-with-plex ; Netflix / Hulu palettes (unofficial token write-ups, treat hex as approximate) https://kombai.com/examples/design-systems/netflix-kombai , https://www.webdesignhot.com/design.md/hulu/ ; Grizzlies colours (unofficial; no public brand book) https://www.brandcolorcode.com/memphis-grizzlies
