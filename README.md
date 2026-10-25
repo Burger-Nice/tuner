@@ -4,23 +4,35 @@ A fast, ad-free IPTV player for Xtream Codes and M3U playlists. Live TV with a g
 
 ## Get it
 
+Each device has its own download, built for that device only:
+
+| Device | Download |
+| --- | --- |
+| Windows PC | [Tuner-Setup.exe](https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner-Setup.exe) |
+| Google TV / Android TV | [Tuner-TV.apk](https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner-TV.apk) (see below) |
+| iPhone | AltStore source (see below) |
+
+They share the same insides (sign-in, guide, NBA scores), but the TV app always uses the TV layout and the PC and phone apps never do.
+
+### Windows
+
 Download [**Tuner-Setup.exe**](https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner-Setup.exe) and run it. After that, Tuner updates itself: new versions download in the background and install when you restart it. Windows may warn that the app is from an unknown publisher, because it isn't code-signed: click **More info**, then **Run anyway**.
 
 Then sign in with the server address, username and password from your provider. If your provider gave you one long link with `get.php?username=…&password=…` in it, paste the whole link into **Server address** and the other fields fill in.
 
-## On your Google TV / Android TV
+### Google TV / Android TV
 
 1. On the TV, install **Downloader** (by AFTVnews) from the Play Store.
 2. Turn on installs from it: **Settings → Apps → Security & restrictions → Unknown sources → Downloader** (on some TVs: **Settings → System → About**, click **Android TV OS build** 7 times to unlock developer options first).
-3. Open Downloader and enter `https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner.apk`, then **Install**.
+3. Open Downloader and enter `https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner-TV.apk`, then **Install**.
 
 Tuner then appears on the home screen. It updates itself: when a new version is out it pops up **Update** (or go to **Account → Check for updates**), downloads it and asks the TV to install it. The first time, the TV asks you to allow Tuner to install apps: turn it on, press Back, then **Update** again. If an update ever gets stuck, enter the Downloader link above again: it installs over the top and keeps your login.
 
-The TV gets its own layout, built for the remote; the PC and phone keep theirs. If Tuner ever picks the wrong one, set it under **Account → Layout**. The TV version opens on a Home screen (Google TV / Netflix style): the NBA games, then your channels, recently watched, your list and what's new. The menu on the left opens when you move into it. The guide previews whatever channel you're on, and **OK** watches it. The on-screen keyboard only comes up when you press **OK** on a search or text box.
+The TV app opens on a Home screen (Google TV / Netflix style): the NBA games, then your channels, recently watched, your list and what's new. The menu on the left opens when you move into it. The guide previews whatever channel you're on, and **OK** watches it. The on-screen keyboard only comes up when you press **OK** on a search or text box.
 
 On the TV every channel plays in the built-in ExoPlayer engine at the TV's full resolution, 4K and HDR included. **↑/↓** or the channel buttons change channel, number keys jump to a channel, **OK** shows the channel, picture quality (e.g. *4K HDR*) and the NBA score, and **Back** returns to the guide.
 
-## On your iPhone
+### iPhone
 
 Tuner installs through **AltStore** (free Apple ID; AltStore re-signs it every few days in the background while your phone is on home Wi-Fi and AltServer runs on your PC). In AltStore, go to **Sources → +** and add `https://github.com/Burger-Nice/tuner/releases/latest/download/altstore-source.json`, then install Tuner. Updates show up in AltStore.
 
@@ -83,6 +95,7 @@ Plain HTML, CSS and JavaScript in an Electron window. No frameworks, so it stays
 - `main.js`, `preload.js`: the desktop window and request headers.
 - `mpv.js`, `player/tuner.lua`: runs mpv over Tuner's window and talks to it; the Lua script adds the Back key and channel zapping inside mpv.
 - `scripts/fetch-mpv.js`: downloads the Windows build of mpv.
+- `scripts/build-web.js tv|phone`: packs the app for the TV or iPhone build, locked to that device's layout.
 - `ios/`, `android/`: the iPhone and Android/Google TV apps (Capacitor). `android/.../PlayerActivity.java` is the TV player (Media3/ExoPlayer).
 - `tests/`: a fake IPTV provider with recorded NBA data, and scripts that drive the iPhone simulator and Android TV emulator on CI.
 - `.github/workflows/build.yml`: builds and tests Windows, iPhone and Android on every push. The PC and TV apps are published as soon as they're built; the iPhone app is added to the same release when its (slower) build finishes.

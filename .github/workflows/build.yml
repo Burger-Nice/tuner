@@ -66,7 +66,7 @@ jobs:
       - name: Build the iPhone app (unsigned; AltStore signs it)
         run: |
           set -o pipefail
-          node scripts/build-web.js
+          node scripts/build-web.js phone
           npx cap sync ios
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' -derivedDataPath build/device \
@@ -87,7 +87,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
-          TUNER_TEST=tests/ios-test-boot.js node scripts/build-web.js
+          TUNER_TEST=tests/ios-test-boot.js node scripts/build-web.js phone
           npx cap sync ios
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build/sim build | tail -n 15
@@ -139,9 +139,9 @@ jobs:
           fi
           echo "TUNER_KEYSTORE=$KS" >> "$GITHUB_ENV"
           echo "signed=yes" >> "$GITHUB_OUTPUT"
-      - name: Build the Android / Google TV app
+      - name: Build the Google TV app
         run: |
-          node scripts/build-web.js
+          node scripts/build-web.js tv
           npx cap sync android
           cd android
           # Surface compiler errors as annotations (the raw log isn't always easy to get to).
@@ -150,18 +150,24 @@ jobs:
             tail -25 gradle.log | sed 's/^/::error title=Android build tail::/'
             exit 1
           fi
-          cp app/build/outputs/apk/release/app-release.apk ../Tuner.apk
-          ls -la ../Tuner.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Tuner-TV.apk
+          # Same file under the old name, so the first Downloader link keeps working.
+          cp ../Tuner-TV.apk ../Tuner.apk
+          ls -la ../Tuner-TV.apk
       - if: steps.key.outputs.signed == 'yes'
         uses: actions/upload-artifact@v4
-        with: { name: android, path: Tuner.apk }
+        with:
+          name: android
+          path: |
+            Tuner-TV.apk
+            Tuner.apk
 
 
   android-test:
     # Separate from the release so a stuck emulator can never hold up the TV app.
     runs-on: ubuntu-latest
     needs: test-media
-    timeout-minutes: 25
+    timeout-minutes: 32
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
@@ -175,7 +181,7 @@ jobs:
         with: { name: test-media, path: tests/media }
       - name: Build the test version
         run: |
-          TUNER_TEST=tests/android-test-boot.js TUNER_TEST_API=http://10.0.2.2:8899 node scripts/build-web.js
+          TUNER_TEST=tests/android-test-boot.js TUNER_TEST_API=http://10.0.2.2:8899 node scripts/build-web.js tv
           npx cap sync android
           cd android && ./gradlew assembleDebug --no-daemon -q -PtunerVersionCode=${{ github.run_number }} -PtunerVersionName=$VERSION
       - name: Start the fake provider
@@ -187,7 +193,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Test on the Android TV emulator
         continue-on-error: true
-        timeout-minutes: 15
+        timeout-minutes: 22
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -234,7 +240,7 @@ jobs:
         continue-on-error: true
         with: { name: android, path: out }
       - name: Update manifest
-        run: if [ -f out/Tuner.apk ]; then node scripts/android-manifest.js "$VERSION" "${{ github.run_number }}" out/android.json; fi
+        run: if [ -f out/Tuner-TV.apk ]; then node scripts/android-manifest.js "$VERSION" "${{ github.run_number }}" out/android.json; fi
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -8,22 +8,16 @@
   // `window.tuner` interface the desktop app gets from preload.js, so the rest of the code is shared.
   const CAP = window.Capacitor;
   const ANDROID = CAP?.getPlatform?.() === 'android';
-  // Layout: 'auto' picks the TV layout on a TV; Account → Layout can force either one.
-  const LAYOUT = (() => { try { return localStorage.getItem('tuner.layout') || 'auto'; } catch { return 'auto'; } })();
-  let TV = /[?&]tv\b/.test(location.search) || LAYOUT === 'tv';
+  // Which app this is: the TV and phone builds say so (scripts/build-web.js); the PC app loads app/ as is.
+  const TARGET = window.TUNER_TARGET || 'pc';
+  const TV = TARGET === 'tv' || /[?&]tv\b/.test(location.search);
   if (TV) document.documentElement.classList.add('tv');
   if (ANDROID && !window.tuner && CAP.registerPlugin) {
     const TP = CAP.registerPlugin('TunerPlayer');
     const AppPlugin = CAP.registerPlugin('App');
     document.documentElement.classList.add('android');
     let info = { version: '', code: 0 };
-    const ready = TP.info().then((i) => {
-      info = i;
-      // A remote-only screen (no touch, no mouse) counts as a TV too.
-      if (LAYOUT === 'auto') TV = !!i.tv || matchMedia('(pointer: none)').matches;
-      if (TV) document.documentElement.classList.add('tv');
-      return i;
-    }).catch(() => info);
+    const ready = TP.info().then((i) => (info = i)).catch(() => info);
     let ustatus = { state: 'idle' };
     const usubs = [];
     const uset = (st) => { ustatus = st; usubs.forEach((f) => f(st)); };
@@ -75,6 +69,7 @@
     };
   }
   const native = window.tuner || null; // Electron bridge (preload.js), or the Android bridge above
+  if (ANDROID && !native) console.error('Tuner: the Android plugin bridge is missing, so the native player and updates are off.');
   if (native?.platform === 'darwin') document.documentElement.classList.add('mac');
   // The iPhone app (Capacitor). It has no mpv; Apple's player does that job.
   const IOS = window.Capacitor?.getPlatform?.() === 'ios' || /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -108,7 +103,8 @@
   const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
   const host = (u) => { try { return new URL(u).host; } catch { return u; } };
 
-  function applyScale() { document.documentElement.dataset.scale = settings().scale; }
+  // The TV layout sizes itself to the screen, so the interface size setting is for the PC and phone only.
+  function applyScale() { if (TV) delete document.documentElement.dataset.scale; else document.documentElement.dataset.scale = settings().scale; }
   applyScale();
   if (native) native.setUserAgent(settings().ua);
 
@@ -1281,14 +1277,11 @@
             <div class="row" style="flex-wrap:nowrap"><input id="setUa" type="text" placeholder="Default" value="${esc(s.ua)}" spellcheck="false"><button class="btn" id="setUaSave">Save</button></div>
             <span class="hint">Some providers only accept certain apps. Try <code>VLC/3.0.20 LibVLC/3.0.20</code> if streams refuse to start.</span>
           </div>
-          <div class="field">
+          <div class="field"${TV ? ' hidden' : ''}>
             <label for="setScale">Interface size</label>
             <select id="setScale"><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option><option value="tv">TV (across the room)</option></select>
           </div>
-          ${ANDROID ? `<div class="field">
-            <label for="setLayout">Layout</label>
-            <select id="setLayout"><option value="auto">Automatic (now: ${TV ? 'TV' : 'touch'})</option><option value="tv">TV · for the remote</option><option value="touch">Touch · for phones and tablets</option></select>
-          </div>` : ''}
+
         </div>
         <div class="card">
           <h4>NBA</h4>
@@ -1308,7 +1301,7 @@
           </div>
         </div>
         <div class="card">
-          <h4>Tuner ${esc(appVersion)}</h4>
+          <h4>Tuner ${esc(appVersion)}${TV ? ' · TV' : ''}</h4>
           <p class="hint" id="updateLine" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">${updateLine()}</p>
           ${IOS ? '' : `<div class="row"><button class="btn" data-update="check" ${native ? '' : 'disabled'}>Check for updates</button></div>`}
         </div>
@@ -1346,10 +1339,6 @@
     $('#setReload').onclick = () => { for (const k in catalog) catalog[k] = null; toast('Channels and library will reload'); go('live'); };
     $('#setFormat').onchange = (e) => { saveSettings({ liveFormat: e.target.value }); catalog.live = null; toast('Saved. Channels will reload with the new format.'); };
     $('#setScale').onchange = (e) => { saveSettings({ scale: e.target.value }); applyScale(); };
-    if ($('#setLayout')) {
-      $('#setLayout').value = LAYOUT;
-      $('#setLayout').onchange = (e) => { try { localStorage.setItem('tuner.layout', e.target.value); } catch {} location.reload(); };
-    }
     $('#setUaSave').onclick = () => { const ua = $('#setUa').value.trim(); saveSettings({ ua }); native?.setUserAgent(ua); toast(native ? 'User agent saved' : 'Saved. User agent only applies in the desktop app.'); };
     $$('[data-switch]').forEach((b) => (b.onclick = () => signIn(withText(accounts[+b.dataset.switch]), b)));
     $$('[data-remove]').forEach((b) => (b.onclick = () => {
@@ -2143,7 +2132,7 @@
   if (window.TUNER_TEST) {
     window.__tunerTest = {
       go, tune: (i) => tune(S.live.list[i]), openGame: (id) => { nba.selected = id; go('nba'); nba.phoneDetail = true; drawNba(); },
-      state: () => ({ view, channels: S.live.list.length, playing: S.live.current?.name, w: liveVideo.videoWidth, t: liveVideo.currentTime, err: !$('#liveMsg').hidden && $('#liveMsgTitle').textContent, games: nba.today.length, logos: [...document.images].filter((i) => i.complete && i.naturalWidth).length }),
+      state: () => ({ tv: TV, bridge: !!native, focus: document.activeElement?.id || document.activeElement?.className || '', view, channels: S.live.list.length, playing: S.live.current?.name, w: liveVideo.videoWidth, t: liveVideo.currentTime, err: !$('#liveMsg').hidden && $('#liveMsgTitle').textContent, games: nba.today.length, logos: [...document.images].filter((i) => i.complete && i.naturalWidth).length }),
     };
   }
 

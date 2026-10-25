@@ -609,6 +609,9 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .tv *, .tv *::before { backdrop-filter: none !important; }
 .tv :focus-visible { outline: none; }
 
+/* Designed at 16px on 960×540; on a TV that reports a bigger screen everything scales up with it. */
+:root.tv { font-size: min(100vw / 60, 100vh / 33.75); }
+
 /* rail: icons only, opens with labels while you're in it */
 .tv .shell { grid-template-columns: 1fr; grid-template-rows: 1fr; padding-left: 5rem; }
 .tv .rail {
