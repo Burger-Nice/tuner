@@ -22,11 +22,21 @@
     return r.width > 0 && r.height > 0;
   }
 
+  // scope: an element, or a list of elements to search (missing and hidden ones are skipped).
   function move(dir, scope = document) {
     const cur = document.activeElement;
-    const items = [...scope.querySelectorAll(FOCUSABLE)].filter((el) => el !== cur && visible(el));
+    const scopes = (Array.isArray(scope) ? scope : [scope]).filter((s) => s && !s.hidden);
+    // In a long grid (data-nav="grid") only the cards around the current one are measured, so a press costs the
+    // same however far down you've scrolled.
+    const grid = cur?.parentElement?.closest?.('[data-nav="grid"]');
+    if (grid && cur.parentElement === grid) {
+      const kids = [...grid.children], i = kids.indexOf(cur);
+      const hit = nearest(cur, dir, kids.slice(Math.max(0, i - 24), i + 25).filter((el) => el !== cur && el.matches(FOCUSABLE) && visible(el)));
+      if (hit) { focusEl(hit); return true; }
+    }
+    const items = scopes.flatMap((s) => [...s.querySelectorAll(FOCUSABLE)]).filter((el) => el !== cur && visible(el));
     // Nothing focused: start in the content. A gated container (the menu rail) is only entered the gated way.
-    if (!cur || cur === document.body || !scope.contains(cur)) {
+    if (!cur || cur === document.body || !scopes.some((s) => s.contains(cur))) {
       let first = items.find((el) => !el.closest('[data-nav-in]'));
       if (!first) {
         const gate = items[0]?.closest('[data-nav-in]');
@@ -38,7 +48,7 @@
 
     // Groups (data-nav="v" / "h", optionally "-strict"): moves along a group's axis try its own items first.
     // Strict groups never let that move escape (the menu rail keeps up/down to itself).
-    const group = cur.closest('[data-nav]');
+    const group = cur.closest('[data-nav]:not([data-nav="grid"])');
     if (group) {
       const [axis, strict] = group.dataset.nav.split('-');
       const along = axis === 'v' ? dir === 'up' || dir === 'down' : dir === 'left' || dir === 'right';

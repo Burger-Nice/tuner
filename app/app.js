@@ -100,7 +100,14 @@
   const scoped = (k) => `a:${acc.id}:${k}`;
   const keyOf = (it) => `${it.kind}:${it.id}`;
   const rem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const initials = (n) => (String(n).replace(/^[A-Z]{2,3}\s*[|:\-]\s*/, '').replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('') || 'TV').toUpperCase();
+  // "US: ESPN HD" → ESPN, "NBA 01: Memphis…" → NBA, "Sky Sports Main Event" → SS.
+  const initials = (n) => {
+    const words = String(n).replace(/^[A-Z]{2,3}\s*[|:\-]\s*/, '').replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/)
+      .filter((w) => w && !/^\d+$/.test(w) && !/^(hd|fhd|uhd|sd|4k|hevc|the)$/i.test(w));
+    if (!words.length) return 'TV';
+    if (/^[\p{Lu}\p{N}]{2,4}$/u.test(words[0])) return words[0];
+    return (words.length > 1 ? words[0][0] + words[1][0] : words[0].slice(0, 2)).toUpperCase();
+  };
   const hue = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
   const hm = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
@@ -1056,7 +1063,7 @@
       const key = `${epoch}:${list.length}:${list[0].id}:${list[list.length - 1].id}:${st.cat}:${st.q}`;
       const opts = { mode: 'live', index, ua: settings().ua, key };
       r = key === sentList ? await native.mpv.play(opts).catch(() => null) : null;
-      if (!r) r = await native.mpv.play({ ...opts, entries: entries() });
+      if (!r) r = await native.mpv.play({ ...opts, entries: entries() }).catch((e) => ({ ok: false, error: e?.message || 'The player could not start.' }));
       if (r?.ok) sentList = key;
     } else r = await native.mpv.play({ mode: 'live', entries: entries(), index, ua: settings().ua });
     if (!r.ok) { toast(r.error, 4000); return tune(st.current || list[index]); }
@@ -2388,10 +2395,16 @@
   async function enterHome() {
     ['live', 'movie', 'series'].forEach(takeFresh);
     drawHome();
-    // Fill in rows as the catalogs arrive.
+    // Channels first; films and series follow one at a time once the remote has had a moment, so opening the
+    // app never reads every big list at once.
+    const my = epoch;
     for (const k of ['live', 'movie', 'series']) {
-      if (!src || (k === 'series' && acc.type !== 'xtream') || catalog[k]) continue;
-      ensure(k).then(() => { if (view === 'home') drawHome(); }).catch(() => {});
+      if (!src || my !== epoch || (k === 'series' && acc.type !== 'xtream')) continue;
+      if (!catalog[k]) {
+        if (k !== 'live') await new Promise((r) => setTimeout(r, 2500));
+        try { await ensure(k); } catch { continue; }
+      }
+      if (view === 'home' && my === epoch) drawHome();
     }
   }
 
@@ -2623,7 +2636,7 @@
     const typing = t.matches?.('input:not([type=range]):not([type=file]), textarea');
     if (typing && TV && t.readOnly) {
       if (k === 'ok') { e.preventDefault(); openField(t); return; }
-      if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, t.closest('#login, #sheet') || $('#shell')); return; }
+      if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, t.closest('#login, #sheet') || [$('.rail'), $(`#view-${view}`), $('#updateBar')]); return; }
       if (k !== 'back') return;
     }
     if (typing) {
@@ -2659,6 +2672,12 @@
       return;
     }
 
+    // On the TV the update prompt can't be lost: while it's up, the first arrow or OK press lands on Update.
+    if (TV && !$('#updateBar').hidden && !t.closest?.('#updateBar') && ['up', 'down', 'left', 'right', 'ok'].includes(k)) {
+      e.preventDefault();
+      $('#updateNow').focus();
+      return;
+    }
     // The update prompt keeps the remote until you choose: ←/→ between Update and Later, Back means Later.
     if (t.closest?.('#updateBar')) {
       if (k === 'left' || k === 'right') { e.preventDefault(); Nav.move(k, $('#updateBar')); return; }
@@ -2669,7 +2688,8 @@
     if (view === 'live' && liveKeys(e, k)) { e.preventDefault(); return; }
 
     // While the update prompt is up it can be reached from anywhere, like any other button on screen.
-    if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, $('#updateBar').hidden ? $('#shell') : document); return; }
+    // Only the menu, the open section and the update prompt are searched, not every hidden screen.
+    if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, [$('.rail'), $(`#view-${view}`), $('#updateBar')]); return; }
     if (k === 'back') {
       e.preventDefault();
       const navOn = $('.nav.on');

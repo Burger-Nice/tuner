@@ -275,6 +275,7 @@ input[type="range"] { accent-color: var(--fg); }
 .chip:focus-visible .chip-ico, .chip:focus-visible .chip-v, .chip:focus-visible .chip-chev { color: var(--bg); }
 
 /* option sheet: choices slide in from the right (a bottom sheet on phones) */
+.optional { font-weight: 500; color: var(--dim); margin-left: 0.25rem; }
 .opt-sheet { position: fixed; inset: 0; z-index: 75; }
 .opt-scrim { position: absolute; inset: 0; background: #05060ab3; opacity: 0; transition: opacity 0.18s ease; }
 .opt-panel {
@@ -862,7 +863,7 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 .srow.hot { --srow-soft: var(--accent); }
 .srow.hot .srow-v { font-weight: 650; }
 .srow.danger { --srow-fg: #ff7a70; --srow-ico: #ff7a70; }
-.srow:focus-visible, .srow.danger:focus-visible, .srow.hot:focus-visible {
+.srow:focus-visible, .srow.danger:focus-visible, .srow.hot:focus-visible, .tv .srow:focus, .tv .srow.danger:focus, .tv .srow.hot:focus {
   --srow-fg: var(--bg); --srow-dim: var(--bg); --srow-soft: var(--bg); --srow-ico: var(--bg); --srow-pill: var(--bg);
   outline: none; background: var(--fg); color: var(--bg); transform: scale(1.02); box-shadow: 0 10px 30px #0009;
 }

@@ -26,7 +26,10 @@ if (target === 'tv') {
   copy('node_modules/@capacitor/core/dist/capacitor.js', 'node_modules/@capacitor/core/dist/capacitor.js');
   head.push('<script src="node_modules/@capacitor/core/dist/capacitor.js"></script>');
 }
-fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replaceAll('../node_modules/', 'node_modules/')
+// The TV plays everything in its native player, so it skips the web video libraries (about 900 KB to parse).
+let html = fs.readFileSync(index, 'utf8').replaceAll('../node_modules/', 'node_modules/');
+if (target === 'tv') html = html.replace(/<script src="node_modules\/(hls\.js|mpegts\.js)\/[^"]+"><\/script>\n?/g, '');
+fs.writeFileSync(index, html
   .replace('<script src="core.js"></script>', `${head.join('\n')}\n<script src="core.js"></script>`));
 if (process.env.TUNER_TEST) {
   fs.copyFileSync(path.resolve(root, process.env.TUNER_TEST), path.join(out, 'test-boot.js'));

@@ -44,6 +44,7 @@ import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -162,12 +163,20 @@ public class PlayerActivity extends AppCompatActivity {
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(15000)
-                .setReadTimeoutMs(20000);
+                .setReadTimeoutMs(live ? 8000 : 20000);
         if (!ua.isEmpty()) http.setUserAgent(ua);
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
+        // Live: a short, steady buffer (quick to start, rebuffers rarely) capped in memory; movies get more room.
+        DefaultLoadControl load = new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(live ? 10000 : 15000, live ? 30000 : 50000, 2500, 5000)
+                .setTargetBufferBytes((live ? 64 : 96) << 20)
+                .setPrioritizeTimeOverSizeThresholds(false)
+                .build();
         player = new ExoPlayer.Builder(this, renderers)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(this).setDataSourceFactory(http))
+                .setLoadControl(load)
                 .build();
+        view.setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS);
         player.setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true);
         // Always the best picture: no capping to the 1080p UI size, and straight to the top quality level.
         // The video plane itself runs at the panel's resolution, so 4K streams play in 4K.
@@ -180,11 +189,18 @@ public class PlayerActivity extends AppCompatActivity {
         player.setVideoChangeFrameRateStrategy(C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS);
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int s) {
-                if (s == Player.STATE_READY) { played = true; error = null; }
+                handler.removeCallbacks(stall);
+                if (s == Player.STATE_READY) { played = true; error = null; retries = 0; if (message.getText().toString().startsWith("Reconnecting")) message.setVisibility(View.GONE); }
                 if (s == Player.STATE_ENDED && !live && !player.hasNextMediaItem()) finish();
+                // A live stream the server closed, or one stuck buffering: reconnect instead of freezing.
+                if (live && s == Player.STATE_ENDED) reconnect();
+                if (live && s == Player.STATE_BUFFERING && played) handler.postDelayed(stall, 12000);
             }
             @Override public void onPlayerError(@NonNull PlaybackException e) {
-                error = live ? "This channel is not available right now." : "This video would not play (" + e.getErrorCodeName() + ").";
+                if (live && e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) { player.seekToDefaultPosition(); player.prepare(); return; }
+                if (live && retries < 6 && e.errorCode != PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES
+                        && e.errorCode != PlaybackException.ERROR_CODE_DECODER_INIT_FAILED) { reconnect(); return; }
+                error = errorText(e);
                 showText(error, 6000);
                 JSObject ev = event("failed");
                 ev.put("error", error);
@@ -233,8 +249,47 @@ public class PlayerActivity extends AppCompatActivity {
         return b.build();
     }
 
-    private void tuneTo(int i) {
+    private int retries, lastIndex = -1;
+    private long stoppedAt;
+    private boolean longOk;
+    private final Runnable stall = this::reconnect;
+    private final Runnable retune = () -> { if (player != null) { player.setMediaItem(item(index)); player.prepare(); player.play(); } };
+    private final Runnable doTune = () -> { if (player != null) { player.setMediaItem(item(index)); player.prepare(); player.play(); TunerPlayerPlugin.emit(event("track")); } };
+
+    /** Reconnects the live channel with growing waits (1, 2, 4 … seconds), up to six times. */
+    private void reconnect() {
+        if (player == null || isFinishing()) return;
+        if (retries >= 6) { error = "This channel stopped. Press OK on it in the guide to try again."; showText(error, 8000); return; }
+        long wait = 1000L << Math.min(retries, 4);
+        retries++;
+        showText("Reconnecting…", (int) wait + 4000);
+        handler.removeCallbacks(retune);
+        handler.postDelayed(retune, wait);
+    }
+
+    private String errorText(PlaybackException e) {
+        if (e.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES || e.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED)
+            return "This TV can't decode this " + (live ? "channel's" : "video's") + " picture format.";
+        if (e.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) return live ? "The provider refused this channel (it may be offline or your connections are in use)." : "The provider refused this video.";
+        if (e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT) return "Can't reach the provider. Check the internet connection.";
+        return live ? "This channel is not available right now." : "This video would not play (" + e.getErrorCodeName() + ").";
+    }
+
+    /** Zapping: the banner changes at once; holding the button only connects to where you stop. */
+    private void zap(int i, boolean repeat) {
+        if (index != ((i + urls.length) % urls.length) && !repeat) lastIndex = index;
         index = (i + urls.length) % urls.length;
+        error = null; quality = ""; textTracks = audioTracks = 0; retries = 0;
+        message.setVisibility(View.GONE);
+        showOsd();
+        handler.removeCallbacks(doTune);
+        handler.postDelayed(doTune, repeat ? 450 : 0);
+    }
+
+    private void tuneTo(int i) {
+        if (index != ((i + urls.length) % urls.length)) lastIndex = index;
+        index = (i + urls.length) % urls.length;
+        retries = 0;
         error = null;
         quality = "";
         textTracks = audioTracks = 0;
@@ -261,8 +316,8 @@ public class PlayerActivity extends AppCompatActivity {
         SpannableStringBuilder t = new SpannableStringBuilder(titles[index]);
         if (!quality.isEmpty()) t.append("   ·   ").append(quality);
         if (textTracks > 0) t.append("   ·   CC");
-        String hint = live && gameLinked ? "OK  Score & stats      ←/→  Options"
-                : live ? "←/→  Options" : "↓  Subtitles & picture";
+        String hint = live && gameLinked ? "OK  Score & stats      Hold OK  Last channel      ←/→  Options"
+                : live ? "Hold OK  Last channel      ←/→  Options" : "↓  Subtitles & picture";
         if (!hint.isEmpty()) {
             int from = t.length();
             t.append("\n").append(hint);
@@ -310,7 +365,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (stats != null && stats.getVisibility() == View.VISIBLE) {
             switch (code) {
                 case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_ESCAPE: case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
-                    hideStats(true); return true;
+                    hideStats(true); longOk = true; return true; // the release mustn't reopen it
                 case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT:
                     statsTeam ^= 1; renderStats(); return true;
             }
@@ -321,9 +376,15 @@ public class PlayerActivity extends AppCompatActivity {
         if (live) {
             switch (code) {
                 case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: openOptions(); return true;
-                case KeyEvent.KEYCODE_DPAD_UP: case KeyEvent.KEYCODE_CHANNEL_DOWN: case KeyEvent.KEYCODE_PAGE_UP: tuneTo(index - 1); return true;
-                case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_CHANNEL_UP: case KeyEvent.KEYCODE_PAGE_DOWN: tuneTo(index + 1); return true;
-                case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_INFO: case KeyEvent.KEYCODE_GUIDE: case KeyEvent.KEYCODE_G:
+                // Up and CH+ both go to the next channel, down and CH- to the previous one.
+                case KeyEvent.KEYCODE_DPAD_UP: case KeyEvent.KEYCODE_CHANNEL_UP: case KeyEvent.KEYCODE_PAGE_UP: zap(index + 1, e.getRepeatCount() > 0); return true;
+                case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_CHANNEL_DOWN: case KeyEvent.KEYCODE_PAGE_DOWN: zap(index - 1, e.getRepeatCount() > 0); return true;
+                case KeyEvent.KEYCODE_LAST_CHANNEL: lastChannel(); return true;
+                case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
+                    // A short press is handled on release; holding OK jumps back to the last channel.
+                    if (e.getRepeatCount() == 0) { e.startTracking(); longOk = false; }
+                    return true;
+                case KeyEvent.KEYCODE_INFO: case KeyEvent.KEYCODE_GUIDE: case KeyEvent.KEYCODE_G:
                     showOsd();
                     TunerPlayerPlugin.emit(event("game"));
                     return true;
@@ -365,6 +426,7 @@ public class PlayerActivity extends AppCompatActivity {
             labels.add("Sync the score to this stream");
             acts.add(() -> { JSObject ev = event("sync-start"); ev.put("seenAt", seenAt); TunerPlayerPlugin.emit(ev); });
         }
+        if (live && lastIndex >= 0 && lastIndex < urls.length && lastIndex != index) { labels.add("Last channel · " + titles[lastIndex]); acts.add(this::lastChannel); }
         if (textTracks > 0) { labels.add("Subtitles"); acts.add(this::openTrackMenu); }
         if (audioTracks > 1) { labels.add("Audio track"); acts.add(() -> openAudioMenu("Audio")); }
         labels.add("Picture size · " + PICTURE_NAMES[pictureIndex()]);
@@ -656,8 +718,34 @@ public class PlayerActivity extends AppCompatActivity {
         sv.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.1f);
     }
 
-    @Override protected void onStop() { super.onStop(); if (player != null && !isFinishing()) player.pause(); }
-    @Override protected void onStart() { super.onStart(); if (player != null) player.play(); }
+    @Override
+    public boolean onKeyLongPress(int code, KeyEvent e) {
+        if (live && (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER)) { longOk = true; lastChannel(); return true; }
+        return super.onKeyLongPress(code, e);
+    }
+
+    @Override
+    public boolean onKeyUp(int code, KeyEvent e) {
+        if (live && (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) && (stats == null || stats.getVisibility() != View.VISIBLE)) {
+            if (!longOk && !e.isCanceled()) { showOsd(); TunerPlayerPlugin.emit(event("game")); }
+            longOk = false;
+            return true;
+        }
+        return super.onKeyUp(code, e);
+    }
+
+    private void lastChannel() {
+        if (lastIndex < 0 || lastIndex >= urls.length || lastIndex == index) { showText("No previous channel yet", 2000); return; }
+        tuneTo(lastIndex);
+    }
+
+    @Override protected void onStop() { super.onStop(); stoppedAt = System.currentTimeMillis(); if (player != null && !isFinishing()) player.pause(); }
+    @Override protected void onStart() {
+        super.onStart();
+        if (player == null) return;
+        // Back after a while on live: start from now rather than an old position.
+        if (live && stoppedAt > 0 && System.currentTimeMillis() - stoppedAt > 10000) tuneTo(index); else player.play();
+    }
 
     @Override
     protected void onDestroy() {

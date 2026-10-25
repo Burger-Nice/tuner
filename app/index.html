@@ -72,14 +72,14 @@
         <label>Username<input id="xtUser" autocomplete="username" spellcheck="false"></label>
         <label>Password<input id="xtPass" type="password" autocomplete="current-password"></label>
       </div>
-      <label><span>Name <span class="opt">optional</span></span><input id="xtName" placeholder="My provider"></label>
+      <label><span>Name <span class="optional">optional</span></span><input id="xtName" placeholder="My provider"></label>
       <p class="hint">Got a long link with <code>get.php?username=…</code> in it? Paste the whole thing into Server address and the rest fills in.</p>
       <button class="btn primary lg" type="submit">Sign in</button>
     </form>
     <form id="m3uForm" class="form" hidden>
       <label>Playlist URL<input id="m3uUrl" type="url" placeholder="https://example.com/playlist.m3u" spellcheck="false"></label>
       <label>Or a file on this computer<input id="m3uFile" type="file" accept=".m3u,.m3u8,text/plain"></label>
-      <label><span>Name <span class="opt">optional</span></span><input id="m3uName" placeholder="My playlist"></label>
+      <label><span>Name <span class="optional">optional</span></span><input id="m3uName" placeholder="My playlist"></label>
       <button class="btn primary lg" type="submit">Load playlist</button>
     </form>
     <p class="form-error" id="loginErr" hidden></p>
@@ -193,7 +193,7 @@
         <span class="grow"></span>
         <div class="lib-filters" id="movieFilters"></div>
       </div>
-      <div class="lib-scroll" id="movieScroll"><div class="grid" id="movieGrid"></div></div>
+      <div class="lib-scroll" id="movieScroll"><div class="grid" id="movieGrid" data-nav="grid"></div></div>
     </div>
   </section>
 
@@ -210,7 +210,7 @@
         <span class="grow"></span>
         <div class="lib-filters" id="seriesFilters"></div>
       </div>
-      <div class="lib-scroll" id="seriesScroll"><div class="grid" id="seriesGrid"></div></div>
+      <div class="lib-scroll" id="seriesScroll"><div class="grid" id="seriesGrid" data-nav="grid"></div></div>
     </div>
   </section>
 
