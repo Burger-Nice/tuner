@@ -186,9 +186,15 @@ jobs:
             adb shell input keyevent KEYCODE_WAKEUP
             adb shell wm dismiss-keyguard || true
             adb shell svc power stayon true
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            adb shell am start -n app.tuner.player/.MainActivity
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk 2>&1 | tail -2 | sed 's/^/::notice title=TV test::install /'
+            adb logcat -c
+            adb shell am start -W -n app.tuner.player/.MainActivity 2>&1 | sed 's/^/::notice title=TV test::start /'
+            sleep 12
+            adb shell pidof app.tuner.player | sed 's/^/::notice title=TV test::running pid /'
+            adb logcat -d -b crash 2>&1 | head -40 | sed 's/^/::notice title=TV crash::/'
+            adb logcat -d 2>&1 | grep -E "FATAL|AndroidRuntime|Capacitor/Console|chromium.*CONSOLE|E Capacitor" | head -40 | sed 's/^/::notice title=TV log::/'
             node tests/android-shots.js 2>&1 | sed 's/^/::notice title=TV test::/'
+            adb logcat -d 2>&1 | grep -E "FATAL|AndroidRuntime|TunerPlayer|ExoPlayer|Capacitor/Console" | tail -40 | sed 's/^/::notice title=TV log end::/'
       - name: Share the test screenshots
         if: always()
         continue-on-error: true

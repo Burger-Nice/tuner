@@ -8,6 +8,20 @@ Download [**Tuner-Setup.exe**](https://github.com/Burger-Nice/tuner/releases/lat
 
 Then sign in with the server address, username and password from your provider. If your provider gave you one long link with `get.php?username=…&password=…` in it, paste the whole link into **Server address** and the other fields fill in.
 
+## On your Google TV / Android TV
+
+1. On the TV, install **Downloader** (by AFTVnews) from the Play Store.
+2. Turn on installs from it: **Settings → Apps → Security & restrictions → Unknown sources → Downloader** (on some TVs: **Settings → System → About**, click **Android TV OS build** 7 times to unlock developer options first).
+3. Open Downloader and enter `https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner.apk`, then **Install**.
+
+Tuner then appears on the home screen. It updates itself: when a new version is out it offers **Update**, downloads it and asks the TV to install it.
+
+On the TV every channel plays in the built-in ExoPlayer engine at the TV's full resolution, 4K and HDR included. **↑/↓** or the channel buttons change channel, number keys jump to a channel, **OK** shows the channel, picture quality (e.g. *4K HDR*) and the NBA score, and **Back** returns to the guide.
+
+## On your iPhone
+
+Tuner installs through **AltStore** (free Apple ID; AltStore re-signs it every few days in the background while your phone is on home Wi-Fi and AltServer runs on your PC). In AltStore, go to **Sources → +** and add `https://github.com/Burger-Nice/tuner/releases/latest/download/altstore-source.json`, then install Tuner. Updates show up in AltStore.
+
 ## The full player
 
 Movies, episodes and full-screen TV play in **mpv**, which comes bundled with the Windows installer. It handles what the built-in player can't: HEVC/4K, Dolby and DTS audio, MKV files, subtitles and extra audio tracks. Move the mouse to show its controls. In full-screen TV, ↑/↓ change channel and number keys jump to a channel. Esc brings you back to Tuner.
@@ -67,4 +81,6 @@ Plain HTML, CSS and JavaScript in an Electron window. No frameworks, so it stays
 - `main.js`, `preload.js`: the desktop window and request headers.
 - `mpv.js`, `player/tuner.lua`: runs mpv over Tuner's window and talks to it; the Lua script adds the Back key and channel zapping inside mpv.
 - `scripts/fetch-mpv.js`: downloads the Windows build of mpv.
-- `.github/workflows/build.yml`: builds and tests the Windows installer on GitHub.
+- `ios/`, `android/`: the iPhone and Android/Google TV apps (Capacitor). `android/.../PlayerActivity.java` is the TV player (Media3/ExoPlayer).
+- `tests/`: a fake IPTV provider with recorded NBA data, and scripts that drive the iPhone simulator and Android TV emulator on CI.
+- `.github/workflows/build.yml`: builds and tests Windows, iPhone and Android on every push, then publishes one release with all three.

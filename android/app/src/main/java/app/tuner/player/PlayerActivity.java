@@ -26,7 +26,9 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Format;
 import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -61,6 +63,7 @@ public class PlayerActivity extends AppCompatActivity {
     private boolean played, exited;
     private String error;
     private String digits = "";
+    private String quality = "";
 
     private final Runnable hideOsd = () -> osd.setVisibility(View.GONE);
     private final Runnable hideMessage = () -> message.setVisibility(View.GONE);
@@ -128,6 +131,14 @@ public class PlayerActivity extends AppCompatActivity {
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(this).setDataSourceFactory(http))
                 .build();
         player.setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true);
+        // Always the best picture: no capping to the 1080p UI size, and straight to the top quality level.
+        // The video plane itself runs at the panel's resolution, so 4K streams play in 4K.
+        player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
+                .clearVideoSizeConstraints()
+                .clearViewportSizeConstraints()
+                .setForceHighestSupportedBitrate(true)
+                .build());
+        player.setVideoChangeFrameRateStrategy(C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS);
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int s) {
                 if (s == Player.STATE_READY) { played = true; error = null; }
@@ -139,6 +150,10 @@ public class PlayerActivity extends AppCompatActivity {
                 JSObject ev = event("failed");
                 ev.put("error", error);
                 TunerPlayerPlugin.emit(ev);
+            }
+            @Override public void onVideoSizeChanged(@NonNull VideoSize size) {
+                quality = qualityLabel(size.height, player.getVideoFormat());
+                if (osd.getVisibility() == View.VISIBLE) showOsd();
             }
             @Override public void onMediaItemTransition(MediaItem item, int reason) {
                 if (live) return;
@@ -177,6 +192,7 @@ public class PlayerActivity extends AppCompatActivity {
     private void tuneTo(int i) {
         index = (i + urls.length) % urls.length;
         error = null;
+        quality = "";
         message.setVisibility(View.GONE);
         player.setMediaItem(item(index));
         player.prepare();
@@ -196,7 +212,8 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void showOsd() {
-        osd.setText(titles[index]); // live titles already start with the channel number
+        // Live titles already start with the channel number.
+        osd.setText(quality.isEmpty() ? titles[index] : titles[index] + "   ·   " + quality);
         osd.setVisibility(View.VISIBLE);
         handler.removeCallbacks(hideOsd);
         handler.postDelayed(hideOsd, 4000);
@@ -265,6 +282,14 @@ public class PlayerActivity extends AppCompatActivity {
         if (player != null) { player.release(); player = null; }
         if (current == this) current = null;
         super.onDestroy();
+    }
+
+    private static String qualityLabel(int h, Format f) {
+        if (h <= 0) return "";
+        String res = h >= 2000 ? "4K" : h >= 1400 ? "1440p" : h >= 1000 ? "1080p" : h >= 700 ? "720p" : h + "p";
+        boolean hdr = f != null && f.colorInfo != null
+                && (f.colorInfo.colorTransfer == C.COLOR_TRANSFER_ST2084 || f.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG);
+        return hdr ? res + " HDR" : res;
     }
 
     private JSObject event(String type) {
