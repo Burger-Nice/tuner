@@ -4,6 +4,7 @@ import android.app.UiModeManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
@@ -44,7 +45,13 @@ public class TunerPlayerPlugin extends Plugin {
     public void info(PluginCall call) {
         JSObject r = new JSObject();
         UiModeManager ui = (UiModeManager) getContext().getSystemService(Context.UI_MODE_SERVICE);
-        r.put("tv", ui != null && ui.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION);
+        PackageManager pm = getContext().getPackageManager();
+        // Some TV makers don't report television mode, so also go by the TV features and the lack of a touchscreen.
+        boolean tv = (ui != null && ui.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION)
+                || pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+                || pm.hasSystemFeature("android.hardware.type.television")
+                || !pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN);
+        r.put("tv", tv);
         try {
             PackageInfo p = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
             r.put("version", p.versionName);

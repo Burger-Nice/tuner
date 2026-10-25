@@ -8,7 +8,9 @@
   // `window.tuner` interface the desktop app gets from preload.js, so the rest of the code is shared.
   const CAP = window.Capacitor;
   const ANDROID = CAP?.getPlatform?.() === 'android';
-  let TV = /[?&]tv\b/.test(location.search) || (() => { try { return localStorage.getItem('tuner.forceTv') === 'true'; } catch { return false; } })();
+  // Layout: 'auto' picks the TV layout on a TV; Account → Layout can force either one.
+  const LAYOUT = (() => { try { return localStorage.getItem('tuner.layout') || 'auto'; } catch { return 'auto'; } })();
+  let TV = /[?&]tv\b/.test(location.search) || LAYOUT === 'tv';
   if (TV) document.documentElement.classList.add('tv');
   if (ANDROID && !window.tuner && CAP.registerPlugin) {
     const TP = CAP.registerPlugin('TunerPlayer');
@@ -17,7 +19,8 @@
     let info = { version: '', code: 0 };
     const ready = TP.info().then((i) => {
       info = i;
-      TV = !!i.tv;
+      // A remote-only screen (no touch, no mouse) counts as a TV too.
+      if (LAYOUT === 'auto') TV = !!i.tv || matchMedia('(pointer: none)').matches;
       if (TV) document.documentElement.classList.add('tv');
       return i;
     }).catch(() => info);
@@ -1282,6 +1285,10 @@
             <label for="setScale">Interface size</label>
             <select id="setScale"><option value="compact">Compact</option><option value="standard">Standard</option><option value="large">Large</option><option value="tv">TV (across the room)</option></select>
           </div>
+          ${ANDROID ? `<div class="field">
+            <label for="setLayout">Layout</label>
+            <select id="setLayout"><option value="auto">Automatic (now: ${TV ? 'TV' : 'touch'})</option><option value="tv">TV · for the remote</option><option value="touch">Touch · for phones and tablets</option></select>
+          </div>` : ''}
         </div>
         <div class="card">
           <h4>NBA</h4>
@@ -1326,7 +1333,7 @@
       </div>`;
     $('#setPlayer').value = mpvOk ? s.player || 'mpv' : 'builtin';
     $('#setPlayer').onchange = (e) => { saveSettings({ player: e.target.value }); toast('Saved'); };
-    $('#setBug').value = s.scoreBug ? 'on' : 'off';
+    $('#setBug').value = scoreBugOn() ? 'on' : 'off';
     $('#setBug').onchange = (e) => { saveSettings({ scoreBug: e.target.value === 'on' }); drawLiveGame(); toast('Saved'); };
     $('#setDelay').value = String(+s.scoreDelay || 0);
     $('#setDelay').onchange = (e) => { saveSettings({ scoreDelay: +e.target.value }); toast(+e.target.value ? `Scores on live TV now run ${e.target.value} seconds behind` : 'Scores on live TV are real time'); };
@@ -1339,6 +1346,10 @@
     $('#setReload').onclick = () => { for (const k in catalog) catalog[k] = null; toast('Channels and library will reload'); go('live'); };
     $('#setFormat').onchange = (e) => { saveSettings({ liveFormat: e.target.value }); catalog.live = null; toast('Saved. Channels will reload with the new format.'); };
     $('#setScale').onchange = (e) => { saveSettings({ scale: e.target.value }); applyScale(); };
+    if ($('#setLayout')) {
+      $('#setLayout').value = LAYOUT;
+      $('#setLayout').onchange = (e) => { try { localStorage.setItem('tuner.layout', e.target.value); } catch {} location.reload(); };
+    }
     $('#setUaSave').onclick = () => { const ua = $('#setUa').value.trim(); saveSettings({ ua }); native?.setUserAgent(ua); toast(native ? 'User agent saved' : 'Saved. User agent only applies in the desktop app.'); };
     $$('[data-switch]').forEach((b) => (b.onclick = () => signIn(withText(accounts[+b.dataset.switch]), b)));
     $$('[data-remove]').forEach((b) => (b.onclick = () => {
@@ -1616,6 +1627,8 @@
   }, 1000);
 
   // ---------- live TV: score bug + game card ----------
+  // The TV keeps the picture clean unless you turn the bug on; the PC and phone show it unless you turn it off.
+  const scoreBugOn = () => settings().scoreBug ?? !TV;
   function drawLiveGame() {
     const card = $('#gameCard'), bug = $('#scoreBug');
     const ch = S.live.current;
@@ -1623,7 +1636,7 @@
     const linked = linkedGame();
     const { g, s } = delayed(linked);
     $('#livePtabs .ptab-dot').hidden = !linked;
-    bug.hidden = !(g && g.state !== 'pre' && settings().scoreBug);
+    bug.hidden = !(g && g.state !== 'pre' && scoreBugOn());
     if (!bug.hidden) bug.innerHTML = bugHtml(g);
     const live = nba.today.filter((x) => x.state === 'in');
     if (!g && !live.length) { card.hidden = true; return; }

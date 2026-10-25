@@ -16,7 +16,7 @@ Then sign in with the server address, username and password from your provider. 
 
 Tuner then appears on the home screen. It updates itself: when a new version is out it pops up **Update** (or go to **Account → Check for updates**), downloads it and asks the TV to install it. The first time, the TV asks you to allow Tuner to install apps: turn it on, press Back, then **Update** again. If an update ever gets stuck, enter the Downloader link above again: it installs over the top and keeps your login.
 
-The TV version opens on a Home screen (Google TV / Netflix style): the NBA games, then your channels, recently watched, your list and what's new. The menu on the left opens when you move into it. The guide previews whatever channel you're on, and **OK** watches it. The on-screen keyboard only comes up when you press **OK** on a search or text box.
+The TV gets its own layout, built for the remote; the PC and phone keep theirs. If Tuner ever picks the wrong one, set it under **Account → Layout**. The TV version opens on a Home screen (Google TV / Netflix style): the NBA games, then your channels, recently watched, your list and what's new. The menu on the left opens when you move into it. The guide previews whatever channel you're on, and **OK** watches it. The on-screen keyboard only comes up when you press **OK** on a search or text box.
 
 On the TV every channel plays in the built-in ExoPlayer engine at the TV's full resolution, 4K and HDR included. **↑/↓** or the channel buttons change channel, number keys jump to a channel, **OK** shows the channel, picture quality (e.g. *4K HDR*) and the NBA score, and **Back** returns to the guide.
 
@@ -34,7 +34,7 @@ You can switch back to the simpler built-in player under **Account → Playback*
 
 The **NBA** tab has every game for the day with live scores, plus the full box score, team stats and play-by-play for each one. **Find on TV** searches your channels for the game. Your team (Memphis by default; change it under **Account**) is pinned on top, and Tuner lets you know when they tip off.
 
-While you watch live TV, Tuner works out which game is on from the channel name or the guide, and shows its box score next to the channel. If it guesses wrong, pick the right game from the menu on that card. The picture itself stays clean: in full-screen TV, press **G** (or **OK** on the TV remote) when you want the score. If you'd rather keep a score bug in the corner, turn on **Account → Score on the picture**. Scores come from ESPN and update every 10–15 seconds.
+While you watch live TV, Tuner works out which game is on from the channel name or the guide, and shows its box score next to the channel. If it guesses wrong, pick the right game from the menu on that card. On the PC and phone a score bug sits on the picture; on the TV the picture stays clean and **OK** on the remote shows the score (**G** in full-screen on the PC). Change either under **Account → Score on the picture**. Scores come from ESPN and update every 10–15 seconds.
 
 IPTV streams run behind the real game, so the score can spoil a play. Set **Account → Score delay on live TV** to hold the score back to match your stream. The NBA tab always shows real time.
 
