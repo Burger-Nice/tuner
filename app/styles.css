@@ -613,7 +613,7 @@ table.lines td.tot, table.lines th.tot { color: var(--fg); font-weight: 700; }
 /* Width only: the on-screen keyboard shrinks the height, and that mustn't resize the whole interface. */
 :root.tv { font-size: calc(100vw / 60); }
 /* The TV's built-in browser doesn't stretch boxes that keep an aspect ratio, so give them their width. */
-.tv .art, .tv .hcard .thumb, .tv .hcard .cap { width: 100%; }
+.tv .poster .art, .tv .hcard .thumb, .tv .hcard .cap { width: 100%; }
 
 /* rail: icons only, opens with labels while you're in it */
 .tv .shell { grid-template-columns: 1fr; grid-template-rows: 1fr; padding-left: 5rem; }
