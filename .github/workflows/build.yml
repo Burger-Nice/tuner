@@ -178,12 +178,17 @@ jobs:
           api-level: 34
           target: android-tv
           arch: x86
+          profile: tv_1080p
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
+            adb shell getprop ro.build.characteristics | sed 's/^/::notice title=TV test::device type /'
+            adb shell input keyevent KEYCODE_WAKEUP
+            adb shell wm dismiss-keyguard || true
+            adb shell svc power stayon true
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -n app.tuner.player/.MainActivity
-            node tests/android-shots.js | sed 's/^/::notice title=TV test::/'
+            node tests/android-shots.js 2>&1 | sed 's/^/::notice title=TV test::/'
       - name: Share the test screenshots
         if: always()
         continue-on-error: true
