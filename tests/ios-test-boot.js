@@ -2,7 +2,7 @@
 // Only included in test builds (scripts/build-web.js with TUNER_TEST set).
 window.TUNER_TEST = true;
 (function () {
-  const API = 'http://127.0.0.1:8899';
+  const API = window.TEST_API || 'http://127.0.0.1:8899';
   const report = (step, data) => fetch(`${API}/_report`, { method: 'POST', body: JSON.stringify({ step, data }) }).catch(() => {});
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const $ = (s) => document.querySelector(s);

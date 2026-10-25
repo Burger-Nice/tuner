@@ -4,7 +4,67 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-  const native = window.tuner || null; // Electron bridge (preload.js)
+  // Android / Google TV app (Capacitor): wire the native player and updater into the same
+  // `window.tuner` interface the desktop app gets from preload.js, so the rest of the code is shared.
+  const CAP = window.Capacitor;
+  const ANDROID = CAP?.getPlatform?.() === 'android';
+  let TV = false;
+  if (ANDROID && !window.tuner && CAP.registerPlugin) {
+    const TP = CAP.registerPlugin('TunerPlayer');
+    const AppPlugin = CAP.registerPlugin('App');
+    document.documentElement.classList.add('android');
+    let info = { version: '', code: 0 };
+    const ready = TP.info().then((i) => {
+      info = i;
+      TV = !!i.tv;
+      if (TV) document.documentElement.classList.add('tv');
+      return i;
+    }).catch(() => info);
+    let ustatus = { state: 'idle' };
+    const usubs = [];
+    const uset = (st) => { ustatus = st; usubs.forEach((f) => f(st)); };
+    const ucheck = async () => {
+      uset({ state: 'checking' });
+      try {
+        const me = await ready;
+        const r = await fetch('https://github.com/Burger-Nice/tuner/releases/latest/download/android.json', { cache: 'no-store' });
+        const latest = await r.json();
+        uset(+latest.code > +me.code ? { state: 'ready', version: latest.version, url: latest.url } : { state: 'current' });
+      } catch (e) {
+        uset({ state: 'error', message: 'Could not reach GitHub.' });
+      }
+    };
+    TP.addListener('update', (e) => uset({ ...ustatus, state: 'downloading', percent: e.percent }));
+    setTimeout(ucheck, 8000);
+    setInterval(ucheck, 4 * 3600e3);
+    window.tuner = {
+      platform: 'android',
+      setUserAgent: () => {},
+      openExternalPlayer: async () => false,
+      version: async () => (await ready).version,
+      updates: {
+        status: async () => ustatus,
+        check: ucheck,
+        install: async () => {
+          if (!ustatus.url) return;
+          const was = ustatus;
+          uset({ ...was, state: 'downloading', percent: 0 });
+          try { await TP.installUpdate({ url: was.url }); uset({ ...was, state: 'ready' }); } catch (e) { uset({ state: 'error', message: e.message }); }
+        },
+        onStatus: (f) => usubs.push(f),
+      },
+      mpv: {
+        available: async () => true,
+        play: (o) => TP.play(o),
+        stop: () => TP.stop(),
+        command: (args) => TP.command({ args }),
+        onEvent: (f) => TP.addListener('event', f),
+      },
+      onBack: (f) => AppPlugin.addListener('backButton', f),
+      minimize: () => AppPlugin.minimizeApp(),
+    };
+  }
+  const native = window.tuner || null; // Electron bridge (preload.js), or the Android bridge above
   if (native?.platform === 'darwin') document.documentElement.classList.add('mac');
   // The iPhone app (Capacitor). It has no mpv; Apple's player does that job.
   const IOS = window.Capacitor?.getPlatform?.() === 'ios' || /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -398,6 +458,7 @@
       if (last) tune(last, { noFull: true });
       else liveMsg('Pick a channel', `${catalog.live.items.length.toLocaleString()} channels ready. Choose one from the list, or press ↓ to start from the top.`);
     } else liveMsg('Pick a channel', 'Choose one from the list, or press ↓ to start from the top.');
+    if (TV) setTimeout(() => { if (document.activeElement === document.body) ($('#liveMsgActions button') || $('#liveInner .ch.on') || $('#liveInner .ch'))?.focus(); }, 300);
   }
 
   function refreshLive() {
@@ -464,7 +525,13 @@
     store.set(scoped('recents'), recents);
     store.set(scoped('lastLive'), ch.id);
     $('#liveMsg').hidden = true;
-    if (useMpv() && needsFull(ch)) {
+    if (useMpv() && ANDROID) {
+      // On Android and Google TV every channel plays in the native full-screen player.
+      livePlayer.stop();
+      liveMsg(ch.name, TV ? 'Press OK to watch.' : 'Tap Watch to play full screen.', [['Watch', () => liveMpv(), true]]);
+      if (!noFull) liveMpv();
+      else if (TV) setTimeout(() => $('#liveMsgActions button')?.focus(), 50);
+    } else if (useMpv() && needsFull(ch)) {
       livePlayer.stop();
       if (noFull) fullPlayerMsg('4K channel', 'This channel plays in the full player, which handles 4K and HEVC video.');
       else { fullPlayerMsg('Opening in the full player', '4K channels play in the full player.'); liveMpv(); }
@@ -591,7 +658,7 @@
     const index = Math.max(0, list.findIndex((c) => c.id === st.current?.id));
     // MPEG-TS is the one format every Xtream server offers, and mpv plays it best.
     const engine = 'mpegts';
-    const entries = list.map((c) => ({ url: (c.sources.find((s) => s.engine === engine) || c.sources[0]).url, title: `${c.num} · ${c.name}` }));
+    const entries = list.map((c) => ({ url: (c.sources.find((s) => s.engine === engine) || c.sources[0]).url, title: `${c.num} · ${c.name}`, num: c.num }));
     livePlayer.stop();
     const r = await native.mpv.play({ mode: 'live', entries, index, ua: settings().ua });
     if (!r.ok) { toast(r.error, 4000); return tune(st.current || list[index]); }
@@ -637,6 +704,7 @@
         const ch = ctx.items[e.index ?? ctx.index];
         if (e.error) toast(`That channel would not play. ${e.error}`, 6000);
         if (view === 'live' && ch) tune(ch, { noFull: true });
+        if (TV) setTimeout(() => $('#liveInner .ch.on')?.focus({ preventScroll: true }), 120);
       }
     }
   });
@@ -1161,7 +1229,7 @@
             <select id="setFormat"><option value="hls">HLS first (smoother switching)</option><option value="ts">MPEG-TS first (some providers only offer this)</option></select>
             <span class="hint">If a channel won’t play, the other format is tried automatically.</span>
           </div>
-          <div class="field desktop-only">
+          <div class="field desktop-only ua-field">
             <label for="setUa">User agent</label>
             <div class="row" style="flex-wrap:nowrap"><input id="setUa" type="text" placeholder="Default" value="${esc(s.ua)}" spellcheck="false"><button class="btn" id="setUaSave">Save</button></div>
             <span class="hint">Some providers only accept certain apps. Try <code>VLC/3.0.20 LibVLC/3.0.20</code> if streams refuse to start.</span>
@@ -1710,7 +1778,8 @@
   function onUpdate(s) {
     update = s || { state: 'idle' };
     $('#updateBar').hidden = update.state !== 'ready' || updateDismissed;
-    if (update.state === 'ready') $('#updateText').textContent = `Tuner ${update.version} is ready to install.`;
+    if (update.state === 'ready') $('#updateText').textContent = ANDROID ? `Tuner ${update.version} is available.` : `Tuner ${update.version} is ready to install.`;
+    if (ANDROID) $('#updateNow').textContent = 'Update';
     if (view === 'settings' && $('#updateLine')) $('#updateLine').innerHTML = updateLine();
   }
   function updateLine() {
@@ -1718,7 +1787,7 @@
       case 'checking': return 'Checking for updates…';
       case 'current': return 'You have the latest version.';
       case 'downloading': return `Downloading ${esc(update.version)}… ${update.percent || 0}%`;
-      case 'ready': return `Version ${esc(update.version)} is ready. <button class="btn primary" data-update="install">Restart to update</button>`;
+      case 'ready': return `Version ${esc(update.version)} is ${ANDROID ? 'available' : 'ready'}. <button class="btn primary" data-update="install">${ANDROID ? 'Update now' : 'Restart to update'}</button>`;
       case 'error': return `Could not check for updates: ${esc(update.message)}`;
       case 'dev': return 'Updates are off when running from source.';
       default: return IOS ? 'Updates arrive through AltStore.' : 'Updates install automatically.';
@@ -1767,7 +1836,13 @@
     if (view === 'live' && liveKeys(e, k)) { e.preventDefault(); return; }
 
     if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, $('#shell')); return; }
-    if (k === 'back') { e.preventDefault(); $('.nav.on')?.focus(); return; }
+    if (k === 'back') {
+      e.preventDefault();
+      const navOn = $('.nav.on');
+      if (native?.minimize && document.activeElement === navOn) native.minimize();
+      else navOn?.focus();
+      return;
+    }
     if (e.key === '/') { const q = $(`#${view}Q`); if (q) { e.preventDefault(); q.focus(); q.select(); } }
   });
 
@@ -1778,6 +1853,9 @@
     $('#detail').hidden = true;
     exitFull();
   }
+
+  // The Android remote's Back button arrives here instead of as a key press.
+  native?.onBack?.(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
 
   // Lets the iPhone simulator test in CI drive the app. Only present in test builds.
   if (window.TUNER_TEST) {

@@ -18,6 +18,7 @@ const index = path.join(out, 'index.html');
 fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replaceAll('../node_modules/', 'node_modules/'));
 if (process.env.TUNER_TEST) {
   fs.copyFileSync(path.resolve(root, process.env.TUNER_TEST), path.join(out, 'test-boot.js'));
-  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('<script src="core.js"></script>', '<script src="test-boot.js"></script>\n<script src="core.js"></script>'));
+  const api = process.env.TUNER_TEST_API || 'http://127.0.0.1:8899';
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('<script src="core.js"></script>', `<script>window.TEST_API = ${JSON.stringify(api)};</script>\n<script src="test-boot.js"></script>\n<script src="core.js"></script>`));
 }
 console.log('www/ ready');
