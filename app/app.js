@@ -246,6 +246,7 @@
       store.set('accounts', accounts);
       store.set('active', a.id);
       acc = a; src = s; info = d;
+      if (a.type === 'xtream') store.set('info:' + a.id, d);
       enterShell();
     } catch (err) {
       $('#login').hidden && $('#shell').hidden ? showLogin(err.message) : $('#login').hidden ? toast(err.message, 5000) : loginError(err.message);
@@ -270,6 +271,7 @@
     progress = store.get(scoped('progress'), {});
     recents = store.get(scoped('recents'), []);
     for (const k in catalog) { catalog[k] = null; delete fresh[k]; }
+    guides.clear();
     S.live = { cat: store.get(scoped('liveCat'), '*'), q: '', list: [], current: null, last: null, autoResume: true };
     for (const k of ['movie', 'series']) S[k] = { cat: '*', q: '', list: [], shown: 0, sort: 'rec', f: {}, ...store.get(scoped(k + 'View'), {}) };
     ['liveQ', 'movieQ', 'seriesQ'].forEach((id) => ($('#' + id).value = ''));
@@ -854,14 +856,14 @@
 
   const listEl = $('#liveList'), inner = $('#liveInner');
   const rowH = () => rem() * 3.75;
-  function renderLiveList() {
+  function renderLiveList(guideOnly) {
     const st = S.live;
     if (!catalog.live) return;
     const row = rowH();
     inner.style.height = st.list.length * row + 'px';
     if (!st.list.length) {
       inner.style.height = '';
-      inner.innerHTML = `<div class="empty">${st.cat === 'fav' && !st.q ? '<h3>No favorite channels yet</h3><p>Press S or the star while watching to add one.</p>' : 'No channels match.'}</div>`;
+      setHtml(inner, `<div class="empty">${st.cat === 'fav' && !st.q ? '<h3>No favorite channels yet</h3><p>Press S or the star while watching to add one.</p>' : 'No channels match.'}</div>`);
       return;
     }
     const focused = document.activeElement?.closest?.('#liveInner .ch')?.dataset.i;
@@ -872,11 +874,13 @@
     for (let i = a; i < b; i++) {
       const c = st.list[i];
       const on = st.current?.id === c.id;
-      const sub = showCat ? catalog.live.catName.get(c.cat) || '' : '';
+      const prog = onNow(guides.get(c.id)?.ready);
+      const sub = prog ? prog.title : showCat ? catalog.live.catName.get(c.cat) || '' : '';
       html += `<button class="ch${on ? ' on' : ''}" data-i="${i}" style="top:${i * row}px"><span class="num">${c.num}</span>${logo(c.logo, c.name)}<span class="meta"><span class="name">${esc(c.name)}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</span>${favs[keyOf(c)] ? '<span class="star">★</span>' : ''}${on ? '<span class="eq"><i></i><i></i><i></i></span>' : ''}</button>`;
     }
-    inner.innerHTML = html;
-    if (focused != null) inner.querySelector(`[data-i="${focused}"]`)?.focus({ preventScroll: true });
+    setHtml(inner, html);
+    if (focused != null && !inner.contains(document.activeElement)) inner.querySelector(`[data-i="${focused}"]`)?.focus({ preventScroll: true });
+    if (!guideOnly) rowGuides();
   }
   let rafList = 0;
   listEl.addEventListener('scroll', () => { cancelAnimationFrame(rafList); rafList = requestAnimationFrame(renderLiveList); }, { passive: true });
@@ -970,14 +974,41 @@
   liveVideo.addEventListener('loadedmetadata', updateNow);
   liveVideo.addEventListener('resize', updateNow);
 
+  // One guide per channel, kept for 10 minutes and shared by the guide rows, the side panel and Home.
+  const guides = new Map();
+  function guideFor(ch) {
+    const hit = guides.get(ch.id);
+    if (hit && Date.now() - hit.at < 600000) return hit.list;
+    const my = epoch;
+    const list = src.epg(ch).catch(() => []).then((l) => { if (my === epoch) guides.set(ch.id, { at: Date.now(), list: Promise.resolve(l), ready: l }); return l; });
+    guides.set(ch.id, { at: Date.now(), list, ready: hit?.ready });
+    return list;
+  }
+  const onNow = (list, now = Date.now()) => list?.find((p) => p.start <= now && p.end > now);
+
+  // What's on now, under each channel name in view. Fetched a couple at a time, once you stop scrolling.
+  let rowGuideT;
+  function rowGuides() {
+    clearTimeout(rowGuideT);
+    if (acc?.type !== 'xtream') return;
+    rowGuideT = setTimeout(async () => {
+      const top = listEl.scrollTop, h = listEl.clientHeight || 600, row = rowH();
+      const want = S.live.list.slice(Math.floor(top / row), Math.ceil((top + h) / row) + 1).filter((c) => !guides.has(c.id)).slice(0, 14);
+      for (let i = 0; i < want.length; i += 2) {
+        if (view !== 'live' || watching()) return;
+        await Promise.all(want.slice(i, i + 2).map(guideFor));
+        renderLiveList(true);
+      }
+    }, 600);
+  }
+
   let epgTimer, epgNow = '';
   async function loadEpg(ch) {
     clearInterval(epgTimer);
     epgNow = '';
     const box = $('#epg');
     box.innerHTML = '<div class="epg-empty">Loading guide…</div>';
-    let list = [];
-    try { list = await src.epg(ch); } catch {}
+    const list = await guideFor(ch);
     if (S.live.current !== ch) return;
     const draw = () => {
       const now = Date.now();
@@ -1447,6 +1478,15 @@
     else playVodBuiltin(item, opts);
   }
 
+  // Continue watching plays straight away; an episode brings its series along for Up next when that comes quickly.
+  async function resumeWatching(it) {
+    if (it.kind !== 'episode') return playVod(it);
+    const d = await Promise.race([src.seriesInfo({ id: it.seriesId, name: it.seriesName, poster: it.poster }).catch(() => null), new Promise((r) => setTimeout(r, 1500))]);
+    const eps = d?.seasons?.flatMap((x) => x.eps);
+    const ep = eps?.find((e) => e.id === it.id);
+    playVod(ep || it, ep ? { queue: eps } : {});
+  }
+
   async function playVodMpv(item, { queue, restart } = {}) {
     const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
     const entries = list.map((it, i) => {
@@ -1607,12 +1647,7 @@
       const b = e.target.closest('.poster, .chan-tile');
       if (!b) return;
       const block = b.closest('.block').dataset.block, i = +b.dataset.i;
-      if (block === 'cont') {
-        const it = cont[i].item;
-        if (it.kind === 'movie') return openDetail(it);
-        const series = (await ensure('series').catch(() => null))?.byId.get(it.seriesId) || { kind: 'series', id: it.seriesId, name: it.seriesName, poster: it.poster, cat: '' };
-        return openDetail(series);
-      }
+      if (block === 'cont') return resumeWatching(cont[i].item);
       if (block === 'live') { go('live'); const wait = await ensure('live').catch(() => null); const c = wait?.byId.get(ch[i].id) || ch[i]; tune(c); return; }
       openDetail(block === 'movie' ? mv[i] : se[i]);
     };
@@ -1863,6 +1898,7 @@
     store.set('accounts', accounts);
     ['favs', 'progress', 'recents', 'liveCat', 'lastLive', 'movieView', 'seriesView'].forEach((k) => store.del(`a:${a.id}:${k}`));
     store.del('m3u:' + a.id);
+    store.del('info:' + a.id);
     if (a.id === acc.id) signOut();
   }
 
@@ -2390,7 +2426,7 @@
   // ======================================================================
   // Home (TV): a hero for whatever is focused, then rows of things to watch
   // ======================================================================
-  const home = { rows: [], epg: new Map(), heroT: 0, moved: false };
+  const home = { rows: [], heroT: 0, moved: false };
 
   async function enterHome() {
     ['live', 'movie', 'series'].forEach(takeFresh);
@@ -2498,14 +2534,6 @@
     return row ? { row, it: row.items[+card.dataset.i] } : null;
   }
 
-  async function heroEpg(ch) {
-    const hit = home.epg.get(ch.id);
-    if (hit && Date.now() - hit.at < 300000) return hit.list;
-    let list = [];
-    try { list = await src.epg(ch); } catch {}
-    home.epg.set(ch.id, { at: Date.now(), list });
-    return list;
-  }
 
   function drawHero(sel) {
     const hero = $('#homeHero');
@@ -2527,7 +2555,7 @@
       meta = esc(catalog.live?.catName.get(it.cat) || '');
       desc = '<span class="dim">Loading what’s on…</span>';
       art = `<div class="hero-chlogo">${logo(it.logo, it.name, 'logo xxl')}</div>`;
-      heroEpg(it).then((list) => {
+      guideFor(it).then((list) => {
         if (homeItem(document.activeElement?.closest?.('.hcard'))?.it !== it) return;
         const now = Date.now(), cur = list.find((p) => p.start <= now && p.end > now), next = list.find((p) => p.start >= (cur ? cur.end : now));
         const d = $('#homeHero .tvhero-body p');
@@ -2572,12 +2600,7 @@
       nba.offset = 0; nba.selected = it.id; nba.phoneDetail = true;
       return go('nba');
     }
-    if (row.kind === 'cont') {
-      const item = it.item;
-      if (item.kind === 'movie') return playVod(item);
-      const series = (await ensure('series').catch(() => null))?.byId.get(item.seriesId) || { kind: 'series', id: item.seriesId, name: item.seriesName, poster: item.poster, cat: '' };
-      return openDetail(series);
-    }
+    if (row.kind === 'cont') return resumeWatching(it.item);
     openDetail(it);
   });
 
@@ -2746,7 +2769,21 @@
   // Start
   // ======================================================================
   const active = accounts.find((a) => a.id === store.get('active', null));
-  if (active) {
+  const known = active?.type === 'xtream' && store.get('info:' + active.id, null);
+  if (known) {
+    // Signed in before: open straight away on what we know and check the account in the background.
+    acc = withText(active); src = Core.xtream(acc); info = known;
+    enterShell();
+    src.login().then((d) => {
+      if (acc?.id !== active.id) return;
+      info = d; store.set('info:' + active.id, d);
+      if (view === 'settings') renderSettings();
+    }).catch((err) => {
+      if (acc?.id !== active.id) return;
+      if (/password|account is/i.test(err.message)) { acc = src = info = null; showLogin(err.message); }
+      else toast(`Can't reach ${active.name} right now. Showing what Tuner remembers.`, 5000);
+    });
+  } else if (active) {
     $('#bootText').textContent = `Connecting to ${active.name}…`;
     $('#boot').hidden = false;
     signIn(withText(active)).finally(() => ($('#boot').hidden = true));
