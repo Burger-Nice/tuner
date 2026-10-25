@@ -14,7 +14,7 @@ Then sign in with the server address, username and password from your provider. 
 2. Turn on installs from it: **Settings → Apps → Security & restrictions → Unknown sources → Downloader** (on some TVs: **Settings → System → About**, click **Android TV OS build** 7 times to unlock developer options first).
 3. Open Downloader and enter `https://github.com/Burger-Nice/tuner/releases/latest/download/Tuner.apk`, then **Install**.
 
-Tuner then appears on the home screen. It updates itself: when a new version is out it offers **Update**, downloads it and asks the TV to install it.
+Tuner then appears on the home screen. It updates itself: when a new version is out it pops up **Update** (or go to **Account → Check for updates**), downloads it and asks the TV to install it. The first time, the TV asks you to allow Tuner to install apps: turn it on, press Back, then **Update** again. If an update ever gets stuck, enter the Downloader link above again: it installs over the top and keeps your login.
 
 The TV version opens on a Home screen (Google TV / Netflix style): the NBA games, then your channels, recently watched, your list and what's new. The menu on the left opens when you move into it. The guide previews whatever channel you're on, and **OK** watches it. The on-screen keyboard only comes up when you press **OK** on a search or text box.
 

@@ -24,7 +24,10 @@
     let ustatus = { state: 'idle' };
     const usubs = [];
     const uset = (st) => { ustatus = st; usubs.forEach((f) => f(st)); };
+    let lastCheck = 0;
     const ucheck = async () => {
+      if (ustatus.state === 'downloading') return;
+      lastCheck = Date.now();
       uset({ state: 'checking' });
       try {
         const me = await ready;
@@ -38,6 +41,8 @@
     TP.addListener('update', (e) => uset({ ...ustatus, state: 'downloading', percent: e.percent }));
     setTimeout(ucheck, 8000);
     setInterval(ucheck, 4 * 3600e3);
+    // The TV keeps apps running in the background, so check again whenever Tuner comes back on screen.
+    AppPlugin.addListener('resume', () => { if (Date.now() - lastCheck > 10 * 60e3) setTimeout(ucheck, 1500); });
     window.tuner = {
       platform: 'android',
       setUserAgent: () => {},
@@ -51,7 +56,7 @@
           if (!ustatus.url) return;
           const was = ustatus;
           uset({ ...was, state: 'downloading', percent: 0 });
-          try { await TP.installUpdate({ url: was.url }); uset({ ...was, state: 'ready' }); } catch (e) { uset({ state: 'error', message: e.message }); }
+          try { await TP.installUpdate({ url: was.url }); uset({ ...was, state: 'ready' }); } catch (e) { uset({ ...was, state: 'ready', note: e.message }); }
         },
         onStatus: (f) => usubs.push(f),
       },
@@ -280,7 +285,8 @@
     const sel = ENTRY[name] || `#view-${name} :is(${Nav.FOCUSABLE})`;
     let tries = 0;
     const tick = () => {
-      if (view !== name || !document.activeElement?.closest?.('.rail')) return;
+      const a = document.activeElement;
+      if (view !== name || !(a === document.body || a?.closest?.('.rail'))) return;
       const el = $$(sel).find((x) => x.getClientRects().length);
       if (el) el.focus();
       else if (++tries < 40) setTimeout(tick, 100);
@@ -1297,7 +1303,7 @@
         <div class="card">
           <h4>Tuner ${esc(appVersion)}</h4>
           <p class="hint" id="updateLine" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">${updateLine()}</p>
-          <div class="row desktop-only"><button class="btn" data-update="check" ${native ? '' : 'disabled'}>Check for updates</button></div>
+          ${IOS ? '' : `<div class="row"><button class="btn" data-update="check" ${native ? '' : 'disabled'}>Check for updates</button></div>`}
         </div>
         <div class="card desktop-only">
           <h4>Keyboard</h4>
@@ -2000,10 +2006,17 @@
   native?.updates.status().then(onUpdate);
   native?.updates.onStatus(onUpdate);
   function onUpdate(s) {
+    const was = update.state;
     update = s || { state: 'idle' };
-    $('#updateBar').hidden = update.state !== 'ready' || updateDismissed;
-    if (update.state === 'ready') $('#updateText').textContent = ANDROID ? `Tuner ${update.version} is available.` : `Tuner ${update.version} is ready to install.`;
-    if (ANDROID) $('#updateNow').textContent = 'Update';
+    const bar = $('#updateBar'), now = $('#updateNow');
+    const showing = !bar.hidden;
+    bar.hidden = !(update.state === 'ready' || (ANDROID && update.state === 'downloading')) || updateDismissed;
+    if (update.state === 'ready') $('#updateText').textContent = update.note || (ANDROID ? `Tuner ${update.version} is available.` : `Tuner ${update.version} is ready to install.`);
+    if (update.state === 'downloading') $('#updateText').textContent = `Downloading Tuner ${update.version}… ${update.percent || 0}%`;
+    now.disabled = update.state === 'downloading';
+    if (ANDROID) now.textContent = 'Update';
+    // On the TV the remote can't reach a corner bar on its own, so the first time it appears, put focus on it.
+    if (TV && !bar.hidden && !showing && was !== 'downloading' && !document.activeElement?.matches?.('input, select')) now.focus();
     if (view === 'settings' && $('#updateLine')) $('#updateLine').innerHTML = updateLine();
   }
   function updateLine() {
@@ -2018,12 +2031,16 @@
     }
   }
   $('#updateNow').onclick = () => native?.updates.install();
-  $('#updateLater').onclick = () => { updateDismissed = true; $('#updateBar').hidden = true; toast('The update installs next time you close Tuner.'); };
+  $('#updateLater').onclick = () => {
+    updateDismissed = true; $('#updateBar').hidden = true;
+    toast(ANDROID ? 'You can update any time from Account.' : 'The update installs next time you close Tuner.');
+    if (TV) enterContent(view);
+  };
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-update]');
     if (!b) return;
     if (b.dataset.update === 'install') native?.updates.install();
-    else native?.updates.check();
+    else { updateDismissed = false; native?.updates.check(); }
   });
 
   // ======================================================================
@@ -2064,7 +2081,7 @@
 
     if (view === 'live' && liveKeys(e, k)) { e.preventDefault(); return; }
 
-    if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, $('#shell')); return; }
+    if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, t.closest?.('#updateBar') ? document : $('#shell')); return; }
     if (k === 'back') {
       e.preventDefault();
       const navOn = $('.nav.on');
