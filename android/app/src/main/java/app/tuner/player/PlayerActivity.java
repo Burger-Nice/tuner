@@ -14,6 +14,7 @@ import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
 import android.util.TypedValue;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -213,6 +214,7 @@ public class PlayerActivity extends AppCompatActivity {
             }
             @Override public void onVideoSizeChanged(@NonNull VideoSize size) {
                 quality = qualityLabel(size.height, player.getVideoFormat());
+                matchFrameRate();
                 if (osd.getVisibility() == View.VISIBLE) showOsd();
             }
             @Override public void onMediaItemTransition(MediaItem item, int reason) {
@@ -431,6 +433,15 @@ public class PlayerActivity extends AppCompatActivity {
         if (audioTracks > 1) { labels.add("Audio track"); acts.add(() -> openAudioMenu("Audio")); }
         labels.add("Picture size · " + PICTURE_NAMES[pictureIndex()]);
         acts.add(this::openPictureMenu);
+        if (!live) {
+            boolean on = prefs.getBoolean("matchRate", false);
+            labels.add("Match frame rate · " + (on ? "On" : "Off"));
+            acts.add(() -> {
+                prefs.edit().putBoolean("matchRate", !on).apply();
+                showText("Match frame rate: " + (on ? "Off" : "On"), 1500);
+                matchFrameRate();
+            });
+        }
         menu = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(titles[index])
                 .setItems(labels.toArray(new String[0]), (dlg, which) -> { dlg.dismiss(); acts.get(which).run(); })
@@ -460,6 +471,33 @@ public class PlayerActivity extends AppCompatActivity {
                     dlg.dismiss();
                 })
                 .show();
+    }
+
+    /**
+     * Movies are mostly 24 frames a second and TVs run at 60, which makes slow pans judder. When asked, switch the
+     * TV to a refresh rate the film divides into (same resolution), for as long as the player is open.
+     * Off by default: many TVs go black for a second or two while they switch.
+     */
+    private void matchFrameRate() {
+        if (live || player == null) return;
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        int want = 0;
+        Format f = player.getVideoFormat();
+        Display d = getWindowManager().getDefaultDisplay();
+        if (prefs.getBoolean("matchRate", false) && f != null && f.frameRate > 0 && d != null) {
+            Display.Mode cur = d.getMode();
+            float best = Float.MAX_VALUE;
+            for (Display.Mode m : d.getSupportedModes()) {
+                if (m.getPhysicalWidth() != cur.getPhysicalWidth() || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
+                float ratio = m.getRefreshRate() / f.frameRate;
+                long n = Math.round(ratio);
+                if (n < 1 || Math.abs(ratio - n) > 0.01f * n) continue;
+                if (m.getRefreshRate() < best) { best = m.getRefreshRate(); want = m.getModeId(); }
+            }
+        }
+        if (lp.preferredDisplayModeId == want) return;
+        lp.preferredDisplayModeId = want;
+        getWindow().setAttributes(lp);
     }
 
     /** The app's answer to "Sync the score": the latest baskets, to pick the one just seen on screen. */

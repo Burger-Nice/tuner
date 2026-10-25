@@ -42,6 +42,8 @@ On the TV every channel plays in the built-in ExoPlayer engine at the TV's full 
 
 **Black bars** above and below a movie are normal: most films are wider than a TV, and the player shows the whole picture. **Picture size → Zoom** fills the screen instead (trimming the sides), and **Stretch** fills it by stretching; Tuner remembers your choice.
 
+**Judder on slow pans** in films comes from playing 24 frames a second on a 60 Hz screen. In a movie, press ↓ and pick **Match frame rate**: it switches the TV to a matching refresh rate while it plays (off by default, since many TVs blank for a moment while they switch).
+
 Subtitles work when the movie, episode or channel carries them (most MKV and MP4 files do, and many channels have closed captions). Tuner remembers your choice: pick a language once and it's used from then on; pick **Off** and they stay off. Teletext subtitles, used by some European broadcasters, aren't supported.
 
 **Sync the score to your stream:** IPTV runs behind the real game, so Tuner can hold the score back to match. Right as you see a basket on the TV, press **←/→**, choose **Sync the score to this stream** and pick that basket from the list. Tuner works out the exact delay from ESPN's play-by-play times.
