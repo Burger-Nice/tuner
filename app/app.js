@@ -1511,6 +1511,7 @@
   // Account & settings
   // ======================================================================
   function renderSettings() {
+    if (TV) return renderSettingsTv();
     const s = settings();
     const u = info?.user_info || {};
     const exp = u.exp_date ? new Date(+u.exp_date * 1000) : null;
@@ -1638,12 +1639,120 @@
     $$('[data-switch]').forEach((b) => (b.onclick = () => signIn(withText(accounts[+b.dataset.switch]), b)));
     $$('[data-remove]').forEach((b) => (b.onclick = () => {
       const a = accounts[+b.dataset.remove];
-      accounts = accounts.filter((x) => x !== a);
-      store.set('accounts', accounts);
-      ['favs', 'progress', 'recents', 'liveCat', 'lastLive'].forEach((k) => store.del(`a:${a.id}:${k}`));
-      store.del('m3u:' + a.id);
-      if (a.id === acc.id) signOut(); else renderSettings();
+      removeAccount(a);
+      if (a.id !== acc?.id) renderSettings();
     }));
+  }
+
+  // ---------- Account on the TV: a profile header, then grouped rows; OK on a row opens its choices ----------
+  const ICONS = {
+    stream: '<path d="M3 7h18v11H3zM8 21h8M12 18v3"/>',
+    team: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    bug: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M14 8h4v3h-4z"/>',
+    delay: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+    add: '<path d="M12 5v14M5 12h14"/>',
+    reload: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',
+    update: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+    out: '<path d="M15 4h4v16h-4M10 17l5-5-5-5M15 12H3"/>',
+  };
+  const icon = (k) => `<svg class="srow-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
+  const CHEV_R = '<svg class="srow-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function updateShort() {
+    switch (update.state) {
+      case 'checking': return 'Checking…';
+      case 'current': return 'Up to date';
+      case 'downloading': return `Downloading ${update.percent || 0}%`;
+      case 'ready': return `${update.version} available · Update now`;
+      case 'error': return 'Couldn’t check · try again';
+      default: return 'Check for updates';
+    }
+  }
+  function renderSettingsTv() {
+    const s = settings();
+    const u = info?.user_info || {};
+    const exp = u.exp_date ? new Date(+u.exp_date * 1000) : null;
+    const daysLeft = exp ? Math.ceil((exp - Date.now()) / 86400000) : null;
+    const active = acc.type !== 'xtream' || /active/i.test(u.status);
+    const facts = acc.type === 'xtream'
+      ? [exp ? `Expires ${exp.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}${daysLeft != null ? ` · ${daysLeft} days left` : ''}` : 'Never expires',
+         `${u.active_cons ?? '?'} of ${u.max_connections ?? '?'} connections in use`, String(u.is_trial) === '1' ? 'Trial' : '']
+      : [acc.url ? host(acc.url) : 'Playlist file', `${(catalog.live?.items.length ?? 0).toLocaleString()} channels`];
+    const delays = [[0, 'Off · real time'], [15, '15 seconds'], [30, '30 seconds'], [45, '45 seconds'], [60, '1 minute'], [90, '1.5 minutes'], [120, '2 minutes']];
+    const cur = +s.scoreDelay || 0;
+    if (!delays.some(([v]) => v === cur)) delays.push([cur, `${cur} seconds · synced`]);
+    delays.sort((a, b) => a[0] - b[0]);
+    const teams = [...NBA.TEAMS].sort((a, b) => a.city.localeCompare(b.city)).map((t) => [t.abbr, `${t.city === 'LA' || t.city === 'Los Angeles' ? 'Los Angeles' : t.city} ${t.name}`]);
+    // Each choice row: [key, icon, label, hint, options [[value, label]], current value, on pick]
+    const choices = {
+      format: ['stream', 'Live stream format', 'If a channel won’t play, the other one is tried too', [['hls', 'HLS first'], ['ts', 'MPEG-TS first']], s.liveFormat,
+        (v) => { saveSettings({ liveFormat: v }); catalog.live = null; toast('Saved. Channels reload with the new format.'); }],
+      team: ['team', 'Your team', 'Pinned on top, and Tuner tells you at tip-off', teams, favTeam(),
+        (v) => { saveSettings({ nbaTeam: v }); nba.today = sortGames(nba.today); onNba(); toast('Saved'); }],
+      bug: ['bug', 'Score on the picture', 'Otherwise press OK while watching', [['off', 'Off'], ['on', 'On']], scoreBugOn() ? 'on' : 'off',
+        (v) => { saveSettings({ scoreBug: v === 'on' }); toast('Saved'); }],
+      delay: ['delay', 'Score delay', 'Or press ←/→ during a game: Sync the score', delays.map(([v, l]) => [String(v), l]), String(cur),
+        (v) => { saveSettings({ scoreDelay: +v }); toast(+v ? `Scores now run ${v} seconds behind live` : 'Scores are real time'); }],
+    };
+    const row = (key) => {
+      const [ico, label, hint, opts, value] = choices[key];
+      const shown = (opts.find(([v]) => v === value) || opts[0])[1];
+      return `<button class="srow" data-set="${key}">${icon(ico)}<span class="srow-main"><span class="srow-l">${label}</span><span class="srow-h">${hint}</span></span><span class="srow-v">${esc(shown)}</span>${CHEV_R}</button>`;
+    };
+    const action = (key, ico, label, value, cls = '') => `<button class="srow${cls}" data-act="${key}">${icon(ico)}<span class="srow-main"><span class="srow-l">${label}</span></span>${value ? `<span class="srow-v" id="${key === 'update' ? 'tvUpdateVal' : ''}">${value}</span>` : ''}${CHEV_R}</button>`;
+    $('#settingsPage').innerHTML = `
+      <div class="tv-account">
+        <header class="acct-hero">
+          <span class="acct-av" style="--h:${hue(acc.name)}">${esc(initials(acc.name))}</span>
+          <div class="acct-id">
+            <h2>${esc(acc.name)}</h2>
+            <p>${esc(acc.type === 'xtream' ? `${acc.username} · ${host(acc.server)}` : 'M3U playlist')}</p>
+            <div class="acct-facts"><span class="pill ${active ? 'ok' : 'live'}">${esc(acc.type === 'xtream' ? String(u.status || 'Unknown').toUpperCase() : 'PLAYLIST')}</span>${facts.filter(Boolean).map((f) => `<span>${esc(f)}</span>`).join('')}</div>
+          </div>
+        </header>
+        <section class="sgroup" data-nav="v"><h3>Playback</h3>${row('format')}</section>
+        <section class="sgroup" data-nav="v"><h3>NBA</h3>${row('team')}${row('bug')}${row('delay')}</section>
+        <section class="sgroup" data-nav="v"><h3>Accounts</h3>
+          ${accounts.map((a, i) => `<button class="srow acct-row" data-acct="${i}"><span class="acct-av sm" style="--h:${hue(a.name)}">${esc(initials(a.name))}</span><span class="srow-main"><span class="srow-l">${esc(a.name)}</span><span class="srow-h">${esc(a.type === 'xtream' ? `${a.username} · ${host(a.server)}` : a.url ? host(a.url) : 'Playlist file')}</span></span>${a.id === acc.id ? '<span class="pill ok">IN USE</span>' : '<span class="srow-v">Switch</span>'}${CHEV_R}</button>`).join('')}
+          ${action('add', 'add', 'Add an account')}
+        </section>
+        <section class="sgroup" data-nav="v"><h3>Tuner</h3>
+          ${action('update', 'update', `Version ${esc(appVersion)} · TV`, esc(updateShort()), update.state === 'ready' ? ' hot' : '')}
+          ${action('reload', 'reload', 'Reload channels & library')}
+          ${action('out', 'out', 'Sign out', '', ' danger')}
+        </section>
+      </div>`;
+    const page = $('#settingsPage');
+    page.onclick = (e) => {
+      const b = e.target.closest('.srow');
+      if (!b) return;
+      const back = () => page.querySelector(focusKey(b))?.focus({ preventScroll: true });
+      if (b.dataset.set) {
+        const [, label, , opts, value, pick] = choices[b.dataset.set];
+        openSheet(label, opts.map(([v, l]) => ({ v, l })), value, (v) => { pick(v); renderSettingsTv(); back(); }, back);
+      } else if (b.dataset.acct) {
+        const a = accounts[+b.dataset.acct];
+        const mine = a.id === acc.id;
+        openSheet(a.name, [...(mine ? [] : [{ v: 'switch', l: 'Switch to this account' }]), { v: 'remove', l: 'Remove this account' }], '', (v) => {
+          if (v === 'switch') signIn(withText(a));
+          else { removeAccount(a); if (!mine) { renderSettingsTv(); page.querySelector('.srow')?.focus(); } }
+        }, back);
+      } else if (b.dataset.act === 'add') showLogin();
+      else if (b.dataset.act === 'update') { if (update.state === 'ready') native?.updates.install(); else { updateDismissed = false; native?.updates.check(); } }
+      else if (b.dataset.act === 'reload') {
+        for (const k in catalog) { catalog[k] = null; delete fresh[k]; }
+        Core.cache.clear();
+        toast('Channels and library will reload');
+        view = null;
+        go('home');
+      } else if (b.dataset.act === 'out') signOut();
+    };
+  }
+  function removeAccount(a) {
+    accounts = accounts.filter((x) => x !== a);
+    store.set('accounts', accounts);
+    ['favs', 'progress', 'recents', 'liveCat', 'lastLive', 'movieView', 'seriesView'].forEach((k) => store.del(`a:${a.id}:${k}`));
+    store.del('m3u:' + a.id);
+    if (a.id === acc.id) signOut();
   }
 
   // ======================================================================
@@ -2373,8 +2482,9 @@
     now.disabled = update.state === 'downloading';
     if (ANDROID) now.textContent = 'Update';
     // On the TV the remote can't reach a corner bar on its own, so the first time it appears, put focus on it.
-    if (TV && !bar.hidden && !showing && was !== 'downloading' && !document.activeElement?.matches?.('input, select')) now.focus();
+    if (TV && !bar.hidden && !showing && was !== 'downloading' && !document.activeElement?.matches?.('input, select') && $('#optSheet').hidden) now.focus();
     if (view === 'settings' && $('#updateLine')) $('#updateLine').innerHTML = updateLine();
+    if (view === 'settings' && $('#tvUpdateVal')) { $('#tvUpdateVal').textContent = updateShort(); $('#tvUpdateVal').closest('.srow').classList.toggle('hot', update.state === 'ready'); }
   }
   function updateLine() {
     switch (update.state) {
@@ -2445,9 +2555,17 @@
       return;
     }
 
+    // The update prompt keeps the remote until you choose: ←/→ between Update and Later, Back means Later.
+    if (t.closest?.('#updateBar')) {
+      if (k === 'left' || k === 'right') { e.preventDefault(); Nav.move(k, $('#updateBar')); return; }
+      if (k === 'up' || k === 'down') { e.preventDefault(); return; }
+      if (k === 'back') { e.preventDefault(); $('#updateLater').click(); return; }
+    }
+
     if (view === 'live' && liveKeys(e, k)) { e.preventDefault(); return; }
 
-    if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, t.closest?.('#updateBar') ? document : $('#shell')); return; }
+    // While the update prompt is up it can be reached from anywhere, like any other button on screen.
+    if (['up', 'down', 'left', 'right'].includes(k)) { e.preventDefault(); Nav.move(k, $('#updateBar').hidden ? $('#shell') : document); return; }
     if (k === 'back') {
       e.preventDefault();
       const navOn = $('.nav.on');
