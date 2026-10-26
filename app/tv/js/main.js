@@ -18,6 +18,7 @@ import search from './screens/search.js';
 import saved from './screens/saved.js';
 import account from './screens/account.js';
 import first from './screens/first.js';
+import { launchOpen, launchReady } from './launch.js';
 
 const app = $('#app');
 setBase(app);
@@ -44,6 +45,7 @@ let okDown = null;   // { el, t, held, timer }
 document.addEventListener('keydown', (e) => {
   const k = keyName(e);
   if (!k) return;
+  if (!launchOpen()) { e.preventDefault(); e.stopPropagation(); return; }   // keys count from the wipe on
   if (typing()) {
     // The keyboard owns the field; Back (or ▲▼) leaves it without leaving the page.
     if (!['back', 'up', 'down'].includes(k)) return;
@@ -122,6 +124,7 @@ async function start() {
   await Promise.race([Promise.resolve(native?.ready), sleep(1500)]);
   if (resume()) go('home');
   else go('first');
+  requestAnimationFrame(() => requestAnimationFrame(launchReady));   // drawn: the launch can wipe to it
 }
 start();
 
