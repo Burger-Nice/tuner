@@ -2,7 +2,7 @@
 // sheet with live counts, and Jump. Only the rows around the focus are mounted, so 50,000 titles scroll like 50.
 import { $, esc, ic, dot, setHtml, compact } from '../util.js';
 import { S, on, store, scoped, toggleFav, isFav, markWatched } from '../state.js';
-import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, optionCounts, filterCount, jumpTargets, prefLangs } from '../catalog.js';
+import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, optionCounts, filterCount, jumpTargets, prefLangs, genresOf } from '../catalog.js';
 import { poster } from '../cards.js';
 import { push, barHidden, current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
@@ -143,18 +143,20 @@ export default function lib(kind) {
     const genres = catalog[kind].facets.genres.slice(0, 14);
     const secs = () => [
       ['Language', 'lang', [['mine', 'Your languages'], ['all', 'All languages'], ...otherLangs.map((l) => [l, l])]],
-      ['Genre', 'genre', [['', 'Any'], ...genres.map((g) => [g, g])]],
+      ['Genre', 'genre', [['', 'Any'], ...genres.map((g) => [g, g])], 'Pick as many as you like'],
       ['Quality', 'q', [['', 'Any'], ['hd', 'HD and up'], ['4K', '4K']]],
       ['Subtitles', 'sub', [['', 'Any'], [true, 'With subtitles']]],
       ['IMDb', 'imdb', [['', 'Any'], ...IMDB_MIN.map(([l, v]) => [v, l])]],
       ['Decade', 'decade', [['', 'Any'], ...DECADES.map(([l]) => [l, l])]],
     ];
     const total = () => browse(kind, { ...view, f: draft }).length;
-    const body = () => secs().map(([title, key, opts]) => {
+    const body = () => secs().map(([title, key, opts, note]) => {
       const vals = opts.map(([v]) => v);
       const counts = optionCounts(kind, { f: draft }, key, vals.map((v) => (v === '' ? undefined : v)));
-      return `<div class="sec">${title}</div><div class="chips" data-row>${opts.map(([v, l], j) => {
-        const sel = (draft[key] ?? '') === v || (v === '' && !draft[key]) || (key === 'lang' && v === 'all' && !draft.lang);
+      const picked = genresOf(draft);
+      return `<div class="sec">${title}${note ? `<span class="t-cap" style="margin-left:10px;font-weight:500;text-transform:none;letter-spacing:0">${note}</span>` : ''}</div><div class="chips" data-row>${opts.map(([v, l], j) => {
+        const sel = key === 'genre' ? (v === '' ? !picked.length : picked.includes(v))
+          : (draft[key] ?? '') === v || (v === '' && !draft[key]) || (key === 'lang' && v === 'all' && !draft.lang);
         const n = v === '' || v === 'all' ? null : counts[j];
         return `<span class="chip fx${sel ? ' sel' : ''}${n === 0 && !sel ? ' dis' : ''}" tabindex="-1" data-act="f" data-k="${key}" data-v="${esc(String(v))}">${esc(l)}${n != null ? `<span class="n">${compact(n)}</span>` : ''}</span>`;
       }).join('')}</div>`;
@@ -178,6 +180,12 @@ export default function lib(kind) {
           const key = t.dataset.k; let v = t.dataset.v;
           if (key === 'imdb') v = v ? +v : '';
           if (key === 'sub') v = v === 'true';
+          if (key === 'genre' && v) {
+            // Genres add up: each OK turns one on or off; "Any" clears them.
+            const set = genresOf(draft);
+            v = set.includes(v) ? set.filter((g) => g !== v) : [...set, v];
+            v = v.length > 1 ? v : v[0] || '';
+          }
           draft = { ...draft, [key]: v };
           if (!v || (key === 'lang' && v === 'all')) delete draft[key];
           draw();

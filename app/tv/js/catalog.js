@@ -373,14 +373,16 @@ const sorters = {
 };
 export const DECADES = [['2020s', 2020, 2099], ['2010s', 2010, 2019], ['2000s', 2000, 2009], ['Older', 0, 1999]];
 export const IMDB_MIN = [['6+', 6], ['7+', 7], ['8+', 8]];
-// A filter set: { lang: 'mine' | 'all' | <language>, genre, q: 'hd' | '4K', sub: true, imdb: 7, decade: '2010s' }
+// A filter set: { lang: 'mine' | 'all' | <language>, genre: 'Comedy' | ['Comedy', 'Action'] (any of them),
+// q: 'hd' | '4K', sub: true, imdb: 7, decade: '2010s' }
+export const genresOf = (f) => (f.genre ? [].concat(f.genre) : []);
 let L = ['English'];   // your languages, read once per browse() / optionCounts() call
 function match(t, f, skip) {
   if (skip !== 'lang' && f.lang && f.lang !== 'all') {
     if (f.lang === 'mine') { if (t._langs.size && ![...t._langs].some((l) => L.includes(l))) return false; }
     else if (!t._langs.has(f.lang)) return false;
   }
-  if (skip !== 'genre' && f.genre && !t._genres?.includes(f.genre)) return false;
+  if (skip !== 'genre' && f.genre && !(Array.isArray(f.genre) ? f.genre.some((g) => t._genres?.includes(g)) : t._genres?.includes(f.genre))) return false;
   if (skip !== 'q' && f.q && !(f.q === '4K' ? t._qs.has('4K') : t._qs.has('4K') || t._qs.has('Full HD') || t._qs.has('HD'))) return false;
   if (skip !== 'sub' && f.sub && !t._sub) return false;
   if (skip !== 'imdb' && f.imdb && !((t._ir || 0) >= f.imdb)) return false;
