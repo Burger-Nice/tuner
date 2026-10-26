@@ -157,6 +157,7 @@ export const teamChannel = (abbr) => store.get(teamChKey(), {})[abbr] || null;
 export function setTeamChannel(abbr, chId) { const m = store.get(teamChKey(), {}); m[abbr] = chId; store.set(teamChKey(), m); emit('nba'); }
 const feedCache = new Map();   // gameId -> { at, list }
 export function feedsNow(g) { return feedCache.get(g?.id)?.list || []; }
+export const feedsKnown = (g) => feedCache.has(g?.id);
 const feedJobs = new Map();   // gameId -> the scan in progress, so callers that poll don't start another
 export function findFeeds(g) {
   if (!g) return Promise.resolve([]);

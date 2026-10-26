@@ -65,7 +65,7 @@ export function gameCard(g0, i) {
 
 // The broadcast-graphic hero (Home and the NBA hub): status row, two team plates and the score, buttons, and the slab
 // with the game clock (the clock is shown once: when the slab carries it the status row drops it).
-export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimary = true } = {}) {
+export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimary = true, searching = false } = {}) {
   const v = show(g0), g = v.g;
   const pre = g.state === 'pre', shield = v.hidden, choose = !channel && !pre && g.state !== 'post';
   const post = g.state === 'post';
@@ -80,7 +80,7 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   const primary = choose ? `${ic('search')}Choose channel` : pre ? `${ic('play')}Watch pre-game` : post ? `${ic('score')}Box score` : `${ic('play')}Watch live`;
   const secondary = shield ? ['reveal', 'Reveal score'] : choose ? ['guide', 'Open guide'] : post ? null : ['box', 'Box score'];
   const leaders = () => { const l = (t) => t.leaders?.find((x) => x.stat === 'PTS'); const a = l(g.away), h = l(g.home); return [a, h].filter(Boolean).map((x) => `<b style="color:var(--a-text-1);font-weight:650">${esc(x.who)}</b> ${esc(x.value)} pts`).join('<br>'); };
-  const cap = choose ? 'No channel found yet<br>Your pick is remembered'
+  const cap = choose ? (searching ? 'Looking for the channel…' : 'No channel found yet<br>Your pick is remembered')
     : hub && !shield && !pre ? leaders()
     : channel ? `On ${esc(channel.name)}${feeds > 1 ? `<br>Hold OK for ${feeds - 1} more channel${feeds > 2 ? 's' : ''}` : ''}` : '';
   let slab;

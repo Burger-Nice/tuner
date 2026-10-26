@@ -5,7 +5,7 @@ import { $, esc, setHtml, ic } from '../util.js';
 import { S, on, store, scoped, favList, continueRows, toggleFav, isFav, markWatched } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
-import { nba, myGame, isMine, mySide, findFeeds, feedsNow, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
+import { nba, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
 import { gameHero, resumeHero, channelHero, liveCard, contCard } from '../cards.js';
 import { playLive, playVod } from '../player.js';
 import { push, go, current } from '../router.js';
@@ -56,7 +56,13 @@ function draw() {
   if (!heroKind) heroLockUntil = Date.now() + 3000;
   heroKind = kind;
   let hero = '';
-  if (kind === 'game' && g) { const ch = channelFor(g); hero = gameHero(g, { channel: ch, feeds: feedsNow(g).length }); }
+  if (kind === 'game' && g) {
+    // Ask which channels carry it as soon as there's a game and a channel list (the 'feeds' event redraws).
+    const searching = !feedsKnown(g) && !teamChannel(mySide(g).abbr);
+    if (!feedsKnown(g) && catalog.live) findFeeds(g);
+    const ch = channelFor(g);
+    hero = gameHero(g, { channel: ch, feeds: feedsNow(g).length, searching });
+  }
   else if (kind === 'resume' && cont[0]) hero = resumeHero(cont[0]);
   else if (kind === 'channel' && lastChannel()) { const ch = lastChannel(); hero = channelHero(ch, onNow(guideNow(ch))); }
   else hero = `<div class="hero-plate"><div class="abs" style="left:24px;top:24px"><div class="t-head">Welcome to airglow</div><div class="t-body" style="margin-top:8px;width:560px">Your channels, films and series are loading. Pick a channel from Live to start.</div></div><div class="abs row-flex hero-btns" data-row style="left:24px;top:132px"><span class="btn fx" tabindex="-1" data-act="guide">${ic('live')}Open the guide</span></div></div>`;
