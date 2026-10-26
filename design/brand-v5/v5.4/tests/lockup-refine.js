@@ -1,0 +1,6 @@
+const fs = require('fs'), path = require('path'); const { lockupSvg } = require('../tools/lockup3.js');
+const url = s => 'data:image/svg+xml;utf8,' + encodeURIComponent(s);
+const V = [['A', 'mark = ascender height, sits on the baseline, gap 30 (closest to what the owner saw)', {}], ['B', 'smaller mark (1.2x x-height), centred on the x-height, gap 26', {}], ['C', 'mark = cap height, centred on caps, wider gap 34', {}], ['A2', 'A with a tighter gap (22)', { lk: { gap: 22 } }]];
+let cells = ''; V.forEach(([k, t, o], i) => { const v = k[0]; const s = lockupSvg('l' + i, v, o); fs.writeFileSync(path.join(__dirname, `lockup-${k}.svg`), s); const u = url(s);
+ cells += `<div class="c"><div class="t">${k}  ${t}</div><div class="r"><img src="${u}" height="130"><img src="${u}" height="48"><img src="${u}" height="26"><span style="filter:blur(2.4px)"><img src="${u}" height="48"></span></div></div>`; });
+fs.writeFileSync(path.join(__dirname, 'lockup-refine.html'), `<!doctype html><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;background:#15131D;color:#BBB7CB;font:12px system-ui;padding:22px;width:1500px}.c{background:#1E1B28;border:1px solid #3C3452;border-radius:12px;padding:12px;margin-bottom:12px}.t{color:#F3EFE6;margin-bottom:8px}.r{display:flex;gap:40px;align-items:center}</style>${cells}`);

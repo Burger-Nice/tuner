@@ -1,0 +1,22 @@
+// Launch storyboard: 4 frames, 1100 ms total. node tools/launch.js -> launch.html (render 960 wide @2x)
+const fs=require('fs'),path=require('path');const root=path.join(__dirname,'..');
+const M3=require('./mark3.js'),{FINAL}=require('./lockup3.js');const mk=(step,w)=>`<img src="data:image/svg+xml;utf8,${encodeURIComponent(M3.svgMark('m'+step,{...FINAL,step},6))}" style="width:${w}px;position:relative">`;
+const frame=(n,t,title,body,inner)=>`<div class="fr"><div class="stage">${inner}</div><div class="meta"><b>${n} · ${t}</b><span>${title}</span><i>${body}</i></div></div>`;
+const html=`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="tokens.css"><style>
+*{box-sizing:border-box;margin:0}body{background:#0f0c18;color:var(--a-text-1);font:500 14px/20px var(--a-font-text);width:960px;padding:24px}
+h1{font:700 22px/28px var(--a-font-display);margin-bottom:4px}.sub{color:var(--a-text-2);font-size:13px;line-height:18px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.stage{position:relative;height:250px;background:var(--a-bg-0);border:1px solid var(--a-border);border-radius:10px;overflow:hidden;display:grid;place-items:center}
+.glow{position:absolute;background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
+.meta{padding:8px 2px 0}.meta b{display:block;font:650 12px/16px var(--a-font-text);letter-spacing:.1em;text-transform:uppercase;color:var(--a-pink-text)}.meta span{display:block;font:650 15px/20px var(--a-font-text)}.meta i{display:block;font-style:normal;color:var(--a-text-2);font-size:13px;line-height:18px;margin-top:2px}
+.bar{display:flex;height:22px;margin-top:20px;border-radius:6px;overflow:hidden;font:650 11px/22px var(--a-font-text);color:var(--a-bg-0)}.bar div{text-align:center}
+</style></head><body>
+<h1>Launch, 1100 ms</h1><div class="sub">Native splash is the static mark on the canvas colour (shown until the WebView paints, no animation, no logo change between splash and the first animated frame). Everything after the splash is CSS transform and opacity (no blur filters, no sprites, no JS timers). The mark and the lockup never share a frame: the mark hands over to the lockup, it does not sit beside it. There is no glow anywhere in the logo or its animation.</div>
+<div class="grid">
+${frame(1,'0 ms','Native splash','Static wedge on #15131D (bg-0, the same value as the WebView canvas, so no flash). Android splash theme. Hold until first paint.',`${mk(0.01,70)}`)}
+${frame(2,'300 ms','Echoes step out','The three bands slide out from behind the wedge, left, 300 ms ease-out, one after another (40 ms stagger). Transform only: no glow, no sprite.',`${mk(5,150)}`)}
+${frame(3,'700 ms','Lockup resolves','The wedge hands over to the lockup (320 ms crossfade); the wordmark fades in left to right, 40 ms per letter group. The bands settle into their final steps.',`<img src="assets/lockup.svg" style="position:relative;width:300px">`)}
+${frame(4,'1100 ms','8° wipe to Home','One soft slab (8°, gradient only pink to orchid) crosses left to right in 280 ms and reveals the Home canvas. Lockup is gone by the time the slab passes. Total 1100 ms.',`<div style="position:absolute;inset:0;background:var(--a-bg-0)"></div><div style="position:absolute;left:0;top:0;bottom:0;width:62%;background:var(--a-bg-1)"><div style="position:absolute;left:18px;top:18px;width:90px;height:14px;border-radius:7px;background:var(--a-surface-2)"></div><div style="position:absolute;left:18px;top:52px;width:150px;height:84px;border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border)"></div><div style="position:absolute;left:180px;top:52px;width:150px;height:84px;border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border)"></div></div><div style="position:absolute;left:52%;top:-12px;bottom:-12px;width:90px;background:var(--a-grad);transform:skewX(-8deg);opacity:.95"></div><div style="position:absolute;left:calc(52% - 14px);top:-12px;bottom:-12px;width:6px;background:var(--a-orchid);opacity:.5;transform:skewX(-8deg)"></div>`)}
+</div>
+<div class="bar"><div style="width:27%;background:var(--a-text-3)">0-300 bands step out</div><div style="width:36%;background:var(--a-orchid-text)">300-700 lockup resolves</div><div style="width:37%;background:var(--a-pink-text)">700-1100 hold, then wipe</div></div>
+</body></html>`;
+fs.writeFileSync(path.join(root,'launch.html'),html);console.log('launch.html');
