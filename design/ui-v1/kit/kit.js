@@ -45,12 +45,12 @@
   const img = (f, cls = '', h) => `<img src="${BR}assets/${f}" class="${cls}"${h ? ` height="${h}"` : ''} alt="">`;
   const f = (on, kind = 'f') => (on ? ` ${kind}` : '');
 
-  const TABS = [['home', 'Home'], ['live', 'Live'], ['nba', 'NBA'], ['movies', 'Movies'], ['series', 'Series']];
-  function topbar({ sel = 'home', focus = '', live = true } = {}) {
+  const TABS = [['home', 'Home'], ['live', 'Live'], ['nba', 'NBA'], ['movies', 'Movies'], ['series', 'Series'], ['saved', 'Saved']];
+  function topbar({ sel = 'home', focus = '', live = true, update = false } = {}) {
     const srch = `<span class="tab srch${sel === 'search' ? ' sel' : ''}${focus === 'tab:search' ? ' f-ring' : ''}">${ic('search')}Search</span>`;
-    const tabs = TABS.map(([k, l]) => `<span class="tab${k === sel ? ' sel' : ''}${focus === 'tab:' + k ? ' f-ring' : ''}">${l}${k === 'nba' && live ? '<span class="a-live">Live</span>' : ''}</span>`).join('');
-    return `<div class="topbar">${img('mark.svg', 'mk')}<div class="tabs">${srch}${tabs}</div>
-      <div class="tb-r"><span class="avatar${f(focus === 'account', 'f-ring')}" style="box-sizing:content-box">B</span></div></div>`;
+    const tabs = TABS.map(([k, l]) => `<span class="tab${k === sel ? ' sel' : ''}${focus === 'tab:' + k ? ' f-ring' : ''}">${l}${k === 'nba' && live ? '<span class="a-live compact">Live</span>' : ''}</span>`).join('');
+    return `<div class="topbar">${img('mark-small.svg', 'mk')}<div class="tabs">${srch}${tabs}</div>
+      <div class="tb-r"><span class="avatar${f(focus === 'account', 'f-ring')}" style="box-sizing:content-box">B${update ? '<i class="udot"></i>' : ''}</span></div></div>`;
   }
 
   const tag = (t, c = '') => `<span class="tag ${c}">${t}</span>`;
@@ -61,11 +61,11 @@
 
   function posterArt(m) {
     if (m.noart) return `<div class="noart"><span class="ini">${initials(m.t)}</span><span class="nt clamp3">${m.t}</span></div>`;
-    return `<div class="art">${Art.art(m.id, { style: m.style, hue: m.hue })}</div><div class="ptl clamp2">${m.t.split(':')[0]}</div>`;
+    return `<div class="art">${Art.art(m.id, { style: m.style, hue: m.hue })}</div>`;
   }
   function poster(m, { focus = false } = {}) {
     const tl = (m.q || []).includes('4K') ? tag('4K', 'q') : '';
-    const tr = m.lang && m.lang !== 'EN' ? tag(m.lang) : '';
+    const tr = m.vers > 1 ? tag('+' + (m.vers - 1)) : (m.lang && m.lang !== 'EN' ? tag(m.lang) : '');
     return `<div class="pc${focus ? ' fc' : ''}"><div class="box${focus ? ' f' : ''}">${posterArt(m)}${tl ? `<div class="tl">${tl}</div>` : ''}${tr ? `<div class="tr">${tr}</div>` : ''}${m.prog ? `<div class="prog flush"><i style="width:${m.prog}%"></i></div>` : ''}</div>
       <div class="cap">${m.t}</div><div class="cm">${m.y}${dot}${(m.g && m.g[0]) || ''}</div></div>`;
   }
@@ -80,7 +80,7 @@
       <div class="bt"><b>${n.t}</b><div class="sb">${ch.name}${dot}${ch.q}</div></div><div class="prog flush"><i style="width:${pg}%"></i></div></div>`;
   }
   const Kit_NOW = () => Mock.NOW.mins / 60;
-  const team = (abbr, size = '') => { const t = Mock.TEAMS[abbr]; return `<span class="team ${size}" style="background:${t.c}">${abbr}</span>`; };
+  const team = (abbr, size = '') => `<span class="team ${size}">${abbr}</span>`;
 
   /* Game card: upright Soft card, Sharp skewed score plate inside. state: in | post | pre. */
   function gameCard(gm, { focus = false, shield = false } = {}) {
@@ -109,9 +109,9 @@
     const s = Math.max(c.s, WIN.start), e = Math.min(c.e, WIN.start + WIN.hours);
     const clipL = c.s < WIN.start;
     const wide = (e - s) >= 0.6;
-    const sub = empty ? '' : live ? liveP() : `${clipL ? '◂ ' : ''}${hm(c.s)}${wide ? dot + hm(c.e) : ''}`;
+    const sub = empty ? '' : live ? '<span class="a-live compact">Live</span>' : `${clipL ? '◂ ' : ''}${hm(c.s)}${wide ? dot + hm(c.e) : ''}`;
     const pg = now ? `<div class="prog"><i style="width:${Math.min(100, ((NOWH - c.s) / (c.e - c.s)) * 100)}%"></i></div>` : '';
     return `<div class="g-cell${now ? ' now' : ''}${focus ? ' f-in' : ''}${empty ? ' empty' : ''}" style="left:${pct(s)}%;width:calc(${pct(e) - pct(s)}% - 4px)"><b>${c.t}</b><div class="sb">${sub}</div>${pg}</div>`;
   }
-  g.Kit = { P, ic, img, BR, topbar, tag, liveP, dot, star, initials, poster, wcard, liveCard, team, gameCard, cell, hm, pct, WIN, NOWH, f };
+  g.Kit = { P, TABS, ic, img, BR, topbar, tag, liveP, dot, star, initials, poster, wcard, liveCard, team, gameCard, cell, hm, pct, WIN, NOWH, f };
 })(window);

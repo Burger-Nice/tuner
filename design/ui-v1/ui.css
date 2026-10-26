@@ -24,8 +24,8 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .t-sub{font:650 15px/20px var(--a-font-text)}
 .t-body{font:500 16px/24px var(--a-font-text);color:var(--a-text-2)}
 .t-label{font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
-.t-cap{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
-.t-fine{font:500 13px/16px var(--a-font-text);color:var(--a-text-3)}
+.t-cap{font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-3)}
+.t-fine{font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-3)}
 .t-2{color:var(--a-text-2)}.t-3{color:var(--a-text-3)}.t-pink{color:var(--a-pink-text)}.t-orchid{color:var(--a-orchid-text)}
 
 /* focus: ring (3 px white, 2 px canvas gap) + 1.05 lift on cards and primary buttons. Never glow. */
@@ -39,14 +39,14 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .tabs{display:flex;align-items:center;gap:2px}
 .tab.srch{padding:0 18px 0 14px;gap:8px}
 .tab.srch svg{width:22px;height:22px}
-.tab{height:40px;padding:0 16px;border-radius:999px;font:500 18px/40px var(--a-font-display);color:var(--a-text-2);position:relative;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.tab{height:40px;padding:0 14px;border-radius:999px;font:500 18px/40px var(--a-font-display);color:var(--a-text-2);position:relative;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .tab.sel{font-weight:700;color:var(--a-text-1)}
 .tab.sel::after{content:"";position:absolute;left:16px;right:16px;bottom:1px;height:3px;border-radius:2px;background:var(--a-grad)}
 .tab.f-ring{background:var(--a-bg-1)}
 .tb-r{margin-left:auto;display:flex;align-items:center;gap:8px}
 .ibtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--a-text-1);position:relative}
 .ibtn.bg{background:var(--a-surface-1)}
-.avatar{width:36px;height:36px;border-radius:50%;background:var(--a-grad);color:var(--a-ink);font:700 16px/36px var(--a-font-display);text-align:center}
+.avatar{position:relative;width:36px;height:36px;border-radius:50%;background:var(--a-grad);color:var(--a-ink);font:700 16px/36px var(--a-font-display);text-align:center}
 .topfade{position:absolute;left:0;right:0;top:0;height:84px;background:linear-gradient(180deg,var(--a-bg-0),rgba(21,19,29,0));z-index:5}
 
 /* ---------- buttons, chips, tags ---------- */
@@ -63,7 +63,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .pillbtn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;border:2px solid var(--a-border-strong);font:650 15px/1 var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
 .pillbtn .ic{width:18px;height:18px}
 .pillbtn b{font-weight:750;color:var(--a-pink-text)}
-.tag{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:5px;background:rgba(21,19,29,.78);border:1px solid var(--a-border-strong);color:var(--a-text-1);font:650 13px/1 var(--a-font-text);letter-spacing:.04em;text-transform:uppercase}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:5px;background:rgba(21,19,29,.78);border:1px solid var(--a-border-strong);color:var(--a-text-1);font:650 var(--a-size-badge)/1 var(--a-font-text);letter-spacing:.04em;text-transform:uppercase}
 .tag.q{background:var(--a-surface-3);border-color:transparent}
 .badge-live.a-live{height:22px}
 .dot-sep{flex:none;display:inline-block;width:3px;height:3px;border-radius:50%;background:var(--a-text-3);margin:0 8px;vertical-align:middle}
@@ -78,13 +78,12 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .art-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .noart{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:12px;background:var(--a-surface-2)}
 .noart .ini{font:700 34px/1 var(--a-font-display);color:var(--a-text-2)}
-.noart .nt{font:650 13px/16px var(--a-font-text);color:var(--a-text-1)}
+.noart .nt{font:650 14px/18px var(--a-font-text);color:var(--a-text-1)}
 .ptitle{position:absolute;left:0;right:0;bottom:0;padding:26px 10px 9px;background:linear-gradient(180deg,rgba(21,19,29,0),rgba(21,19,29,.9))}
 
 .pc{width:124px;flex:none;position:relative}
 .pc .box{position:relative;width:124px;height:186px;border-radius:12px;overflow:hidden;border:1px solid var(--a-border);background:var(--a-surface-1)}
-.pc .ptl{position:absolute;left:0;right:0;bottom:0;padding:24px 8px 8px;font:800 14px/15px var(--a-font-display);text-transform:uppercase;letter-spacing:.02em;overflow-wrap:anywhere;color:#F3EFE6;background:linear-gradient(180deg,rgba(21,19,29,0),rgba(21,19,29,.62))}
-.pc .cap{margin-top:8px;font:650 16px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc .cap{margin-top:14px;font:650 16px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pc .cm{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pc .tl{position:absolute;left:6px;top:6px;display:flex;gap:4px}
 .pc .tr{position:absolute;right:6px;top:6px}
@@ -112,9 +111,9 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .logo{width:40px;height:40px;border-radius:8px;background:var(--a-surface-2);display:grid;place-items:center;font:700 14px/1 var(--a-font-display);color:var(--a-text-2);flex:none;letter-spacing:.02em}
 .logo.sm{width:32px;height:32px;border-radius:7px;font-size:12px}
 .logo.lg{width:56px;height:56px;border-radius:12px;font-size:18px}
-.team{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 12px/1 var(--a-font-display);color:#fff;flex:none;border:1px solid rgba(243,239,230,.28)}
+.team{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 var(--a-size-badge)/1 var(--a-font-text);color:var(--a-text-1);background:var(--a-surface-3);flex:none;border:1px solid var(--a-border-strong);letter-spacing:.02em}
 .team.lg{width:48px;height:48px;font-size:15px}
-.team.md{width:40px;height:40px;font-size:13px}
+.team.md{width:40px;height:40px;font-size:12px}
 .team.xl{width:64px;height:64px;font-size:19px}
 
 /* ---------- Sharp dialect (live + NBA only): plates skew, text never ---------- */
@@ -143,8 +142,8 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .menu{position:absolute;z-index:21;width:300px;background:var(--a-bg-1);border:1px solid var(--a-border);border-radius:24px;padding:16px 12px 12px}
 .menu h3{font:700 22px/28px var(--a-font-display);padding:0 8px 8px}
-.kbd{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:5px;background:var(--a-surface-2);color:var(--a-text-1);font:650 13px/1 var(--a-font-text);margin-right:6px}
-.hintbar{position:absolute;left:0;right:0;bottom:0;height:34px;background:var(--a-scrim);display:flex;gap:22px;align-items:center;padding:0 48px;font:500 13px/16px var(--a-font-text);color:var(--a-text-2);z-index:7}
+.kbd{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:5px;background:var(--a-surface-2);color:var(--a-text-1);font:650 14px/1 var(--a-font-text);margin-right:6px}
+.hintbar{position:absolute;left:0;right:0;bottom:0;height:34px;background:var(--a-scrim);display:flex;gap:22px;align-items:center;padding:0 48px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);z-index:7}
 
 /* ---------- Home ---------- */
 .hero-plate{position:absolute;left:48px;right:48px;top:84px;height:176px;border-radius:16px;background:var(--a-surface-1);border:1px solid var(--a-border);overflow:hidden}
@@ -182,7 +181,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 
 /* ---------- Library ---------- */
 .lib-head{position:absolute;left:48px;right:48px;top:80px;height:40px;display:flex;align-items:center;gap:16px}
-.lib-chips{position:absolute;left:48px;right:0;top:128px;height:36px;display:flex;gap:8px;overflow:hidden}
+.lib-chips{position:absolute;left:48px;right:48px;top:128px;height:36px;display:flex;gap:8px}
 .lib-grid{position:absolute;left:48px;top:176px;width:864px;display:grid;grid-template-columns:repeat(6,124px);column-gap:24px;row-gap:14px}
 
 /* ---------- Detail ---------- */
@@ -200,7 +199,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .ep .eb b{display:block;font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ep .eb span{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
 .ep.done .th .art{opacity:.55}
-.ep .num{position:absolute;left:8px;top:8px;height:22px;min-width:22px;padding:0 7px;border-radius:6px;background:rgba(21,19,29,.82);font:700 13px/22px var(--a-font-text);color:var(--a-text-1)}
+.ep .num{position:absolute;left:8px;top:8px;height:22px;min-width:22px;padding:0 7px;border-radius:6px;background:rgba(21,19,29,.82);font:700 var(--a-size-badge)/22px var(--a-font-text);color:var(--a-text-1)}
 .ep .chk{position:absolute;right:8px;top:8px;width:24px;height:24px;border-radius:50%;background:rgba(21,19,29,.82);display:grid;place-items:center}
 .ep .chk .ic{width:14px;height:14px;stroke-width:3}
 .seas{display:flex;gap:8px}
@@ -251,3 +250,44 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .endcard{width:124px;height:186px;flex:none;border-radius:12px;border:2px dashed var(--a-border-strong);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--a-text-2);font:650 16px/20px var(--a-font-text);text-align:center;padding:0 10px}
 
 .dayrow .t-cap{white-space:nowrap}
+
+.a-live.compact{height:var(--a-live-compact-h);font-size:var(--a-size-badge);padding:0 8px;border-width:1.5px}
+.a-live.compact::before{width:6px;height:6px}
+:root{--scrim-0:rgba(21,19,29,0);--scrim-86:rgba(21,19,29,.86);--scrim-94:rgba(21,19,29,.94)}
+
+.udot{position:absolute;right:-3px;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--a-text-1);border:3px solid var(--a-bg-0);box-sizing:content-box}
+
+.chip.dis{background:var(--a-surface-2);color:var(--a-text-4)}
+.chip .n{font-weight:500;color:var(--a-text-3)}.chip.sel .n{color:var(--a-pink-text)}.chip.dis .n{color:var(--a-text-4)}
+.sheet-scroll{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:8px;position:relative;margin-right:-8px;padding-right:8px}
+.sheet-scroll::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;background:linear-gradient(180deg,var(--scrim-0),var(--a-bg-1))}
+.ctxline{position:absolute;left:48px;top:27px;height:20px;font:500 var(--a-size-caption)/20px var(--a-font-text);color:var(--a-text-3);z-index:4}
+.bubble{position:absolute;right:48px;top:200px;width:128px;padding:10px 12px;border-radius:14px;background:var(--a-bg-1);border:1px solid var(--a-border);z-index:6;text-align:center}
+.bubble b{display:block;font:700 28px/32px var(--a-font-display)}.bubble span{display:block;font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-2)}
+.ctxmenu{position:absolute;z-index:22;width:236px;background:var(--a-bg-1);border:1px solid var(--a-border);border-radius:16px;padding:8px}
+
+/* ---------- NBA game detail ---------- */
+.gd-head{position:absolute;left:48px;right:48px;top:80px;height:84px;border-radius:16px;background:var(--a-surface-1);border:1px solid var(--a-border);overflow:hidden}
+.gd-tabs{position:absolute;left:48px;right:48px;top:174px;height:36px;display:flex;gap:8px;align-items:center}
+.gd-body{position:absolute;left:48px;right:48px;top:220px}
+table.box{width:100%;border-collapse:collapse;font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-1)}
+table.box th{font:650 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-3);text-align:right;padding:2px 12px 4px;letter-spacing:.06em}
+table.box th:first-child,table.box td:first-child{text-align:left;width:280px}
+table.box td{text-align:right;padding:0 12px;height:29px;border-top:1px solid var(--a-border)}
+table.box td.b{font-weight:700}
+table.box .pos{margin-left:8px;color:var(--a-text-3);font-weight:500}
+table.box tr.st td:first-child{font-weight:650}
+table.box tr.tot td{font-weight:700;border-top:2px solid var(--a-border-strong)}
+.plays{display:flex;flex-direction:column;gap:4px}
+.play{display:flex;align-items:center;gap:14px;height:40px;padding:0 14px;border-radius:10px;background:var(--a-surface-1);border:1px solid var(--a-border)}
+.play .ck{width:72px;font:500 var(--a-size-caption)/18px var(--a-font-text);color:var(--a-text-3)}
+.play .tm{width:40px;font:700 var(--a-size-badge)/1 var(--a-font-text);color:var(--a-text-2);letter-spacing:.04em}
+.play .tx{flex:1;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.play .tx.sc{color:var(--a-text-1);font-weight:650}.play .tx i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--a-pink);margin-right:10px}
+.play .sco{font:700 15px/20px var(--a-font-text);color:var(--a-text-1)}
+.tstats{display:flex;flex-direction:column;gap:12px;width:640px;margin:6px auto 0}
+.ts{display:grid;grid-template-columns:56px 1fr 56px;grid-template-rows:auto auto;column-gap:14px;align-items:center}
+.ts .n{grid-column:1/4;text-align:center;font:650 var(--a-size-label)/var(--a-lh-label) var(--a-font-text);letter-spacing:.06em;text-transform:uppercase;color:var(--a-text-3);order:-1;margin-bottom:2px}
+.ts .v{font:700 20px/24px var(--a-font-text);color:var(--a-text-1);text-align:right}.ts .v:last-of-type{text-align:left}
+.ts .bars{display:flex;gap:4px;height:10px}
+.ts .bar{height:10px;border-radius:5px}.ts .bar.l{background:var(--a-grad)}.ts .bar.r{background:var(--a-border-strong)}
