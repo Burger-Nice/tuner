@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// airglow sound set v1.1: a small deterministic synthesizer. No dependencies, no samples, no randomness except a seeded PRNG.
+// airglow sound set v1.2: a small deterministic synthesizer. No dependencies, no samples, no randomness except a seeded PRNG.
 //   node design/sound-v1/synth.js            renders every sound to design/sound-v1/out/*.wav (48 kHz, 16-bit, mono)
 //   node design/sound-v1/synth.js focus      renders only the named sounds
 // It also writes out/manifest.json (timing, gain, rate limits for the engineer), out/report.txt (the measured numbers)
@@ -28,7 +28,7 @@ const NOTE = { D4: 293.665, A4: 440, D5: 587.330, E5: 659.255, 'F#5': 739.989, A
 // v1.1: the detuned twin is now 1.0012 at 0.13 (v1 had 1.0035 at 0.45, which beat at 2 to 5 Hz in the tails: a warble, which is the shimmer the brand refuses).
 const GLASS = [[1, 1, 1], [2, 0.26, 0.55], [3, 0.09, 0.38], [4.17, 0.05, 0.22], [1.0012, 0.13, 1.0]];   // the signature: a sine, a soft octave, a trace of "tink", a barely-detuned twin
 const SOFT = [[1, 1, 1], [2, 0.18, 0.5], [3, 0.04, 0.3]];                                               // rounder, for navigation
-const TICK = [[1, 1, 1], [2, 0.08, 0.5]];                                                               // the focus tick: nearly a pure sine, the touch comes from the grain
+const TICK = [[1, 1, 1], [2, 0.15, 0.5]];                                                              // the focus tick: a near-pure sine; the touch comes from the grain
 const BRIGHT = [[1, 1, 1], [2, 0.42, 0.6], [3, 0.2, 0.45], [4.17, 0.08, 0.25], [1.0012, 0.13, 1.0]];   // the Sharp dialect: same notes, tighter and brighter
 const WARM = [[1, 1, 1], [2, 0.75, 0.9], [3, 0.4, 0.8], [4, 0.12, 0.7], [1.0012, 0.15, 1.0]];          // the low swell (launch-full only): its upper partials carry it on a small speaker
 
@@ -52,16 +52,19 @@ const CHORD = (t0, g, tau, att, partials, echo) => [['D5', 0.90, 0], ['F#5', 0.8
 const RECIPES = {
   // ---- launch: synced to launch.css. Bands step out 100/190/280 ms, the wedge settles 700-1400, letters 880-1720,
   //      the lockup is whole at ~1.5 s, the app wipes at 2.0 s (launch-wipe is a separate file, played when the wipe starts).
-  // v1.1: the default launch is only the two gestures that carry the identity (the staircase and the chord): heard on every cold start.
+  // v1.1/v1.2: the default launch is the two gestures that carry the identity (the staircase and the chord) with a soft swell bridging the gap: heard on every cold start.
   launch: {
-    dur: 2.3, tail: 0.20, hp: 150, lp: 8500, m: -31, ceil: -11,
+    dur: 2.2, tail: 0.20, hp: 150, lp: 8500, m: -31, ceil: -11,
     meta: { cls: 'hero', prio: 5, note: 'cold start only: sfx.launch(t0) in the same frame that launch.js adds l-run; never loops; if the launch holds (not ready at 2 s) it simply ends in silence' },
     layers: [
       // the three bands step out (100 / 190 / 280 ms, the CSS times): D5 F#5 A5. Each repeats at +270 ms and +540 ms (3 x the 90 ms band spacing, darker):
       // the first staircase is followed by two quieter ones, each replacing the last (choke), so you hear three steps and their afterimage
-      ...STAIR(0.100, 0.090, ['D5', 'F#5', 'A5'], [0.95, 1.05, 1.15], { att: 0.007, tau: 0.16, dur: 0.9, partials: GLASS, lp: 6500, echo: [{ d: 0.270, g: 0.30, lp: 4200 }, { d: 0.540, g: 0.13, lp: 3000 }] }),
+      ...STAIR(0.100, 0.090, ['D5', 'F#5', 'A5'], [0.95, 1.05, 1.15], { att: 0.007, tau: 0.16, dur: 0.9, partials: GLASS, lp: 6500, echo: [{ d: 0.320, g: 0.30, lp: 4200 }, { d: 0.640, g: 0.13, lp: 3000 }] }),
       // the lockup is whole (the last letter is ~80 % in at 1.5 s): D5 F#5 A5 E6 struck together, 12 ms between voices so it blooms, one short decay, two darker repeats
-      ...CHORD(1.52, 0.75, 0.14, 0.012, GLASS, [{ d: 0.240, g: 0.30, lp: 3800 }, { d: 0.480, g: 0.13, lp: 2800 }]),
+      // v1.2: a soft swell under the wedge bridges the gap between the staircase and the chord (about -25 dB, no plateau); no breath
+      { type: 'tone', t: 0.60, f: NOTE.D4, gain: 0.10, att: 0.24, rel: 0.62, dur: 1.45, partials: WARM, lp: 2600 },
+      { type: 'tone', t: 0.66, f: NOTE.A4, gain: 0.07, att: 0.24, rel: 0.62, dur: 1.45, partials: WARM, lp: 2600 },
+      ...CHORD(1.52, 0.75, 0.14, 0.012, GLASS, [{ d: 0.220, g: 0.30, lp: 3800 }, { d: 0.440, g: 0.13, lp: 2800 }]),
     ],
   },
 
@@ -70,12 +73,12 @@ const RECIPES = {
     dur: 2.4, tail: 0.25, hp: 150, lp: 8500, m: -31, ceil: -11,
     meta: { cls: 'hero', prio: 5, note: 'optional long launch, same sync as launch; swap the file name to use it' },
     layers: [
-      ...STAIR(0.100, 0.090, ['D5', 'F#5', 'A5'], [0.95, 1.05, 1.15], { att: 0.007, tau: 0.16, dur: 0.9, partials: GLASS, lp: 6500, echo: [{ d: 0.270, g: 0.30, lp: 4200 }, { d: 0.540, g: 0.13, lp: 3000 }] }),
+      ...STAIR(0.100, 0.090, ['D5', 'F#5', 'A5'], [0.95, 1.05, 1.15], { att: 0.007, tau: 0.16, dur: 0.9, partials: GLASS, lp: 6500, echo: [{ d: 0.320, g: 0.30, lp: 4200 }, { d: 0.640, g: 0.13, lp: 3000 }] }),
       { type: 'tone', t: 0.60, f: NOTE.D4, gain: 0.24, att: 0.24, rel: 0.62, dur: 1.45, partials: WARM, lp: 2600 },
       { type: 'tone', t: 0.66, f: NOTE.A4, gain: 0.17, att: 0.24, rel: 0.62, dur: 1.45, partials: WARM, lp: 2600 },
       { type: 'noise', t: 0.86, dur: 0.80, gain: 0.7, f0: 1500, f1: 4200, q: 1.1, peak: 0.72, lp: 5000 },
       { type: 'tone', t: 0.88, f: NOTE.D5, gain: 0.10, att: 0.30, rel: 0.45, dur: 0.95, glide: { to: NOTE.A5, time: 0.80 }, partials: [[1, 1, 1], [2, 0.12, 1]] },
-      ...CHORD(1.52, 0.75, 0.14, 0.012, GLASS, [{ d: 0.240, g: 0.30, lp: 3800 }, { d: 0.480, g: 0.13, lp: 2800 }]),
+      ...CHORD(1.52, 0.75, 0.14, 0.012, GLASS, [{ d: 0.220, g: 0.30, lp: 3800 }, { d: 0.440, g: 0.13, lp: 2800 }]),
     ],
   },
 
@@ -93,7 +96,7 @@ const RECIPES = {
   'launch-brief': {
     dur: 1.0, tail: 0.20, hp: 150, lp: 8500, m: -32, ceil: -11,
     meta: { cls: 'hero', prio: 4, note: 'reduced-motion launch: play in finish() together with l-fading, not at begin()' },
-    layers: [...CHORD(0.04, 0.9, 0.14, 0.018, GLASS, [{ d: 0.240, g: 0.30, lp: 3800 }, { d: 0.480, g: 0.13, lp: 2800 }])],
+    layers: [...CHORD(0.04, 0.9, 0.14, 0.018, GLASS, [{ d: 0.220, g: 0.30, lp: 3800 }, { d: 0.440, g: 0.13, lp: 2800 }])],
   },
 
   // ---- navigation
@@ -104,7 +107,7 @@ const RECIPES = {
     meta: { cls: 'nav', prio: 1, cooldownMs: 60, repeatEveryMs: 125, repeatGain: 0.6, rateUp: 1.1225, rateDown: 0.8409, note: 'only on a key-driven move that changed focus; held keys: see SOUND.md, Held keys' },
     layers: [
       { type: 'tone', t: 0, f: NOTE.A5, gain: 1, att: 0.0018, tau: 0.0105, dur: 0.052, partials: TICK },
-      { type: 'noise', t: 0, dur: 0.02, gain: 0.18, f0: 2600, f1: 2600, q: 1.1, peak: 0.1, tau: 0.003, att: 0.0006 },
+      { type: 'noise', t: 0, dur: 0.02, gain: 0.70, f0: 2600, f1: 2600, q: 1.1, peak: 0.1, tau: 0.003, att: 0.0006 },
     ],
   },
 
@@ -179,11 +182,12 @@ const RECIPES = {
   // alert: "your team is live" in the player. v1.1: an octave up (D6 F#6 A6, E7 on top) so it clears commentary and crowd (which live in 300 Hz-1 kHz),
   // in the Sharp dialect (tighter, brighter), repeats at 3 x the 95 ms step with choke: three steps and two darker staircases. The only sound allowed over programme audio.
   alert: {
-    dur: 1.0, tail: 0.22, hp: 300, lp: 8500, m: -27, ceil: -12,
+    dur: 0.75, tail: 0.18, hp: 300, lp: 8500, m: -28.5, ceil: -12,
     meta: { cls: 'alert', prio: 6, cooldownMs: 3000, note: 'with the action chip, from native code; never in the first 10 s after a tune; once per chip; only if Sounds is not Off' },
     layers: [
-      ...STAIR(0, 0.095, ['D6', 'F#6', 'A6'], [0.8, 0.9, 1.0], { att: 0.003, tau: 0.10, dur: 0.6, partials: BRIGHT, lp: 6500, echo: [{ d: 0.285, g: 0.28, lp: 4800 }, { d: 0.570, g: 0.12, lp: 3600 }] }),
-      { type: 'tone', t: 0.19, f: NOTE.E7, gain: 0.22, att: 0.003, tau: 0.10, dur: 0.5, partials: SOFT, lp: 6000, choke: true, echo: [{ d: 0.285, g: 0.28, lp: 4800 }, { d: 0.570, g: 0.12, lp: 3600 }] },
+      // v1.2: one repeat only (three steps and their echo: a six-note figure, not a doorbell)
+      ...STAIR(0, 0.095, ['D6', 'F#6', 'A6'], [0.8, 0.9, 1.0], { att: 0.003, tau: 0.10, dur: 0.6, partials: BRIGHT, lp: 6500, echo: [{ d: 0.285, g: 0.28, lp: 4800 }] }),
+      { type: 'tone', t: 0.19, f: NOTE.E7, gain: 0.22, att: 0.003, tau: 0.10, dur: 0.3, partials: SOFT, lp: 6000 },
     ],
   },
 };

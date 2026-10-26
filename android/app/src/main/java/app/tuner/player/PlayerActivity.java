@@ -159,6 +159,11 @@ public class PlayerActivity extends AppCompatActivity {
     private boolean okLong, okInPlayer;
     // the action chip (live) and Up next (movies)
     private boolean chipUp, chipIsUpNext;
+    // Its one sound: Your team is live (design/sound-v1). On the media stream so it follows the programme's volume;
+    // no audio focus, so it mixes over the programme without pausing or ducking it.
+    private android.media.SoundPool sounds;
+    private int alertId, alertReady;
+    private float soundLevel = 1f;
     private String chipId;
     private long chipUntil;
     private int stayIndex = -1;
@@ -222,6 +227,15 @@ public class PlayerActivity extends AppCompatActivity {
         live = "live".equals(x.getString("mode"));
         session = x.getInt("session");
         ringName = x.getString("ring", live ? "All channels" : "");
+        String lv = x.getString("sounds", "on");
+        soundLevel = "off".equals(lv) ? 0f : "quiet".equals(lv) ? 0.5f : 1f;
+        if (x.containsKey("scoreBug")) prefs.edit().putBoolean("scorebug", x.getBoolean("scoreBug")).apply();   // the app's setting wins
+        if (live && soundLevel > 0) {
+            sounds = new android.media.SoundPool.Builder().setMaxStreams(1).setAudioAttributes(new android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build();
+            sounds.setOnLoadCompleteListener((p, id, status) -> { if (status == 0) alertReady = id; });
+            alertId = sounds.load(this, R.raw.alert, 1);
+        }
         upNext = x.getBoolean("upNext", true);
         index = Math.max(0, Math.min(ring.size() - 1, x.getInt("index")));
         cur = ring.get(index);
@@ -659,6 +673,7 @@ public class PlayerActivity extends AppCompatActivity {
         chipOk.setText("to switch");
         chipUntil = SystemClock.uptimeMillis() + 8000;
         chipUp = true;
+        if (sounds != null && alertReady == alertId && alertId != 0) sounds.play(alertId, soundLevel, soundLevel, 1, 0, 1f);
         chip.setVisibility(View.VISIBLE);
         handler.removeCallbacks(chipTick);
         handler.post(chipTick);
@@ -921,6 +936,10 @@ public class PlayerActivity extends AppCompatActivity {
             }));
             if (gameLinked) items.add(row("Score on picture", null, bugOn() ? "On" : "Off", "score", () -> {
                 prefs.edit().putBoolean("scorebug", !bugOn()).apply();
+                JSObject ev = event("setting");   // the same switch as Account > NBA > Score on picture
+                ev.put("key", "scoreBug");
+                ev.put("value", bugOn());
+                TunerPlayerPlugin.emit(ev);
                 closeOverlay();
                 showText("Score on picture: " + (bugOn() ? "On" : "Off"), 1800);
             }));
@@ -1611,6 +1630,7 @@ public class PlayerActivity extends AppCompatActivity {
             TunerPlayerPlugin.emit(e);
         }
         if (player != null) { player.release(); player = null; }
+        if (sounds != null) { sounds.release(); sounds = null; }
         if (current == this) current = null;
         super.onDestroy();
     }

@@ -52,6 +52,8 @@ public class TunerPlayerPlugin extends Plugin {
                 || pm.hasSystemFeature("android.hardware.type.television")
                 || !pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN);
         r.put("tv", tv);
+        // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).
+        try { r.put("systemSounds", Settings.System.getInt(getContext().getContentResolver(), Settings.System.SOUND_EFFECTS_ENABLED, 1) == 1); } catch (Exception ignored) {}
         try {
             PackageInfo p = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
             r.put("version", p.versionName);
@@ -90,6 +92,9 @@ public class TunerPlayerPlugin extends Plugin {
         i.putExtra("ua", call.getString("ua", ""));
         i.putExtra("ring", call.getString("ring", ""));
         i.putExtra("upNext", call.getBoolean("upNext", true));
+        i.putExtra("sounds", call.getString("sounds", "on"));
+        Boolean bug = call.getBoolean("scoreBug");
+        if (bug != null) i.putExtra("scoreBug", bug.booleanValue());
         i.putExtra("session", session);
         i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         if (PlayerActivity.current != null) PlayerActivity.current.finish();

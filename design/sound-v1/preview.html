@@ -169,7 +169,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;p
     <button id="runHold">Held: Home not ready until 4.5 s</button>
     <button id="runRM">Reduced motion</button>
   </div>
-  <p class="cap" style="margin-top:12px">Reading the timeline: pink ticks are sound events. The default launch is only the two gestures that carry the identity: the staircase D5 F#5 A5 with the bands (then two quieter staircases, each replacing the last, to 0.8 s), and the resolve chord when the lockup is whole at about 1.5 s; the wipe is a separate sound at 2.0 s. The long version adds a warm swell under the wedge (0.6 to 1.45 s) and a breath under the letters (0.86 to 1.66 s). Reduced motion plays only the chord, together with the 120 ms fade. The held case plays the same launch sound, which simply ends in silence, and the wipe sound only when the wipe actually starts.</p>
+  <p class="cap" style="margin-top:12px">Reading the timeline: pink ticks are sound events. The default launch is two gestures plus a quiet bridge: the staircase D5 F#5 A5 with the bands (then two quieter echoes of it, each a group of three, to 0.92 s), a soft swell under the wedge (0.6 to 1.45 s), and the resolve chord when the lockup is whole at about 1.5 s; the wipe is a separate sound at 2.0 s. The long version has the swell at full level and adds a breath under the letters (0.86 to 1.66 s). Reduced motion plays only the chord, together with the 120 ms fade. The held case plays the same launch sound, which simply ends in silence, and the wipe sound only when the wipe actually starts.</p>
 
   <h2>4. Hold a key</h2>
   <div class="panel">
@@ -321,8 +321,8 @@ const M = window.AIRGLOW_MANIFEST, B = window.AIRGLOW_SOUNDS;
 sfx.init('', B);
 const $ = (s, r = document) => r.querySelector(s);
 const WHEN = {
-  launch: ['Launch', 'The signature, only two gestures: three stepped notes with the three bands (then two quieter staircases, each replacing the last), and one resolving chord when the lockup is whole. Cold start only.'],
-  'launch-full': ['Launch, long (option)', 'The same plus a warm swell under the wedge and a breath under the letters.'],
+  launch: ['Launch', 'The signature: three stepped notes with the three bands (then two quieter echoes of them), a soft swell under the wedge, and one resolving chord when the lockup is whole. Cold start only.'],
+  'launch-full': ['Launch, long (option)', 'The swell at full level plus a breath under the letters.'],
   'launch-wipe': ['Launch wipe', 'Soft air that follows the 8 degree slab. Plays when the wipe starts (even if the launch was held).'],
   'launch-brief': ['Launch, reduced motion', 'Only the resolving chord, for the reduced-motion launch. Plays together with the 120 ms fade.'],
   focus: ['Focus move', 'A fingertip on glass. The most frequent sound: nearly subliminal. Only on a key press that moved focus. Played at 1.1225 (B5) for up and 0.8409 (F#5) for down: both stay in the key.'],
@@ -370,7 +370,7 @@ $('#lvlon').onclick=()=>lv('on');$('#lvlq').onclick=()=>lv('quiet');$('#lvloff')
 // ---- the launch demo
 const app=$('#app'),demo=$('#demo');
 function fit(){app.style.transform='scale('+demo.clientWidth/960+')';}fit();addEventListener('resize',fit);
-const TL=[[100,'bands 100 / 190 / 280',1],[700,'wedge settles',0],[1520,'chord',1],[1720,'lockup whole',0],[2500,'end',0],[370,'two quieter staircases',1,'b'],[880,'letters begin',0,'b'],[2000,'wipe',1,'b']];
+const TL=[[100,'bands 100 / 190 / 280',1],[700,'wedge settles',0],[1520,'chord',1],[1720,'lockup whole',0],[2500,'end',0],[420,'two echoes of it',1,'b'],[880,'letters begin',0,'b'],[2000,'wipe',1,'b']];
 const tl=$('#tl');tl.innerHTML='<div class="bar"></div><div class="ph" id="ph"></div>'+TL.map(([t,l,s,b])=>`<div class="m ${s?'snd':''} ${b?'b':''}" style="left:${t/2600*100}%">${l}</div>`).join('');
 let timers=[],raf=0;
 function stop(){timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);app.className='';}
@@ -429,7 +429,7 @@ st.addEventListener('keydown',e=>{
 });
 
 // ---- spec table
-$('#specs').innerHTML='<div class="panel"><table><tr><th>file</th><th>length</th><th>peak</th><th>M-max</th><th>priority</th><th>min gap</th><th>use</th></tr>'+ORDER.map(n=>{const m=M[n];return `<tr><td>${n}.wav</td><td>${m.durationMs} ms</td><td>${m.peakDbfs} dBFS</td><td>${m.momentaryLufs} LUFS</td><td>${m.prio}</td><td>${m.cooldownMs?m.cooldownMs+' ms':'-'}</td><td style="color:var(--t3)">${m.note}</td></tr>`}).join('')+'</table><p class="cap" style="margin:12px 0 0">M-max = loudest 400 ms, K-weighted (BS.1770). Programme is about -23 LUFS integrated, so the launch sits 8 LU under it, the alert 4 LU under (it has to be heard over a game), and a focus tick about 20 LU under.</p></div>';
+$('#specs').innerHTML='<div class="panel"><table><tr><th>file</th><th>length</th><th>peak</th><th>M-max</th><th>priority</th><th>min gap</th><th>use</th></tr>'+ORDER.map(n=>{const m=M[n];return `<tr><td>${n}.wav</td><td>${m.durationMs} ms</td><td>${m.peakDbfs} dBFS</td><td>${m.momentaryLufs} LUFS</td><td>${m.prio}</td><td>${m.cooldownMs?m.cooldownMs+' ms':'-'}</td><td style="color:var(--t3)">${m.note}</td></tr>`}).join('')+'</table><p class="cap" style="margin:12px 0 0">M-max = loudest 400 ms, K-weighted (BS.1770). Programme is about -23 LUFS integrated, so the launch sits 8 LU under it, the alert 5.5 LU under (it has to be heard over a game), and a focus tick about 20 LU under.</p></div>';
 })();
 </script>
 </body>

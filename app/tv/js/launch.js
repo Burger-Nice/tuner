@@ -3,6 +3,7 @@
 // lockup holds with the bands breathing, with a caption at 4 s; at 12 s the app is shown anyway (it has its own
 // offline states). Keys do nothing until the wipe starts.
 import { $ } from './util.js';
+import { sfx } from './sfx.js';
 
 // The lockup is built by 1.72 s and holds a beat, then the slab wipes for about half a second.
 const T_HOLD = 2000, T_WIPE = 560, T_SLOW = 4500, T_GIVEUP = 12000;
@@ -19,10 +20,12 @@ function finish() {
   open = true;
   app.classList.remove('l-loading', 'l-slow');
   if (reduce) {
+    sfx.play('launch-brief');   // the chord lands with the fade
     app.classList.add('l-fading');
     setTimeout(() => app.classList.remove('l-on', 'l-rm', 'l-fading'), 120);
     return;
   }
+  sfx.play('launch-wipe');
   app.classList.add('l-wiping');
   setTimeout(() => app.classList.remove('l-on', 'l-run', 'l-wiping'), T_WIPE + 40);
 }
@@ -40,6 +43,7 @@ const fontsReady = document.fonts?.ready || Promise.resolve();
 Promise.race([fontsReady, new Promise((r) => setTimeout(r, 700))]).then(() => requestAnimationFrame(() => requestAnimationFrame(begin)));
 function begin() {
   t0 = performance.now();
+  if (!reduce) sfx.launch(t0);   // in step with the animation, however late its file was ready
   app.classList.add(reduce ? 'l-rm' : 'l-run');
   setTimeout(() => {
     if (ready) { finish(); return; }

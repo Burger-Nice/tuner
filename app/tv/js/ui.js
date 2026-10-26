@@ -2,6 +2,7 @@
 // to whatever opened it when it closes (Back closes it).
 import { $, esc, ic } from './util.js';
 import { pushLayer, popLayer, focus } from './focus.js';
+import { sfx } from './sfx.js';
 
 let toastT;
 // Toasts never take focus and never bind a key.
@@ -25,6 +26,7 @@ export function openOverlay(html, { onClick, onClose, focusSel, scrim = true, on
   host.appendChild(el);
   const entry = { el, opener: document.activeElement, onClose, onKey };
   stack.push(entry);
+  sfx.request('open');   // only when a key opened it
   el.addEventListener('click', (e) => { const t = e.target.closest('[data-act]'); if (t && onClick) onClick(t.dataset.act, t, e); });
   requestAnimationFrame(() => el.classList.add('in'));
   pushLayer(el, (focusSel && el.querySelector(focusSel)) || null);
@@ -42,7 +44,8 @@ function closeOverlay(entry, restore = true) {
   entry.onClose?.();
 }
 // Back closes the topmost overlay. Returns true if one was closed.
-export function closeTop() { const e = stack[stack.length - 1]; if (!e) return false; closeOverlay(e); return true; }
+// Back closing a sheet (a pick that closes a menu is an OK, and sounds like one).
+export function closeTop() { const e = stack[stack.length - 1]; if (!e) return false; sfx.request('close'); closeOverlay(e); return true; }
 export function overlayKey(k, e) { const top = stack[stack.length - 1]; return !!top?.onKey?.(k, e); }
 
 // A menu of radio rows (Sort, version, groups...): rows = [{ v, l, sub, on, dis }]

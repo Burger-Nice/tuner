@@ -20,9 +20,14 @@ import saved from './screens/saved.js';
 import account from './screens/account.js';
 import first from './screens/first.js';
 import { launchOpen, launchReady } from './launch.js';
+import { sfx } from './sfx.js';
 
 const app = $('#app');
 setBase(app);
+// Sounds: the Account choice, else on (or off when the TV's own system sounds are off; known once the bridge answers).
+sfx.init();
+sfx.mode(settings().sounds || 'on');
+app.addEventListener('tvfocus', (e) => sfx.focused(e.target));
 // The layout is drawn for 960 x 540 CSS px (a 1080p TV at 2x); other screens scale it.
 function fit() { const z = window.innerWidth / 960; document.body.style.zoom = Math.abs(z - 1) > 0.01 ? z : ''; }
 fit();
@@ -56,7 +61,7 @@ document.addEventListener('keydown', (e) => {
   }
   e.preventDefault();
   e.stopPropagation();   // handled here; a key that opens a field must not also reach it
-  if (DIRS.has(k)) document.documentElement.classList.toggle('rep', e.repeat);
+  if (DIRS.has(k)) { document.documentElement.classList.toggle('rep', e.repeat); sfx.dir(k, e.repeat); }
   if (overlayKey(k, e)) return;
   const def = screenDef();
   if (!inLayer() && def?.key?.(k, e)) return;
@@ -71,7 +76,7 @@ document.addEventListener('keyup', (e) => {
   if (DIRS.has(k)) document.documentElement.classList.remove('rep');
   if (k === 'ok' && okDown) {
     const d = okDown; okDown = null; clearTimeout(d.timer);
-    if (!d.held && document.activeElement === d.el) d.el.click();
+    if (!d.held && document.activeElement === d.el) { okSound(d.el); d.el.click(); }
   }
 }, true);
 // OK clicks at once, except on things you can hold (cards, guide cells): those click on release, or open their menu at 500 ms.
@@ -79,17 +84,20 @@ function okPress(e) {
   const el = document.activeElement;
   if (!el || el === document.body || !topLayer()?.contains(el)) { focus(entryOf(topLayer())); return; }
   if (e.repeat) return;
-  if (!el.hasAttribute('data-hold')) { el.click(); return; }
+  if (!el.hasAttribute('data-hold')) { okSound(el); el.click(); return; }
   el.classList.add('pressing');
   okDown = { el, held: false, timer: setTimeout(() => { if (okDown?.el === el) { okDown.held = true; el.classList.remove('pressing'); el.dispatchEvent(new CustomEvent('tvhold', { bubbles: true })); } }, 500) };
   setTimeout(() => el.classList.remove('pressing'), 600);
 }
 
+// OK's sound, asked for just before the click (a sheet the click opens asks for its own, which wins). Typing is silent.
+const okSound = (el) => { if (!el.closest('.kb, .kbrow')) sfx.request('select'); };
+
 // Back: close the sheet; leave a page; in a tab's content go to the top and the tab; on a tab go Home; Home exits.
 export function back() {
-  if (closeTop()) return;
-  if (screenDef()?.back?.(screenEl())) return;
-  if (nav.stack.length) { pop(); return; }
+  if (closeTop()) return;   // (closing a sheet sounds 'close')
+  if (screenDef()?.back?.(screenEl())) { sfx.request('back'); return; }
+  if (nav.stack.length) { sfx.request('back'); pop(); return; }
   const inBar = $('#topbar').contains(document.activeElement);
   if (!inBar && current() !== 'first') {
     const scr = screenEl();
@@ -97,9 +105,9 @@ export function back() {
     // Back to the top: the next Down lands at the start, not where you were.
     scr._last = null;
     scr.querySelectorAll('[data-row],[data-col],[data-grid]').forEach((b) => (b._mem = null));
-    barHidden(false); focusTab(); return;
+    barHidden(false); focusTab(); sfx.request('back'); return;
   }
-  if (current() !== 'home' && S.acc) { go('home'); return; }
+  if (current() !== 'home' && S.acc) { sfx.request('back'); go('home'); return; }
   native?.exit();
 }
 native?.onBack(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
@@ -125,6 +133,7 @@ if (native) {
 
 async function start() {
   await Promise.race([Promise.resolve(native?.ready), sleep(1500)]);
+  if (!settings().sounds && native?.info().systemSounds === false) sfx.mode('off');
   if (resume()) {
     // Home's first look needs the channel list (last channel, On now); the saved copy loads inside the launch.
     await Promise.race([ensure('live').catch(() => null), sleep(700)]);

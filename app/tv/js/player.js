@@ -2,13 +2,14 @@
 // This module sends it the channel ring (the group you tuned from), tells it what the player can't know (what's on,
 // the game on this channel at the synced delay, live games, groups, favourites) and acts on what you pick in its panels.
 // It also records where you got to in movies and episodes.
-import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList } from './state.js';
+import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
 import { busy, catalog } from './catalog.js';
 import { native } from './native.js';
 import { gameOn, gameById, setWatching, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
 import { guideFor, guideNow, onNow, nextUp } from './guide.js';
 import { teamPalette, hm } from './util.js';
 import { toast } from './ui.js';
+import { sfx } from './sfx.js';
 
 export const ctx = { cur: null };   // { kind: 'live' | 'vod', items, index, session, ring }
 let sentKey = '';
@@ -49,11 +50,12 @@ export async function playLive(ch, ring, ringName = 'All channels') {
   emit('tuned', ch);
   if (!native) { toast(`Playing ${ch.name} (the TV player is only on the TV)`); linkChannel(ch); return; }
   const key = `${S.epoch}:${list.length}:${list[0].id}:${list[list.length - 1].id}:${ringName}`;
-  const opts = { mode: 'live', index, ua: settings().ua, key, ring: ringName, upNext: settings().zapUp !== 'prev' };
+  const opts = { mode: 'live', index, ua: settings().ua, key, ring: ringName, upNext: settings().zapUp !== 'prev', ...playerSettings() };
   let r = key === sentKey ? await native.player.play(opts).catch(() => null) : null;
   if (!r) r = await native.player.play({ ...opts, ...pack(list) }).catch((e) => ({ ok: false, error: e?.message || 'The player could not start.' }));
   if (!r?.ok) { toast(r?.error || 'The player could not start.', 4000); return; }
   sentKey = key;
+  sfx.zone('player');
   ctx.cur = { kind: 'live', items: list, index, session: r.session, ring: ringName };
   sent.game = sent.games = sent.pinned = '';
   linkChannel(ch);
@@ -197,12 +199,15 @@ function push() {
   const pin = feed && String(feed.id) !== String(playing?.id) ? JSON.stringify({ id: String(feed.id), title: `${mine.away.name} at ${mine.home.name}`, sub: `${feed.name} · Your team`, name: feed.name, logo: feed.logo || '' }) : '';
   if (pin !== sent.pinned) { sent.pinned = pin; cmd('pinned', pin); }
   // Your team just went live on another channel: offer it once.
-  if (feed && pin && watch.gameId !== mine.id && !chipped.has(mine.id)) {
+  if (feed && pin && watch.gameId !== mine.id && !chipped.has(mine.id) && settings().liveAlert !== false) {
     chipped.add(mine.id);
     cmd('chip', { title: `${mySide(mine).name} are live`, sub: feed.name, id: String(feed.id) });
   }
 }
 setInterval(push, 1000);
+
+// What the player needs from Account: the sound level (for its one sound, Your team is live) and Score on picture.
+const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug });
 
 // ---------- movies and episodes ----------
 function vodEntry(it, restart) {
@@ -221,8 +226,9 @@ export async function playVod(item, { queue, restart } = {}) {
   const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
   const entries = list.map((it, i) => vodEntry(it, i === 0 && restart));
   if (!native) { toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
-  const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua }).catch((e) => ({ ok: false, error: e?.message }));
+  const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua, ...playerSettings() }).catch((e) => ({ ok: false, error: e?.message }));
   if (!r?.ok) { toast(r?.error || 'This video would not play.', 4000); return; }
+  sfx.zone('player');
   ctx.cur = { kind: 'vod', items: list, index: 0, session: r.session };
 }
 
@@ -283,8 +289,11 @@ native?.player.onEvent((e) => {
     push();
   } else if (e.type === 'progress' && c.kind === 'vod') {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
+  } else if (e.type === 'setting') {
+    if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
   } else if (e.type === 'exit') {
     ctx.cur = null;
+    sfx.zone('ui');
     if (c.kind === 'vod') { recordProgress(c.items[e.index], e.t, e.d, true); if (e.error) toast(`This video would not play. ${e.error}`, 6000); }
     else if (e.error) toast(`That channel would not play. ${e.error}`, 6000);
     // The game you were watching stays at its synced delay on every screen until you tune something else,

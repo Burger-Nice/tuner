@@ -9,8 +9,9 @@ import { accountFacts, switchTo, signOut, removeAccount } from '../session.js';
 import { go, current } from '../router.js';
 import { focus } from '../focus.js';
 import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js';
+import { sfx } from '../sfx.js';
 
-const GROUPS = [['provider', 'Provider'], ['playback', 'Playback'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
+const GROUPS = [['provider', 'Provider'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
 const LANGS = ['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Icelandic', 'Polish', 'Turkish', 'Arabic', 'Hindi'];
 let el, group = 'provider', scroll = 0;
@@ -42,6 +43,12 @@ function body() {
       ${row('previews', 'Live previews', toggle(!!s.previews && maxC !== 1), maxC === 1 ? 'Unavailable: your account allows one connection' : 'Muted video on Home and in the guide. Off by default', maxC === 1)}
       ${row('ua', 'User agent', more(s.ua || 'Default'), 'Some providers only answer known players')}
       <div class="t-cap" style="margin-top:4px">Subtitles, audio, picture size and Match frame rate are in the player: press ▼ in a movie.</div>`;
+  }
+  if (group === 'sound') {
+    const lv = { on: 'On', quiet: 'Quiet', off: 'Off' }[sfx.level()];
+    return `<div class="t-title" style="margin-bottom:10px">Sound</div>
+      ${row('sounds', 'Sounds', more(lv), 'Soft sounds for moving around, OK and Back, and the start-up. Never in the player, except Your team is live')}
+      <div class="t-cap" style="margin-top:4px">Quiet is half as loud. The sounds follow the TV's volume.</div>`;
   }
   if (group === 'nba') {
     const t = TEAMS.find((x) => x.abbr === favTeam());
@@ -86,6 +93,9 @@ function draw() {
   setHtml(el, `<div class="abs" data-col style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:272px;top:90px;width:640px;height:423px;overflow:hidden"><div class="inner" data-col style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
 }
 
+// A toggle row's sound: on is bright, off is dim (replaces the OK sound for that press).
+const flip = (on) => sfx.request(on ? 'toggle-on' : 'toggle-off');
+
 function act(a) {
   const s = settings();
   if (a === 'switch') {
@@ -99,7 +109,10 @@ function act(a) {
   else if (a === 'signout') confirmMenu({ title: 'Sign out?', text: `airglow forgets ${S.acc?.name || 'this account'} on this TV. Your saved channels and progress go with it.`, yes: 'Sign out', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first'); } });
   else if (a === 'zap') radioMenu({ title: 'Up arrow in the player', value: s.zapUp || 'next', rows: [{ v: 'next', l: 'Next channel' }, { v: 'prev', l: 'Previous channel' }], onPick: (v) => { saveSettings({ zapUp: v }); draw(); } });
   else if (a === 'format') radioMenu({ title: 'Stream format', value: s.liveFormat, rows: [{ v: 'hls', l: 'HLS', sub: 'Most providers' }, { v: 'ts', l: 'Transport stream', sub: 'Steadier on some' }], onPick: (v) => { saveSettings({ liveFormat: v }); resetCatalogs(); draw(); } });
-  else if (a === 'previews') { saveSettings({ previews: !s.previews }); draw(); }
+  else if (a === 'previews') { saveSettings({ previews: !s.previews }); flip(!s.previews); draw(); }
+  else if (a === 'sounds') radioMenu({ title: 'Sounds', value: sfx.level(), rows: [{ v: 'on', l: 'On' }, { v: 'quiet', l: 'Quiet', sub: 'Half as loud' }, { v: 'off', l: 'Off' }], onPick: (v) => {
+    saveSettings({ sounds: v }); sfx.mode(v); if (v !== 'off') setTimeout(() => sfx.play('select', { cd: 0 }), 60); draw();
+  } });
   else if (a === 'ua') radioMenu({ title: 'User agent', value: s.ua || '', rows: [{ v: '', l: 'Default' }, { v: 'VLC/3.0.20 LibVLC/3.0.20', l: 'VLC' }, { v: 'IPTVSmartersPlayer', l: 'IPTV Smarters' }, { v: 'TiviMate/4.7.0', l: 'TiviMate' }], onPick: (v) => { saveSettings({ ua: v }); draw(); } });
   else if (a === 'team') {
     const ov = openOverlay(`<div class="sheet"><h3>Your team</h3><div class="sheet-body"><div class="inner" data-col>${TEAMS.map((t) => `<div class="lr fx" tabindex="-1" data-act="${t.abbr}"><span class="rd${t.abbr === favTeam() ? ' on' : ''}"></span><span class="grow">${esc(t.city)} ${esc(t.name)}</span></div>`).join('')}</div></div></div>`, {
@@ -108,7 +121,7 @@ function act(a) {
     });
     scrollList(ov.el);
   } else if (a === 'shield') radioMenu({ title: 'Spoiler shield', value: shieldMode(), rows: [{ v: 'off', l: 'Off', sub: 'Scores everywhere' }, { v: 'mine', l: 'My team', sub: 'Your team\'s games hidden' }, { v: 'all', l: 'All games', sub: 'Every game hidden' }], extra: '<div class="t-cap" style="padding:8px 8px 2px">Reveal a game with its Reveal score button. Watching it counts as revealing it.</div>', onPick: (v) => { setShield(v); draw(); } });
-  else if (a === 'bug') { saveSettings({ scoreBug: !s.scoreBug }); draw(); }
+  else if (a === 'bug') { saveSettings({ scoreBug: !s.scoreBug }); flip(!s.scoreBug); draw(); }
   else if (a === 'delays') {
     const ds = store.get(`a:${S.acc?.id}:delays`, {});
     const ids = Object.keys(ds);
@@ -123,8 +136,8 @@ function act(a) {
     });
     drawL(); focus(ov.el.querySelector('.lr')); scrollList(ov.el);
   } else if (a === 'subs') radioMenu({ title: 'Subtitles', value: s.subLang || 'auto', rows: [{ v: 'auto', l: 'Auto' }, { v: 'off', l: 'Off' }, ...LANGS.slice(0, 6).map((l) => ({ v: l, l }))], onPick: (v) => { saveSettings({ subLang: v }); draw(); } });
-  else if (a === 'hero') { saveSettings({ heroGame: s.heroGame === false }); draw(); }
-  else if (a === 'alert') { saveSettings({ liveAlert: s.liveAlert === false }); draw(); }
+  else if (a === 'hero') { saveSettings({ heroGame: s.heroGame === false }); flip(s.heroGame === false); draw(); }
+  else if (a === 'alert') { saveSettings({ liveAlert: s.liveAlert === false }); flip(s.liveAlert === false); draw(); }
   else if (a === 'install') native?.updates.install();
   else if (a === 'check') native?.updates.check();
 }
