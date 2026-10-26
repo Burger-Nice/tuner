@@ -91,7 +91,7 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   return `<div class="hero-plate"${top ? ` style="top:${top}px"` : ''}>
   <div class="abs row-flex" style="left:24px;top:12px;gap:12px;height:24px">${hub ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${status}</div>
   <div class="mt">${side(g.away)}<div class="sc">${score}</div>${side(g.home, 1)}</div>
-  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:16px"><span class="btn fx" tabindex="-1" data-act="primary"${channel && !pre ? ' data-hold' : ''}>${primary}</span>${secondary ? `<span class="btn2 fx" tabindex="-1" data-act="${secondary[0]}">${secondary[1]}</span>` : ''}${hub && !shield && !pre ? '<span class="btn2 fx" tabindex="-1" data-act="plays">Plays</span>' : ''}<span class="t-cap clamp2" style="margin-left:4px;line-height:18px;max-width:${hub ? 220 : 300}px">${cap}</span></div>
+  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:16px;width:572px"><span class="btn fx" tabindex="-1" data-act="primary"${channel && !pre ? ' data-hold' : ''}>${primary}</span>${secondary ? `<span class="btn2 fx" tabindex="-1" data-act="${secondary[0]}">${secondary[1]}</span>` : ''}${hub && !shield && !pre ? '<span class="btn2 fx" tabindex="-1" data-act="plays">Plays</span>' : ''}<span class="t-cap clamp2" style="margin-left:4px;line-height:18px;flex:1;min-width:0">${cap}</span></div>
   <div class="slabbox" style="left:619px;width:243px">${slab}</div>
 </div>`;
 }

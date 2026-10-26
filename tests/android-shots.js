@@ -43,7 +43,8 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
       seen.add(i);
       if (r.step === 'ack') continue;
       const s = r.data?.state;
-      console.log(`${r.step} ${r.data?.name || ''} ${JSON.stringify(s ? { tv: s.tv, bridge: s.bridge, view: s.view, focus: s.focus, playing: s.playing } : r.data).slice(0, 400)}`);
+      if (r.step === 'check') { console.log(`${r.data.ok ? 'PASS' : 'FAIL'} ${r.data.name}  [${r.data.focus}]${r.data.took ? ` ${r.data.took} ms` : ''}`); continue; }
+      console.log(`${r.step} ${r.data?.name || ''} ${JSON.stringify(s ? { screen: s.screen || s.view, focus: s.focus, watching: s.watching ?? s.playing } : r.data).slice(0, 400)}`);
       if (r.step === 'shot' || r.step === 'keys') front();
       if (r.step === 'shot') { shot(r.data.name); console.log(`${r.data.name}: keyboard ${keyboard()}`); await ack(r.data.name); }
       if (r.step === 'keys') {
