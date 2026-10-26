@@ -69,8 +69,8 @@ export default function lib(kind) {
     if (html) grid.insertAdjacentHTML('beforeend', html);
     for (const node of grid.children) if (node.dataset.i) node._t = list[+node.dataset.i];
     // Scrolled, the focused row sits low enough to show the row above under the top fade, and high enough that its own
-    // titles stay on screen (a card is 238 tall: poster 186 + title and year): its bottom lands 14 px above the edge.
-    grid.style.transform = `translateY(${(scrolled ? 36 : 176) - topRow * PITCH}px)`;
+    // titles stay on screen (a card is 238 tall: poster 186 + title and year): its bottom lands inside the safe edge (513).
+    grid.style.transform = `translateY(${(scrolled ? 22 : 176) - topRow * PITCH}px)`;
     el.querySelector('[data-head]').style.opacity = scrolled ? 0 : 1;
     el.querySelector('[data-head]').style.visibility = scrolled ? 'hidden' : '';
     barHidden(scrolled && current() === kind);
@@ -171,13 +171,13 @@ export default function lib(kind) {
       const k = keep?.k, v = keep?.v, a = keep?.act;
       ov.el.querySelector('.inner').innerHTML = body();
       ov.el.querySelector('[data-n]').textContent = `${active()} active`;
-      ov.el.querySelector('[data-act="show"]').textContent = `Show ${total().toLocaleString()} titles`;
+      ov.el.querySelector('[data-act="show"]').textContent = `Show ${total().toLocaleString()} ${total() === 1 ? 'title' : 'titles'}`;
       const back = a === 'f' ? ov.el.querySelector(`[data-k="${k}"][data-v="${CSS.escape(v)}"]`) : null;
       if (back) focus(back);
     };
     const ov = openOverlay(`<div class="sheet" style="gap:8px"><div class="row-flex" data-row style="gap:12px"><h3 class="grow">Filters</h3><span class="t-cap" data-n>${active()} active</span><span class="pillbtn fx" tabindex="-1" data-act="clear" style="height:32px;padding:0 14px;font-size:14px">Clear all</span></div>
       <div class="sheet-body"><div class="inner">${body()}</div></div>
-      <div class="sheet-foot" data-row><span class="btn btn-full fx" tabindex="-1" data-act="show">Show ${total().toLocaleString()} titles</span></div></div>`, {
+      <div class="sheet-foot" data-row><span class="btn btn-full fx" tabindex="-1" data-act="show">Show ${total().toLocaleString()} ${total() === 1 ? 'title' : 'titles'}</span></div></div>`, {
       focusSel: '.chip.sel',
       onClick: (act, t) => {
         if (act === 'f') {
@@ -247,6 +247,7 @@ export default function lib(kind) {
           const c = e.target, l = c.offsetLeft, r = l + c.offsetWidth;
           if (l < strip.scrollLeft + 8) strip.scrollLeft = Math.max(0, l - 8);
           else if (r > strip.scrollLeft + strip.clientWidth - 8) strip.scrollLeft = r - strip.clientWidth + 8;
+          strip.classList.toggle('scrolled', strip.scrollLeft > 0);
         }
       });
       on('session', () => { view = null; list = []; });

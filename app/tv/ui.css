@@ -274,7 +274,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .sheet-scroll::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;pointer-events:none;background:linear-gradient(180deg,var(--scrim-0),var(--a-bg-1))}
 .ctxline{position:absolute;left:48px;top:27px;height:20px;font:500 var(--a-size-caption)/20px var(--a-font-text);color:var(--a-text-3);z-index:4}
 .bubble{position:absolute;right:48px;top:27px;height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;border-radius:var(--a-radius);background:var(--a-bg-1);border:1px solid var(--a-border);z-index:6}
-.bubble b{display:block;font:700 28px/32px var(--a-font-display)}.bubble span{display:block;white-space:nowrap;font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-2)}
+.bubble b{display:block;font:700 28px/32px var(--a-font-display)}.bubble>span{display:block;white-space:nowrap;font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-2)}
 .ctxmenu{position:absolute;z-index:22;width:236px;background:var(--a-bg-1);border:1px solid var(--a-border);border-radius:16px;padding:8px}
 
 /* ---------- NBA game detail ---------- */

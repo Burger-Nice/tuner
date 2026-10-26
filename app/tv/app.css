@@ -80,3 +80,9 @@ input.field[readonly]{caret-color:transparent}
 .rail[data-rail],.rail.abs{clip-path:inset(0 0 0 36px)}
 /* the Now cell's progress line sits inside its focus ring, not over the ring's bottom edge */
 .g-cell.now.fx:focus .prog{left:3px;right:3px;width:auto;bottom:3px}
+/* a sheet's list with more below or above than fits: that edge fades out */
+.sheet-body.more{-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 22px),transparent)}
+.sheet-body.less{-webkit-mask-image:linear-gradient(0deg,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(0deg,#000 calc(100% - 22px),transparent)}
+.sheet-body.more.less{-webkit-mask-image:linear-gradient(180deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(180deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}
+/* the quick-chip strip scrolled along: what's left of a chip that slid out on the left fades instead of a sliver */
+.lib-chips.scrolled{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 12px);mask-image:linear-gradient(90deg,transparent 0,#000 12px)}

@@ -14,6 +14,7 @@ const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" de
 const SUBS = [['auto', 'Auto'], ['off', 'Off'], ['English', 'English'], ['Spanish', 'Spanish'], ['French', 'French'], ['German', 'German']];
 const subLabel = () => SUBS.find(([v]) => v === (settings().subLang || 'auto'))?.[1] || 'Auto';
 
+const infoCache = new Map();   // kind:id:version -> details, the last 30
 function episodes() { return (info?.seasons || []).flatMap((s) => s.eps); }
 // Providers name episodes "Episode 1: Arrival", "Show - S01E01 - Arrival" or just "Episode 1": the title part only ('' if none).
 const epName = (e) => { const n = String(e.name || '').replace(/^.*?\bS\d+\s*E\d+\b\s*[-:–.]?\s*/i, '').replace(/^(episode|ep\.?)\s*\d+\s*[-:–.]?\s*/i, '').trim(); return /^(episode|ep\.?)?\s*\d*$/i.test(n) ? '' : n; };
@@ -108,7 +109,8 @@ function draw() {
       const ep = progressOf(e), done = ep && (ep.done || ep.t >= ep.d * 0.94), part = inProgress(ep);
       return `<div class="ep fx${done ? ' done' : ''}" tabindex="-1" data-ep="${i}"><div class="th"><div class="art">${img(e.still || t.poster)}</div><span class="num">${e.ep}</span>${done ? `<span class="chk">${ic('check')}</span>` : ''}${part ? `<div class="prog flush"><i style="width:${Math.min(100, (ep.t / ep.d) * 100)}%"></i></div>` : ''}</div><div class="eb"><b>${esc(epName(e) || `Episode ${e.ep}`)}</b><span>${part ? leftText(ep.d - ep.t) : esc(epLen(e.duration))}</span></div></div>`;
     }).join('');
-    below = `<div class="abs seas" data-row style="left:48px;top:272px">${info.seasons.map((x) => `<span class="chip lg fx${x.n === season ? ' sel' : ''}" tabindex="-1" data-season="${esc(x.n)}">Season ${esc(x.n)}</span>`).join('')}<span class="t-cap" style="align-self:center;margin-left:8px">${s.eps.length} episode${s.eps.length > 1 ? 's' : ''}</span></div>
+    // (many seasons: the chips slide so the focused one stays on screen, see placeTracks)
+    below = `<div class="abs seas" data-row style="left:48px;right:48px;top:272px;clip-path:inset(-12px -12px -12px -8px)"><div class="seas-in" style="display:flex;gap:8px;transition:transform 200ms var(--a-ease)">${info.seasons.map((x) => `<span class="chip lg fx${x.n === season ? ' sel' : ''}" tabindex="-1" data-season="${esc(x.n)}">Season ${esc(x.n)}</span>`).join('')}<span class="t-cap" style="align-self:center;margin-left:8px;white-space:nowrap">${s.eps.length} episode${s.eps.length > 1 ? 's' : ''}</span></div></div>
       <div class="rail abs" style="top:318px;left:0;right:0"><div class="track" data-row data-eps data-entry='[data-ep="${s.eps.indexOf(fe)}"]' style="gap:24px">${eps}</div></div>
       <div class="abs epsyn" data-syn style="left:48px;top:486px;width:864px"><b>${epLine(fe)}</b>${fe.plot ? `${dot}${esc(fe.plot)}` : ''}</div>`;
   } else if (info?.error) below = `<div class="abs t-body" style="left:48px;top:300px">${esc(info.error)}</div>`;
@@ -117,8 +119,8 @@ function draw() {
 <div class="d-col"${movie ? '' : ' style="top:32px"'}>
   <div class="t-label t-2">${eyebrow}</div>
   <div class="t-display clamp2" data-ttl style="margin-top:6px">${esc(t.name)}</div>
-  <div class="metaline" style="margin-top:10px">${meta}${tags ? dot + tags : ''}</div>
-  ${d.plot ? `<div data-row style="margin-top:12px"><div class="t-body clamp2 plotfx" data-plot data-act="about" style="width:460px">${esc(d.plot)}</div></div>` : `<div class="t-body" style="margin-top:12px;color:var(--a-text-3)">${info ? '' : 'Loading details…'}</div>`}
+  <div class="metaline" style="margin-top:10px">${meta}${meta && tags ? dot : ''}${tags}</div>
+  ${d.plot ? `<div data-row style="margin-top:12px"><div class="t-body clamp2 plotfx" data-plot data-act="about" style="width:460px">${esc(d.plot)}</div></div>` : `<div class="t-body" style="margin-top:12px;color:var(--a-text-3)">${info ? (movie && info.error ? esc(info.error) : '') : 'Loading details…'}</div>`}
   ${movie && credits ? `<div class="t-cap ellipsis" style="margin-top:8px;width:500px">${credits}</div>` : ''}
   <div class="row-flex" data-row style="gap:20px;margin-top:${movie ? 20 : 16}px;height:44px;padding-left:2px">${play}<span class="btn2 fx" tabindex="-1" data-act="save">${ic(saved ? 'check' : 'saved')}${saved ? 'Saved' : 'Save'}</span>${movie ? '' : `<span class="pillbtn fx" tabindex="-1" data-act="subs">${ic('cc')}Subtitles: ${esc(subLabel())}</span>`}</div>
   ${movie ? `<div class="row-flex" data-row style="gap:10px;margin-top:12px;height:36px">${pills}</div>` : ''}
@@ -179,10 +181,18 @@ function placeTracks() {
   el.querySelectorAll('.track').forEach((tr) => {
     // (the episode row starts scrolled to its entry: the episode you're on)
     const f = tr.contains(a) ? a : tr._mem?.isConnected ? tr._mem : tr.dataset.entry ? tr.querySelector(tr.dataset.entry) : null;
-    const i = f ? [...tr.children].indexOf(f) : 0;
-    const w = tr.hasAttribute('data-eps') ? 224 : 222;
+    const n = tr.children.length, w = tr.hasAttribute('data-eps') ? 224 : 222;
+    // the focused card stays third from the left, but the row never slides past its last card
+    const i = Math.min(f ? [...tr.children].indexOf(f) : 0, Math.max(2, n - Math.floor((864 + 24) / w) + 2));
     tr.style.transform = i > 2 ? `translateX(${-(i - 2) * w}px)` : '';
   });
+  // the season chips slide sideways when there are more than fit
+  const sin = el.querySelector('.seas-in');
+  if (sin) {
+    const c = sin.contains(a) ? a : sin.querySelector('.chip.sel');
+    const shift = c ? Math.max(0, c.offsetLeft + c.offsetWidth - (864 - 120)) : 0;
+    sin.style.transform = shift ? `translateX(${-shift}px)` : '';
+  }
 }
 
 function play(restart) {
@@ -241,17 +251,24 @@ export default {
   },
   async enter(root, params, { fresh }) {
     if (params.title && (fresh || params.title !== t)) {
-      t = params.title; ver = defaultVersion(t); info = null; season = null; epFocus = null;
+      t = params.title; ver = defaultVersion(t); season = null; epFocus = null;
+      // Details seen this session are kept (Back through More like this doesn't load each page again, and the router
+      // can put focus back on the card you opened).
+      const ck = `${t.kind}:${t.id}:${ver?.id || ''}`;
+      info = infoCache.get(ck) || null;
       const mine = ++my;
       draw();
+      if (info) return;
       try {
         const d = t.kind === 'movie' ? await S.src.movieInfo(ver) : await S.src.seriesInfo({ id: t.id, name: t.name, poster: t.poster });
         if (mine !== my) return;
         info = d;
+        infoCache.set(ck, d);
+        if (infoCache.size > 30) infoCache.delete(infoCache.keys().next().value);
       } catch (e) { if (mine !== my) return; info = { error: e.message, seasons: [] }; }
-      const had = root.contains(document.activeElement) && document.activeElement.dataset.act;
-      draw();
-      focus(root.querySelector(had ? `[data-act="${had}"]` : '[data-act="play"]') || root.querySelector('.btn'));
+      const inside = root.contains(document.activeElement);
+      draw();   // (keeps focus on the same control)
+      if (!inside || !root.contains(document.activeElement)) focus(root.querySelector('[data-act="play"]') || root.querySelector('.btn'));
     } else draw();
   },
   entry: (root) => root.querySelector('[data-act="play"]') || root.querySelector('.btn'),

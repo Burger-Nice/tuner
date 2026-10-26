@@ -147,7 +147,10 @@ export function move(dir, { repeat = false } = {}) {
     return focus(entryOf(scr));
   }
   settle();
-  const to = neighbour(box, cur, dir, root);
+  // Inside a scrolling list (a sheet's body), the next section of that list wins over what's fixed around it (the
+  // footer button): it may be scrolled out of view, and focusing it scrolls it in.
+  const list = box.closest('.sheet-body .inner');
+  const to = (list && (dir === 'up' || dir === 'down') && neighbour(box, cur, dir, list)) || neighbour(box, cur, dir, root);
   if (!to) return false;
   if (to.dataset.row === 'topbar' && repeat) return false;
   if (to.dataset.row === 'topbar') return focus(pickIn(to, cur, dir));

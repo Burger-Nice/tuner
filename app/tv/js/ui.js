@@ -87,13 +87,20 @@ export function confirmMenu({ title, text, yes, no = 'Cancel', onYes }) {
 // It's placed at once for the row the sheet opens on (focus() from opening a sheet fires no tvfocus), and the
 // focused row keeps 14 px from either edge: its ring is 4-5 px outside it.
 export function scrollList(root) {
+  // (measured on screen: a row's offsetTop is relative to whatever positioned box holds it, not to the list)
   const place = (row) => {
     const body = row?.closest?.('.sheet-body'); if (!body) return;
-    const inner = body.querySelector('.inner'), y = row.offsetTop, rh = row.offsetHeight, h = body.clientHeight;
+    const inner = body.querySelector('.inner');
     const cur = -(parseFloat((inner.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0);
+    const b = body.getBoundingClientRect(), r = row.getBoundingClientRect(), pad = 8;   // (the body's padding)
     let t = cur;
-    if (y + rh - cur > h - 14) t = y + rh - h + 14; else if (y - cur < 14) t = Math.max(0, y - 14);
+    if (r.bottom > b.bottom - pad - 14) t = cur + r.bottom - (b.bottom - pad - 14);
+    else if (r.top < b.top + pad + 14) t = Math.max(0, cur - (b.top + pad + 14 - r.top));
     inner.style.transform = `translateY(${-t}px)`;
+    // more below (or above) than shows: the edge fades, so you know to keep going
+    const ih = inner.scrollHeight, vh = body.clientHeight - 2 * pad;
+    body.classList.toggle('more', ih - t > vh + 2);
+    body.classList.toggle('less', t > 2);
   };
   root.addEventListener('tvfocus', (e) => place(e.target));
   if (root.contains(document.activeElement)) {
