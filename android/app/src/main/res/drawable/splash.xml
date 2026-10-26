@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The splash before the app draws: the canvas colour (bg-0) and the gradient wedge where the launch animation starts. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><color android:color="@color/bg0"/></item>
+    <item><bitmap android:gravity="center" android:src="@drawable/splash_wedge"/></item>
+</layer-list>

@@ -117,7 +117,7 @@ public class TunerPlayerPlugin extends Plugin {
         call.resolve();
     }
 
-    /** Downloads a new Tuner APK and hands it to Android's installer. */
+    /** Downloads a new airglow APK and hands it to Android's installer. */
     @PluginMethod
     public void installUpdate(PluginCall call) {
         String url = call.getString("url");
@@ -127,7 +127,7 @@ public class TunerPlayerPlugin extends Plugin {
             Intent s = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + ctx.getPackageName()));
             s.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             ctx.startActivity(s);
-            call.reject("Allow Tuner to install updates, then press Update again.");
+            call.reject("Allow airglow to install updates, then press Update again.");
             return;
         }
         new Thread(() -> {
