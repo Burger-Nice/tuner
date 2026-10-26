@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>airglow sounds v1</title>
+<!-- Audition page for design/sound-v1. Self-contained: open it from disk or over http. The sounds come from out/sounds.js (written by synth.js).
+     The launch demo uses a snapshot of app/tv/launch.css and the launch markup from app/tv.html (the shipped 2.3 s launch). -->
+<script src="out/sounds.js"></script>
+<style>
+:root{--bg0:#15131D;--bg1:#1E1B28;--s1:#2D2B35;--s2:#3D3B45;--s3:#4F4C5A;--t1:#F3EFE6;--t2:#D2CEE2;--t3:#C8C4D8;--pink:#F95BAC;--orchid:#D540F5;--pinkt:#FFB4D4;--orchidt:#E9AFF2;--ink:#14101F;--border:#3C3452;--grad:linear-gradient(100deg,#F95BAC,#D540F5);
+ --a-font-text:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--a-text-2:#D2CEE2}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{margin:0;background:var(--bg0);color:var(--t1);font:500 16px/24px var(--a-font-text)}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 16px 96px}
+h1{font:700 32px/36px var(--a-font-text);letter-spacing:-.01em;margin:0 0 4px}
+h2{font:700 22px/28px var(--a-font-text);margin:48px 0 8px}
+h3{font:650 16px/24px var(--a-font-text);margin:0}
+p{margin:0 0 12px;color:var(--t2)}
+.lead{font-size:18px;line-height:28px;max-width:720px}
+small,.cap{font-size:14px;line-height:18px;color:var(--t3)}
+code,kbd{font:600 13px/1 ui-monospace,Menlo,Consolas,monospace;background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--t1)}
+.panel{background:var(--bg1);border:1px solid var(--border);border-radius:16px;padding:20px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+button{font:700 15px/1 var(--a-font-text);color:var(--t1);background:transparent;border:2px solid #918BA7;border-radius:999px;height:40px;padding:0 18px;cursor:pointer}
+button:hover{background:var(--s1)}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+button.pri{background:var(--grad);border-color:transparent;color:var(--ink)}
+button.pri:hover{filter:brightness(1.05)}
+button.on{background:var(--s3);border-color:var(--s3);color:var(--pinkt)}
+button[aria-pressed=true]{background:var(--s3);border-color:var(--s3);color:var(--pinkt)}
+label{color:var(--t2);font-size:14px}
+input[type=range]{accent-color:var(--pink);width:180px;vertical-align:middle}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card canvas{width:100%;height:56px;background:var(--bg1);border-radius:8px;display:block}
+.card .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tag{font:700 12px/12px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--pinkt)}
+.num{font-variant-numeric:tabular-nums;color:var(--t3);font-size:14px}
+.card p{font-size:14px;line-height:20px;margin:0}
+.card .row{margin-top:auto}
+.demo{position:relative;width:100%;max-width:720px;aspect-ratio:16/9;overflow:hidden;border-radius:12px;border:1px solid var(--border);background:#15131D}
+#app{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;background:#15131D;overflow:hidden}
+#topbar{height:0}
+#screens{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:0 48px}
+#screens .hm{font:700 28px/32px var(--a-font-text)}
+#screens .rail{display:flex;gap:16px}
+#screens .rail i{display:block;width:150px;height:84px;border-radius:16px;background:var(--s1);border:1px solid var(--border)}
+#overlays,#toast{display:none}
+.tl{position:relative;height:64px;max-width:720px;margin-top:12px}
+.tl .bar{position:absolute;left:0;right:0;top:30px;height:4px;border-radius:2px;background:var(--s2)}
+.tl .ph{position:absolute;top:22px;width:2px;height:20px;background:var(--pink);left:0}
+.tl .m{position:absolute;top:0;font-size:11px;line-height:13px;color:var(--t3);transform:translateX(-1px);border-left:1px solid var(--s3);padding-left:4px;height:44px;white-space:nowrap}
+.tl .m.snd{border-left-color:var(--pink);color:var(--pinkt)}
+.tl .m.b{top:44px;height:20px}
+.mock{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.mock{grid-template-columns:1fr}}
+.stage{background:var(--bg0);border:1px solid var(--border);border-radius:16px;padding:20px;min-height:290px;position:relative;outline:none}
+.stage:focus-visible{border-color:#fff}
+.tiles{display:flex;gap:12px;margin:12px 0}
+.tile{width:84px;height:56px;border-radius:12px;background:var(--s1);border:1px solid var(--border)}
+.tile.f,.btnm.f,.lr.f{outline:3px solid #fff;outline-offset:2px}
+.btnm{display:inline-block;height:40px;line-height:36px;padding:0 20px;border-radius:999px;border:2px solid #918BA7;font-weight:700;font-size:15px}
+.sheet{position:absolute;right:16px;top:16px;bottom:16px;width:230px;background:var(--bg1);border:1px solid var(--border);border-radius:20px;padding:12px;display:none}
+.sheet.in{display:block}
+.lr{height:44px;border-radius:8px;display:flex;align-items:center;gap:10px;padding:0 12px;margin-bottom:4px}
+.lr.f{background:var(--s3);outline-offset:-3px}
+.rd{width:14px;height:14px;border-radius:50%;border:2px solid #918BA7}.rd.on{background:var(--pink);border-color:var(--pink)}
+.tg{margin-left:auto;width:44px;height:26px;border-radius:13px;background:var(--s2);border:2px solid #918BA7;position:relative}
+.tg i{position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--t1)}
+.tg.on{background:var(--grad);border-color:transparent}.tg.on i{left:21px;background:var(--ink)}
+.log{font:500 13px/18px ui-monospace,Menlo,Consolas,monospace;color:var(--t3);white-space:pre-wrap;min-height:72px}
+.big{font:700 40px/44px var(--a-font-text);font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}th{color:var(--t3);font-weight:650}
+.warn{border-left:3px solid var(--orchid);padding-left:12px}
+</style>
+<style id="launchcss">/* airglow launch, about 2.3 s (design/ui-v1/launch/, UI-SPEC section 8, slowed down after the first run on the TV:
+   at 1.1 s it was over before you could see it). Transform and opacity only; no filter, blur or sprite.
+   Every selector is l- / #l- so it can't touch the app's own classes. Classes on #app:
+     l-on       the launch layer is up and the app underneath is hidden
+     l-run      the intro plays: 0-300 the bands step out, 300-700 the wedge moves into the lockup (above the letters,
+                so they resolve from behind it), 380-860 the letters
+     l-loading  the hold when the first screen isn't ready at 820 ms: the bands breathe; l-slow adds the 4 s caption
+     l-wiping   820-1100 the 8° slab sweeps; the launch layer fades out in 100 ms, the app fades in from 100 ms,
+                and the top-bar mark only from 160 ms, so the lockup and the mark are never on screen together
+     l-rm       reduced motion: the wedge alone, then a 120 ms fade */
+:root{--l-ease:cubic-bezier(.2,.7,.2,1);--l-ease-wipe:cubic-bezier(.7,0,.2,1)}
+#l-launch{display:none;position:absolute;inset:0;background:#15131D;z-index:50}   /* = bg-0 = the native splash */
+.l-on #l-launch{display:block}
+.l-on>#topbar,.l-on>#screens{opacity:0}
+.l-stage{position:absolute;left:256px;top:218.7px;width:448px;height:102.6px}
+.l-stage svg{position:absolute;display:block;overflow:visible}
+.l-mk{position:absolute;left:-1.7px;top:1.7px;width:102.5px;height:80.9px;transform-origin:50% 50%;z-index:2;transform:translate(148.5px,9.2px) scale(1.595)}
+.l-mk svg{left:0;top:0;width:100%;height:100%}
+.l-lt{left:0;top:0;width:448px;height:102.6px;z-index:1;opacity:0}
+.l-b1,.l-b2,.l-b3{opacity:0}
+
+@keyframes l-band{from{transform:translateX(24px);opacity:0}25%{opacity:1}to{transform:none;opacity:1}}
+@keyframes l-settle{from{transform:translate(148.5px,9.2px) scale(1.595)}to{transform:none}}
+@keyframes l-letter{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes l-wipe{from{transform:translateX(-340px) skewX(-8deg)}to{transform:translateX(1300px) skewX(-8deg)}}
+@keyframes l-out{from{opacity:1}to{opacity:0}}
+@keyframes l-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes l-fade{from{opacity:0}to{opacity:1}}
+@keyframes l-breathe{from{opacity:1}to{opacity:.55}}
+
+.l-run .l-b1,.l-run .l-b2,.l-run .l-b3{animation:l-band 560ms var(--l-ease) both;animation-delay:var(--s)}
+.l-run .l-b1{--s:100ms}.l-run .l-b2{--s:190ms}.l-run .l-b3{--s:280ms}
+.l-run .l-mk{animation:l-settle 700ms var(--l-ease) 700ms both}
+.l-run .l-lt{animation:l-letter 420ms var(--l-ease) both;animation-delay:var(--s)}
+.l-run .l-c0{--s:880ms}.l-run .l-c1{--s:950ms}.l-run .l-c2{--s:1020ms}.l-run .l-c3{--s:1090ms}.l-run .l-c4{--s:1160ms}.l-run .l-c5{--s:1230ms}.l-run .l-c6{--s:1300ms}
+
+.l-slab{position:absolute;top:-60px;bottom:-60px;left:0;width:300px;background:linear-gradient(100deg,#F95BAC,#D540F5);z-index:60;opacity:0;pointer-events:none}
+.l-slabline{position:absolute;top:-60px;bottom:-60px;left:0;width:10px;background:#D540F5;opacity:0;z-index:60;pointer-events:none}
+.l-wiping .l-slab{animation:l-wipe 480ms var(--l-ease-wipe) both;opacity:1}
+.l-wiping .l-slabline{animation:l-wipe 480ms var(--l-ease-wipe) 60ms both;opacity:.6}
+.l-wiping #l-launch{animation:l-out 180ms linear 120ms both}
+.l-wiping>#topbar,.l-wiping>#screens{animation:l-in 320ms var(--l-ease) 220ms both}
+.l-wiping>#topbar .mk{animation:l-fade 200ms linear 320ms both}
+
+/* the hold: calm, the three bands breathe in a ripple (the only loop in the app besides a spinner) */
+.l-loading .l-b1,.l-loading .l-b2,.l-loading .l-b3{animation:l-breathe 1.6s ease-in-out infinite alternate both}
+.l-loading .l-b2{animation-delay:.18s}.l-loading .l-b3{animation-delay:.36s}
+.l-loading .l-mk{transform:none}.l-loading .l-lt{opacity:1}
+.l-cap{position:absolute;left:0;right:0;top:372px;text-align:center;font:500 16px/24px var(--a-font-text);color:var(--a-text-2);opacity:0}
+.l-slow .l-cap{opacity:1;animation:l-fade 200ms linear both}
+
+/* reduced motion: the wedge alone, then a 120 ms fade */
+.l-rm .l-b1,.l-rm .l-b2,.l-rm .l-b3,.l-rm .l-lt,.l-rm .l-slab,.l-rm .l-slabline{animation:none!important;opacity:0}
+.l-rm.l-fading #l-launch{animation:l-out 120ms linear both}.l-rm.l-fading>#topbar,.l-rm.l-fading>#screens{animation:l-fade 120ms linear both}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>airglow sounds</h1>
+  <p class="lead">Twelve procedurally generated sounds (<code>node synth.js</code>), 48 kHz, 16-bit, mono. Nothing here is a sample. Audition them against a programme bed, because their whole job is to sit <em>under</em> it.</p>
+
+  <h2>1. Set up the room</h2>
+  <div class="panel">
+    <p>Play the programme bed, set your computer or TV volume so it sounds like ordinary dialogue, then leave it alone. Every sound below is rendered to its real level, so what you hear is what the Philips would play at that volume.</p>
+    <div class="row">
+      <button id="bed" aria-pressed="false">Programme bed: off</button>
+      <label>Bed level <input type="range" id="bedlvl" min="-34" max="-14" step="1" value="-23"> <span id="bedv" class="num">-23 LUFS</span></label>
+      <span style="width:12px"></span>
+      <button id="lvlon" aria-pressed="true">Sounds: On</button><button id="lvlq" aria-pressed="false">Quiet (-6 dB)</button><button id="lvloff" aria-pressed="false">Off</button>
+    </div>
+    <p class="cap" style="margin:12px 0 0">The bed is speech-shaped noise with a syllable rhythm, normalised to -23 LUFS (the EBU R128 programme level) by the same K-weighting the sounds are measured with. Default state: the browser needs one click or key press before it will play any sound.</p>
+  </div>
+
+  <h2>2. Every sound</h2>
+  <div class="grid" id="cards"></div>
+
+  <h2>3. The launch, in sync with the shipped animation</h2>
+  <p>The animation below is the real <code>launch.css</code> and markup (about 2.3 s: bands step out 100 to 840 ms, the wedge settles 700 to 1400, letters 880 to 1720, hold, then the 8&deg; slab wipes at 2000 ms). The sound starts in the same frame as <code>l-run</code>; the wipe sound starts with <code>l-wiping</code>.</p>
+  <div class="demo" id="demo"><div id="app" class="">
+    <div id="topbar"></div>
+    <div id="screens"><div class="hm">Home</div><div class="rail"><i></i><i></i><i></i><i></i><i></i></div></div>
+    <div id="overlays"></div><div id="toast"></div>
+    <div id="l-launch"><div class="l-stage"><div class="l-mk"><svg class="l-b1" viewBox="-36 -41 104 82" aria-hidden="true"><defs><linearGradient id="mkgl-b1" x1="0" y1="-35" x2="62" y2="35" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><path d="M-30 -15.6A5.5 5.5 0 0 1 -21.8 -20.39L-14.51 -16.28A1 1 0 0 1 -14 -15.41L-14 15.41A1 1 0 0 1 -14.51 16.28L-21.8 20.39A5.5 5.5 0 0 1 -30 15.6Z" fill="#6A33E6"/></svg><svg class="l-b2" viewBox="-36 -41 104 82" aria-hidden="true"><defs><linearGradient id="mkgl-b2" x1="0" y1="-35" x2="62" y2="35" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><path d="M-20 -18.93A5.5 5.5 0 0 1 -11.8 -23.72L-4.51 -19.6A1 1 0 0 1 -4 -18.73L-4 18.73A1 1 0 0 1 -4.51 19.6L-11.8 23.72A5.5 5.5 0 0 1 -20 18.93Z" fill="#9638F0"/></svg><svg class="l-b3" viewBox="-36 -41 104 82" aria-hidden="true"><defs><linearGradient id="mkgl-b3" x1="0" y1="-35" x2="62" y2="35" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><path d="M-10 -22.25A5.5 5.5 0 0 1 -1.8 -27.04L5.49 -22.93A1 1 0 0 1 6 -22.06L6 22.06A1 1 0 0 1 5.49 22.93L-1.8 27.04A5.5 5.5 0 0 1 -10 22.25Z" fill="#C23DF2"/></svg><svg class="l-wd" viewBox="-36 -41 104 82" aria-hidden="true"><defs><linearGradient id="mkgl-wd" x1="0" y1="-35" x2="62" y2="35" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><path d="M0 -25.39A6 6 0 0 1 8.64 -30.78L57.79 -6.74A7.5 7.5 0 0 1 57.79 6.74L8.64 30.78A6 6 0 0 1 0 25.39Z" fill="url(#mkgl-wd)"/></svg></div><svg class="l-lt l-c0" viewBox="-6 -108.83 636.08 145.71" aria-hidden="true"><defs><linearGradient id="lkwwg" x1="174.16" y1="0" x2="472.68" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><g transform="translate(151.4 0)"><g transform="translate(0 0)"><path d="M36.4 1.42L36.4 1.42Q26.91 1.42 19.48 -3.26Q12.04 -7.93 7.72 -16.01Q3.4 -24.08 3.4 -34.42Q3.4 -44.76 7.72 -52.83Q12.04 -60.91 19.48 -65.58Q26.91 -70.25 36.4 -70.25L36.4 -70.25Q43.34 -70.25 49.01 -67.56L49.01 -67.56Q52.55 -65.86 55.38 -63.17L55.38 -63.17L55.38 -68.84L76.63 -68.84L76.63 0L55.38 0L55.38 -5.52Q52.69 -2.97 49.01 -1.27L49.01 -1.27Q43.34 1.42 36.4 1.42M40.79 -18.13L40.79 -18.13Q47.73 -18.13 51.98 -22.73Q56.23 -27.34 56.23 -34.42L56.23 -34.42Q56.23 -39.24 54.32 -42.92Q52.41 -46.6 48.94 -48.65Q45.47 -50.71 40.93 -50.71Q36.4 -50.71 32.93 -48.65Q29.46 -46.6 27.41 -42.92Q25.35 -39.24 25.35 -34.42L25.35 -34.42Q25.35 -29.75 27.34 -26.06Q29.32 -22.38 32.86 -20.25Q36.4 -18.13 40.79 -18.13" fill="#F3EFE6"/></g></g></svg><svg class="l-lt l-c1" viewBox="-6 -108.83 636.08 145.71" aria-hidden="true"><defs><linearGradient id="lkwwg" x1="174.16" y1="0" x2="472.68" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><g transform="translate(151.4 0)"><g transform="translate(-2.9 0)"><path d="M113.6 0L91.93 0L91.93 -68.84L113.6 -68.84L113.6 0" fill="#F3EFE6"/><path d="M90.61 -100.31A3.271800000000001 3.271800000000001 0 0 1 95.39 -103.22L113.7 -93.75A3.972900000000001 3.972900000000001 0 0 1 113.7 -86.7L95.39 -77.23A3.271800000000001 3.271800000000001 0 0 1 90.61 -80.14Z" fill="#F95BAC"/></g></g></svg><svg class="l-lt l-c2" viewBox="-6 -108.83 636.08 145.71" aria-hidden="true"><defs><linearGradient id="lkwwg" x1="174.16" y1="0" x2="472.68" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><g transform="translate(151.4 0)"><g transform="translate(-5.8 0)"><path d="M150.57 0L128.9 0L128.9 -68.84L150.57 -68.84L150.57 -63.6Q156.94 -70.25 168.27 -70.25L168.27 -70.25Q173.23 -70.25 176.98 -68.77Q180.74 -67.28 183.57 -64.16L183.57 -64.16L170.68 -47.88Q169.26 -49.43 167.14 -50.28Q165.01 -51.13 162.32 -51.13L162.32 -51.13Q156.94 -51.13 153.75 -47.8Q150.57 -44.48 150.57 -37.82L150.57 -37.82L150.57 0" fill="#F3EFE6"/></g></g></svg><svg class="l-lt l-c3" viewBox="-6 -108.83 636.08 145.71" aria-hidden="true"><defs><linearGradient id="lkwwg" x1="174.16" y1="0" x2="472.68" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><g transform="translate(151.4 0)"><g transform="translate(-8.7 0)"><path d="M216.57 30.88L216.57 30.88Q205.24 30.88 196.67 26.98Q188.1 23.09 183.14 16.01L183.14 16.01L196.46 2.69Q200.14 7.08 204.75 9.35Q209.35 11.61 215.86 11.61L215.86 11.61Q223.94 11.61 228.54 7.65Q233.14 3.68 233.14 -3.54L233.14 -3.54L233.14 -7.93Q230.88 -6.09 228.19 -4.82L228.19 -4.82Q222.52 -2.12 215.58 -2.12L215.58 -2.12Q206.09 -2.12 198.73 -6.66Q191.36 -11.19 187.11 -18.98Q182.86 -26.77 182.86 -36.26L182.86 -36.26Q182.86 -45.89 187.11 -53.61Q191.36 -61.33 198.73 -65.79Q206.09 -70.25 215.58 -70.25L215.58 -70.25Q222.66 -70.25 228.33 -67.71L228.33 -67.71Q231.16 -66.29 233.57 -64.31L233.57 -64.31L233.57 -68.84L254.82 -68.84L254.82 -4.11Q254.82 6.52 249.86 14.31Q244.9 22.1 236.26 26.49Q227.62 30.88 216.57 30.88M219.69 -21.39L219.69 -21.39Q224.22 -21.39 227.55 -23.37Q230.88 -25.35 232.65 -28.68Q234.42 -32.01 234.42 -36.26Q234.42 -40.51 232.65 -43.91Q230.88 -47.31 227.55 -49.29Q224.22 -51.27 219.69 -51.27L219.69 -51.27Q215.3 -51.27 211.9 -49.29Q208.5 -47.31 206.66 -43.91Q204.82 -40.51 204.82 -36.26L204.82 -36.26Q204.82 -32.29 206.66 -28.82Q208.5 -25.35 211.83 -23.37Q215.16 -21.39 219.69 -21.39" fill="url(#lkwwg)"/></g></g></svg><svg class="l-lt l-c4" viewBox="-6 -108.83 636.08 145.71" aria-hidden="true"><defs><linearGradient id="lkwwg" x1="174.16" y1="0" x2="472.68" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><g transform="translate(151.4 0)"><g transform="translate(-11.6 0)"><path d="M291.78 0L270.11 0L270.11 -102.83L291.78 -102.83L291.78 0" fill="url(#lkwwg)"/></g></g></svg><svg class="l-lt l-c5" viewBox="-6 -108.83 636.08 145.71" aria-hidden="true"><defs><linearGradient id="lkwwg" x1="174.16" y1="0" x2="472.68" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><g transform="translate(151.4 0)"><g transform="translate(-14.5 0)"><path d="M340.23 1.56L340.23 1.56Q329.6 1.56 321.03 -3.19Q312.46 -7.93 307.51 -16.15Q302.55 -24.36 302.55 -34.56L302.55 -34.56Q302.55 -44.76 307.51 -52.83Q312.46 -60.91 320.96 -65.65Q329.46 -70.4 340.23 -70.4L340.23 -70.4Q350.99 -70.4 359.49 -65.72Q367.99 -61.05 372.95 -52.9Q377.9 -44.76 377.9 -34.56L377.9 -34.56Q377.9 -24.36 372.95 -16.15Q367.99 -7.93 359.49 -3.19Q350.99 1.56 340.23 1.56M340.23 -18.13L340.23 -18.13Q344.9 -18.13 348.44 -20.18Q351.98 -22.24 353.9 -25.99Q355.81 -29.75 355.81 -34.56L355.81 -34.56Q355.81 -39.38 353.82 -42.99Q351.84 -46.6 348.37 -48.65Q344.9 -50.71 340.23 -50.71L340.23 -50.71Q335.69 -50.71 332.15 -48.65Q328.61 -46.6 326.63 -42.92Q324.65 -39.24 324.65 -34.42L324.65 -34.42Q324.65 -29.75 326.63 -25.99Q328.61 -22.24 332.15 -20.18Q335.69 -18.13 340.23 -18.13" fill="url(#lkwwg)"/></g></g></svg><svg class="l-lt l-c6" viewBox="-6 -108.83 636.08 145.71" aria-hidden="true"><defs><linearGradient id="lkwwg" x1="174.16" y1="0" x2="472.68" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F95BAC"/><stop offset="1" stop-color="#D540F5"/></linearGradient></defs><g transform="translate(151.4 0)"><g transform="translate(-17.4 0)"><path d="M421.67 0L404.11 0L380.31 -68.84L401.56 -68.84L413.31 -28.9L426.35 -68.84L443.91 -68.84L456.94 -28.9L468.84 -68.84L490.08 -68.84L466.29 0L448.58 0L435.27 -39.66L421.67 0" fill="url(#lkwwg)"/></g></g></svg></div>
+<div class="l-cap">Connecting to your provider…</div></div>
+<div class="l-slab"></div><div class="l-slabline"></div>
+  </div></div>
+  <div class="tl" id="tl"></div>
+  <div class="row" style="margin-top:4px">
+    <button class="pri" id="runL">Play launch with sound</button>
+    <button id="runS">Without sound</button>
+    <button id="runHold">Held: Home not ready until 4.5 s</button>
+    <button id="runRM">Reduced motion</button>
+  </div>
+  <p class="cap" style="margin-top:12px">Reading the timeline: pink ticks are sound events (three stepped notes with the bands, a warm swell under the wedge, a rising breath under the letters, the resolve chord when the lockup is whole at about 1.5 s, the wipe at 2.0 s). The held case plays the same launch sound, which simply ends in silence, and the wipe sound only when the wipe actually starts.</p>
+
+  <h2>4. Hold a key</h2>
+  <div class="panel">
+    <p>Click the box, then hold <kbd>&larr;</kbd> or <kbd>&rarr;</kbd> (a TV remote repeats about every 50 ms after a 400 ms delay; a computer keyboard repeats at its own rate). The counter shows how many ticks you hear.</p>
+    <div class="row">
+      <button id="hk1" aria-pressed="true">Recommended: tick every 150 ms, softer</button>
+      <button id="hk2" aria-pressed="false">Silent on repeats</button>
+      <button id="hk3" aria-pressed="false">Every repeat (what not to do)</button>
+    </div>
+    <div class="stage" id="hold" tabindex="0" style="min-height:120px;margin-top:12px"><div class="big" id="hcount">0 ticks</div><div class="log" id="hlog">Click here, then hold an arrow key.</div></div>
+  </div>
+
+  <h2>5. A small menu to drive with the keys</h2>
+  <div class="panel">
+    <p>Click the stage, then use <kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd>, <kbd>Enter</kbd> (OK), <kbd>Esc</kbd> (Back). Move along the tiles, press OK on a tile (select), go down to Options and press OK (open replaces select), move in the sheet, toggle a row, press Back (close), and bump the edge. Enabling the bump shows what the optional edge sound does.</p>
+    <div class="row" style="margin-bottom:12px"><button id="bumpb" aria-pressed="false">Bump at edges: off</button><span class="cap" id="mlog"></span></div>
+    <div class="stage" id="stage" tabindex="0">
+      <div class="h3" style="font-weight:700;font-size:22px">Home</div>
+      <div class="tiles" id="tiles"></div>
+      <div id="btns"></div>
+      <div class="sheet" id="sheet"></div>
+    </div>
+  </div>
+
+  <h2>6. What the numbers are</h2>
+  <div id="specs"></div>
+</div>
+
+<script>
+// airglow UI sounds: the reference player for the web UI (Chrome 113 WebView, Web Audio). Copy to app/tv/js/sfx.js and
+// the WAVs from out/ to app/tv/sounds/. SOUND.md (Integration) says where each call goes. The same rules apply to a native
+// SoundPool player: same files, same gains, same priorities, same rate limits.
+//
+//   sfx.init()               once, at start-up: decodes every file (about 0.5 MB of PCM), wakes on the first key
+//   sfx.mode('on'|'quiet'|'off')   the Account setting (SOUND.md, Settings)
+//   sfx.request('select')    "play this unless something more important is requested in the same key press"
+//   sfx.play('launch')       play now (launch, wipe, alert)
+//   sfx.dir(k, repeat)       call for every direction key, before move(); stamps "this focus change was a key press"
+//   sfx.focused(el)          call from one 'tvfocus' listener on #app; plays the tick (or nothing)
+//   sfx.bump(repeat)         a direction key that could not move (optional, off by default)
+const BASE = 'sounds/';
+// p = priority inside one key press (the highest wins), cd = minimum ms between two plays of the same sound
+const DEF = {
+  launch: { p: 5 }, 'launch-wipe': { p: 4 }, 'launch-brief': { p: 4 },
+  focus: { p: 1, cd: 60 }, select: { p: 3, cd: 120 }, back: { p: 3, cd: 150 }, open: { p: 4, cd: 200 }, close: { p: 4, cd: 200 },
+  'toggle-on': { p: 3, cd: 150 }, 'toggle-off': { p: 3, cd: 150 }, bump: { p: 1, cd: 400 }, alert: { p: 6, cd: 3000 },
+};
+const LEVEL = { on: 1, quiet: 0.5, off: 0 };   // quiet = -6 dB
+const REPEAT_EVERY = 150, REPEAT_GAIN = 0.6;    // a held key ticks every 150 ms at -4.4 dB, not every 50 ms
+const RATE = { up: 1.059, down: 0.944 };        // +/- one semitone for vertical moves; left and right are the reference pitch
+
+let ctx = null, level = 'on', zone = 'ui', bumpOn = false;
+const bufs = {}, last = {};
+let pend = null, pendOpts = null, flushing = false;
+let dirAt = -1e9, dirRepeat = false, dirKey = "", lastRepeatTick = -1e9;
+
+const sfx = {
+  init(base = BASE, inline = null) {   // inline: { name: base64 WAV }, used by preview.html (file:// cannot fetch)
+    if (ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC({ latencyHint: 'interactive', sampleRate: 48000 });   // the files are 48 kHz: no resampling
+    const wake = () => { if (ctx.state !== 'running') ctx.resume().catch(() => {}); };
+    ['keydown', 'pointerdown'].forEach((ev) => document.addEventListener(ev, wake, true));
+    for (const n of Object.keys(DEF)) {
+      const get = inline ? Promise.resolve(Uint8Array.from(atob(inline[n]), (c) => c.charCodeAt(0)).buffer) : fetch(`${base}${n}.wav`).then((r) => r.arrayBuffer());
+      get.then((b) => ctx.decodeAudioData(b)).then((buf) => { bufs[n] = buf; }).catch(() => {});
+    }
+  },
+  mode(m) { if (m in LEVEL) level = m; },
+  zone(z) { zone = z; },                       // 'player': nothing but the alert plays
+  bumpEnabled(on) { bumpOn = !!on; },
+  state: () => ({ ctx: ctx?.state, level, loaded: Object.keys(bufs).length, baseLatency: ctx?.baseLatency, outputLatency: ctx?.outputLatency }),
+
+  play(name, { rate = 1, gain = 1, cd } = {}) {
+    const d = DEF[name], b = bufs[name];
+    if (!ctx || !d || !b || !LEVEL[level] || document.hidden) return false;
+    if (zone === 'player' && name !== 'alert') return false;
+    if (ctx.state !== 'running') return false;   // a suspended context would play the sound late, in a burst: drop it
+    const now = performance.now();
+    if (now - (last[name] ?? -1e9) < (cd ?? d.cd ?? 0)) return false;
+    last[name] = now;
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = b; s.playbackRate.value = rate; g.gain.value = LEVEL[level] * gain;
+    s.connect(g); g.connect(ctx.destination);
+    s.onended = () => { s.disconnect(); g.disconnect(); };
+    s.start();
+    return true;
+  },
+
+  // One key press can ask for several sounds (OK on a card: select; the card opens a sheet: open). The highest priority wins.
+  request(name, opts) {
+    const d = DEF[name]; if (!d) return;
+    if (!pend || d.p >= DEF[pend].p) { pend = name; pendOpts = opts; }
+    if (flushing) return;
+    flushing = true;
+    queueMicrotask(() => { flushing = false; const n = pend, o = pendOpts; pend = pendOpts = null; if (n) sfx.play(n, o); });
+  },
+
+  // ---- focus ticks
+  dir(k, repeat) { dirAt = performance.now(); dirRepeat = !!repeat; dirKey = k; },
+  focused(el) {
+    if (performance.now() - dirAt > 80) return;             // not from a key press (a sheet taking focus, a screen loading, Back restoring)
+    let gain = 1;
+    if (el?.closest?.('.kb')) gain = 0.5;                    // the on-screen keyboard: half level (SOUND.md, On-screen keyboard)
+    if (dirRepeat) {                                         // held key: one tick per 150 ms, softer
+      const now = performance.now();
+      if (now - lastRepeatTick < REPEAT_EVERY) return;
+      lastRepeatTick = now; gain *= REPEAT_GAIN;
+    }
+    const jitter = 1 + (Math.random() - 0.5) * 0.02;         // +/- 1 %: no two ticks identical
+    sfx.play('focus', { rate: (RATE[dirKey] || 1) * jitter, gain });
+  },
+  bump(repeat) { if (bumpOn && !repeat) sfx.play('bump'); },
+};
+
+(function(){
+'use strict';
+const M = window.AIRGLOW_MANIFEST, B = window.AIRGLOW_SOUNDS;
+sfx.init('', B);
+const $ = (s, r = document) => r.querySelector(s);
+const WHEN = {
+  launch: ['Launch', 'The signature. Three stepped notes with the three bands, a warm swell as the wedge settles, a breath under the letters, one resolving chord when the lockup is whole.'],
+  'launch-wipe': ['Launch wipe', 'Soft air that follows the 8 degree slab. Plays when the wipe starts (even if the launch was held).'],
+  'launch-brief': ['Launch, reduced motion', 'Only the resolving chord, for the reduced-motion launch.'],
+  focus: ['Focus move', 'A fingertip on glass. The most frequent sound: nearly subliminal. Only on a key press that moved focus. Played at 1.059 / 0.944 for up / down.'],
+  select: ['Select (OK)', 'A rising fifth, D to A. Forward. Not for keyboard letters, toggles or things that open a layer.'],
+  back: ['Back', 'A falling fifth, A to D, a little darker. Silent when Back leaves the app.'],
+  open: ['Open sheet or menu', 'A rising third on a short breath of air. Replaces select for the OK that opened it.'],
+  close: ['Close sheet or menu', 'A falling third on air that falls. Replaces back when Back closed a layer.'],
+  'toggle-on': ['Toggle on', 'Lit: a bright note with a stepped echo (the afterimage).'],
+  'toggle-off': ['Toggle off', 'Dim: a darker note, no echo.'],
+  bump: ['Edge bump (optional)', 'Soft dull knock: "can\'t go further". Off by default. Never on a held key.'],
+  alert: ['Your team is live', 'The launch staircase in the Sharp dialect: tighter, brighter, faster. The only sound allowed over programme audio.'],
+};
+const ORDER = ['launch','launch-wipe','launch-brief','focus','select','back','open','close','toggle-on','toggle-off','bump','alert'];
+
+// ---- waveforms from the embedded WAVs
+function pcm(name){const bin=atob(B[name]),n=(bin.length-44)>>1,x=new Float32Array(n);for(let i=0;i<n;i++){let v=bin.charCodeAt(44+2*i)|(bin.charCodeAt(45+2*i)<<8);if(v>32767)v-=65536;x[i]=v/32768;}return x;}
+function draw(cv,x){const dpr=devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=w*dpr;cv.height=h*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);c.fillStyle='#F95BAC';const step=x.length/w;for(let i=0;i<w;i++){let mx=0;for(let j=Math.floor(i*step);j<Math.floor((i+1)*step)&&j<x.length;j++)mx=Math.max(mx,Math.abs(x[j]));const a=Math.min(1,Math.sqrt(mx)*1.15)*h/2;c.fillRect(i,h/2-a,1,Math.max(1,2*a));}}
+const cards=$('#cards');
+for(const n of ORDER){const m=M[n],[t,d]=WHEN[n];const el=document.createElement('div');el.className='card';
+ el.innerHTML=`<div class="top"><h3>${t}</h3><span class="tag">${m.cls}</span></div><canvas></canvas><p>${d}</p><div class="num">${n}.wav &middot; ${m.durationMs} ms &middot; peak ${m.peakDbfs} dBFS &middot; M ${m.momentaryLufs} LUFS</div><div class="row"><button class="pri" data-p="${n}">Play</button>${n==='focus'?'<button data-p="focus" data-r="1.059">Up</button><button data-p="focus" data-r="0.944">Down</button><button data-p="focus" data-x="8">x8 (mashing)</button>':''}</div>`;
+ cards.appendChild(el);}
+requestAnimationFrame(()=>{cards.querySelectorAll('.card').forEach((el,i)=>draw($('canvas',el),pcm(ORDER[i])));});
+cards.addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;const n=b.dataset.p,r=+b.dataset.r||1;
+ if(b.dataset.x){let k=0;const t=setInterval(()=>{sfx.play('focus',{rate:1,cd:0});if(++k>=+b.dataset.x)clearInterval(t);},70);return;}
+ sfx.play(n,{rate:r,cd:0});});
+
+// ---- the programme bed: speech-shaped noise with a syllable rhythm, normalised to a target LUFS (BS.1770 K-weighting)
+let bedNode=null,bedGain=null,bedBuf=null;
+function kw(x){const f=(x,b,a)=>{const y=new Float64Array(x.length);let x1=0,x2=0,y1=0,y2=0;for(let i=0;i<x.length;i++){const v=b[0]*x[i]+b[1]*x1+b[2]*x2-a[0]*y1-a[1]*y2;y[i]=v;x2=x1;x1=x[i];y2=y1;y1=v;}return y;};return f(f(x,[1.53512485958697,-2.69169618940638,1.19839281085285],[-1.69065929318241,0.73248077421585]),[1,-2,1],[-1.99004745483398,0.99007225036621]);}
+function makeBed(){const SR=48000,N=SR*8,x=new Float64Array(N);let a=12345;const rnd=()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};
+ let l1=0,l2=0,h1=0,env=0.5,tgt=0.5,left=0;const al=1-Math.exp(-2*Math.PI*2800/SR),ah=1-Math.exp(-2*Math.PI*180/SR),ae=1-Math.exp(-1/(0.035*SR));
+ for(let i=0;i<N;i++){if(--left<=0){left=Math.floor((0.09+rnd()*0.16)*SR);tgt=rnd()<0.18?0.04:0.25+rnd()*0.75;}env+=ae*(tgt-env);const v=rnd()*2-1;l1+=al*(v-l1);l2+=al*(l1-l2);h1+=ah*(l2-h1);x[i]=(l2-h1)*env;}
+ const k=kw(x);let s=0;for(let i=0;i<N;i++)s+=k[i]*k[i];const lufs=-0.691+10*Math.log10(s/N),g=Math.pow(10,(-23-lufs)/20);
+ const buf=new AudioBuffer({length:N,numberOfChannels:1,sampleRate:SR});const d=buf.getChannelData(0);for(let i=0;i<N;i++)d[i]=x[i]*g;
+ // make the loop seamless: crossfade the last 0.3 s into the first
+ const cf=Math.round(0.3*SR);for(let i=0;i<cf;i++){const w=i/cf;d[i]=d[i]*w+d[N-cf+i]*(1-w);}return buf;}
+function bedOn(on){ if(on&&!bedNode){const c=new (window.AudioContext||window.webkitAudioContext)();bedBuf=bedBuf||makeBed();const ctx2=c;bedNode=ctx2.createBufferSource();bedNode.buffer=bedBuf;bedNode.loop=true;bedNode.loopStart=0;bedNode.loopEnd=bedBuf.duration-0.3;bedGain=ctx2.createGain();bedGain.gain.value=Math.pow(10,(+$('#bedlvl').value+23)/20);bedNode.connect(bedGain);bedGain.connect(ctx2.destination);bedNode.start();bedNode._c=ctx2;}
+ else if(!on&&bedNode){bedNode.stop();bedNode._c.close();bedNode=null;}
+ $('#bed').setAttribute('aria-pressed',on);$('#bed').textContent='Programme bed: '+(on?'on':'off');}
+$('#bed').onclick=()=>bedOn(!bedNode);
+$('#bedlvl').oninput=e=>{$('#bedv').textContent=e.target.value+' LUFS';if(bedGain)bedGain.gain.value=Math.pow(10,(+e.target.value+23)/20);};
+const lv=(m)=>{sfx.mode(m);[['on','#lvlon'],['quiet','#lvlq'],['off','#lvloff']].forEach(([k,s])=>$(s).setAttribute('aria-pressed',k===m));};
+$('#lvlon').onclick=()=>lv('on');$('#lvlq').onclick=()=>lv('quiet');$('#lvloff').onclick=()=>lv('off');
+
+// ---- the launch demo
+const app=$('#app'),demo=$('#demo');
+function fit(){app.style.transform='scale('+demo.clientWidth/960+')';}fit();addEventListener('resize',fit);
+const TL=[[100,'bands 100 / 190 / 280',1],[700,'wedge settles',0],[1520,'chord',1],[1720,'lockup whole',0],[2500,'end',0],[620,'swell',1,'b'],[880,'letters begin',0,'b'],[2000,'wipe',1,'b']];
+const tl=$('#tl');tl.innerHTML='<div class="bar"></div><div class="ph" id="ph"></div>'+TL.map(([t,l,s,b])=>`<div class="m ${s?'snd':''} ${b?'b':''}" style="left:${t/2600*100}%">${l}</div>`).join('');
+let timers=[],raf=0;
+function stop(){timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);app.className='';}
+function playhead(t0,len){const ph=$('#ph');const f=()=>{const t=performance.now()-t0;ph.style.left=Math.min(100,t/len*100)+'%';if(t<len)raf=requestAnimationFrame(f);};raf=requestAnimationFrame(f);}
+function runLaunch({sound=true,readyAt=0,rm=false}={}){
+  stop();const T_HOLD=2000;
+  void app.offsetWidth;app.className='l-on';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const t0=performance.now();playhead(t0,2700);
+    if(rm){app.classList.add('l-rm');if(sound)sfx.play('launch-brief',{cd:0});timers.push(setTimeout(()=>{app.classList.add('l-fading');timers.push(setTimeout(()=>{app.className='';},120));},T_HOLD));return;}
+    app.classList.add('l-run');if(sound)sfx.play('launch',{cd:0});
+    const finish=()=>{app.classList.remove('l-loading','l-slow');app.classList.add('l-wiping');if(sound)sfx.play('launch-wipe',{cd:0});timers.push(setTimeout(()=>{app.className='';},600));};
+    timers.push(setTimeout(()=>{if(readyAt<=T_HOLD){finish();return;}app.classList.add('l-loading');timers.push(setTimeout(finish,readyAt-T_HOLD));},T_HOLD));
+  }));
+}
+if(location.hash==='#autorun')runLaunch({sound:false});
+$('#runL').onclick=()=>runLaunch();$('#runS').onclick=()=>runLaunch({sound:false});$('#runHold').onclick=()=>runLaunch({readyAt:4500});$('#runRM').onclick=()=>runLaunch({rm:true});
+
+// ---- held key
+let hmode=1,hlast=-1e9,hticks=0,hrep=0,hdown=0;
+['hk1','hk2','hk3'].forEach((id,i)=>$('#'+id).onclick=()=>{hmode=i+1;['hk1','hk2','hk3'].forEach((j,k)=>$('#'+j).setAttribute('aria-pressed',k===i));hticks=hrep=0;$('#hcount').textContent='0 ticks';});
+$('#hold').addEventListener('keydown',e=>{if(!/^Arrow/.test(e.key))return;e.preventDefault();const now=performance.now();
+ if(!e.repeat){hdown=now;hticks=1;hrep=0;sfx.play('focus',{cd:0});hlast=now;}
+ else{hrep++;if(hmode===3){sfx.play('focus',{cd:0});hticks++;}else if(hmode===1&&now-hlast>=150){sfx.play('focus',{gain:.6,cd:0});hlast=now;hticks++;}}
+ $('#hcount').textContent=hticks+' tick'+(hticks===1?'':'s');$('#hlog').textContent=`key held ${((now-hdown)/1000).toFixed(2)} s, ${hrep} repeat events, ${hticks} sounds`+(hticks&&now-hdown>0?` (${(hticks/Math.max(.2,(now-hdown)/1000)).toFixed(1)} per second)`:'');});
+
+// ---- the menu: wired the way the engineer would wire it (sfx.dir, sfx.focused, sfx.request)
+const st=$('#stage'),tiles=$('#tiles'),btns=$('#btns'),sheet=$('#sheet'),mlog=$('#mlog');
+for(let i=0;i<5;i++)tiles.insertAdjacentHTML('beforeend','<div class="tile fx"></div>');
+btns.innerHTML='<span class="btnm fx">Options</span>';
+const tl2=[...tiles.children],opt=btns.firstChild;let f=tl2[0],sheetOpen=false,bumpOn=false,tog=false,radio=0;f.classList.add('f');
+function setF(el,key,rep){f.classList.remove('f');f=el;f.classList.add('f');if(key)sfx.focused(el);}
+sheet.innerHTML=['Sort: Recent','Sort: A to Z','Sort: Year'].map((t,i)=>`<div class="lr fx" data-i="${i}"><span class="rd ${i===0?'on':''}"></span>${t}</div>`).join('')+'<div class="lr fx" id="tgrow">Previews <span class="tg" id="tg"><i></i></span></div>';
+const rows=()=>[...sheet.querySelectorAll('.lr')];
+$('#bumpb').onclick=()=>{bumpOn=!bumpOn;sfx.bumpEnabled(bumpOn);$('#bumpb').setAttribute('aria-pressed',bumpOn);$('#bumpb').textContent='Bump at edges: '+(bumpOn?'on':'off');};
+st.addEventListener('keydown',e=>{
+  const k={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down',Enter:'ok',Escape:'back'}[e.key];if(!k)return;e.preventDefault();
+  if(['left','right','up','down'].includes(k)){
+    sfx.dir(k,e.repeat);let to=null;
+    if(sheetOpen){const r=rows(),i=r.indexOf(f);if(k==='down')to=r[i+1];if(k==='up')to=r[i-1];}
+    else if(tl2.includes(f)){const i=tl2.indexOf(f);if(k==='right')to=tl2[i+1];if(k==='left')to=tl2[i-1];if(k==='down')to=opt;}
+    else if(f===opt&&k==='up')to=tl2[0];
+    if(to){setF(to,true);mlog.textContent='focus: tick';}else{sfx.bump(e.repeat);mlog.textContent=e.repeat?'edge (held): silent':'edge: '+(bumpOn?'bump':'silent (bump is off)');}
+  }else if(k==='ok'){
+    if(e.repeat)return;
+    sfx.request('select');   // always ask; anything higher requested below wins
+    if(f===opt&&!sheetOpen){sheetOpen=true;sheet.classList.add('in');f.classList.remove('f');f=rows()[0];f.classList.add('f');sfx.request('open');mlog.textContent='OK on Options: open (replaces select)';}
+    else if(f.id==='tgrow'){tog=!tog;$('#tg').classList.toggle('on',tog);sfx.request(tog?'toggle-on':'toggle-off');mlog.textContent='toggle '+(tog?'on':'off');}
+    else if(sheetOpen){rows().forEach((r,i)=>r.querySelector('.rd')&&r.querySelector('.rd').classList.toggle('on',r===f));mlog.textContent='OK on a row: select';}
+    else mlog.textContent='OK on a tile: select';
+  }else if(k==='back'){
+    if(e.repeat)return;
+    if(sheetOpen){sheetOpen=false;sheet.classList.remove('in');f.classList.remove('f');f=opt;f.classList.add('f');sfx.request('close');mlog.textContent='Back closed the sheet: close';}
+    else{sfx.request('back');f.classList.remove('f');f=tl2[0];f.classList.add('f');mlog.textContent='Back: back';}
+  }
+});
+
+// ---- spec table
+$('#specs').innerHTML='<div class="panel"><table><tr><th>file</th><th>length</th><th>peak</th><th>M-max</th><th>priority</th><th>min gap</th><th>use</th></tr>'+ORDER.map(n=>{const m=M[n];return `<tr><td>${n}.wav</td><td>${m.durationMs} ms</td><td>${m.peakDbfs} dBFS</td><td>${m.momentaryLufs} LUFS</td><td>${m.prio}</td><td>${m.cooldownMs?m.cooldownMs+' ms':'-'}</td><td style="color:var(--t3)">${m.note}</td></tr>`}).join('')+'</table><p class="cap" style="margin:12px 0 0">M-max = loudest 400 ms, K-weighted (BS.1770). Programme is about -23 LUFS integrated, so the loudest UI sound (the launch) sits 6 LU under it, and a focus tick about 20 LU under.</p></div>';
+})();
+</script>
+</body>
+</html>
