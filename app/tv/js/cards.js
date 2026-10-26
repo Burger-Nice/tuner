@@ -4,7 +4,7 @@ import { progressOf } from './state.js';
 import { LANG_SHORT, prefLangs } from './catalog.js';
 import { show, clockText, isMine, mySide, ordinal } from './games.js';
 
-const img = (url) => (url ? `<img src="${esc(sized(url, 342))}" alt="" decoding="async" loading="lazy">` : '');
+const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" decoding="async" loading="lazy">` : '');
 const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
 
 // 2:3 poster: tag 4K top-left, +N versions (or a language) top-right, resume bar flush; the caption below is the real title.
@@ -101,7 +101,7 @@ export function resumeHero(p) {
   const it = p.item;
   const title = it.kind === 'episode' ? it.seriesName : it._title || it.name;
   const meta = it.kind === 'episode' ? `S${it.season} · E${it.ep}` : it.year || 'Film';
-  return `<div class="hero-plate"><div class="hero-art"><div class="art">${img(it.still || it.poster)}</div><div class="abs" style="inset:0;background:linear-gradient(90deg,var(--a-surface-1),rgba(45,43,53,.15) 70%)"></div></div>
+  return `<div class="hero-plate"><div class="hero-art"><div class="art">${img(it.still || it.poster, 780)}</div><div class="abs" style="inset:0;background:linear-gradient(90deg,var(--a-surface-1),rgba(45,43,53,.15) 70%)"></div></div>
   <div class="abs t-label" style="left:24px;top:18px">Continue watching</div>
   <div class="abs" style="left:24px;top:40px;width:460px"><div class="t-head ellipsis" style="font-size:30px;line-height:34px">${esc(title)}</div>
    <div class="metaline" style="margin-top:4px;font-size:16px">${esc(meta)}${dot}${leftText(p.d - p.t)}</div>

@@ -1,12 +1,12 @@
 // Search: a 6 x 6 keyboard on the left, results on the right, updated after every letter. After two letters a row of
 // completed titles sits between the field and the keyboard (▲ from the top key row), so most searches end there.
 // Matching is word-prefix only and ignores accents and punctuation ("spiderman" finds Spider-Man).
-import { esc, ic, dot, logo, setHtml, hm } from '../util.js';
+import { esc, ic, dot, logo, setHtml, hm, sized } from '../util.js';
 import { S, on, store } from '../state.js';
 import { catalog, ensure, searchAll } from '../catalog.js';
 import { guideNow, onNow } from '../guide.js';
 import { poster } from '../cards.js';
-import { playLive, playVod } from '../player.js';
+import { playLive, playVod, watching } from '../player.js';
 import { push, current } from '../router.js';
 import { focus } from '../focus.js';
 import { defaultVersion } from '../catalog.js';
@@ -36,9 +36,9 @@ function results() {
   const chans = res.live.slice(0, 3);
   const rest = [...res.movie, ...res.series].filter((t) => t !== top).slice(0, 4);
   if (!top && !onTv.length && !chans.length && !rest.length) return `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b>No results for “${esc(q)}”</b><p>Check the spelling, or try fewer letters. Search covers channels, programmes, movies and series.</p><span class="btn2 sm fx" tabindex="-1" data-act="clear">Clear</span></div>`;
-  const mini = (t) => `<div class="mini2" style="height:40px;width:28px"><div class="art">${t.poster ? `<img src="${esc(t.poster)}" alt="">` : ''}</div></div>`;
+  const mini = (t) => `<div class="mini2" style="height:40px;width:28px"><div class="art">${t.poster ? `<img src="${esc(sized(t.poster, 92))}" alt="">` : ''}</div></div>`;
   let html = '<div data-col>';
-  if (top) html += `<div class="t-label" style="margin-bottom:8px">Top result</div><div class="rrow fx" tabindex="-1" data-res="t:${top.kind}:${top.id}" style="height:84px"><div class="mini2"><div class="art">${top.poster ? `<img src="${esc(top.poster)}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
+  if (top) html += `<div class="t-label" style="margin-bottom:8px">Top result</div><div class="rrow fx" tabindex="-1" data-res="t:${top.kind}:${top.id}" style="height:84px"><div class="mini2"><div class="art">${top.poster ? `<img src="${esc(sized(top.poster, 154))}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
   if (onTv.length || chans.length) {
     html += '<div class="t-label" style="margin:14px 0 8px">On TV</div>';
     html += onTv.slice(0, 2).map(({ ch, p }) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(p.title)}</div><div class="t-cap ellipsis">${esc(ch.name)}${dot}${hm(p.start)} to ${hm(p.end)}</div></div></div>`).join('');
@@ -53,7 +53,10 @@ function suggestions() {
   if (!names.length) return '<div style="height:44px"></div>';
   return `<div class="sugg" data-row>${names.map((n) => `<span class="chip fx" tabindex="-1" data-sugg="${esc(n)}">${ic('search')}<span class="ellipsis" style="max-width:150px">${esc(n)}</span></span>`).join('')}</div>`;
 }
+let behind = false;
+on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw() {
+  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
   const right = results();
   setHtml(el.querySelector('[data-left]'), `

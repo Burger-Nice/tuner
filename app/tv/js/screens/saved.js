@@ -6,7 +6,7 @@ import { catalog, ensure } from '../catalog.js';
 import { guideNow, onNow, warm } from '../guide.js';
 import { gameOn } from '../games.js';
 import { poster } from '../cards.js';
-import { playLive } from '../player.js';
+import { playLive, watching } from '../player.js';
 import { push, current } from '../router.js';
 import { focus } from '../focus.js';
 import { contextMenu, toast } from '../ui.js';
@@ -22,7 +22,10 @@ function titles(kind) {
 }
 function history() { return Object.values(S.progress).sort((a, b) => b.at - a.at).slice(0, 30); }
 
+let behind = false;
+on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw() {
+  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
   const counts = { channels: favList('live').length, movie: favList('movie').length, series: favList('series').length };
   const chip = (k, l, n) => `<span class="chip lg fx${tab === k ? ' sel' : ''}" tabindex="-1" data-tab-s="${k}">${l}${n != null ? `<span class="n">${n}</span>` : ''}</span>`;

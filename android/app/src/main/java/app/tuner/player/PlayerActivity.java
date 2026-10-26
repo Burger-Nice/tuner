@@ -344,7 +344,12 @@ public class PlayerActivity extends AppCompatActivity {
             TunerPlayerPlugin.emit(event("track"));
             handler.post(tick);
         }
+        // What the app sent while this was starting (Up next for an episode resumed at once).
+        String[][] early;
+        synchronized (TunerPlayerPlugin.early) { early = TunerPlayerPlugin.early.toArray(new String[0][]); TunerPlayerPlugin.early.clear(); }
+        if (session == TunerPlayerPlugin.session()) for (String[] c : early) command(c[0], c[1]);
     }
+    int session() { return session; }
 
     private MediaItem item(Entry e) {
         MediaItem.Builder b = new MediaItem.Builder()
@@ -1379,19 +1384,22 @@ public class PlayerActivity extends AppCompatActivity {
                     vod.setItem(cur, index < ring.size() - 1);
                     break;
                 }
-                case "ring": {   // a new channel list: read off the UI thread, then put in place
-                    new Thread(() -> {
+                case "ring": {   // a new channel list: read off the UI thread, one at a time and in order, then put in place
+                    int seq = ++ringSeq;
+                    RINGS.execute(() -> {
                         try {
                             JSONObject r = new JSONObject(arg);
                             List<Entry> next = parse(r.getJSONArray("entries"), r.optString("tpl", ""));
-                            if (!next.isEmpty()) runOnUiThread(() -> { if (!isFinishing()) setRing(next, r); });
+                            if (!next.isEmpty()) runOnUiThread(() -> { if (!isFinishing() && seq == ringSeq) setRing(next, r); });
                         } catch (Exception ignored) {}
-                    }, "ring").start();
+                    });
                     break;
                 }
             }
         } catch (Exception ignored) {}
     }
+    private static final java.util.concurrent.ExecutorService RINGS = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private int ringSeq;   // only the newest list asked for is put in place
     private void setRing(List<Entry> next, JSONObject r) {
         ring = next;
         ringName = r.optString("name", ringName);

@@ -67,6 +67,9 @@ public class TunerPlayerPlugin extends Plugin {
         Playlist(String key, List<PlayerActivity.Entry> entries) { this.key = key; this.entries = entries; }
     }
     static Playlist playlist;
+    /** Commands that arrived before the player opened, for the session being started; it takes them in onCreate. */
+    static final java.util.List<String[]> early = new java.util.ArrayList<>();
+    static int session() { return session; }
 
     @PluginMethod
     public void play(PluginCall call) {
@@ -90,6 +93,7 @@ public class TunerPlayerPlugin extends Plugin {
         i.putExtra("session", session);
         i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         if (PlayerActivity.current != null) PlayerActivity.current.finish();
+        synchronized (early) { early.clear(); }
         PlayerActivity.launching = true;
         getActivity().startActivity(i);
         JSObject r = new JSObject();
@@ -110,10 +114,12 @@ public class TunerPlayerPlugin extends Plugin {
     public void command(PluginCall call) {
         JSArray args = call.getArray("args");
         PlayerActivity p = PlayerActivity.current;
-        if (p != null && args != null && args.length() > 0) {
+        if (args != null && args.length() > 0) {
             String what = args.optString(0, "");
             String arg = args.length() > 1 ? args.optString(1, "") : "";
-            p.runOnUiThread(() -> p.command(what, arg));
+            if (p != null && p.session() == session) p.runOnUiThread(() -> p.command(what, arg));
+            // The player is still starting (play() answers right after asking for it): keep what it must not miss.
+            else if (PlayerActivity.launching && "queue".equals(what)) synchronized (early) { early.add(new String[] { what, arg }); }
         }
         call.resolve();
     }

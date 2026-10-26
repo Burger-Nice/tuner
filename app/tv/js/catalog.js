@@ -202,8 +202,10 @@ async function prepare(kind, c) {
   const done = c.pv === PREP;   // a saved copy that was prepared already
   c._unprepared = !done;
   c.pv = PREP;
+  await breathe();   // the saved copy was just read in one go: let the remote through before the next step
   if (!done) for (let i = 0; i < c.items.length; i++) { const x = c.items[i]; x._s = Titles.norm(x.name); if (i % 5000 === 4999) await breathe(); }
-  c.byId = new Map(c.items.map((x) => [x.id, x]));
+  c.byId = new Map();
+  for (let i = 0; i < c.items.length; i++) { c.byId.set(c.items[i].id, c.items[i]); if (i % 20000 === 19999) await breathe(); }
   c.catName = new Map(c.cats.map((x) => [x.id, x.name]));
   if (kind === 'live') return c;
   if (done) { await mergeLib(kind, c); return c; }
@@ -409,7 +411,14 @@ export function optionCounts(kind, view, key, values) {
   const c = catalog[kind], f = view.f;
   L = prefLangs();
   const pool = c.titles.filter((t) => match(t, f, key));
-  const fs = values.map((v) => ({ [key]: v })), counts = values.map(() => 0);
+  const counts = values.map(() => 0);
+  if (key === 'genre' || (key === 'lang' && values.every((v) => v !== 'mine' && v !== 'all'))) {
+    // one walk over each title's own genres or languages instead of a test per option
+    const at = new Map(values.map((v, i) => [v, i]));
+    for (const t of pool) for (const v of key === 'genre' ? t._genres || [] : t._langs) { const i = at.get(v); if (i !== undefined) counts[i]++; }
+    return counts;
+  }
+  const fs = values.map((v) => ({ [key]: v }));
   for (const t of pool) for (let i = 0; i < fs.length; i++) if (match(t, fs[i], '')) counts[i]++;
   return counts;
 }

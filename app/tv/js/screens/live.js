@@ -6,7 +6,7 @@ import { S, on, store, scoped, favList, toggleFav, isFav } from '../state.js';
 import { catalog, ensure, takeFresh } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
 import { myGame, gameOn, hidden, feedsNow, findFeeds, liveGames, isMine, show } from '../games.js';
-import { playLive } from '../player.js';
+import { playLive, watching } from '../player.js';
 import { current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, toast, scrollList } from '../ui.js';
@@ -116,7 +116,10 @@ function nowPanel() {
 let warmT = 0, frame = 0, pendingFocus = null;
 // focusAt: where focus goes after the redraw (a move). Without it (new data, the clock) focus stays on the same row
 // and time, never on whatever came first. Guide data is asked for once the remote has settled on a row.
+let behind = false;
+on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw(focusAt) {
+  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
   if (!catalog.live) return;
   nowFloor = floor10(Date.now());

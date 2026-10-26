@@ -218,7 +218,11 @@ export default function lib(kind) {
       });
       root.addEventListener('tvfocus', (e) => { if (!e.target.closest('.lib-grid') && row !== 0) { row = 0; drawGrid(); } });
       on('session', () => { view = null; list = []; });
-      on('catalog', (k) => { if (k === kind && current() === kind && row === 0 && !el.querySelector('.lib-grid').contains(document.activeElement)) refreshList(); });
+      on('catalog', (k) => {
+        if (k !== kind) return;
+        if (current() !== kind && current() !== 'detail') { list = []; return; }   // rebuilt on the next open; don't hold the old titles
+        if (current() === kind && row === 0 && !el.querySelector('.lib-grid').contains(document.activeElement)) refreshList();
+      });
     },
     enter(root, params, { fresh }) {
       if (!view) loadView();
