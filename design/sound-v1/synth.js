@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// airglow sound set v1: a small deterministic synthesizer. No dependencies, no samples, no randomness except a seeded PRNG.
+// airglow sound set v1.1: a small deterministic synthesizer. No dependencies, no samples, no randomness except a seeded PRNG.
 //   node design/sound-v1/synth.js            renders every sound to design/sound-v1/out/*.wav (48 kHz, 16-bit, mono)
 //   node design/sound-v1/synth.js focus      renders only the named sounds
 // It also writes out/manifest.json (timing, gain, rate limits for the engineer), out/report.txt (the measured numbers)
@@ -12,7 +12,7 @@
 // a sine with a few weak partials), and a stepped echo (discrete repeats, never a reverb wash) as the sonic
 // equivalent of the three stepped bands: "a signal travels and leaves an afterimage".
 //   up a fifth = forward / confirm   down a fifth = back
-//   up a third = open                down a third = close
+//   a breath rising to F#5 = open    a breath falling to D5 = close
 //   lit (bright, with an echo) = on  dim (dark, no echo) = off
 'use strict';
 const fs = require('fs');
@@ -22,45 +22,60 @@ const SR = 48000;
 const OUT = path.join(__dirname, 'out');
 
 // ---------------------------------------------------------------- notes (D major pentatonic, equal temperament, A4 = 440)
-const NOTE = { D4: 293.665, A4: 440, D5: 587.330, E5: 659.255, 'F#5': 739.989, A5: 880, B5: 987.767, D6: 1174.659, E6: 1318.510, 'F#6': 1479.978, A6: 1760 };
+const NOTE = { D4: 293.665, A4: 440, D5: 587.330, E5: 659.255, 'F#5': 739.989, A5: 880, B5: 987.767, D6: 1174.659, E6: 1318.510, 'F#6': 1479.978, A6: 1760, E7: 2637.021 };
 
 // ---------------------------------------------------------------- timbres: [ratio, amplitude, decay multiplier]
-const GLASS = [[1, 1, 1], [2, 0.26, 0.55], [3, 0.09, 0.38], [4.17, 0.05, 0.22], [1.0035, 0.45, 1.0]];   // the signature: a sine, a soft octave, a trace of "tink", one slightly detuned twin for life
+// v1.1: the detuned twin is now 1.0012 at 0.13 (v1 had 1.0035 at 0.45, which beat at 2 to 5 Hz in the tails: a warble, which is the shimmer the brand refuses).
+const GLASS = [[1, 1, 1], [2, 0.26, 0.55], [3, 0.09, 0.38], [4.17, 0.05, 0.22], [1.0012, 0.13, 1.0]];   // the signature: a sine, a soft octave, a trace of "tink", a barely-detuned twin
 const SOFT = [[1, 1, 1], [2, 0.18, 0.5], [3, 0.04, 0.3]];                                               // rounder, for navigation
-const BRIGHT = [[1, 1, 1], [2, 0.42, 0.6], [3, 0.2, 0.45], [4.17, 0.08, 0.25], [1.0035, 0.45, 1.0]];   // the Sharp dialect: same notes, tighter and brighter
-const WARM = [[1, 1, 1], [2, 0.75, 0.9], [3, 0.4, 0.8], [4, 0.12, 0.7], [1.004, 0.5, 1.0]];            // the low pad: its upper partials carry it on a small speaker
+const TICK = [[1, 1, 1], [2, 0.08, 0.5]];                                                               // the focus tick: nearly a pure sine, the touch comes from the grain
+const BRIGHT = [[1, 1, 1], [2, 0.42, 0.6], [3, 0.2, 0.45], [4.17, 0.08, 0.25], [1.0012, 0.13, 1.0]];   // the Sharp dialect: same notes, tighter and brighter
+const WARM = [[1, 1, 1], [2, 0.75, 0.9], [3, 0.4, 0.8], [4, 0.12, 0.7], [1.0012, 0.15, 1.0]];          // the low swell (launch-full only): its upper partials carry it on a small speaker
 
 // ---------------------------------------------------------------- the recipes
 // dur: file length (s). tail: final raised-cosine fade (s). lp/hp: master filters (Hz). m: target momentary LUFS (400 ms
 // K-weighted max). ceil: sample-peak ceiling (dBFS). meta: how the app should use it.
-// A tone layer: { type:'tone', t, f, gain, att, tau, partials, glide?, bend?, dur?, rel?, lp?, echo? }
+// A tone layer: { type:'tone', t, f, gain, att, tau, partials, glide?, bend?, dur?, rel?, lp?, echo?, choke? }
 //    tau > 0: a struck note (attack, then exponential decay). no tau: a swell (attack, hold, release over `rel`).
 //    glide: { to: Hz, time: s }   bend: semitones the pitch starts above f and falls with time constant `bendTau`
 //    echo: [{ d: s, g: gain, lp: Hz }]   discrete repeats, each one darker: the afterimage
+//    choke: true  each repeat REPLACES the one before (a 5 ms fade of the dry note, and of every repeat but the last, at the next repeat's
+//           start), so the repeats read as steps and not as a tail. Spacing: the band spacing x 3, so two more staircases follow the first.
 // A noise layer: { type:'noise', t, dur, gain, f0, f1, q, peak (0..1, where the swell peaks), tau? (struck), att?, lp? }
+const STAIR = (t0, step, notes, gain, extra) => notes.map((n, i) => ({
+  type: 'tone', t: t0 + i * step, f: NOTE[n], gain: gain[i], att: extra.att, tau: extra.tau, dur: extra.dur, partials: extra.partials, lp: extra.lp,
+  choke: true, echo: extra.echo,
+}));
+const CHORD = (t0, g, tau, att, partials, echo) => [['D5', 0.90, 0], ['F#5', 0.85, 0.012], ['A5', 1.0, 0.024], ['E6', 0.42, 0.040]].map(([n, v, off]) => ({
+  type: 'tone', t: t0 + off, f: NOTE[n], gain: v * g, att, tau, dur: 1.0, partials, lp: 6500, choke: true, echo,
+}));
 const RECIPES = {
   // ---- launch: synced to launch.css. Bands step out 100/190/280 ms, the wedge settles 700-1400, letters 880-1720,
-  //      the lockup is whole at ~1.7 s, the app wipes at 2.0 s (launch-wipe is a separate file, played when the wipe starts).
+  //      the lockup is whole at ~1.5 s, the app wipes at 2.0 s (launch-wipe is a separate file, played when the wipe starts).
+  // v1.1: the default launch is only the two gestures that carry the identity (the staircase and the chord): heard on every cold start.
   launch: {
-    dur: 2.6, tail: 0.30, hp: 150, lp: 8500, m: -29, ceil: -11,
-    meta: { cls: 'hero', prio: 5, note: 'play at the moment launch.js adds l-run; never loops; if the launch holds (not ready at 2 s) it simply ends in silence' },
+    dur: 2.3, tail: 0.20, hp: 150, lp: 8500, m: -31, ceil: -11,
+    meta: { cls: 'hero', prio: 5, note: 'cold start only: sfx.launch(t0) in the same frame that launch.js adds l-run; never loops; if the launch holds (not ready at 2 s) it simply ends in silence' },
     layers: [
-      // the three bands step out: D5, F#5, A5 at 100 / 190 / 280 ms (the same times as the CSS), each with a stepped echo
-      ...[['D5', 0.100, 0.95], ['F#5', 0.190, 1.05], ['A5', 0.280, 1.15]].map(([n, t, g]) => ({
-        type: 'tone', t, f: NOTE[n], gain: g, att: 0.007, tau: 0.16, dur: 0.9, partials: GLASS, lp: 6500,
-        echo: [{ d: 0.115, g: 0.30, lp: 4200 }, { d: 0.230, g: 0.13, lp: 3000 }],
-      })),
-      // the wedge moves into the lockup (700-1400): a warm fifth swells under, so the small speaker has body
+      // the three bands step out (100 / 190 / 280 ms, the CSS times): D5 F#5 A5. Each repeats at +270 ms and +540 ms (3 x the 90 ms band spacing, darker):
+      // the first staircase is followed by two quieter ones, each replacing the last (choke), so you hear three steps and their afterimage
+      ...STAIR(0.100, 0.090, ['D5', 'F#5', 'A5'], [0.95, 1.05, 1.15], { att: 0.007, tau: 0.16, dur: 0.9, partials: GLASS, lp: 6500, echo: [{ d: 0.270, g: 0.30, lp: 4200 }, { d: 0.540, g: 0.13, lp: 3000 }] }),
+      // the lockup is whole (the last letter is ~80 % in at 1.5 s): D5 F#5 A5 E6 struck together, 12 ms between voices so it blooms, one short decay, two darker repeats
+      ...CHORD(1.52, 0.75, 0.14, 0.012, GLASS, [{ d: 0.240, g: 0.30, lp: 3800 }, { d: 0.480, g: 0.13, lp: 2800 }]),
+    ],
+  },
+
+  // the long version, kept as an option (SOUND.md, Launch): adds the warm swell under the wedge and the breath under the letters.
+  'launch-full': {
+    dur: 2.4, tail: 0.25, hp: 150, lp: 8500, m: -31, ceil: -11,
+    meta: { cls: 'hero', prio: 5, note: 'optional long launch, same sync as launch; swap the file name to use it' },
+    layers: [
+      ...STAIR(0.100, 0.090, ['D5', 'F#5', 'A5'], [0.95, 1.05, 1.15], { att: 0.007, tau: 0.16, dur: 0.9, partials: GLASS, lp: 6500, echo: [{ d: 0.270, g: 0.30, lp: 4200 }, { d: 0.540, g: 0.13, lp: 3000 }] }),
       { type: 'tone', t: 0.60, f: NOTE.D4, gain: 0.24, att: 0.24, rel: 0.62, dur: 1.45, partials: WARM, lp: 2600 },
       { type: 'tone', t: 0.66, f: NOTE.A4, gain: 0.17, att: 0.24, rel: 0.62, dur: 1.45, partials: WARM, lp: 2600 },
-      // the letters resolve one by one (880-1720): one slow breath of air rising, carried by a sine that climbs a fifth
-      { type: 'noise', t: 0.86, dur: 0.80, gain: 0.22, f0: 1500, f1: 4200, q: 1.1, peak: 0.72, lp: 5000 },
-      { type: 'tone', t: 0.88, f: NOTE.D5, gain: 0.07, att: 0.30, rel: 0.45, dur: 0.95, glide: { to: NOTE.A5, time: 0.80 }, partials: [[1, 1, 1], [2, 0.12, 1]] },
-      // the lockup is whole: D5 F#5 A5 E6 struck together (the three bands, now one glow), then a stepped echo down the room
-      ...[['D5', 0.90, 0], ['F#5', 0.85, 0.012], ['A5', 1.0, 0.024], ['E6', 0.42, 0.040]].map(([n, g, off]) => ({
-        type: 'tone', t: 1.52 + off, f: NOTE[n], gain: g * 0.75, att: 0.012, tau: 0.34, dur: 1.08, partials: GLASS, lp: 6500,
-        echo: [{ d: 0.180, g: 0.26, lp: 3800 }, { d: 0.360, g: 0.11, lp: 2800 }],
-      })),
+      { type: 'noise', t: 0.86, dur: 0.80, gain: 0.7, f0: 1500, f1: 4200, q: 1.1, peak: 0.72, lp: 5000 },
+      { type: 'tone', t: 0.88, f: NOTE.D5, gain: 0.10, att: 0.30, rel: 0.45, dur: 0.95, glide: { to: NOTE.A5, time: 0.80 }, partials: [[1, 1, 1], [2, 0.12, 1]] },
+      ...CHORD(1.52, 0.75, 0.14, 0.012, GLASS, [{ d: 0.240, g: 0.30, lp: 3800 }, { d: 0.480, g: 0.13, lp: 2800 }]),
     ],
   },
 
@@ -74,69 +89,63 @@ const RECIPES = {
     ],
   },
 
-  // reduced motion (wedge alone, then a 120 ms fade) and any short start: just the resolve
+  // reduced motion (wedge alone, then a 120 ms fade): just the resolve, played WITH the fade (finish()), because that is when something happens on screen
   'launch-brief': {
-    dur: 1.25, tail: 0.20, hp: 150, lp: 8500, m: -30, ceil: -11,
-    meta: { cls: 'hero', prio: 4, note: 'for the reduced-motion launch: play at l-fading, or at start' },
-    layers: [
-      ...[['D5', 0.90, 0], ['F#5', 0.85, 0.012], ['A5', 1.0, 0.024], ['E6', 0.42, 0.040]].map(([n, g, off]) => ({
-        type: 'tone', t: 0.04 + off, f: NOTE[n], gain: g * 0.9, att: 0.018, tau: 0.30, dur: 1.1, partials: GLASS, lp: 6500,
-        echo: [{ d: 0.180, g: 0.24, lp: 3800 }, { d: 0.360, g: 0.10, lp: 2800 }],
-      })),
-    ],
+    dur: 1.0, tail: 0.20, hp: 150, lp: 8500, m: -32, ceil: -11,
+    meta: { cls: 'hero', prio: 4, note: 'reduced-motion launch: play in finish() together with l-fading, not at begin()' },
+    layers: [...CHORD(0.04, 0.9, 0.14, 0.018, GLASS, [{ d: 0.240, g: 0.30, lp: 3800 }, { d: 0.480, g: 0.13, lp: 2800 }])],
   },
 
   // ---- navigation
-  // focus: the most frequent sound. A fingertip on glass, 45 ms. Nearly subliminal. Pitch it per direction in the player (SOUND.md, Held keys).
+  // focus: the most frequent sound. A fingertip on glass, 45 ms. Nearly subliminal. Pitched per direction in the player: up = B5, down = F#5 (SOUND.md, Held keys).
+  // v1.1: more tactile (a stronger grain, a nearly pure tone) so it is a touch, not a pip.
   focus: {
     dur: 0.055, tail: 0.014, hp: 200, lp: 8000, m: -43, ceil: -14,
-    meta: { cls: 'nav', prio: 1, cooldownMs: 60, repeatEveryMs: 150, repeatGain: 0.6, note: 'only on a key-driven move that changed focus; held keys: see SOUND.md, Held keys' },
+    meta: { cls: 'nav', prio: 1, cooldownMs: 60, repeatEveryMs: 125, repeatGain: 0.6, rateUp: 1.1225, rateDown: 0.8409, note: 'only on a key-driven move that changed focus; held keys: see SOUND.md, Held keys' },
     layers: [
-      { type: 'tone', t: 0, f: NOTE.A5, gain: 1, att: 0.0018, tau: 0.0105, dur: 0.052, partials: SOFT },
-      { type: 'noise', t: 0, dur: 0.02, gain: 0.07, f0: 2600, f1: 2600, q: 1.1, peak: 0.1, tau: 0.003, att: 0.0006 },
+      { type: 'tone', t: 0, f: NOTE.A5, gain: 1, att: 0.0018, tau: 0.0105, dur: 0.052, partials: TICK },
+      { type: 'noise', t: 0, dur: 0.02, gain: 0.18, f0: 2600, f1: 2600, q: 1.1, peak: 0.1, tau: 0.003, att: 0.0006 },
     ],
   },
 
-  // select / OK: a rising fifth (D5 then A5, 38 ms apart), one soft echo. "Forward".
+  // select / OK: a rising fifth (D5 then A5, 60 ms apart: audible as a gesture, not a blip), one soft echo on the last note. "Forward".
   select: {
-    dur: 0.125, tail: 0.040, hp: 180, lp: 8000, m: -37, ceil: -12,
-    meta: { cls: 'nav', prio: 3, cooldownMs: 120, note: 'OK on anything that is not a toggle and does not open a layer (those have their own sound)' },
+    dur: 0.150, tail: 0.050, hp: 180, lp: 8000, m: -37, ceil: -12,
+    meta: { cls: 'nav', prio: 3, cooldownMs: 120, note: 'OK on anything that is not a toggle, not a keyboard key, and does not open a layer (those have their own sound)' },
     layers: [
-      { type: 'tone', t: 0, f: NOTE.D5, gain: 0.8, att: 0.0025, tau: 0.032, dur: 0.1, partials: SOFT, echo: [{ d: 0.052, g: 0.20, lp: 3200 }] },
-      { type: 'tone', t: 0.038, f: NOTE.A5, gain: 1.0, att: 0.0025, tau: 0.034, dur: 0.1, partials: SOFT, echo: [{ d: 0.052, g: 0.22, lp: 3200 }] },
-      { type: 'noise', t: 0, dur: 0.02, gain: 0.06, f0: 2400, f1: 2400, q: 1.1, peak: 0.1, tau: 0.003, att: 0.0006 },
+      { type: 'tone', t: 0, f: NOTE.D5, gain: 0.8, att: 0.0025, tau: 0.030, dur: 0.1, partials: SOFT },
+      { type: 'tone', t: 0.060, f: NOTE.A5, gain: 1.0, att: 0.0025, tau: 0.032, dur: 0.09, partials: SOFT, echo: [{ d: 0.045, g: 0.20, lp: 3200 }] },
+      { type: 'noise', t: 0, dur: 0.02, gain: 0.10, f0: 2400, f1: 2400, q: 1.1, peak: 0.1, tau: 0.003, att: 0.0006 },
     ],
   },
 
-  // back: the mirror of select: a falling fifth (A5 then D5), a little darker, no echo. "Back out".
+  // back: the mirror of select: a falling fifth (A5 then D5, 62 ms apart), a little darker, no echo. "Back out".
   back: {
-    dur: 0.115, tail: 0.040, hp: 180, lp: 6200, m: -38, ceil: -13,
-    meta: { cls: 'nav', prio: 3, cooldownMs: 150, note: 'Back that closes a layer or leaves a page; silent when Back leaves the app; never on a held Back' },
+    dur: 0.150, tail: 0.050, hp: 180, lp: 6200, m: -38, ceil: -13,
+    meta: { cls: 'nav', prio: 3, cooldownMs: 150, note: 'Back that closes a page or goes back; silent when Back leaves the app; never on a held Back' },
     layers: [
-      { type: 'tone', t: 0, f: NOTE.A5, gain: 0.85, att: 0.003, tau: 0.028, dur: 0.1, partials: SOFT, lp: 4200 },
-      { type: 'tone', t: 0.036, f: NOTE.D5, gain: 1.0, att: 0.003, tau: 0.034, dur: 0.1, partials: SOFT, lp: 4200 },
+      { type: 'tone', t: 0, f: NOTE.A5, gain: 0.85, att: 0.003, tau: 0.030, dur: 0.1, partials: SOFT, lp: 4200 },
+      { type: 'tone', t: 0.062, f: NOTE.D5, gain: 1.0, att: 0.003, tau: 0.032, dur: 0.088, partials: SOFT, lp: 4200 },
     ],
   },
 
-  // open: a sheet or menu slides in. A rising third (D5 then F#5) on a short breath of air. "In".
+  // open: a sheet or menu slides in. v1.1: led by a breath that rises 600 -> 3000 Hz and lands on F#5. "In".
   open: {
-    dur: 0.145, tail: 0.050, hp: 180, lp: 7000, m: -38, ceil: -14,
-    meta: { cls: 'nav', prio: 4, cooldownMs: 200, note: 'with openOverlay(); replaces the select sound for the OK that opened it' },
+    dur: 0.160, tail: 0.060, hp: 180, lp: 7000, m: -38, ceil: -14,
+    meta: { cls: 'nav', prio: 4, cooldownMs: 200, note: 'in openOverlay(); replaces the select sound for the OK that opened it' },
     layers: [
-      { type: 'noise', t: 0, dur: 0.12, gain: 0.55, f0: 900, f1: 2500, q: 1.0, peak: 0.55, lp: 4500 },
-      { type: 'tone', t: 0.020, f: NOTE.D5, gain: 0.7, att: 0.004, tau: 0.030, dur: 0.1, partials: SOFT },
-      { type: 'tone', t: 0.062, f: NOTE['F#5'], gain: 0.95, att: 0.004, tau: 0.034, dur: 0.083, partials: SOFT, echo: [{ d: 0.04, g: 0.18, lp: 3000 }] },
+      { type: 'noise', t: 0, dur: 0.115, gain: 1.0, f0: 600, f1: 3000, q: 1.0, peak: 0.6, lp: 5000 },
+      { type: 'tone', t: 0.090, f: NOTE['F#5'], gain: 0.85, att: 0.004, tau: 0.032, dur: 0.07, partials: SOFT, echo: [{ d: 0.04, g: 0.18, lp: 3000 }] },
     ],
   },
 
-  // close: a falling third (F#5 then D5) on a breath of air that falls. "Out".
+  // close: the breath falls 3000 -> 600 Hz and lands on D5, a little darker. "Out".
   close: {
-    dur: 0.125, tail: 0.045, hp: 180, lp: 6200, m: -39, ceil: -15,
-    meta: { cls: 'nav', prio: 4, cooldownMs: 200, note: 'with closeOverlay(); replaces the back sound when the Back closed a sheet' },
+    dur: 0.140, tail: 0.050, hp: 180, lp: 6200, m: -39, ceil: -15,
+    meta: { cls: 'nav', prio: 4, cooldownMs: 200, note: 'in closeTop() (Back closed a sheet), NOT in closeOverlay(): a pick that closes a menu is an OK' },
     layers: [
-      { type: 'noise', t: 0, dur: 0.10, gain: 0.45, f0: 2200, f1: 800, q: 1.0, peak: 0.4, lp: 4000 },
-      { type: 'tone', t: 0.006, f: NOTE['F#5'], gain: 0.8, att: 0.004, tau: 0.028, dur: 0.1, partials: SOFT, lp: 4200 },
-      { type: 'tone', t: 0.046, f: NOTE.D5, gain: 0.95, att: 0.004, tau: 0.030, dur: 0.075, partials: SOFT, lp: 4200 },
+      { type: 'noise', t: 0, dur: 0.095, gain: 1.0, f0: 3000, f1: 600, q: 1.0, peak: 0.4, lp: 4000 },
+      { type: 'tone', t: 0.070, f: NOTE.D5, gain: 0.85, att: 0.004, tau: 0.030, dur: 0.07, partials: SOFT, lp: 4200 },
     ],
   },
 
@@ -167,17 +176,14 @@ const RECIPES = {
     ],
   },
 
-  // alert: "your team is live" in the player. The launch's three-step staircase, in the Sharp dialect: tighter, brighter,
-  // faster. The only sound that may play over programme audio. 0.7 s.
+  // alert: "your team is live" in the player. v1.1: an octave up (D6 F#6 A6, E7 on top) so it clears commentary and crowd (which live in 300 Hz-1 kHz),
+  // in the Sharp dialect (tighter, brighter), repeats at 3 x the 95 ms step with choke: three steps and two darker staircases. The only sound allowed over programme audio.
   alert: {
-    dur: 0.78, tail: 0.18, hp: 200, lp: 8500, m: -29, ceil: -12,
-    meta: { cls: 'alert', prio: 6, cooldownMs: 3000, note: 'with the action chip; never in the first 10 s after a tune; once per chip; over video only if Sounds is on' },
+    dur: 1.0, tail: 0.22, hp: 300, lp: 8500, m: -27, ceil: -12,
+    meta: { cls: 'alert', prio: 6, cooldownMs: 3000, note: 'with the action chip, from native code; never in the first 10 s after a tune; once per chip; only if Sounds is not Off' },
     layers: [
-      ...[['D5', 0, 0.8], ['F#5', 0.095, 0.9], ['A5', 0.19, 1.0]].map(([n, t, g]) => ({
-        type: 'tone', t, f: NOTE[n], gain: g, att: 0.003, tau: 0.13, dur: 0.6, partials: BRIGHT, lp: 7000,
-        echo: [{ d: 0.095, g: 0.28, lp: 4400 }, { d: 0.19, g: 0.12, lp: 3200 }],
-      })),
-      { type: 'tone', t: 0.19, f: NOTE.E6, gain: 0.30, att: 0.003, tau: 0.16, dur: 0.6, partials: SOFT, lp: 6000 },
+      ...STAIR(0, 0.095, ['D6', 'F#6', 'A6'], [0.8, 0.9, 1.0], { att: 0.003, tau: 0.10, dur: 0.6, partials: BRIGHT, lp: 6500, echo: [{ d: 0.285, g: 0.28, lp: 4800 }, { d: 0.570, g: 0.12, lp: 3600 }] }),
+      { type: 'tone', t: 0.19, f: NOTE.E7, gain: 0.22, att: 0.003, tau: 0.10, dur: 0.5, partials: SOFT, lp: 6000, choke: true, echo: [{ d: 0.285, g: 0.28, lp: 4800 }, { d: 0.570, g: 0.12, lp: 3600 }] },
     ],
   },
 };
@@ -258,20 +264,28 @@ function renderNoise(L, N, rng) {
   return out;
 }
 
-function addEchoes(dry, echoes, mix) {
-  for (const e of echoes) {
-    const d = Math.round(e.d * SR), src = e.lp ? onePole(dry, e.lp) : dry;
+function chokeAt(src, sec) {   // fade the buffer to zero over 5 ms starting at `sec`: the next repeat replaces this one
+  const out = Float64Array.from(src), i0 = Math.round(sec * SR), n = Math.round(0.005 * SR);
+  for (let i = Math.max(0, i0); i < out.length; i++) out[i] *= i < i0 + n ? rc(1 - (i - i0) / n) : 0;
+  return out;
+}
+function addEchoes(dry, echoes, mix, L) {
+  echoes.forEach((e, k) => {
+    const d = Math.round(e.d * SR);
+    let src = e.lp ? onePole(dry, e.lp) : dry;
+    if (L.choke && k < echoes.length - 1) src = chokeAt(src, L.t + (echoes[k + 1].d - e.d));
     for (let i = 0; i + d < mix.length; i++) mix[i + d] += src[i] * e.g;
-  }
+  });
 }
 
-function render(name, R, seed) {
+function render(name, R, seed, opt = {}) {
   const N = Math.round(R.dur * SR), mix = new Float64Array(N), rng = mulberry32(seed);
   for (const L of R.layers) {
     let b = L.type === 'noise' ? renderNoise(L, N, rng) : renderTone(L, N);
     if (L.lp && L.type === 'tone') b = onePole(b, L.lp);
-    for (let i = 0; i < N; i++) mix[i] += b[i];
-    if (L.echo) addEchoes(b, L.echo, mix);
+    const dry = L.echo && L.choke ? chokeAt(b, L.t + L.echo[0].d) : b;
+    for (let i = 0; i < N; i++) mix[i] += dry[i];
+    if (L.echo) addEchoes(b, L.echo, mix, L);
   }
   // master: no rumble (2nd order high-pass), no hiss/harshness (2nd order low-pass), a raised-cosine fade that ends at exactly 0
   let y = biquad(mix, 'hp', R.hp ?? 150);
@@ -282,6 +296,7 @@ function render(name, R, seed) {
     if (fromEnd < tailN) y[i] *= rc(fromEnd / tailN);
   }
   y[N - 1] = 0; y[0] = 0;
+  if (opt.raw) return { y };   // un-normalised (for A/B energy comparisons between layers)
   // normalise to the loudness target, then enforce the peak ceiling
   const m0 = momentaryMax(y);
   let g = db2lin(R.m - m0);
@@ -426,4 +441,4 @@ function main() {
   process.stdout.write(txt);
 }
 if (require.main === module) main();
-module.exports = { RECIPES, render, analyse };
+module.exports = { RECIPES, render, analyse, fftPower };

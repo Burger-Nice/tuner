@@ -134,7 +134,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;p
 <body>
 <div class="wrap">
   <h1>airglow sounds</h1>
-  <p class="lead">Twelve procedurally generated sounds (<code>node synth.js</code>), 48 kHz, 16-bit, mono. Nothing here is a sample. Audition them against a programme bed, because their whole job is to sit <em>under</em> it.</p>
+  <p class="lead">Thirteen procedurally generated sounds (v1.1) (<code>node synth.js</code>), 48 kHz, 16-bit, mono. Nothing here is a sample. Audition them against a programme bed, because their whole job is to sit <em>under</em> it.</p>
 
   <h2>1. Set up the room</h2>
   <div class="panel">
@@ -152,7 +152,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;p
   <div class="grid" id="cards"></div>
 
   <h2>3. The launch, in sync with the shipped animation</h2>
-  <p>The animation below is the real <code>launch.css</code> and markup (about 2.3 s: bands step out 100 to 840 ms, the wedge settles 700 to 1400, letters 880 to 1720, hold, then the 8&deg; slab wipes at 2000 ms). The sound starts in the same frame as <code>l-run</code>; the wipe sound starts with <code>l-wiping</code>.</p>
+  <p>The animation below is the real <code>launch.css</code> and markup (about 2.3 s: bands step out 100 to 840 ms, the wedge settles 700 to 1400, letters 880 to 1720, hold, then the 8&deg; slab wipes at 2000 ms). The sound starts in the same frame as <code>l-run</code> through <code>sfx.launch(t0)</code>, which skips whatever has already elapsed plus the output latency; the wipe sound starts with <code>l-wiping</code>.</p>
   <div class="demo" id="demo"><div id="app" class="">
     <div id="topbar"></div>
     <div id="screens"><div class="hm">Home</div><div class="rail"><i></i><i></i><i></i><i></i><i></i></div></div>
@@ -164,17 +164,18 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;p
   <div class="tl" id="tl"></div>
   <div class="row" style="margin-top:4px">
     <button class="pri" id="runL">Play launch with sound</button>
+    <button id="runFull">Long version (with swell and breath)</button>
     <button id="runS">Without sound</button>
     <button id="runHold">Held: Home not ready until 4.5 s</button>
     <button id="runRM">Reduced motion</button>
   </div>
-  <p class="cap" style="margin-top:12px">Reading the timeline: pink ticks are sound events (three stepped notes with the bands, a warm swell under the wedge, a rising breath under the letters, the resolve chord when the lockup is whole at about 1.5 s, the wipe at 2.0 s). The held case plays the same launch sound, which simply ends in silence, and the wipe sound only when the wipe actually starts.</p>
+  <p class="cap" style="margin-top:12px">Reading the timeline: pink ticks are sound events. The default launch is only the two gestures that carry the identity: the staircase D5 F#5 A5 with the bands (then two quieter staircases, each replacing the last, to 0.8 s), and the resolve chord when the lockup is whole at about 1.5 s; the wipe is a separate sound at 2.0 s. The long version adds a warm swell under the wedge (0.6 to 1.45 s) and a breath under the letters (0.86 to 1.66 s). Reduced motion plays only the chord, together with the 120 ms fade. The held case plays the same launch sound, which simply ends in silence, and the wipe sound only when the wipe actually starts.</p>
 
   <h2>4. Hold a key</h2>
   <div class="panel">
     <p>Click the box, then hold <kbd>&larr;</kbd> or <kbd>&rarr;</kbd> (a TV remote repeats about every 50 ms after a 400 ms delay; a computer keyboard repeats at its own rate). The counter shows how many ticks you hear.</p>
     <div class="row">
-      <button id="hk1" aria-pressed="true">Recommended: tick every 150 ms, softer</button>
+      <button id="hk1" aria-pressed="true">Recommended: a tick about every 150 ms, softer</button>
       <button id="hk2" aria-pressed="false">Silent on repeats</button>
       <button id="hk3" aria-pressed="false">Every repeat (what not to do)</button>
     </div>
@@ -198,55 +199,71 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;p
 </div>
 
 <script>
-// airglow UI sounds: the reference player for the web UI (Chrome 113 WebView, Web Audio). Copy to app/tv/js/sfx.js and
+// airglow UI sounds v1.1: the reference player for the web UI (Chrome 113 WebView, Web Audio). Copy to app/tv/js/sfx.js and
 // the WAVs from out/ to app/tv/sounds/. SOUND.md (Integration) says where each call goes. The same rules apply to a native
 // SoundPool player: same files, same gains, same priorities, same rate limits.
 //
-//   sfx.init()               once, at start-up: decodes every file (about 0.5 MB of PCM), wakes on the first key
+//   sfx.init()                     once, at start-up: decodes every file (launch first), wakes on the first key
 //   sfx.mode('on'|'quiet'|'off')   the Account setting (SOUND.md, Settings)
-//   sfx.request('select')    "play this unless something more important is requested in the same key press"
-//   sfx.play('launch')       play now (launch, wipe, alert)
-//   sfx.dir(k, repeat)       call for every direction key, before move(); stamps "this focus change was a key press"
-//   sfx.focused(el)          call from one 'tvfocus' listener on #app; plays the tick (or nothing)
-//   sfx.bump(repeat)         a direction key that could not move (optional, off by default)
+//   sfx.launch(t0)                 cold start: plays launch.wav in sync with the animation that began at t0 (performance.now())
+//   sfx.request('select')          "play this unless something more important is requested in the same key press"; ignored unless a key
+//                                  is down or was released < 300 ms ago, so an overlay opened by code never chimes
+//   sfx.play('launch-wipe')        play now (wipe, brief, alert)
+//   sfx.dir(k, repeat)             call for every direction key, before move(); stamps "this focus change was a key press"
+//   sfx.focused(el)                call from one 'tvfocus' listener on #app; plays the tick (or nothing)
+//   sfx.bump(repeat)               a direction key that could not move (optional, off by default)
+//   sfx.zone('player')             the native player is on screen: the context is suspended and nothing plays; sfx.zone('ui') on return
 const BASE = 'sounds/';
 // p = priority inside one key press (the highest wins), cd = minimum ms between two plays of the same sound
 const DEF = {
-  launch: { p: 5 }, 'launch-wipe': { p: 4 }, 'launch-brief': { p: 4 },
+  launch: { p: 5 }, 'launch-full': { p: 5 }, 'launch-wipe': { p: 4 }, 'launch-brief': { p: 4 },
   focus: { p: 1, cd: 60 }, select: { p: 3, cd: 120 }, back: { p: 3, cd: 150 }, open: { p: 4, cd: 200 }, close: { p: 4, cd: 200 },
   'toggle-on': { p: 3, cd: 150 }, 'toggle-off': { p: 3, cd: 150 }, bump: { p: 1, cd: 400 }, alert: { p: 6, cd: 3000 },
 };
+const NO_KEY_NEEDED = new Set(['launch', 'launch-full', 'launch-wipe', 'launch-brief', 'alert']);
 const LEVEL = { on: 1, quiet: 0.5, off: 0 };   // quiet = -6 dB
-const REPEAT_EVERY = 150, REPEAT_GAIN = 0.6;    // a held key ticks every 150 ms at -4.4 dB, not every 50 ms
-const RATE = { up: 1.059, down: 0.944 };        // +/- one semitone for vertical moves; left and right are the reference pitch
+const REPEAT_EVERY = 125, REPEAT_GAIN = 0.6;    // a held key ticks about every 150 ms (a remote repeats every ~50 ms; a 125 ms gate passes every third repeat even with jitter, 6 to 8 a second) at -4.4 dB
+const RATE = { up: 1.1225, down: 0.8409 };      // the focus tick is A5: up lands on B5, down on F#5, both in the key; left and right are the reference pitch
+const KEY_WINDOW = 300;                         // ms after a key goes up in which request() is still honoured
 
 let ctx = null, level = 'on', zone = 'ui', bumpOn = false;
-const bufs = {}, last = {};
+const bufs = {}, loading = {}, last = {};
 let pend = null, pendOpts = null, flushing = false;
-let dirAt = -1e9, dirRepeat = false, dirKey = "", lastRepeatTick = -1e9;
+let dirAt = -1e9, dirRepeat = false, dirKey = '', lastRepeatTick = -1e9;
+let keysDown = 0, keyAt = -1e9;
 
 const sfx = {
   init(base = BASE, inline = null) {   // inline: { name: base64 WAV }, used by preview.html (file:// cannot fetch)
     if (ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    ctx = new AC({ latencyHint: 'interactive', sampleRate: 48000 });   // the files are 48 kHz: no resampling
-    const wake = () => { if (ctx.state !== 'running') ctx.resume().catch(() => {}); };
+    ctx = new AC({ latencyHint: 'interactive' });   // the browser's own rate: Web Audio resamples a 48 kHz buffer for free
+    const wake = () => { if (zone !== 'player' && ctx.state !== 'running') ctx.resume().catch(() => {}); };
     ['keydown', 'pointerdown'].forEach((ev) => document.addEventListener(ev, wake, true));
-    for (const n of Object.keys(DEF)) {
+    document.addEventListener('keydown', (e) => { if (!e.repeat) keysDown++; keyAt = performance.now(); }, true);
+    document.addEventListener('keyup', () => { keysDown = Math.max(0, keysDown - 1); keyAt = performance.now(); }, true);
+    window.addEventListener('blur', () => { keysDown = 0; });
+    // the launch files first: they are the ones needed before anyone has touched a key
+    const first = ['launch', 'launch-brief', 'launch-wipe'], order = [...first, ...Object.keys(DEF).filter((n) => !first.includes(n))];
+    for (const n of order) {
       const get = inline ? Promise.resolve(Uint8Array.from(atob(inline[n]), (c) => c.charCodeAt(0)).buffer) : fetch(`${base}${n}.wav`).then((r) => r.arrayBuffer());
-      get.then((b) => ctx.decodeAudioData(b)).then((buf) => { bufs[n] = buf; }).catch(() => {});
+      loading[n] = get.then((b) => ctx.decodeAudioData(b)).then((buf) => { bufs[n] = buf; }).catch(() => {});
     }
   },
   mode(m) { if (m in LEVEL) level = m; },
-  zone(z) { zone = z; },                       // 'player': nothing but the alert plays
   bumpEnabled(on) { bumpOn = !!on; },
-  state: () => ({ ctx: ctx?.state, level, loaded: Object.keys(bufs).length, baseLatency: ctx?.baseLatency, outputLatency: ctx?.outputLatency }),
+  // The native player is a separate surface on top of a WebView that stays awake: suspend the context so nothing can chime under it.
+  zone(z) {
+    zone = z;
+    if (!ctx) return;
+    if (z === 'player') ctx.suspend().catch(() => {}); else ctx.resume().catch(() => {});
+  },
+  state: () => ({ ctx: ctx?.state, level, zone, loaded: Object.keys(bufs).length, baseLatency: ctx?.baseLatency, outputLatency: ctx?.outputLatency }),
 
-  play(name, { rate = 1, gain = 1, cd } = {}) {
+  play(name, { rate = 1, gain = 1, cd, offset = 0 } = {}) {
     const d = DEF[name], b = bufs[name];
     if (!ctx || !d || !b || !LEVEL[level] || document.hidden) return false;
-    if (zone === 'player' && name !== 'alert') return false;
+    if (zone === 'player') return false;
     if (ctx.state !== 'running') return false;   // a suspended context would play the sound late, in a burst: drop it
     const now = performance.now();
     if (now - (last[name] ?? -1e9) < (cd ?? d.cd ?? 0)) return false;
@@ -255,13 +272,24 @@ const sfx = {
     s.buffer = b; s.playbackRate.value = rate; g.gain.value = LEVEL[level] * gain;
     s.connect(g); g.connect(ctx.destination);
     s.onended = () => { s.disconnect(); g.disconnect(); };
-    s.start();
+    s.start(0, offset);
     return true;
+  },
+
+  // The launch: the sound has to line up with the animation that began at t0. Whatever has already elapsed (waiting for the file to decode,
+  // this call itself) plus the output latency is skipped from the start of the file; the first 100 ms of launch.wav are silent, so up to
+  // ~100 ms of lateness costs nothing, and more than that cuts into the first note (capped at 280 ms, then the staircase is simply late).
+  async launch(t0, name = 'launch') {
+    if (!ctx) return false;
+    await Promise.race([loading[name], new Promise((r) => setTimeout(r, 400))]);
+    const late = (performance.now() - t0) / 1000 + (ctx.outputLatency || 0) + (ctx.baseLatency || 0);
+    return sfx.play(name, { offset: Math.min(0.28, Math.max(0, late)), cd: 0 });
   },
 
   // One key press can ask for several sounds (OK on a card: select; the card opens a sheet: open). The highest priority wins.
   request(name, opts) {
     const d = DEF[name]; if (!d) return;
+    if (!NO_KEY_NEEDED.has(name) && !(keysDown > 0 || performance.now() - keyAt < KEY_WINDOW)) return;   // not caused by a key: stay silent
     if (!pend || d.p >= DEF[pend].p) { pend = name; pendOpts = opts; }
     if (flushing) return;
     flushing = true;
@@ -274,13 +302,15 @@ const sfx = {
     if (performance.now() - dirAt > 80) return;             // not from a key press (a sheet taking focus, a screen loading, Back restoring)
     let gain = 1;
     if (el?.closest?.('.kb')) gain = 0.5;                    // the on-screen keyboard: half level (SOUND.md, On-screen keyboard)
-    if (dirRepeat) {                                         // held key: one tick per 150 ms, softer
+    if (dirRepeat) {                                         // held key: one tick per 125 ms, softer
       const now = performance.now();
       if (now - lastRepeatTick < REPEAT_EVERY) return;
       lastRepeatTick = now; gain *= REPEAT_GAIN;
     }
-    const jitter = 1 + (Math.random() - 0.5) * 0.02;         // +/- 1 %: no two ticks identical
-    sfx.play('focus', { rate: (RATE[dirKey] || 1) * jitter, gain });
+    // no two ticks identical, without going out of tune: +/- 0.3 % pitch (5 cents) and +/- 0.7 dB
+    const rate = (RATE[dirKey] || 1) * (1 + (Math.random() - 0.5) * 0.006);
+    gain *= Math.pow(10, (Math.random() - 0.5) * 1.4 / 20);
+    sfx.play('focus', { rate, gain });
   },
   bump(repeat) { if (bumpOn && !repeat) sfx.play('bump'); },
 };
@@ -291,10 +321,11 @@ const M = window.AIRGLOW_MANIFEST, B = window.AIRGLOW_SOUNDS;
 sfx.init('', B);
 const $ = (s, r = document) => r.querySelector(s);
 const WHEN = {
-  launch: ['Launch', 'The signature. Three stepped notes with the three bands, a warm swell as the wedge settles, a breath under the letters, one resolving chord when the lockup is whole.'],
+  launch: ['Launch', 'The signature, only two gestures: three stepped notes with the three bands (then two quieter staircases, each replacing the last), and one resolving chord when the lockup is whole. Cold start only.'],
+  'launch-full': ['Launch, long (option)', 'The same plus a warm swell under the wedge and a breath under the letters.'],
   'launch-wipe': ['Launch wipe', 'Soft air that follows the 8 degree slab. Plays when the wipe starts (even if the launch was held).'],
-  'launch-brief': ['Launch, reduced motion', 'Only the resolving chord, for the reduced-motion launch.'],
-  focus: ['Focus move', 'A fingertip on glass. The most frequent sound: nearly subliminal. Only on a key press that moved focus. Played at 1.059 / 0.944 for up / down.'],
+  'launch-brief': ['Launch, reduced motion', 'Only the resolving chord, for the reduced-motion launch. Plays together with the 120 ms fade.'],
+  focus: ['Focus move', 'A fingertip on glass. The most frequent sound: nearly subliminal. Only on a key press that moved focus. Played at 1.1225 (B5) for up and 0.8409 (F#5) for down: both stay in the key.'],
   select: ['Select (OK)', 'A rising fifth, D to A. Forward. Not for keyboard letters, toggles or things that open a layer.'],
   back: ['Back', 'A falling fifth, A to D, a little darker. Silent when Back leaves the app.'],
   open: ['Open sheet or menu', 'A rising third on a short breath of air. Replaces select for the OK that opened it.'],
@@ -302,9 +333,9 @@ const WHEN = {
   'toggle-on': ['Toggle on', 'Lit: a bright note with a stepped echo (the afterimage).'],
   'toggle-off': ['Toggle off', 'Dim: a darker note, no echo.'],
   bump: ['Edge bump (optional)', 'Soft dull knock: "can\'t go further". Off by default. Never on a held key.'],
-  alert: ['Your team is live', 'The launch staircase in the Sharp dialect: tighter, brighter, faster. The only sound allowed over programme audio.'],
+  alert: ['Your team is live', 'The launch staircase an octave up (D6 F#6 A6, E7 on top) in the Sharp dialect: tighter and brighter, so it clears commentary and crowd. The only sound allowed over programme audio.'],
 };
-const ORDER = ['launch','launch-wipe','launch-brief','focus','select','back','open','close','toggle-on','toggle-off','bump','alert'];
+const ORDER = ['launch','launch-full','launch-wipe','launch-brief','focus','select','back','open','close','toggle-on','toggle-off','bump','alert'];
 
 // ---- waveforms from the embedded WAVs
 function pcm(name){const bin=atob(B[name]),n=(bin.length-44)>>1,x=new Float32Array(n);for(let i=0;i<n;i++){let v=bin.charCodeAt(44+2*i)|(bin.charCodeAt(45+2*i)<<8);if(v>32767)v-=65536;x[i]=v/32768;}return x;}
@@ -339,31 +370,31 @@ $('#lvlon').onclick=()=>lv('on');$('#lvlq').onclick=()=>lv('quiet');$('#lvloff')
 // ---- the launch demo
 const app=$('#app'),demo=$('#demo');
 function fit(){app.style.transform='scale('+demo.clientWidth/960+')';}fit();addEventListener('resize',fit);
-const TL=[[100,'bands 100 / 190 / 280',1],[700,'wedge settles',0],[1520,'chord',1],[1720,'lockup whole',0],[2500,'end',0],[620,'swell',1,'b'],[880,'letters begin',0,'b'],[2000,'wipe',1,'b']];
+const TL=[[100,'bands 100 / 190 / 280',1],[700,'wedge settles',0],[1520,'chord',1],[1720,'lockup whole',0],[2500,'end',0],[370,'two quieter staircases',1,'b'],[880,'letters begin',0,'b'],[2000,'wipe',1,'b']];
 const tl=$('#tl');tl.innerHTML='<div class="bar"></div><div class="ph" id="ph"></div>'+TL.map(([t,l,s,b])=>`<div class="m ${s?'snd':''} ${b?'b':''}" style="left:${t/2600*100}%">${l}</div>`).join('');
 let timers=[],raf=0;
 function stop(){timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);app.className='';}
 function playhead(t0,len){const ph=$('#ph');const f=()=>{const t=performance.now()-t0;ph.style.left=Math.min(100,t/len*100)+'%';if(t<len)raf=requestAnimationFrame(f);};raf=requestAnimationFrame(f);}
-function runLaunch({sound=true,readyAt=0,rm=false}={}){
+function runLaunch({sound=true,readyAt=0,rm=false,full=false}={}){
   stop();const T_HOLD=2000;
   void app.offsetWidth;app.className='l-on';
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     const t0=performance.now();playhead(t0,2700);
-    if(rm){app.classList.add('l-rm');if(sound)sfx.play('launch-brief',{cd:0});timers.push(setTimeout(()=>{app.classList.add('l-fading');timers.push(setTimeout(()=>{app.className='';},120));},T_HOLD));return;}
-    app.classList.add('l-run');if(sound)sfx.play('launch',{cd:0});
+    if(rm){app.classList.add('l-rm');timers.push(setTimeout(()=>{if(sound)sfx.play('launch-brief',{cd:0});app.classList.add('l-fading');timers.push(setTimeout(()=>{app.className='';},120));},T_HOLD));return;}
+    app.classList.add('l-run');if(sound)sfx.launch(t0,full?'launch-full':'launch');
     const finish=()=>{app.classList.remove('l-loading','l-slow');app.classList.add('l-wiping');if(sound)sfx.play('launch-wipe',{cd:0});timers.push(setTimeout(()=>{app.className='';},600));};
     timers.push(setTimeout(()=>{if(readyAt<=T_HOLD){finish();return;}app.classList.add('l-loading');timers.push(setTimeout(finish,readyAt-T_HOLD));},T_HOLD));
   }));
 }
 if(location.hash==='#autorun')runLaunch({sound:false});
-$('#runL').onclick=()=>runLaunch();$('#runS').onclick=()=>runLaunch({sound:false});$('#runHold').onclick=()=>runLaunch({readyAt:4500});$('#runRM').onclick=()=>runLaunch({rm:true});
+$('#runL').onclick=()=>runLaunch();$('#runFull').onclick=()=>runLaunch({full:true});$('#runS').onclick=()=>runLaunch({sound:false});$('#runHold').onclick=()=>runLaunch({readyAt:4500});$('#runRM').onclick=()=>runLaunch({rm:true});
 
 // ---- held key
 let hmode=1,hlast=-1e9,hticks=0,hrep=0,hdown=0;
 ['hk1','hk2','hk3'].forEach((id,i)=>$('#'+id).onclick=()=>{hmode=i+1;['hk1','hk2','hk3'].forEach((j,k)=>$('#'+j).setAttribute('aria-pressed',k===i));hticks=hrep=0;$('#hcount').textContent='0 ticks';});
 $('#hold').addEventListener('keydown',e=>{if(!/^Arrow/.test(e.key))return;e.preventDefault();const now=performance.now();
  if(!e.repeat){hdown=now;hticks=1;hrep=0;sfx.play('focus',{cd:0});hlast=now;}
- else{hrep++;if(hmode===3){sfx.play('focus',{cd:0});hticks++;}else if(hmode===1&&now-hlast>=150){sfx.play('focus',{gain:.6,cd:0});hlast=now;hticks++;}}
+ else{hrep++;if(hmode===3){sfx.play('focus',{cd:0});hticks++;}else if(hmode===1&&now-hlast>=125){sfx.play('focus',{gain:.6,cd:0});hlast=now;hticks++;}}
  $('#hcount').textContent=hticks+' tick'+(hticks===1?'':'s');$('#hlog').textContent=`key held ${((now-hdown)/1000).toFixed(2)} s, ${hrep} repeat events, ${hticks} sounds`+(hticks&&now-hdown>0?` (${(hticks/Math.max(.2,(now-hdown)/1000)).toFixed(1)} per second)`:'');});
 
 // ---- the menu: wired the way the engineer would wire it (sfx.dir, sfx.focused, sfx.request)
@@ -398,7 +429,7 @@ st.addEventListener('keydown',e=>{
 });
 
 // ---- spec table
-$('#specs').innerHTML='<div class="panel"><table><tr><th>file</th><th>length</th><th>peak</th><th>M-max</th><th>priority</th><th>min gap</th><th>use</th></tr>'+ORDER.map(n=>{const m=M[n];return `<tr><td>${n}.wav</td><td>${m.durationMs} ms</td><td>${m.peakDbfs} dBFS</td><td>${m.momentaryLufs} LUFS</td><td>${m.prio}</td><td>${m.cooldownMs?m.cooldownMs+' ms':'-'}</td><td style="color:var(--t3)">${m.note}</td></tr>`}).join('')+'</table><p class="cap" style="margin:12px 0 0">M-max = loudest 400 ms, K-weighted (BS.1770). Programme is about -23 LUFS integrated, so the loudest UI sound (the launch) sits 6 LU under it, and a focus tick about 20 LU under.</p></div>';
+$('#specs').innerHTML='<div class="panel"><table><tr><th>file</th><th>length</th><th>peak</th><th>M-max</th><th>priority</th><th>min gap</th><th>use</th></tr>'+ORDER.map(n=>{const m=M[n];return `<tr><td>${n}.wav</td><td>${m.durationMs} ms</td><td>${m.peakDbfs} dBFS</td><td>${m.momentaryLufs} LUFS</td><td>${m.prio}</td><td>${m.cooldownMs?m.cooldownMs+' ms':'-'}</td><td style="color:var(--t3)">${m.note}</td></tr>`}).join('')+'</table><p class="cap" style="margin:12px 0 0">M-max = loudest 400 ms, K-weighted (BS.1770). Programme is about -23 LUFS integrated, so the launch sits 8 LU under it, the alert 4 LU under (it has to be heard over a game), and a focus tick about 20 LU under.</p></div>';
 })();
 </script>
 </body>

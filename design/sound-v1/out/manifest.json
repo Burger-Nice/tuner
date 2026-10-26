@@ -4,15 +4,27 @@
   "sounds": {
     "launch": {
       "file": "launch.wav",
-      "durationMs": 2600,
+      "durationMs": 2300,
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
-      "peakDbfs": -15.8,
-      "momentaryLufs": -29,
+      "peakDbfs": -20,
+      "momentaryLufs": -31,
       "cls": "hero",
       "prio": 5,
-      "note": "play at the moment launch.js adds l-run; never loops; if the launch holds (not ready at 2 s) it simply ends in silence"
+      "note": "cold start only: sfx.launch(t0) in the same frame that launch.js adds l-run; never loops; if the launch holds (not ready at 2 s) it simply ends in silence"
+    },
+    "launch-full": {
+      "file": "launch-full.wav",
+      "durationMs": 2400,
+      "sampleRate": 48000,
+      "bits": 16,
+      "channels": 1,
+      "peakDbfs": -19,
+      "momentaryLufs": -31,
+      "cls": "hero",
+      "prio": 5,
+      "note": "optional long launch, same sync as launch; swap the file name to use it"
     },
     "launch-wipe": {
       "file": "launch-wipe.wav",
@@ -20,7 +32,7 @@
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
-      "peakDbfs": -22.3,
+      "peakDbfs": -22.5,
       "momentaryLufs": -34,
       "cls": "hero",
       "prio": 4,
@@ -28,15 +40,15 @@
     },
     "launch-brief": {
       "file": "launch-brief.wav",
-      "durationMs": 1250,
+      "durationMs": 1000,
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
-      "peakDbfs": -15.5,
-      "momentaryLufs": -30,
+      "peakDbfs": -17.2,
+      "momentaryLufs": -32,
       "cls": "hero",
       "prio": 4,
-      "note": "for the reduced-motion launch: play at l-fading, or at start"
+      "note": "reduced-motion launch: play in finish() together with l-fading, not at begin()"
     },
     "focus": {
       "file": "focus.wav",
@@ -49,61 +61,63 @@
       "cls": "nav",
       "prio": 1,
       "cooldownMs": 60,
-      "repeatEveryMs": 150,
+      "repeatEveryMs": 125,
       "repeatGain": 0.6,
+      "rateUp": 1.1225,
+      "rateDown": 0.8409,
       "note": "only on a key-driven move that changed focus; held keys: see SOUND.md, Held keys"
     },
     "select": {
       "file": "select.wav",
-      "durationMs": 125,
+      "durationMs": 150,
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
-      "peakDbfs": -20.4,
+      "peakDbfs": -21,
       "momentaryLufs": -37,
       "cls": "nav",
       "prio": 3,
       "cooldownMs": 120,
-      "note": "OK on anything that is not a toggle and does not open a layer (those have their own sound)"
+      "note": "OK on anything that is not a toggle, not a keyboard key, and does not open a layer (those have their own sound)"
     },
     "back": {
       "file": "back.wav",
-      "durationMs": 115,
+      "durationMs": 150,
+      "sampleRate": 48000,
+      "bits": 16,
+      "channels": 1,
+      "peakDbfs": -22,
+      "momentaryLufs": -38,
+      "cls": "nav",
+      "prio": 3,
+      "cooldownMs": 150,
+      "note": "Back that closes a page or goes back; silent when Back leaves the app; never on a held Back"
+    },
+    "open": {
+      "file": "open.wav",
+      "durationMs": 160,
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
       "peakDbfs": -21.8,
       "momentaryLufs": -38,
       "cls": "nav",
-      "prio": 3,
-      "cooldownMs": 150,
-      "note": "Back that closes a layer or leaves a page; silent when Back leaves the app; never on a held Back"
-    },
-    "open": {
-      "file": "open.wav",
-      "durationMs": 145,
-      "sampleRate": 48000,
-      "bits": 16,
-      "channels": 1,
-      "peakDbfs": -20.6,
-      "momentaryLufs": -38,
-      "cls": "nav",
       "prio": 4,
       "cooldownMs": 200,
-      "note": "with openOverlay(); replaces the select sound for the OK that opened it"
+      "note": "in openOverlay(); replaces the select sound for the OK that opened it"
     },
     "close": {
       "file": "close.wav",
-      "durationMs": 125,
+      "durationMs": 140,
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
-      "peakDbfs": -21.3,
+      "peakDbfs": -22.5,
       "momentaryLufs": -39,
       "cls": "nav",
       "prio": 4,
       "cooldownMs": 200,
-      "note": "with closeOverlay(); replaces the back sound when the Back closed a sheet"
+      "note": "in closeTop() (Back closed a sheet), NOT in closeOverlay(): a pick that closes a menu is an OK"
     },
     "toggle-on": {
       "file": "toggle-on.wav",
@@ -137,7 +151,7 @@
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
-      "peakDbfs": -17.8,
+      "peakDbfs": -18,
       "momentaryLufs": -42,
       "cls": "nav",
       "prio": 1,
@@ -146,16 +160,16 @@
     },
     "alert": {
       "file": "alert.wav",
-      "durationMs": 780,
+      "durationMs": 1000,
       "sampleRate": 48000,
       "bits": 16,
       "channels": 1,
-      "peakDbfs": -16.6,
-      "momentaryLufs": -29,
+      "peakDbfs": -15.6,
+      "momentaryLufs": -27,
       "cls": "alert",
       "prio": 6,
       "cooldownMs": 3000,
-      "note": "with the action chip; never in the first 10 s after a tune; once per chip; over video only if Sounds is on"
+      "note": "with the action chip, from native code; never in the first 10 s after a tune; once per chip; only if Sounds is not Off"
     }
   }
 }
