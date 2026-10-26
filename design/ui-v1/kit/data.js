@@ -49,33 +49,36 @@
 
   /* Live channels as a provider sends them (raw) and as the app shows them (name, tag). */
   const CHANNELS = [
-    { n: 4, raw: 'US| NBA LEAGUE PASS 04 ᴴᴰ', name: 'NBA League Pass 4', tag: 'US', q: 'HD', ini: 'NBA', fav: true, now: { t: 'Grizzlies at Warriors', s: 19.5, e: 22, live: true, game: true }, next: { t: 'NBA Postgame', s: 22, e: 22.5 } },
-    { n: 12, raw: 'US: ESPN HD', name: 'ESPN', tag: 'US', q: 'HD', ini: 'ES', fav: true, now: { t: 'SportsCenter', s: 20, e: 21 }, next: { t: 'NFL Live', s: 21, e: 22 } },
-    { n: 31, raw: 'USA| TNT SPORTS 1 FHD', name: 'TNT Sports 1', tag: 'US', q: 'FHD', ini: 'TN', now: { t: 'Lakers at Suns', s: 20.5, e: 23, live: true, game: true }, next: { t: 'Inside the NBA', s: 23, e: 24 } },
-    { n: 33, raw: 'US| NBA TV', name: 'NBA TV', tag: 'US', q: 'HD', ini: 'NT', fav: true, now: { t: 'Game Time', s: 20, e: 21 }, next: { t: 'Press Pass', s: 21, e: 21.5 } },
-    { n: 101, raw: 'UK| BBC ONE HD', name: 'BBC One', tag: 'UK', q: 'HD', ini: 'B1', now: { t: 'Panorama', s: 20.5, e: 21 }, next: { t: 'Silent Witness', s: 21, e: 22 } },
-    { n: 118, raw: 'UK| SKY SPORTS MAIN EVENT FHD', name: 'Sky Sports Main Event', tag: 'UK', q: 'FHD', ini: 'SS', now: { t: 'Premier League: Live', s: 20, e: 22.25, live: true }, next: { t: 'Final Score', s: 22.25, e: 23 } },
-    { n: 204, raw: '|EN| CNN INTERNATIONAL', name: 'CNN International', tag: 'EN', q: 'HD', ini: 'CN', now: { t: 'Connect the World', s: 20, e: 21 }, next: { t: 'Amanpour', s: 21, e: 22 } },
-    { n: 305, raw: '┃NL┃ RTL 4 HD', name: 'RTL 4', tag: 'NL', q: 'HD', ini: 'R4', now: { t: 'Goede Tijden, Slechte Tijden', s: 20.25, e: 20.75 }, next: { t: 'RTL Nieuws', s: 20.75, e: 21.25 } },
-    { n: 412, raw: 'FR| CANAL+ SPORT 360 4K', name: 'Canal+ Sport 360', tag: 'FR', q: '4K', ini: 'C+', now: { t: 'Top 14: Résumé', s: 20, e: 21.5 }, next: { t: 'Match en direct', s: 21.5, e: 23.5 } },
-    { n: 501, raw: 'US| MOVIE CHANNEL EAST', name: 'Movie Channel East', tag: 'US', q: 'HD', ini: 'MC', now: { t: 'Midnight Relay', s: 20.25, e: 22.3 }, next: { t: 'Cold Harbour', s: 22.3, e: 24.3 } },
+    { n: 4, art: { style: 'arena',hue:28 }, raw: 'US| NBA LEAGUE PASS 04 ᴴᴰ', name: 'NBA League Pass 4', tag: 'US', q: 'HD', ini: 'NBA', fav: true, now: { t: 'Grizzlies at Warriors', s: 19.5, e: 22, live: true, game: true }, next: { t: 'NBA Postgame', s: 22, e: 22.5 } },
+    { n: 12, art: { style: 'studio',hue:212 }, raw: 'US: ESPN HD', name: 'ESPN', tag: 'US', q: 'HD', ini: 'ES', fav: true, now: { t: 'SportsCenter', s: 20, e: 21 }, next: { t: 'NFL Live', s: 21, e: 22 } },
+    { n: 31, art: { style: 'arena',hue:18 }, raw: 'USA| TNT SPORTS 1 FHD', name: 'TNT Sports 1', tag: 'US', q: 'FHD', ini: 'TN', now: { t: 'Lakers at Suns', s: 20.5, e: 23, live: true, game: true }, next: { t: 'Inside the NBA', s: 23, e: 24 } },
+    { n: 33, art: { style: 'studio',hue:268 }, raw: 'US| NBA TV', name: 'NBA TV', tag: 'US', q: 'HD', ini: 'NT', fav: true, now: { t: 'Game Time', s: 20, e: 21 }, next: { t: 'Press Pass', s: 21, e: 21.5 } },
+    { n: 101, art: { style: 'studio',hue:200 }, raw: 'UK| BBC ONE HD', name: 'BBC One', tag: 'UK', q: 'HD', ini: 'B1', now: { t: 'Panorama', s: 20.5, e: 21 }, next: { t: 'Silent Witness', s: 21, e: 22 } },
+    { n: 118, art: { style: 'pitch',hue:132 }, raw: 'UK| SKY SPORTS MAIN EVENT FHD', name: 'Sky Sports Main Event', tag: 'UK', q: 'FHD', ini: 'SS', now: { t: 'Premier League: Live', s: 20, e: 22.25, live: true }, next: { t: 'Final Score', s: 22.25, e: 23 } },
+    { n: 204, art: { style: 'studio',hue:300 }, raw: '|EN| CNN INTERNATIONAL', name: 'CNN International', tag: 'EN', q: 'HD', ini: 'CN', now: { t: 'Connect the World', s: 20, e: 21 }, next: { t: 'Amanpour', s: 21, e: 22 } },
+    { n: 305, art: { style: 'theatre',hue:330 }, raw: '┃NL┃ RTL 4 HD', name: 'RTL 4', tag: 'NL', q: 'HD', ini: 'R4', now: { t: 'Goede Tijden, Slechte Tijden', s: 20.25, e: 20.75 }, next: { t: 'RTL Nieuws', s: 20.75, e: 21.25 } },
+    { n: 412, art: { style: 'pitch',hue:150 }, raw: 'FR| CANAL+ SPORT 360 4K', name: 'Canal+ Sport 360', tag: 'FR', q: '4K', ini: 'C+', now: { t: 'Top 14: Résumé', s: 20, e: 21.5 }, next: { t: 'Match en direct', s: 21.5, e: 23.5 } },
+    { n: 501, art: { style: 'tower',hue:205 }, raw: 'US| MOVIE CHANNEL EAST', name: 'Movie Channel East', tag: 'US', q: 'HD', ini: 'MC', now: { t: 'Midnight Relay', s: 20.25, e: 22.3 }, next: { t: 'Cold Harbour', s: 22.3, e: 24.3 } },
   ];
 
+  /* Team identity (UI-SPEC 3.4). c1/c2 = the stand-in crest (the app shows the ESPN logo, 500-dark, inside the same neutral disc).
+     p = flat field colour (dark enough for 7:1 chalk text), a = 4 px edge accent. Red, orange and crimson teams (HOU, MIA, CLE, PHX, OKC) get
+     a non-red accent so no team colour can read as LIVE. */
   const TEAMS = {
-    MEM: { c: '#5D76A9', n: 'Grizzlies', city: 'Memphis', ink: false },
-    GS: { c: '#1D428A', n: 'Warriors', city: 'Golden State', ink: false },
-    BOS: { c: '#007A33', n: 'Celtics', city: 'Boston' },
-    NY: { c: '#006BB6', n: 'Knicks', city: 'New York' },
-    LAL: { c: '#552583', n: 'Lakers', city: 'Los Angeles' },
-    PHX: { c: '#E56020', n: 'Suns', city: 'Phoenix' },
-    DAL: { c: '#00538C', n: 'Mavericks', city: 'Dallas' },
-    HOU: { c: '#CE1141', n: 'Rockets', city: 'Houston' },
-    DEN: { c: '#0E2240', n: 'Nuggets', city: 'Denver' },
-    OKC: { c: '#007AC1', n: 'Thunder', city: 'Oklahoma City' },
-    MIL: { c: '#00471B', n: 'Bucks', city: 'Milwaukee' },
-    MIA: { c: '#98002E', n: 'Heat', city: 'Miami' },
-    CLE: { c: '#860038', n: 'Cavaliers', city: 'Cleveland' },
-    IND: { c: '#002D62', n: 'Pacers', city: 'Indiana' },
+    MEM: { n: 'Grizzlies', city: 'Memphis', c1: '#12173F', c2: '#5D76A9', p: '#12173F', a: '#5D76A9' },
+    GS: { n: 'Warriors', city: 'Golden State', c1: '#1D428A', c2: '#FFC72C', p: '#10285C', a: '#FFC72C' },
+    BOS: { n: 'Celtics', city: 'Boston', c1: '#007A33', c2: '#F3EFE6', p: '#00381C', a: '#BA9653' },
+    NY: { n: 'Knicks', city: 'New York', c1: '#006BB6', c2: '#F58426', p: '#00305A', a: '#F58426' },
+    LAL: { n: 'Lakers', city: 'Los Angeles', c1: '#552583', c2: '#FDB927', p: '#3A1A5A', a: '#FDB927' },
+    PHX: { n: 'Suns', city: 'Phoenix', c1: '#1D1160', c2: '#E56020', p: '#1D1160', a: '#8E7ED8' },
+    DAL: { n: 'Mavericks', city: 'Dallas', c1: '#00538C', c2: '#B8C4CA', p: '#00285E', a: '#7FA6D0' },
+    HOU: { n: 'Rockets', city: 'Houston', c1: '#CE1141', c2: '#C4CED4', p: '#26262B', a: '#C4CED4' },
+    DEN: { n: 'Nuggets', city: 'Denver', c1: '#0E2240', c2: '#FEC524', p: '#0E2240', a: '#FEC524' },
+    OKC: { n: 'Thunder', city: 'Oklahoma City', c1: '#0A3A5E', c2: '#007AC1', p: '#0A3A5E', a: '#4DA6E0' },
+    MIL: { n: 'Bucks', city: 'Milwaukee', c1: '#00471B', c2: '#EEE1C6', p: '#00331A', a: '#EEE1C6' },
+    MIA: { n: 'Heat', city: 'Miami', c1: '#98002E', c2: '#F9A01B', p: '#1F1B22', a: '#F9A01B' },
+    CLE: { n: 'Cavaliers', city: 'Cleveland', c1: '#860038', c2: '#FDBB30', p: '#2B1A33', a: '#FDBB30' },
+    IND: { n: 'Pacers', city: 'Indiana', c1: '#002D62', c2: '#FDBB30', p: '#00204A', a: '#FDBB30' },
   };
   const GAMES = [
     { id: 'g1', away: 'MEM', home: 'GS', aw: 77, hw: 70, ar: '1-0', hr: '0-1', state: 'in', q: 3, clock: '7:29', tv: ['NBA League Pass', 'ESPN'], mine: true, lines: { MEM: [24, 21, 32], GS: [19, 25, 26] }, lead: { MEM: ['G. Marshall', '24 PTS'], GS: ['T. Whitlock', '22 PTS'] } },
@@ -87,5 +90,13 @@
     { id: 'g7', away: 'MIL', home: 'MIA', state: 'pre', tip: '22:00', ar: '0-1', hr: '1-0', tv: ['NBA League Pass'] },
   ];
 
-  g.Mock = { NOW, MOVIES, SERIES, EPISODES, CHANNELS, TEAMS, GAMES };
+  /* One deterministic rule for the stand-in channel tile (the app shows the provider logo when it loads): first letter of the first two
+     words, or the first two letters of a single word. Letters only, so "Canal+ Sport 360" is CS and "RTL 4" is R4. */
+  const iniOf = (name) => { const w = name.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase(); };
+  CHANNELS.forEach((c) => { c.ini = iniOf(c.name); });
+  const m = (id) => MOVIES.find((x) => x.id === id), sr = (id) => SERIES.find((x) => x.id === id);
+  Object.assign(m('m1'), { style: 'lighthouse', hue: 205 }); Object.assign(m('m2'), { style: 'theatre', hue: 14 }); Object.assign(sr('s1'), { style: 'tower', hue: 262 });
+  Object.assign(m('m6'), { style: 'tower', hue: 205 });
+
+  g.Mock = { iniOf, NOW, MOVIES, SERIES, EPISODES, CHANNELS, TEAMS, GAMES };
 })(window);

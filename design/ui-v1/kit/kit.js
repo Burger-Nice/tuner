@@ -34,12 +34,14 @@
     restart: '<path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5"/>',
     wifiOff: '<path d="M2.5 9a15 15 0 0 1 19 0M5.5 12.8a10.5 10.5 0 0 1 13 0M8.8 16.4a5.5 5.5 0 0 1 6.4 0M12 20h.01M3 3l18 18"/>',
     back: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+    phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
     mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
     film: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M3 15h18"/>',
     tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
     eyeOff: '<path d="M3 3l18 18M10.6 5.2A9.8 9.8 0 0 1 12 5c5 0 8.5 4.2 9.5 7a13 13 0 0 1-2.4 3.7M6.4 6.6A13 13 0 0 0 2.5 12c1 2.8 4.5 7 9.5 7a9.6 9.6 0 0 0 4-.9M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
     pin: '<path d="M9 3h6l-1 6 3.5 3.5h-11L10 9zM12 16v5"/>',
     refresh: '<path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5"/>',
+    score: '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M12 5.5v13M6.5 10h2.5M15 10h2.5M6.5 14h2.5M15 14h2.5"/>',
   };
   const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
   const img = (f, cls = '', h) => `<img src="${BR}assets/${f}" class="${cls}"${h ? ` height="${h}"` : ''} alt="">`;
@@ -61,7 +63,7 @@
 
   function posterArt(m) {
     if (m.noart) return `<div class="noart"><span class="ini">${initials(m.t)}</span><span class="nt clamp3">${m.t}</span></div>`;
-    return `<div class="art">${Art.art(m.id, { style: m.style, hue: m.hue })}</div>`;
+    return `<div class="art">${Art.poster(m.id, { style: m.style, hue: m.hue, title: m.t })}</div>`;
   }
   function poster(m, { focus = false } = {}) {
     const tl = (m.q || []).includes('4K') ? tag('4K', 'q') : '';
@@ -74,13 +76,23 @@
     return `<div class="wc${focus ? ' f' : ''}"${st}><div class="art">${noart ? '' : Art.art(seed, { style, hue })}</div>${tl ? `<div class="tl">${tl}</div>` : ''}${tr ? `<div class="tr">${tr}</div>` : ''}
       <div class="tx"><b>${title}</b><span>${meta}</span></div>${prog != null ? `<div class="prog flush"><i style="width:${prog}%"></i></div>` : ''}</div>`;
   }
+  /* Home rail cards (198 x 100). Text sits at the TOP of the card so the second row still reads when only its top half shows. */
   function liveCard(ch, { focus = false } = {}) {
     const n = ch.now, pg = Math.max(0, Math.min(100, ((Kit_NOW() - n.s) / (n.e - n.s)) * 100));
-    return `<div class="lc${focus ? ' f' : ''}"><div class="tp"><span class="logo sm">${ch.ini}</span>${n.live ? liveP() : ''}<span class="n">${ch.n}</span></div>
-      <div class="bt"><b>${n.t}</b><div class="sb">${ch.name}${dot}${ch.q}</div></div><div class="prog flush"><i style="width:${pg}%"></i></div></div>`;
+    return `<div class="hc${focus ? ' f' : ''}"><div class="art">${Art.art('ch' + ch.n, ch.art || {})}</div><div class="hs"></div>
+      <div class="tp"><span class="logo sm">${ch.ini}</span>${n.live ? liveP() : ''}<span class="n">${ch.n}</span></div>
+      <div class="bt"><b>${n.t}</b><span>${ch.name}</span></div><div class="prog flush"><i style="width:${pg}%"></i></div></div>`;
+  }
+  function contCard({ seed, style, hue, title, kind, left, prog, focus = false }) {
+    return `<div class="hc${focus ? ' f' : ''}"><div class="art">${Art.art(seed, { style, hue })}</div><div class="hs"></div>
+      <div class="tp"><span class="t-label" style="line-height:22px">${kind}</span><span class="n">${left}</span></div>
+      <div class="bt"><b>${title}</b></div><div class="prog flush"><i style="width:${prog}%"></i></div></div>`;
   }
   const Kit_NOW = () => Mock.NOW.mins / 60;
-  const team = (abbr, size = '') => `<span class="team ${size}">${abbr}</span>`;
+  /* Team mark: the app puts the ESPN logo (500-dark) in the neutral disc. The stand-in is a crest in the team's own two colours inside the same disc. */
+  const lumOf = (hex) => { const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+  const team = (abbr, size = '') => { const T = Mock.TEAMS[abbr]; const dark = lumOf(T.c1) < 0.3; return `<span class="team ${size}"><i style="background:${T.c1};box-shadow:inset 0 0 0 2px ${T.c2};color:${dark ? '#F3EFE6' : '#14101F'}">${abbr}</i></span>`; };
+  const edge = (abbr) => `<span class="tedge" style="background:${Mock.TEAMS[abbr].a}"></span>`;
 
   /* Game card: upright Soft card, Sharp skewed score plate inside. state: in | post | pre. */
   function gameCard(gm, { focus = false, shield = false } = {}) {
@@ -96,8 +108,8 @@
     if (shield && gm.state !== 'pre') { st = gm.state === 'in' ? `${liveP()}<span>Q${gm.q} ${gm.clock}</span>` : '<span>Ended</span>'; plate = `<span class="plate"><span class="x">${ic('eyeOff')}<span class="t-cap">hidden</span></span></span>`; }
     const lose = (w) => (gm.state === 'post' && !w ? ' lose' : '');
     return `<div class="gc${focus ? ' f' : ''}"><div class="st">${st}${tv}</div>
-      <div class="tr${lose(awWin)}">${team(gm.away)}<span class="nm">${A.n}</span><span class="rc">${gm.ar}</span></div>
-      <div class="tr${lose(hwWin)}">${team(gm.home)}<span class="nm">${H.n}</span><span class="rc">${gm.hr}</span></div>${plate}</div>`;
+      <div class="tr${lose(awWin)}">${edge(gm.away)}${team(gm.away)}<span class="nm">${A.n}</span><span class="rc">${gm.ar}</span></div>
+      <div class="tr${lose(hwWin)}">${edge(gm.home)}${team(gm.home)}<span class="nm">${H.n}</span><span class="rc">${gm.hr}</span></div>${plate}</div>`;
   }
 
   /* Guide */
@@ -111,7 +123,9 @@
     const wide = (e - s) >= 0.6;
     const sub = empty ? '' : live ? '<span class="a-live compact">Live</span>' : `${clipL ? '◂ ' : ''}${hm(c.s)}${wide ? dot + hm(c.e) : ''}`;
     const pg = now ? `<div class="prog"><i style="width:${Math.min(100, ((NOWH - c.s) / (c.e - c.s)) * 100)}%"></i></div>` : '';
+    const px = ((e - s) / WIN.hours) * 656 - 4;
+    if (px < 56) return `<div class="g-cell sliver${focus ? ' f-in' : ''}" style="left:${pct(s)}%;width:calc(${pct(e) - pct(s)}% - 4px)"></div>`;   // too narrow for text: a silhouette, the full title is in the Now panel
     return `<div class="g-cell${now ? ' now' : ''}${focus ? ' f-in' : ''}${empty ? ' empty' : ''}" style="left:${pct(s)}%;width:calc(${pct(e) - pct(s)}% - 4px)"><b>${c.t}</b><div class="sb">${sub}</div>${pg}</div>`;
   }
-  g.Kit = { P, TABS, ic, img, BR, topbar, tag, liveP, dot, star, initials, poster, wcard, liveCard, team, gameCard, cell, hm, pct, WIN, NOWH, f };
+  g.Kit = { contCard, edge, lumOf, P, TABS, ic, img, BR, topbar, tag, liveP, dot, star, initials, poster, wcard, liveCard, team, gameCard, cell, hm, pct, WIN, NOWH, f };
 })(window);

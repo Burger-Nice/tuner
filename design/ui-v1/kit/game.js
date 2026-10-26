@@ -12,14 +12,13 @@
       <tr class="tot"><td>Team</td><td>240</td><td class="b">77</td><td>38</td><td>15</td><td>29-61</td><td>7-19</td><td></td></tr></tbody></table>`;
   }
   function header(shield) {
-    const mid = shield ? `<span class="shield" style="height:48px;padding:0 14px"><span style="font-size:16px">Score hidden</span></span>` : `<span class="score md">77</span><span class="t-3" style="font:700 20px var(--a-font-display)">–</span><span class="score md">70</span>`;
+    const T = g.Mock.TEAMS;
+    const side = (abbr, right) => `<div class="side${right ? ' r' : ''}" style="--tp:${T[abbr].p};--ta:${T[abbr].a}">${right ? '' : team(abbr, 'md')}<div class="nm">${T[abbr].n}</div>${right ? team(abbr, 'md') : ''}</div>`;
+    const mid = shield ? `<span class="shield">${ic('eyeOff')}<span>Score hidden</span></span>` : `<span class="score md">77</span><span class="t-3" style="font:700 20px var(--a-font-display)">–</span><span class="score md">70</span>`;
     return `<div class="gd-head">
-      <div class="slab" style="left:760px;width:240px"></div><div class="slabline" style="left:742px"></div>
-      <div class="abs row-flex" style="left:20px;top:10px;gap:10px">${liveP()}<span class="t-label t-2">Q3${dot}7:29</span>${shield ? '' : '<span class="synced">' + ic('clock') + 'Synced · 42 s behind live</span>'}</div>
-      <div class="matchup abs" style="left:20px;top:34px;gap:10px">
-        <div class="mteam">${team('MEM', 'md')}<div class="nm" style="font-size:20px">Grizzlies</div></div>${mid}
-        <div class="mteam"><div class="nm" style="font-size:20px">Warriors</div>${team('GS', 'md')}</div></div>
-      <div class="abs row-flex" style="left:520px;top:22px;gap:10px"><span class="btn sm">${ic('play', 'fill')}Watch live</span>${shield ? '<span class="btn2 sm">Reveal score</span>' : ''}</div>
+      <div class="abs row-flex" style="left:20px;top:8px;gap:10px;height:24px">${liveP()}<span class="t-label t-2">Q3${dot}7:29</span>${shield ? '' : '<span class="synced">' + ic('clock') + 'Synced · 42 s behind live</span>'}</div>
+      <div class="mt">${side('MEM')}<div class="sc">${mid}</div>${side('GS', 1)}</div>
+      <div class="abs row-flex" style="right:20px;top:26px;gap:10px"><span class="btn">${ic('play', 'fill')}Watch live</span></div>
     </div>`;
   }
   function tabs(sel) {
@@ -28,7 +27,7 @@
   }
   function plays() {
     const P = [['Q3 7:29', 'MEM', 'G. Marshall makes 3-pt jump shot (D. Ellison assists)', '77–70', 1], ['Q3 7:52', 'GS', 'T. Whitlock makes driving layup', '74–70', 1], ['Q3 8:10', 'MEM', 'M. Vance defensive rebound', '', 0], ['Q3 8:14', 'GS', 'T. Whitlock misses 3-pt jump shot', '', 0], ['Q3 8:31', 'MEM', 'Z. Whitfield makes free throw 2 of 2', '74–68', 1], ['Q3 8:31', 'MEM', 'Z. Whitfield makes free throw 1 of 2', '73–68', 1], ['Q3 8:44', 'GS', 'Personal foul on K. Sloan', '', 0]];
-    return `<div class="plays">${P.map(([c, t, x, s, sc]) => `<div class="play"><span class="ck">${c}</span><span class="tm">${t}</span><span class="tx${sc ? ' sc' : ''}">${sc ? '<i></i>' : ''}${x}</span><span class="sco">${s}</span></div>`).join('')}</div>`;
+    return `<div class="plays">${P.map(([c, t, x, s, sc]) => `<div class="play"><span class="clk">${c}</span><span class="tm">${t}</span><span class="tx${sc ? ' sc' : ''}">${sc ? '<i></i>' : ''}${x}</span><span class="sco">${s}</span></div>`).join('')}</div>`;
   }
   function teamStats() {
     const S = [['Field goal %', 47.5, 43.1, '47.5', '43.1'], ['3-point %', 36.8, 31.6, '36.8', '31.6'], ['Rebounds', 38, 33, '38', '33'], ['Turnovers', 9, 13, '9', '13'], ['Fast-break points', 14, 8, '14', '8']];

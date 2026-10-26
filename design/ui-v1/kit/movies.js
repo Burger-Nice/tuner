@@ -20,14 +20,14 @@
   function grid({ focusIdx = 0, filters = 0, sort = 'Popular', sel = 'All', items = GRID.map(byId), title = 'Movies', count = '4,812 titles', headFocus = '' } = {}) {
     return `${topbar({ sel: title.toLowerCase().startsWith('series') ? 'series' : 'movies' })}
       ${header({ title, count, sort, filters, focus: headFocus })}${chips(sel)}
-      <div class="lib-grid" style="top:176px">${items.map((m, i) => poster(m, { focus: i === focusIdx })).join('')}</div>`;
+      <div class="lib-grid bleed" style="top:176px">${items.map((m, i) => poster(m, { focus: i === focusIdx })).join('')}</div>`;
   }
   /* Scrolled: bar and header slid away (translateY). A 14 px context line keeps the sort and filters visible; a scroll bubble shows during fast key repeat. */
   function scrolled({ focusIdx = 9, bubble = true } = {}) {
     const items = ['m19', 'm8', 'm3', 'm20', 'm9', 'm2', 'm14', 'm12', 'm7', 'm5', 'm17', 'm10'].map(byId);
     return `<div class="ctxline">Movies${dot}Popular${dot}3 filters</div>
-      <div class="lib-grid" style="top:50px">${items.map((m, i) => poster(m, { focus: i === focusIdx })).join('')}</div>
-      ${bubble ? `<div class="bubble"><b>7.4</b><span>row 120 of 8,300</span></div>` : ''}`;
+      ${bubble ? `<div class="bubble"><b>#720</b><span>of 4,812${dot}Popular</span></div>` : ''}
+      <div class="lib-grid bleed" style="top:84px">${items.map((m, i) => poster(m, { focus: i === focusIdx })).join('')}</div>`;
   }
   function sortMenu(focusRow = 1) {
     const rows = [['Popular', 'IMDb, this week'], ['Top rated', 'IMDb, high to low'], ['Newest', 'release year'], ['Recently added', 'to your provider'], ['Title', 'A to Z']];
@@ -38,7 +38,7 @@
   }
   function filterSheet() {
     const ch = (t, on, f, n, dis) => `<span class="chip${on ? ' sel' : ''}${f ? ' f-ring' : ''}${dis ? ' dis' : ''}">${t}${n ? `<span class="n">${n}</span>` : ''}</span>`;
-    return `<div class="scrim"></div><div class="sheet" style="width:420px;gap:8px;padding-bottom:0">
+    return `<div class="scrim"></div><div class="sheet" style="gap:8px">
       <div class="row-flex" style="gap:12px"><h3 class="grow">Filters</h3><span class="t-cap">3 active</span><span class="pillbtn" style="height:32px;padding:0 14px;font-size:14px">Clear all</span></div>
       <div class="sheet-scroll">
       <div class="sec">Language</div><div class="chips">${ch('Your languages', 1, 0, '3.9k')}${ch('All languages', 0, 0, '4.8k')}</div>
@@ -48,18 +48,19 @@
       <div class="sec">IMDb</div><div class="chips">${ch('Any')}${ch('6+', 0, 0, '2.9k')}${ch('7+', 1, 0, '1.2k')}${ch('8+', 0, 0, '210')}</div>
       <div class="sec">Decade</div><div class="chips">${ch('Any', 1)}${ch('2020s', 0, 0, '880')}${ch('2010s', 0, 0, '1.4k')}${ch('Older')}</div>
       </div>
-      <div class="sheet-foot" style="padding-bottom:27px"><span class="btn btn-full">Show 214 titles</span></div></div>`;
+      <div class="sheet-foot"><span class="btn btn-full">Show 214 titles</span></div></div>`;
   }
+  /* Jump follows the sort: Popular = rank bands, Newest = years, Title = letters, Top rated = rating bands, Recently added = months. Shown here for Popular. */
   function jumpSheet() {
-    const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     return `<div class="scrim"></div><div class="menu" style="right:48px;top:120px;width:352px"><h3>Jump to</h3>
       <div class="lr"><span class="grow">Top of the list</span>${ic('chevU', 'sm')}</div>
       <div class="sep"></div>
-      <div class="t-label" style="padding:2px 8px 6px">Popular is grouped by year</div>
-      <div class="chips" style="padding:0 6px 4px">${['2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018', 'Older'].map((y, i) => `<span class="chip lg${i === 2 ? ' f-ring' : ''}">${y}</span>`).join('')}</div></div>`;
+      <div class="t-label" style="padding:2px 8px 6px">By rank (Popular)</div>
+      <div class="chips" style="padding:0 6px 4px">${['Top 100', '101–500', '501–1,000', 'The rest'].map((y, i) => `<span class="chip lg${i === 1 ? ' f-ring' : ''}">${y}</span>`).join('')}</div>
+      <div class="t-cap" style="padding:8px 8px 2px">Sort by Newest to jump by year.</div></div>`;
   }
   /* hold OK on a card: Save first and focused, so hold then OK saves (2 presses) */
-  function context({ x = 372, y = 190 } = {}) {
+  function context({ x = 480, y = 176 } = {}) {
     const rows = [['saved', 'Save to Saved', 1], ['check', 'Mark watched', 0], ['info', 'Details', 0]];
     return `<div class="ctxmenu" style="left:${x}px;top:${y}px">${rows.map(([i, t, f]) => `<div class="lr${f ? ' f-ring' : ''}">${ic(i, 'sm')}${t}</div>`).join('')}</div>`;
   }

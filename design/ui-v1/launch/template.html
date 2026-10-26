@@ -1,14 +1,15 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="mock-size" content="960x540@2"><title>airglow launch</title>
-<link rel="stylesheet" href="../../brand-v5/v5.4/fonts.css"><link rel="stylesheet" href="../../brand-v5/v5.4/tokens.css"><link rel="stylesheet" href="../ui.css"><link rel="stylesheet" href="launch.css">
-<script src="../kit/art.js"></script><script src="../kit/data.js"></script><script src="../kit/kit.js"></script><script src="../kit/home.js"></script>
+<link rel="stylesheet" href="../../brand-v5/v5.4/fonts.css"><link rel="stylesheet" href="../../brand-v5/v5.4/tokens.css"><link rel="stylesheet" href="../ui.css"><link rel="stylesheet" href="launch.css"><style>html,body{margin:0;width:960px;height:540px;overflow:hidden;background:#15131D}</style>
+<script src="../kit/art.js"></script><script src="../kit/data.js"></script><script src="../kit/kit.js"></script><script src="../kit/movies.js"></script><script src="../kit/home.js"></script><script src="../kit/screens.js"></script>
 </head><body class="">
 <!-- Query: ?t=450 freezes at 450 ms (stills) | ?ready=1500 Home is ready after 1500 ms, ?ready=never holds on the loading state |
-     ?warm=1 warm resume (no launch) | ?rm=1 reduced motion | ?hud=1 shows the clock. Keys: R replays. -->
-<div id="app" class="run">
-  <div id="home" class="screen"></div>
-  <div id="launch"><div class="stage"><div class="mk"><!--MARKS--></div><!--LETTERS--></div></div>
-  <div class="slab"></div><div class="slabline"></div>
+     ?warm=1 warm resume (no launch) | ?rm=1 reduced motion | ?hud=1 shows the clock | ?state=slow (4 s caption) ?state=off (12 s offline card) | ?cache=0 no cached Home at 12 s. Keys: R replays. -->
+<div id="l-app" class="l-run">
+  <div id="l-home" class="screen"></div>
+  <div id="l-launch"><div class="l-stage"><div class="l-mk"><!--MARKS--></div><!--LETTERS--></div>
+    <div class="l-cap">Connecting to your provider…</div><div class="l-offcard" id="l-offcard"></div></div>
+  <div class="l-slab"></div><div class="l-slabline"></div>
 </div>
-<div class="hud" id="hud"></div>
+<div id="l-hud"></div>
 <script src="launch.js"></script>
 </body></html>

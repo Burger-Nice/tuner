@@ -4,6 +4,7 @@
   const { ic, img, tag, liveP, dot, topbar, poster, wcard, team, BR } = g.Kit, M = g.Mock, by = g.Movies.byId;
 
   /* ---------- first launch and sign-in ---------- */
+  const lockupChalk = (h = 48) => `<img src="${BR}assets/lockup-chalk.svg" height="${h}" alt="airglow">`;
   const lockup = (h = 56) => `<img src="${BR}assets/lockup.svg" height="${h}" alt="airglow">`;   // gradient lockup: bg-0 only, 40 px and up
   function qr(size = 176) {
     const n = 25, c = size / n; let s = 7, rects = '';
@@ -20,7 +21,9 @@
     return `<div class="center-col" style="top:100px">${lockup(64)}
       <div class="t-head" style="margin-top:34px">Add your TV provider</div>
       <div class="t-body" style="margin-top:8px;width:520px;text-align:center">airglow plays the channels, films and series you already have. Typing on a remote is slow, so use your phone.</div>
-      <div class="row-flex" style="gap:14px;margin-top:30px"><span class="btn f">${ic('mic')}Use your phone</span><span class="btn2">Type it here</span><span class="btn2">Load an M3U link</span></div></div>`;
+      <div class="row-flex" style="gap:14px;margin-top:30px"><span class="btn f">${ic('phone')}Use your phone</span><span class="btn2">Type it here</span><span class="btn2">Load an M3U link</span></div></div>
+      <div class="abs bleed" style="left:0;right:0;top:384px;height:156px;overflow:hidden"><div style="display:flex;gap:24px;padding-left:48px;opacity:.7">${['m1', 'm6', 'm3', 'm18', 'm13', 'm11', 'm4'].map((id) => { const m = by(id); return `<div style="width:124px;height:186px;border-radius:12px;overflow:hidden;position:relative;flex:none"><div class="art">${Art.poster(m.id, { style: m.style, hue: m.hue, title: m.t })}</div></div>`; }).join('')}</div>
+        <div class="abs" style="inset:0;background:linear-gradient(180deg,rgba(21,19,29,0),var(--a-bg-0) 96%)"></div></div>`;
   }
   function phone() {
     return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
@@ -37,30 +40,32 @@
         ${fld('Provider link or server', '<span>http://line.provider.tv:8080/get.php?username=…</span>', ' ring')}
         <div class="t-cap" style="margin:-2px 0 12px">Paste a full get.php link and the rest fills in. OK opens the keyboard.</div>
         ${fld('Username', '<span class="ph">Username</span>')}${fld('Password', '<span class="ph">Password</span>')}</div>
-      <div class="abs row-flex" style="left:48px;top:440px;gap:12px"><span class="btn">Sign in</span><span class="btn2">Back</span></div>
+      <div class="abs row-flex" style="left:48px;top:440px;gap:14px"><span class="btn">Sign in</span><span class="t-cap">Back returns to the choices</span></div>
       <div class="abs card" style="left:620px;top:150px;width:292px;padding:16px"><b style="font:650 16px/22px var(--a-font-text)">Faster on your phone</b><div class="t-cap" style="margin-top:4px;line-height:20px">Scan a code and type with a real keyboard.</div><div style="margin-top:12px">${qr(104)}</div></div>`;
   }
   function verifying() {
     const row = (done, t, v) => `<div class="vrow">${done ? `<span class="okdot">${ic('check')}</span>` : spinner}<span class="grow">${t}</span><span class="t-cap">${v}</span></div>`;
     return `<div class="center-col" style="top:96px"><div class="t-head">Getting your provider ready</div>
       <div class="card" style="width:520px;margin-top:24px;padding:12px 20px">${row(1, 'Connected', 'line.provider.tv')}${row(1, 'Channels', '4,812')}${row(0, 'Movies', 'loading')}${row(0, 'Series', 'waiting')}</div>
-      <div class="t-body" style="margin-top:18px">Home opens as soon as channels are in. The rest loads in the background.</div><span class="btn2 sm f-ring" style="margin-top:18px">Cancel</span></div>`;
+      <div class="t-body" style="margin-top:18px">Home opens as soon as channels are in. The rest loads in the background.</div><span class="t-cap" style="margin-top:14px">Back cancels</span></div>`;
   }
   function choices() {
-    const t = (a, on) => `<span class="chip lg${on ? ' sel f-ring' : ''}">${a}</span>`;
+    const t = (a, on) => `<span class="chip lg${on ? ' sel' : ''}">${a}</span>`;
     return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
-      <div class="abs t-head" style="left:48px;top:82px">Three quick choices</div><div class="abs t-body" style="left:48px;top:120px">You can change all three in Account. Back skips.</div>
+      <div class="abs t-head" style="left:48px;top:82px">Three quick choices</div><div class="abs t-body" style="left:48px;top:120px">You can change all three in Account. Back keeps these and skips ahead.</div>
       <div class="abs" style="left:48px;top:160px;width:864px"><div class="t-label" style="margin-bottom:8px">Your team</div>
         <div class="chips">${t('Memphis Grizzlies', 1)}${t('Boston Celtics')}${t('Golden State Warriors')}${t('Los Angeles Lakers')}${t('New York Knicks')}${t('More teams')}${t('None')}</div>
         <div class="t-label" style="margin:16px 0 8px">Spoilers</div>
-        <div class="chips">${t('Off')}${t('My team', 1).replace('f-ring', '')}${t('All games')}</div>
+        <div class="chips">${t('Off')}${t('My team', 1)}${t('All games')}</div>
         <div class="t-cap" style="margin-top:8px">My team hides your team's score everywhere until you reveal it. Other games stay visible.</div>
         <div class="t-label" style="margin:16px 0 8px">Languages shown first</div>
-        <div class="chips">${t('English', 1).replace('f-ring', '')}${t('Español')}${t('Français')}${t('Svenska')}${t('Nederlands')}</div></div>
-      <div class="abs" style="left:48px;top:462px"><span class="btn">Done</span></div>`;
+        <div class="chips">${t('English', 1)}${t('Español')}${t('Français')}${t('Svenska')}${t('Nederlands')}</div></div>
+      <div class="abs" style="left:48px;top:462px"><span class="btn f" style="transform-origin:0 50%">Done</span></div>`;
   }
 
   /* ---------- search ---------- */
+  /* Matching: word-prefix only ("harb" finds Harbor Lights, Harbour Rescue, Cold Harbour; never Tidewater). After 2 letters a suggestions row of completed
+     titles appears, so most searches end at 2 to 3 letters. The top result is not repeated in the lists below it. */
   function search({ q = 'harb', focusKey = 'H', empty = false, none = false } = {}) {
     const keys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
     const kb = keys.map((k) => `<span class="key${k === focusKey ? ' f-ring' : ''}">${k}</span>`).join('');
@@ -68,15 +73,16 @@
     if (empty) res = `<div class="t-label" style="margin-bottom:10px">Recent</div><div class="chips">${['grizzlies', 'harbor', 'nba tv', 'night circuit'].map((r) => `<span class="chip lg">${ic('clock')}${r}</span>`).join('')}</div>
       <div class="t-label" style="margin:24px 0 10px">Trending in English</div><div class="rail" style="padding:0;gap:16px;margin:0">${['m1', 'm6', 'm3', 'm13'].map((id) => poster(by(id)).replace('class="pc"', 'class="pc sm"')).join('')}</div>`;
     else if (none) res = `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b>No results for "xqzv"</b><p>Check the spelling, or try fewer letters. Search covers channels, programmes, movies, series and teams.</p><span class="btn2 sm">Clear</span></div>`;
-    else res = `<div class="t-label" style="margin-bottom:8px">Top result</div>
-      <div class="rrow" style="height:84px"><div class="mini2"><div class="art">${Art.art('m1', { style: 'sun', hue: 192 })}</div></div><div class="grow"><div class="t-sub" style="font-size:18px;line-height:24px">Harbor Lights</div><div class="t-cap">Movie${dot}2024${dot}2h 06m${dot}4K +3 versions</div></div><span class="btn sm">${ic('play', 'fill')}Play</span></div>
+    else res = `<div class="chips" style="margin-bottom:14px">${['Harbor Lights', 'Harbour Rescue', 'Cold Harbour'].map((r) => `<span class="chip">${ic('search')}${r}</span>`).join('')}</div>
+      <div class="t-label" style="margin-bottom:8px">Top result</div>
+      <div class="rrow" style="height:84px"><div class="mini2"><div class="art">${Art.art('m1', { style: 'lighthouse', hue: 205 })}</div></div><div class="grow"><div class="t-sub" style="font-size:18px;line-height:24px">Harbor Lights</div><div class="t-cap">Movie${dot}2024${dot}2h 06m${dot}4K +3 versions</div></div><span class="btn sm">${ic('play', 'fill')}Play</span></div>
       <div class="t-label" style="margin:14px 0 8px">On TV</div>
-      <div class="rrow"><span class="logo sm">B1</span><div class="grow"><div class="t-sub">Harbour Rescue</div><div class="t-cap">BBC One${dot}21:00 to 22:00</div></div></div>
+      <div class="rrow"><span class="logo sm">BO</span><div class="grow"><div class="t-sub">Harbour Rescue</div><div class="t-cap">BBC One${dot}21:00 to 22:00</div></div></div>
       <div class="t-label" style="margin:14px 0 8px">Movies and series</div>
-      <div class="rail" style="padding:0;gap:16px;margin:0">${['m11', 'm17'].map((id) => poster(by(id)).replace('class="pc"', 'class="pc sm"')).join('')}${poster(M.MOVIES[0]).replace('class="pc"', 'class="pc sm"')}</div>`;
+      <div class="rrow"><div class="mini2" style="height:40px;width:28px"><div class="art">${Art.art('m11', { style: 'sun', hue: 214 })}</div></div><div class="grow"><div class="t-sub">Cold Harbour</div><div class="t-cap">Movie${dot}2024${dot}Crime</div></div></div>`;
     return `${topbar({ sel: 'search' })}
       <div class="abs" style="left:48px;top:90px;width:352px">
-        <div class="sfield"><span class="micbtn">${ic('mic')}</span><span class="grow">${q ? `<b>${q.toUpperCase()}</b><i class="caret"></i>` : '<span class="ph">Channels, films, series, teams</span>'}</span></div>
+        <div class="sfield"><span class="micbtn">${ic('mic')}</span><span class="grow" style="white-space:nowrap">${q ? `<b>${q.toUpperCase()}</b><i class="caret"></i>` : '<span class="ph">Search everything</span>'}</span></div>
         <div class="kb">${kb}</div>
         <div class="kbrow"><span class="key wide">Space</span><span class="key wide">Delete</span><span class="key wide">Clear</span></div></div>
       <div class="abs" style="left:432px;top:90px;width:480px">${res}</div>`;
@@ -102,14 +108,17 @@
       ${r('Spoiler shield', 'My team ' + ic('chevR', 'sm'), '', 'Hides scores, leaders, records and finals everywhere until you reveal')}
       ${r('Score on picture', '<span class="onoff">Off</span><span class="tg"><i></i></span>')}
       ${r('Score delay', 'Per channel ' + ic('chevR', 'sm'), '', 'NBA League Pass 4: 42 s behind live')}`;
-    else if (group === 'updates') body = `<div class="t-title" style="margin-bottom:10px">Updates</div>${r('Version', '1.5.2')}${r('airglow 1.6 is ready', '<span class="btn sm">Update now</span>', ' f-ring', 'Downloaded in the background. Installs at a quiet moment.')}${r('Check for updates', 'Last checked 20:12')}${r('Download automatically', '<span class="onoff">On</span><span class="tg on"><i></i></span>')}`;
+    else if (group === 'playback') body = `<div class="t-title" style="margin-bottom:10px">Playback</div>${r('Up arrow in the player', 'Next channel ' + ic('chevR', 'sm'), ' f-ring', 'Down goes the other way. Applies to the zap ring and the mini guide')}
+      ${r('Stream format', 'Transport stream ' + ic('chevR', 'sm'), '', 'Try HLS if a channel stutters')}${r('Default picture size', 'Fit ' + ic('chevR', 'sm'), '', 'Each channel can override it')}
+      ${r('Match frame rate', '<span class="onoff">Off</span><span class="tg"><i></i></span>', '', 'Switches the TV to 23.976 or 25 Hz for films')}${r('User agent', 'airglow/1.5 ' + ic('chevR', 'sm'), '', 'Some providers only answer known players')}`;
+    else if (group === 'updates') body = `<div class="t-title" style="margin-bottom:10px">Updates</div>${r('Version', '1.5.2')}${r('airglow 1.6 is ready', 'Update now ' + ic('chevR', 'sm'), ' f-ring', 'Downloaded in the background. Installs at a quiet moment.')}${r('Check for updates', 'Last checked 20:12')}${r('Download automatically', '<span class="onoff">On</span><span class="tg on"><i></i></span>')}`;
     else body = `<div class="t-title" style="margin-bottom:10px">Provider</div>${r('line.provider.tv', '<span class="pill-ok">' + ic('check', 'sm') + 'Active</span>', ' f-ring', 'Expires 19 Nov · 24 days left')}${r('Connections', '1 of 2 in use')}${r('Switch account', 'Home · Holiday ' + ic('chevR', 'sm'))}${r('Add account', ic('plus', 'sm'))}${r('Refresh channels and guide', 'Updated 20:12')}${r('Sign out', ic('chevR', 'sm'))}`;
     return `${topbar({ sel: 'account', update: true })}<div class="abs" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:272px;top:90px;width:640px">${body}</div>`;
   }
 
   /* ---------- Update prompt: a full-screen card at a natural break (cold launch), never over the player ---------- */
   function update() {
-    return `<div class="center-col" style="top:110px"><div class="card" style="width:560px;padding:32px 32px 28px;text-align:center">${lockup(48)}
+    return `<div class="center-col" style="top:110px"><div class="card" style="width:560px;padding:32px 32px 28px;text-align:center">${lockupChalk(48)}
       <div class="t-head" style="margin-top:22px">airglow 1.6 is ready</div>
       <div class="t-body" style="margin-top:8px">The channel list in the player now shows what is on. Fixes for the guide on slow connections.</div>
       <div class="row-flex" style="gap:14px;margin-top:26px;justify-content:center"><span class="btn f">Update now</span><span class="btn2">Later</span></div>
@@ -119,18 +128,16 @@
   /* ---------- states ---------- */
   function loading() {
     const sk = (w, h, r = 12) => `<span class="skb" style="width:${w}px;height:${h}px;border-radius:${r}px"></span>`;
+    const row = (top) => `<div class="abs rowtitle" style="left:48px;top:${top}px">${sk(150, 24, 8)}</div><div class="rail abs" style="top:${top + 36}px;left:0">${[1, 2, 3, 4, 5].map(() => `<span class="skb" style="width:198px;height:100px;border-radius:16px;flex:none"></span>`).join('')}</div>`;
     return `${topbar({ sel: 'home', live: false, focus: 'tab:home' })}
-      <div class="hero-plate" style="background:var(--a-surface-1)"><div class="abs" style="left:24px;top:24px">${sk(160, 22, 11)}</div><div class="abs" style="left:24px;top:64px">${sk(420, 40, 8)}</div><div class="abs" style="left:24px;top:124px">${sk(180, 44, 22)}</div></div>
-      <div class="abs rowtitle" style="left:48px;top:272px">${sk(110, 24, 8)}</div>
-      <div class="rail abs" style="top:308px;left:0">${[1, 2, 3, 4, 5].map(() => `<span class="skb" style="width:198px;height:111px;border-radius:16px;flex:none"></span>`).join('')}</div>
-      <div class="abs rowtitle" style="left:48px;top:439px">${sk(190, 24, 8)}</div>
-      <div class="rail abs" style="top:475px;left:0">${[1, 2, 3, 4, 5].map(() => `<span class="skb" style="width:198px;height:111px;border-radius:16px;flex:none"></span>`).join('')}</div>
-      <div class="abs t-cap" style="right:48px;top:32px;display:none">Loading</div>`;
+      <div class="hero-plate" style="background:var(--a-surface-1)"><div class="abs" style="left:24px;top:16px">${sk(160, 22, 11)}</div><div class="abs" style="left:24px;top:56px">${sk(420, 56, 8)}</div><div class="abs" style="left:24px;top:132px">${sk(180, 44, 22)}</div></div>
+      ${row(284)}${row(432)}`;
   }
   const stateCard = (icon, title, text, btn, extra = '') => `<div class="state big"><div class="ico">${ic(icon)}</div><b>${title}</b><p>${text}</p>${btn}${extra}</div>`;
-  const offline = () => `${topbar({ sel: 'home', live: false })}<div class="center-col" style="top:150px">${stateCard('wifiOff', 'Can’t reach the server', 'Check that the TV is online, then try again. Your saved items and last guide are still here.', '<span class="btn f">Try again</span>', '<div class="t-cap" style="margin-top:12px">line.provider.tv · last reached 20:12</div>')}</div>`;
+  /* Offline with a cache: Home as airglow last saw it (no LIVE pills, no scores), and one slim bar. Without a cache (first run) the full card is used (launch-offline.png). */
+  const offline = () => g.Home.home({ v: 'resume', offline: true, notice: `<div class="notice" style="bottom:auto;top:284px">${ic('wifiOff', 'sm')}<span class="grow">Offline · showing what airglow remembers</span><span class="btn sm f">Try again</span></div>` });
   const expired = () => `${topbar({ sel: 'home', live: false })}<div class="center-col" style="top:150px">${stateCard('info', 'This subscription has ended', 'The provider says the line expired on 19 Oct. Add another account, or renew with your provider and refresh.', '<span class="row-flex" style="gap:12px;justify-content:center"><span class="btn f">Switch account</span><span class="btn2">Refresh</span></span>')}</div>`;
   const empty = () => `${topbar({ sel: 'movies' })}${g.Movies.header({ title: 'Movies', count: '0 of 4,812', sort: 'Popular', filters: 3 })}${g.Movies.chips('All')}<div class="center-col" style="top:190px">${stateCard('sliders', 'Nothing matches these filters', 'Remove the last one, or clear them all to see every movie again.', '<span class="row-flex" style="gap:12px;justify-content:center"><span class="btn f">Remove “IMDb 7+”</span><span class="btn2">Clear all</span></span>')}</div>`;
   const noart = () => `${topbar({ sel: 'movies' })}${g.Movies.header({ title: 'Movies' })}${g.Movies.chips('All')}<div class="lib-grid" style="top:176px">${[M.MOVIES[18], M.MOVIES[19], Object.assign({}, M.MOVIES[0], { noart: true, t: 'Salt and Static 2021 WEB-DL', id: 'x1', vers: 2 }), Object.assign({}, M.MOVIES[3], { noart: true, id: 'x2' }), M.MOVIES[1], M.MOVIES[4]].map((m, i) => poster(m, { focus: i === 1 })).join('')}</div>`;
-  g.Screens = { welcome, phone, typeIt, verifying, choices, search, saved, account, update, loading, offline, expired, empty, noart, qr, lockup };
+  g.Screens = { stateCard, welcome, phone, typeIt, verifying, choices, search, saved, account, update, loading, offline, expired, empty, noart, qr, lockup };
 })(window);

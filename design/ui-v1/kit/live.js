@@ -18,19 +18,22 @@
     const mark = i === 0 ? `<span class="fv">${ic('pin')}</span>` : ch.fav ? `<span class="fv">${ic('star')}</span>` : '';
     return `<div class="g-row"><div class="g-ch${i === focusRow ? ' sel' : ''}"><span class="num">${ch.n}</span><span class="logo sm">${ch.ini}</span><div class="nm">${ch.name}</div>${mark}</div><div class="g-cells">${cells}</div></div>`;
   }
-  function guide({ shield = false, groupFocus = false, focusRow = 0 } = {}) {
+  function guide({ shield = false, groupFocus = false, focusRow = 0, toast = false } = {}) {
     const rows = [C[0], C[1], C[3], C[2], C[6], C[4]];
-    const ticks = [21, 21.5, 22].map((h) => `<span style="left:${(h - WIN.start) / WIN.hours * 100}%">${hm(h)}</span>`).join('');
+    const ticks = [21, 21.5, 22, 22.5, 23].map((h) => `<span style="left:${(h - WIN.start) / WIN.hours * 100}%">${hm(h)}</span>`).join('');
     const desc = shield ? 'Description hidden (spoiler shield)' : 'Western Conference opener. Memphis lead by seven after two quarters.';
+    /* the Now panel carries a muted preview of the focused channel (a native video surface behind a hole; one connection, handed to the player on OK).
+       A channel that carries your shielded game gets no preview: the broadcast has the score on it. */
+    const pv = shield ? `<div class="pvtile off">${ic('eyeOff', 'sm')}<span>Preview off<br>for your game</span></div>` : `<div class="pvtile"><div class="art">${Art.art('arena-hero', { style: 'arena', hue: 28 })}</div><span class="cap">Preview</span></div>`;
     return `${topbar({ sel: 'live', live: true })}
 <div class="g-now">
-  <span class="logo lg" style="width:64px;height:64px;font-size:20px">NBA</span>
+  ${pv}
   <div class="grow">
     <div class="row-flex" style="gap:12px"><span class="t-title">Grizzlies at Warriors</span>${liveP()}</div>
-    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text)">NBA League Pass 4${dot}US${dot}HD${dot}19:30${dot}22:00${dot}1h 19m left<span class="prog" style="width:110px;margin-left:14px"><i style="width:63%"></i></span></div>
+    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text)">NBA League Pass 4${dot}19:30 to 22:00${dot}1h 19m left<span class="prog" style="width:90px;margin-left:14px"><i style="width:63%"></i></span></div>
     <div class="ellipsis" style="font:500 15px/22px var(--a-font-text);color:${shield ? 'var(--a-text-3)' : 'var(--a-text-2)'}">${shield ? ic('eyeOff', 'sm') : ''}${desc}</div>
   </div>
-  <div class="t-cap" style="text-align:right;line-height:20px">OK tune<br>Hold OK favourite</div>
+  ${toast ? `<span class="toast"><b>Added to Favourites</b><span class="t-cap">Hold OK to undo</span></span>` : '<div class="t-cap" style="text-align:right;line-height:20px">OK tune<br>Hold OK favourite</div>'}
 </div>
 <div class="g-grid">
   <div class="g-ruler"><div class="g-corner"><span class="chip lg${groupFocus ? ' f-ring' : ''}">${ic('list')}Favourites first<span class="t-3" style="font-weight:500">10</span></span></div><div class="g-time"><span class="g-nowflag" style="left:0;top:2px">Now</span>${ticks}</div></div>
@@ -39,7 +42,7 @@
   }
   function groupSheet() {
     const rows = [['star', 'Favourites first', '10', 1], ['live', 'Live games', '3'], ['tv', 'Sports', '86'], ['tv', 'News', '41'], ['film', 'Movies', '120'], ['tv', 'UK', '212'], ['tv', 'All channels', '4,812']];
-    return `<div class="scrim"></div><div class="sheet" style="left:0;right:auto;width:340px;border-left:0;border-right:1px solid var(--a-border)"><h3>Channel group</h3>
+    return `<div class="scrim"></div><div class="sheet left" style="width:340px"><h3>Channel group</h3>
       <div class="t-cap" style="margin-top:-6px">This is also the zap ring in the player</div>
       ${rows.map(([i, t, n, on], k) => `<div class="lr${k === 1 ? ' f-ring' : ''}"><span class="rd${on ? ' on' : ''}"></span>${t}<small>${n}</small></div>`).join('')}</div>`;
   }

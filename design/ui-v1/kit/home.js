@@ -1,68 +1,61 @@
 /* Home (TV). Hero priority: your team (3 h before tip-off to 30 min after the final) > resume > last channel.
-   variants: live (score at the synced delay) | shield (My team) | choose (no channel known) | pre (before tip-off) | resume (no game today) */
+   variants: live (score at the synced delay) | shield (My team) | choose (no channel known) | pre (before tip-off) | resume (no game today)
+   Game day: Continue watching sits ABOVE On now (resume is 2 presses: Down, OK). No game: On now first. */
 (function (g) {
   'use strict';
-  const { ic, liveP, dot, topbar, wcard, liveCard, team, tag } = g.Kit, M = g.Mock;
-  const rows = () => {
-    const C = M.CHANNELS;
-    const now = [C[2], C[1], C[3], C[9], C[5]].map((c) => liveCard(c)).join('');
-    const cont = [
-      wcard({ seed: 'm2', style: 'figure', hue: 14, title: 'The Long Take', meta: 'Film · 1h 17m left', prog: 28 }),
-      wcard({ seed: 's1', style: 'city', hue: 262, title: 'Night Circuit', meta: 'S1 · E3 · 21 min left', prog: 58 }),
-      wcard({ seed: 'm5', style: 'retro', hue: 276, title: 'Salt & Static', meta: 'Film · 18 min left', prog: 82 }),
-      wcard({ seed: 's2', style: 'peaks', hue: 150, title: 'Signal Hill', meta: 'S3 · E2 · 44 min left', prog: 12 }),
-      wcard({ seed: 'm7', style: 'forest', hue: 128, title: 'Glass Orchard', meta: 'Film · 1h 52m left', prog: 6 }),
-    ].join('');
-    return { now, cont };
-  };
-  function gameHero(v, nofocus) {
+  const { ic, liveP, dot, topbar, liveCard, contCard, team, tag } = g.Kit, M = g.Mock;
+  const T = M.TEAMS;
+  const cont = () => [
+    { seed: 'm2', style: 'theatre', hue: 14, title: 'The Long Take', kind: 'Film', left: '1h 17m left', prog: 28 },
+    { seed: 's1', style: 'tower', hue: 262, title: 'Night Circuit', kind: 'S1 · E3', left: '21 min left', prog: 58 },
+    { seed: 'm5', style: 'retro', hue: 276, title: 'Salt & Static', kind: 'Film', left: '18 min left', prog: 82 },
+    { seed: 's2', style: 'peaks', hue: 150, title: 'Signal Hill', kind: 'S3 · E2', left: '44 min left', prog: 12 },
+    { seed: 'm7', style: 'forest', hue: 128, title: 'Glass Orchard', kind: 'Film', left: '1h 52m left', prog: 6 },
+  ];
+  const nowRow = (off) => [2, 1, 3, 9, 5].map((i) => liveCard(off ? Object.assign({}, M.CHANNELS[i], { now: Object.assign({}, M.CHANNELS[i].now, { live: false }) }) : M.CHANNELS[i])).join('');
+  const side = (abbr, right) => { const t = T[abbr]; return `<div class="side${right ? ' r' : ''}" style="--tp:${t.p};--ta:${t.a}">${right ? '' : team(abbr, 'lg')}<div${right ? ' style="text-align:right"' : ''}><div class="nm">${t.n}</div><div class="rc">${right ? '0-1' : '1-0'}</div></div>${right ? team(abbr, 'lg') : ''}</div>`; };
+
+  function gameHero(v, nofocus, o = {}) {
     const shield = v === 'shield', pre = v === 'pre', choose = v === 'choose';
-    let status, mid, side = '';
-    if (pre) {
-      status = `<span class="t-label" style="color:var(--a-pink-text)">Your team</span><span class="t-label t-2">Tip-off 21:30${dot}in 49 min</span>`;
-      mid = `<span class="score md" style="margin:0 8px">21:30</span>`;
-    } else {
-      status = `${liveP()}<span class="t-label t-2">NBA${dot}Q3${dot}7:29</span>`;
-      mid = shield
-        ? `<span class="shield">${ic('eyeOff')}<span>Score hidden<small>Spoiler shield · My team</small></span></span>`
-        : `<span class="score" style="margin-left:6px">77</span><span class="t-3" style="font:700 22px var(--a-font-display)">–</span><span class="score">70</span>`;
-      if (!shield) side = `<div class="abs lead" style="left:548px;top:44px;width:170px"><div class="t-label" style="margin-bottom:4px">Leaders</div><div><b>G. Marshall</b> 24 pts</div><div><b>T. Whitlock</b> 22 pts</div></div>${choose ? '' : `<span class="synced abs" style="left:548px;top:104px">${ic('clock')}Synced · 42 s behind live</span>`}`;
-    }
-    const rec = shield || pre ? ['1-0', '0-1'] : ['1-0', '0-1'];
+    const status = pre
+      ? `<span class="t-label" style="color:var(--a-pink-text)">Your team</span><span class="t-label t-2">Tip-off 21:30${dot}in 49 min</span>`
+      : `${liveP()}<span class="t-label t-2">NBA${dot}Q3${dot}7:29</span>${shield || choose ? '' : `<span class="synced">${ic('clock')}Synced · 42 s behind live</span>`}`;
+    const score = pre ? `<span class="score md">21:30</span>`
+      : shield ? `<span class="shield" style="height:44px;padding:0 12px;font-size:16px;gap:8px">${ic('eyeOff')}<span>Score hidden</span></span>`
+      : `<span class="score">77</span><span class="t-3" style="font:700 22px var(--a-font-display)">–</span><span class="score">70</span>`;
     const primary = choose ? `${ic('search')}Choose channel` : pre ? `${ic('play', 'fill')}Watch pre-game` : `${ic('play', 'fill')}Watch live`;
-    const secondary = shield ? 'Reveal score' : pre ? 'Preview' : 'Box score';
+    const secondary = shield ? 'Reveal score' : pre ? 'Preview' : choose ? 'Open guide' : 'Box score';
     const cap = choose ? 'No channel found yet<br>Your pick is remembered'
+      : o.hub ? (shield ? 'On NBA League Pass 4<br>Hold OK for 2 more channels' : '<b style="color:var(--a-text-1);font-weight:650">G. Marshall</b> 24 pts<br><b style="color:var(--a-text-1);font-weight:650">T. Whitlock</b> 22 pts')
       : 'On NBA League Pass 4<br>Hold OK for 2 more channels';
-    return `<div class="hero-plate">
-  <div class="slab" style="left:742px;width:260px"></div><div class="slabline" style="left:722px"></div>
-  <div class="abs row-flex" style="left:24px;top:14px;gap:12px">${pre ? '' : ''}${status}</div>
-  <div class="matchup abs" style="left:24px;top:44px">
-    <div class="mteam">${team('MEM', 'lg')}<div><div class="nm">Grizzlies</div><div class="rc">${rec[0]}</div></div></div>${mid}
-    <div class="mteam"><div style="text-align:right"><div class="nm">Warriors</div><div class="rc">${rec[1]}</div></div>${team('GS', 'lg')}</div>
-  </div>${side}
-  <div class="abs row-flex" style="left:24px;top:112px;gap:12px"><span class="btn${nofocus ? '' : ' f'}">${primary}</span><span class="btn2">${secondary}</span><span class="t-cap" style="margin-left:8px;line-height:18px">${cap}</span></div>
+    let slab;
+    if (pre) slab = `<div class="slabcontent ink"><span class="big">21:30</span><span class="cap">Tip-off · 49 min</span></div>`;
+    else if (shield || choose) slab = `<div class="slabcontent ink"><span class="big">Q3</span><span class="big">7:29</span><span class="cap">${shield ? 'Score hidden' : 'Game clock'}</span></div>`;
+    else slab = `<div class="slabpv"><div class="art">${Art.art('arena-hero', { style: 'arena', hue: 28 })}</div><div class="scrimb"></div><div class="slabcontent pv"><span class="pvlabel">Preview · muted</span></div></div>`;
+    return `<div class="hero-plate"${o.top ? ` style="top:${o.top}px"` : ''}>
+  <div class="abs row-flex" style="left:24px;top:12px;gap:12px;height:24px">${o.hub ? `<span class="t-label" style="color:var(--a-pink-text)">Your team</span>` : ''}${status}</div>
+  <div class="mt">${side('MEM')}<div class="sc">${score}</div>${side('GS', 1)}</div>
+  <div class="abs row-flex" style="left:24px;top:132px;gap:12px"><span class="btn${nofocus ? '' : ' f'}">${primary}</span><span class="btn2">${secondary}</span>${o.hub && !shield ? '<span class="btn2">Plays</span>' : ''}<span class="t-cap" style="margin-left:8px;line-height:18px">${cap}</span></div>
+  <div class="slabbox" style="left:640px;width:260px">${slab}</div>
 </div>`;
   }
-  function resumeHero() {
-    return `<div class="hero-plate" style="background:var(--a-surface-1)">
-  <div class="abs" style="right:0;top:0;width:420px;height:176px"><div class="art">${Art.art('s1', { style: 'city', hue: 262 })}</div><div class="abs" style="inset:0;background:linear-gradient(90deg,var(--a-surface-1),var(--scrim-0))"></div></div>
-  <div class="abs t-label" style="left:24px;top:16px">Continue watching</div>
-  <div class="abs" style="left:24px;top:34px;width:460px"><div class="t-head" style="font-size:30px;line-height:34px">Night Circuit</div>
+  function resumeHero(offline) {
+    return `<div class="hero-plate"><div class="hero-art"><div class="art">${Art.art('s1', { style: 'tower', hue: 262, crop: [0, 52, 400, 150] })}</div><div class="abs" style="inset:0;background:linear-gradient(90deg,var(--a-surface-1),rgba(45,43,53,.15) 70%)"></div></div>
+  <div class="abs t-label" style="left:24px;top:18px">Continue watching</div>
+  <div class="abs" style="left:24px;top:40px;width:460px"><div class="t-head" style="font-size:30px;line-height:34px">Night Circuit</div>
    <div class="metaline" style="margin-top:4px;font-size:16px">S1 · E3${dot}21 min left${dot}${tag('4K', 'q')}</div>
    <div class="prog" style="width:300px;margin-top:10px"><i style="width:58%"></i></div></div>
-  <div class="abs row-flex" style="left:24px;top:118px;gap:12px"><span class="btn f">${ic('play', 'fill')}Resume</span><span class="btn2">Start over</span><span class="btn2">Details</span></div>
+  <div class="abs row-flex" style="left:24px;top:132px;gap:12px"><span class="btn${offline ? '' : ' f'}">${ic('play', 'fill')}Resume</span><span class="btn2">Start over</span><span class="btn2">Details</span></div>
 </div>`;
   }
-  function home({ v = 'live', shield = false, nofocus = false } = {}) {
+  const rowAt = (title, top, html) => `<div class="abs rowtitle" style="left:48px;top:${top}px">${title}</div><div class="rail abs" style="top:${top + 36}px;left:0">${html}</div>`;
+  function home({ v = 'live', shield = false, nofocus = false, notice = '', offline = false } = {}) {
     if (shield) v = 'shield';
-    const { now, cont } = rows();
-    const hero = v === 'resume' ? resumeHero() : gameHero(v, nofocus);
-    const contHtml = v === 'resume' ? cont.replace(/<div class="wc"[^>]*>(?:(?!<div class="wc").)*?Night Circuit.*?<\/div><\/div>(?=<div class="wc")/s, '') : cont;
-    return `${topbar({ sel: 'home', live: v !== 'resume' })}${hero}
-<div class="abs rowtitle" style="left:48px;top:272px">On now</div>
-<div class="rail abs" style="top:308px;left:0">${now}</div>
-<div class="abs rowtitle" style="left:48px;top:439px">Continue watching</div>
-<div class="rail abs" style="top:475px;left:0">${contHtml}</div>`;
+    const game = v !== 'resume';
+    const hero = game ? gameHero(v, nofocus) : resumeHero(offline);
+    const C = cont(); const cc = (game ? C : C.filter((x) => x.title !== 'Night Circuit')).map((c) => contCard(c)).join('');
+    const rows = game ? [['Continue watching', cc], ['On now', nowRow()]] : offline ? [['Continue watching', cc], ['Recent channels', nowRow(true)]] : [['On now', nowRow()], ['Continue watching', cc]];
+    return `${topbar({ sel: 'home', live: game })}${hero}${offline ? rowAt(rows[0][0], 348, rows[0][1]) : rowAt(rows[0][0], 284, rows[0][1]) + rowAt(rows[1][0], 432, rows[1][1])}${notice}`;
   }
-  g.Home = { home };
+  g.Home = { home, cont, gameHero };
 })(window);
