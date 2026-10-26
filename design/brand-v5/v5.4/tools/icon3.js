@@ -9,6 +9,7 @@ const TILES = {
   owner: [[0, '#5B2BD9'], [.5, '#E04BFF'], [1, '#FF5CB8']],            // the v5 tile (pink to violet)
   deep: [[0, '#4F24C4'], [.55, '#B83BEA'], [1, '#E2449E']],             // chalk-safe: no light pink anywhere near the wedge
   warm: [[0, '#F95BAC'], [1, '#D540F5']],
+  banner: [[0, '#4F24C4'], [.55, '#A030CC'], [1, '#C03C8C']],         // v5.4 final: the banner ramp, right end deepened so chalk is 4.5:1 or better behind the lockup
   family: [[0, '#4F24C4'], [.55, '#B83BEA'], [1, '#E2449E']],        // the owner's pink-to-violet tile (v5.3 ramp, kept by owner decision); icon and banner share it
 };
 const V = {

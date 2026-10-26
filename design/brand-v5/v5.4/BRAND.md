@@ -6,6 +6,13 @@ Scope: branding and component language. Screen layout is not designed here (UI p
 
 Everything is generated from `tools/palette.js` and checked by `tools/contrast.js` (**0 failures**). `tokens.css` is the source of truth for code. Nothing is trademark-cleared (personal app); known overlaps are in section 13.
 
+## v5.4 final fixes (reviewer-approved 7.5/10; UI phase starts)
+
+- **i-dot:** the wedge i-dot is used only at 40 px high and up (`lockup.svg`, `lockup-chalk.svg`). Below 40 px, and on the banner, use the round-dot files (`lockup-compact.svg`, `lockup-chalk-compact.svg`).
+- **Gradient wordmark rule:** the gradient "glow" appears **only on bg-0** (the canvas). On bg-1, surfaces, artwork, gradients or anything else, use the all-chalk lockup (`lockup-chalk*.svg`; the wedge is chalk and the bands are chalk at 30 / 50 / 70% opacity).
+- **Banner:** the primary banner ramp is deepened at the right end (`#4F24C4` / `#A030CC` / `#C03C8C`) so chalk is at least 4.5:1 behind the lockup (measured 4.54:1 over the lockup area). The icon tile keeps the owner's brighter ramp.
+- **"ai" name risk: accepted.** The "ai" reading of airglow is a known and accepted risk (owner decision); it is mitigated by the chalk "air" / gradient "glow" split and tracking, and is not to be revisited in the UI phase.
+
 ## v5.4 changes (answering review #4, 7.0/10)
 
 **Story, one line:** *airglow: a signal travels through the air (the wedge) and leaves a lit afterimage behind it (the stepped bands); the play wedge even dots the "i".*
@@ -56,7 +63,7 @@ The owner chose the **original v5 Soft echo mark** over the v5.2 lit-core mark: 
 | File | What |
 |---|---|
 | `board.png` | one-page summary |
-| `assets/mark.svg` `mark-small.svg` `lockup.svg` | mark (3 bands), small mark (2 bands, 40 px and below), lockup A. Vector only: no `<text>`, no filters, no raster |
+| `assets/mark.svg` `mark-small.svg` `lockup.svg` `lockup-compact.svg` `lockup-chalk.svg` `lockup-chalk-compact.svg` | mark (3 bands), small mark (2 bands, 40 px and below), lockup A. Vector only: no `<text>`, no filters, no raster |
 | `assets/icon-1024.svg/.png`, `icon-small.svg` + `icon-small-256.png`, `icon-foreground`, `icon-background` (+432 px PNGs) | app icon (1024 tile), two-band small icon, Android adaptive layers |
 | `assets/banner.svg/.png/@2x.png`, `banner-dark.svg/.png`, `mark-micro.svg` | Google TV banner 320×180 (gradient primary, dark alternative); plain wedge under 24 px |
 | `tokens.css`, `fonts.css`, `fonts/`, `sprites/` | tokens, 99 KB of woff2, grain sprite only |
@@ -168,7 +175,7 @@ Never: body text, labels, captions, anything over three words; box scores, stand
 
 - **No `filter: blur`, no `backdrop-filter`, no big `box-shadow` spreads.** There are no glows (v5.4): no sprites, no blur, no radial glow in any asset.
 - Gradients: two stops, small elements. The Home backdrop is a flat 2-stop gradient (bg-1 to bg-0). Over large flat fills (hero, banner) add `sprites/grain.png` at its own 7/255 alpha to break banding on 8-bit panels.
-- Mark, lockup, icon and banner use vector radial gradients (no `feGaussianBlur`), so the same SVG is a legal Android VectorDrawable source.
+- Mark, lockup, icon and banner use only solid fills and linear gradients (no radial gradients, no `feGaussianBlur`, no filters), so the same SVGs are legal Android VectorDrawable sources.
 - Fonts: 99 KB, `font-display: swap`; the launch frame uses only outlined SVG, so it does not wait for fonts.
 - Native splash is the static mark: no WebView work before first paint.
 
@@ -202,7 +209,7 @@ v5.1 answered review #1 (6.5/10): stock play with blurred echoes replaced by a h
 
 ## 13. Housekeeping and open items
 
-- Name overlaps: LumenRadio "AirGlow" and a DoPchoice filing. Confusion risk only; nothing is trademark-cleared. The banner is no longer violet-led. Lowercase "ai" remains an unresolved name risk, mitigated by the weight split and gap.
+- Name overlaps: LumenRadio "AirGlow" and a DoPchoice filing. Confusion risk only; nothing is trademark-cleared. The banner is no longer violet-led. The "ai" reading is an accepted risk (owner decision).
 - Not tested: real posters (only synthetic art), surface steps on the Philips panel, the launch animation itself (stills only).
 - Final name decision and a real clearance search if the app leaves personal use.
 

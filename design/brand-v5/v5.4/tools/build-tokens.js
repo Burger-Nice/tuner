@@ -8,7 +8,7 @@ const css = `/* airglow tokens v5.4: dark, TV-first, Soft identity with a Sharp 
    Performance rules baked into these tokens: no filter:blur, no big box-shadow spreads, gradients are two stops, there are no glows in sprites/. */
 
 :root {
-  /* ---- surfaces: one hue (295), chroma .02 (v5.1 .032: tinted artwork); steps vs canvas 1.35 / 1.71 / 2.26:1; no channel below 18/255; native splash and window background = bg-0 ---- */
+  /* ---- surfaces: one hue (295), chroma .02 (v5.1 .032: tinted artwork); steps vs canvas 1.32 / 1.67 / 2.20:1; no channel below 19/255; native splash and window background = bg-0 ---- */
   --a-bg-0:        ${P['bg-0']};   /* ${o('bg-0')}  canvas, rail, letterbox */
   --a-bg-1:        ${P['bg-1']};   /* ${o('bg-1')}  raised regions, sheets, top bars */
   --a-surface-1:   ${P['surface-1']};   /* ${o('surface-1')}  cards, rows, tiles */
@@ -49,7 +49,7 @@ const css = `/* airglow tokens v5.4: dark, TV-first, Soft identity with a Sharp 
   --a-grain:         url("sprites/grain.png");   /* repeat over large fills at its own 7/255 alpha: kills banding */
 
   /* ---- type: three families, three weights of display + one variable text face, ~100 KB of woff2 (Latin only) ---- */
-  --a-font-display: "Outfit", system-ui, sans-serif;            /* 500 (air, sub-heads) / 700 (glow, titles) */
+  --a-font-display: "Outfit", system-ui, sans-serif;            /* 700 titles and wordmark; 500 only for small sub-heads */
   --a-font-text:    "Inter Variable", "Inter", system-ui, sans-serif;   /* all reading text, tables, numerals (tabular) */
   --a-font-live:    "Barlow Condensed", "Outfit", sans-serif;   /* 800 italic: Sharp dialect only, <= 3 words or a score */
   --a-size-display: 40px; --a-lh-display: 44px;   /* page titles */
