@@ -267,8 +267,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ls -la out
-          gh release create "v$VERSION" out/* --title "Tuner $VERSION" --latest \
-            --notes "Built from $GITHUB_SHA. The PC and Google TV apps update themselves. iPhone: add the AltStore source ${{ github.server_url }}/${{ github.repository }}/releases/latest/download/altstore-source.json"
+          gh release create "v$VERSION" out/* --title "airglow $VERSION" --latest \
+            --notes "Built from $GITHUB_SHA. The Google TV app (airglow) and the PC app update themselves. iPhone: add the AltStore source ${{ github.server_url }}/${{ github.repository }}/releases/latest/download/altstore-source.json"
 
   release-ios:
     runs-on: ubuntu-latest
