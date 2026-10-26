@@ -6,7 +6,7 @@ import { catalog, ensure } from './catalog.js';
 import { guideFor, onNow, warm } from './guide.js';
 
 const { NBA } = window;
-export const nba = { today: [], todayDay: '', err: '', stale: false, other: new Map(), sums: new Map(), started: false };
+export const nba = { today: [], todayDay: '', err: '', stale: false, other: new Map(), sums: new Map(), sumFail: new Map(), started: false };
 const hist = new Map();        // gameId -> [{ t, g, s }] snapshots, for showing a game as it looked `delay` seconds ago
 export const revealed = new Set();   // this session's revealed games
 let timer = 0, sumTimer = 0;
@@ -106,8 +106,9 @@ async function sumTick() {
       nba.sums.set(id, s);
       const g = gameById(id);
       if (g) { merge(g); remember(g); }
+      nba.sumFail.delete(id);
       emit('summary', id);
-    } catch {}
+    } catch { if (!nba.sumFail.has(id)) { nba.sumFail.set(id, Date.now()); emit('summary', id); } }
   }
   const live = [...want].some((id) => gameById(id)?.state === 'in');
   sumTimer = setTimeout(sumTick, live ? 10000 : 60000);

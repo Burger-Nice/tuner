@@ -27,7 +27,7 @@ function body() {
   if (group === 'provider') {
     const f = accountFacts();
     const name = S.acc ? (S.acc.type === 'xtream' ? host(S.acc.server) : S.acc.name) : '';
-    const exp = f.exp ? `Expires ${f.exp.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}${f.days != null ? ` · ${f.days} days left` : ''}` : '';
+    const exp = f.exp ? `Expires ${f.exp.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}${f.days != null ? (f.days < 0 ? ' · Expired' : ` · ${f.days} day${f.days === 1 ? '' : 's'} left`) : ''}` : '';
     return `<div class="t-title" style="margin-bottom:10px">Provider</div>
       ${row('info', esc(name), f.active ? `<span class="pill-ok">${ic('check', 'sm')}${esc(f.status)}</span>` : esc(f.status), esc(exp))}
       ${f.cons ? row('info', 'Connections', esc(f.cons)) : ''}

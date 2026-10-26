@@ -217,6 +217,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .gc .tr{padding-right:96px}   /* the score plate sits on the right: long names end in … before it */
 .gc .tr .nm{font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .gc .tr .rc{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-left:4px;flex:none}
+.gc .tr.long .rc{display:none}.gc .tr.long .nm{font-size:15px}
 /* in a peeking row (Home's second row) a game card is its status line and one line of matchup, not sliced team rows */
 .gc .pk{display:none}
 .rail.peek .gc .tr,.rail.peek .gc .plate{display:none}
@@ -282,6 +283,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .gd-body{position:absolute;left:48px;right:48px;top:220px}
 table.box{width:100%;border-collapse:collapse;font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-1)}
 table.box th{font:650 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-3);text-align:right;padding:2px 12px 4px;letter-spacing:.06em}
+table.box thead th{transform:translateY(var(--sy,0));background:var(--a-bg-0);position:relative;z-index:1}   /* the column names stay at the top while the table scrolls */
 table.box th:first-child,table.box td:first-child{text-align:left;width:280px}
 table.box td{text-align:right;padding:0 12px;height:29px;border-top:1px solid var(--a-border)}
 table.box td.b{font-weight:700}
@@ -392,7 +394,7 @@ table.nv-box td{text-align:right;padding:3px 6px;border-top:1px solid var(--a-bo
 .mt .side::before{content:"";position:absolute;inset:0 -4px 0 -40px;background:var(--tp);border-bottom:4px solid var(--ta);transform:skewX(var(--a-skew));border-radius:var(--a-radius-sm) 0 0 var(--a-radius-sm)}
 .mt .side.r{padding:0 24px 0 20px}.mt .side.r::before{inset:0 -14px 0 -4px;border-radius:0 var(--a-radius-sm) var(--a-radius-sm) 0}
 .mt .side>*{position:relative}
-.mt .nm{font:700 22px/24px var(--a-font-display);color:var(--tc,var(--a-text-1))}
+.mt .nm{font:700 22px/24px var(--a-font-display);color:var(--tc,var(--a-text-1));max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mt .rc{font:500 14px/18px var(--a-font-text);color:var(--tc,var(--a-text-2));opacity:.88}
 .mt .sc{display:flex;align-items:center;gap:8px;padding:0 16px}
 .slabbox{position:absolute;top:0;bottom:0;--sk:21px}      /* box left = the slant's bottom-left corner; top-left of the slant is at +2 x --sk */
@@ -477,4 +479,4 @@ table.nv-box td{text-align:right;padding:3px 6px;border-top:1px solid var(--a-bo
 .rail.peek .hc .bt{top:38px}.rail.peek .hc .bt span{display:none}
 .edgefade{position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(180deg,rgba(21,19,29,0),var(--a-bg-0));z-index:4;pointer-events:none}
 .pvtile .cap{display:none}
-.key.wide{width:108px}.sugg{display:flex;gap:8px;overflow:hidden;margin:0 -6px 4px;padding:6px 6px 6px;height:44px}
+.key.wide{width:108px}.sugg{display:flex;gap:8px;overflow:hidden;margin:0 -8px 4px;padding:6px 8px 6px;height:44px}

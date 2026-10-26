@@ -59,8 +59,8 @@ export function gameCard(g0, i) {
   const lose = (w) => (g.state === 'post' && !v.hidden && !w ? ' lose' : '');
   const rec = (t) => (v.hidden ? '' : esc(t.record));
   return `<div class="gc fx" tabindex="-1" data-i="${i}" data-g="${esc(g0.id)}" data-key="g:${esc(g0.id)}"><div class="st">${st}${tv}</div>
-    <div class="tr${lose(awWin)}">${edge(g.away)}${crest(g.away)}<span class="nm">${esc(g.away.name)}</span><span class="rc">${rec(g.away)}</span></div>
-    <div class="tr${lose(hwWin)}">${edge(g.home)}${crest(g.home)}<span class="nm">${esc(g.home.name)}</span><span class="rc">${rec(g.home)}</span></div>${plate}
+    <div class="tr${lose(awWin)}${g.away.name.length > 10 ? ' long' : ''}">${edge(g.away)}${crest(g.away)}<span class="nm">${esc(g.away.name)}</span><span class="rc">${rec(g.away)}</span></div>
+    <div class="tr${lose(hwWin)}${g.home.name.length > 10 ? ' long' : ''}">${edge(g.home)}${crest(g.home)}<span class="nm">${esc(g.home.name)}</span><span class="rc">${rec(g.home)}</span></div>${plate}
     <div class="pk ellipsis">${esc(g.away.name)} ${g.state === 'pre' || v.hidden ? 'at' : `${esc(g.away.score)} – ${esc(g.home.score)}`} ${esc(g.home.name)}</div></div>`;
 }
 
@@ -72,7 +72,7 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   const post = g.state === 'post';
   const side = (t, right) => `<div class="side${right ? ' r' : ''}" style="${teamVars(t)}">${right ? '' : crest(t, 'lg')}<div${right ? ' style="text-align:right"' : ''}><div class="nm">${esc(t.name)}</div><div class="rc">${shield ? '' : esc(t.record)}</div></div>${right ? crest(t, 'lg') : ''}</div>`;
   const status = pre
-    ? `<span class="t-label" style="color:var(--a-pink-text)">Your team</span><span class="t-label t-2">NBA${dot}Tip-off</span>`
+    ? `${hub ? '' : '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>'}<span class="t-label t-2">NBA${dot}Tip-off</span>`
     : post ? `<span class="t-label t-2">NBA${dot}${shield ? 'Ended' : 'Final'}</span>`
     : `${liveP()}<span class="t-label t-2">NBA</span>${!shield && v.delayed != null ? `<span class="synced">${ic('clock')}${v.synced != null ? `Synced · ${v.synced} s behind live` : `Delayed ${v.delayed} s (default)`}</span>` : ''}`;
   const score = pre ? '<span class="score md">VS</span>'

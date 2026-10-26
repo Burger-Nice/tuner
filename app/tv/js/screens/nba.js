@@ -15,7 +15,7 @@ let el, offset = 0, games = [], loading = false, err = '', rowShift = 0;
 
 const counts = (list) => {
   const n = (s) => list.filter((g) => g.state === s).length;
-  return [n('in') && `${n('in')} live`, n('pre') && `${n('pre')} later`, n('post') && `${n('post')} final`].filter(Boolean).join(dot) || 'No games';
+  return [n('in') && `${n('in')} live`, n('pre') && `${n('pre')} later`, n('post') && `${n('post')} final`].filter(Boolean).join(dot) || (err ? '' : 'No games');
 };
 const channelFor = (g) => { const id = teamChannel(mySide(g).abbr); return (id && catalog.live?.byId.get(id)) || feedsNow(g)[0]?.ch || null; };
 
@@ -35,7 +35,7 @@ function draw() {
   const gridTop = mine ? 368 : 180;
   const body = err && !games.length ? `<div class="center-col" style="top:200px"><div class="state big"><div class="ico">${ic('wifiOff')}</div><b>Scores aren't reachable</b><p>${esc(err)}</p></div></div>`
     : !games.length && !loading ? `<div class="center-col" style="top:220px"><div class="state big"><div class="ico">${ic('clock')}</div><b>No games ${offset ? 'that day' : 'today'}</b><p>Use the arrows on the day chips to look at another day.</p></div></div>`
-    : `${hero}<div class="abs rowtitle" style="left:48px;top:${gridTop - 36}px;font-size:20px">${offset ? 'Games' : 'Tonight'}<small>${games.length} games${dot}live first</small></div>
+    : `${hero}${rest.length ? `<div class="abs rowtitle" style="left:48px;top:${gridTop - 36}px;font-size:20px">${offset ? 'Games' : 'Tonight'}<small>${rest.length} ${rest.length === 1 ? 'game' : 'games'}${dot}live first</small></div>` : ''}
       <div class="nba-grid" data-grid data-cols="3" style="top:${gridTop}px">${rest.map((g, i) => gameCard(g, i)).join('')}</div>`;
   setHtml(el.querySelector('.page'), head + body);
   el._rest = rest; el._mine = mine;
@@ -60,7 +60,10 @@ function place() {
 }
 async function load(o) {
   offset = o; loading = true; err = ''; draw();
-  try { games = await dayGames(o); err = ''; } catch (e) { err = e.message; games = []; }
+  let got, bad = '';
+  try { got = await dayGames(o); } catch (e) { bad = e.message; got = []; }
+  if (o !== offset) return;   // you've moved to another day since: this answer is for a day that's no longer shown
+  games = got; err = bad;
   loading = false;
   if (current() === 'nba') { draw(); if ((!el.contains(document.activeElement) && mayFocus()) || document.activeElement.dataset.day) focus(el.querySelector('[data-day="0"]')); }
 }

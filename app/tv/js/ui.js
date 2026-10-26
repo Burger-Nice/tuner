@@ -52,12 +52,16 @@ export function closeTop() { const e = stack[stack.length - 1]; if (!e) return f
 export function overlayKey(k, e) { const top = stack[stack.length - 1]; return !!top?.onKey?.(k, e); }
 
 // A menu of radio rows (Sort, version, groups...): rows = [{ v, l, sub, on, dis }]
+// (more rows than fit above the screen's safe edge scroll inside the menu)
 export function radioMenu({ title, rows, value, onPick, extra = '', style = 'right:48px;top:120px;width:352px', cls = 'menu' }) {
-  const html = `<div class="${cls}" style="${style}"><h3>${esc(title)}</h3><div data-col>${rows.map((r) => `<div class="lr fx${r.dis ? ' dis' : ''}" tabindex="-1" data-act="pick" data-v="${esc(r.v)}"><span class="rd${r.v === value ? ' on' : ''}"></span><span class="grow ellipsis">${esc(r.l)}</span>${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</div>`).join('')}</div>${extra}</div>`;
+  const list = rows.map((r) => `<div class="lr fx${r.dis ? ' dis' : ''}" tabindex="-1" data-act="pick" data-v="${esc(r.v)}"><span class="rd${r.v === value ? ' on' : ''}"></span><span class="grow ellipsis">${esc(r.l)}</span>${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</div>`).join('');
+  const long = rows.length > 6;
+  const html = `<div class="${cls}" style="${style}"><h3>${esc(title)}</h3>${long ? `<div class="sheet-body" style="max-height:300px"><div class="inner" data-col>${list}</div></div>` : `<div data-col>${list}</div>`}${extra}</div>`;
   const ov = openOverlay(html, {
     focusSel: `[data-v="${CSS.escape(String(value ?? ''))}"]`,
     onClick: (act, t) => { if (act === 'pick') { ov.close(); onPick(t.dataset.v); } },
   });
+  if (long) scrollList(ov.el);
   return ov;
 }
 

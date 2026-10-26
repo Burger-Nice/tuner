@@ -3,7 +3,7 @@
 import { esc, ic, dot, liveP, crest, teamVars, setHtml } from '../util.js';
 import { on } from '../state.js';
 import { catalog } from '../catalog.js';
-import { gameById, show, clockText, ordinal, wantSummary, reveal, isMine, mySide, teamChannel, feedsNow, findFeeds, favTeam } from '../games.js';
+import { nba, gameById, show, clockText, ordinal, wantSummary, reveal, isMine, mySide, teamChannel, feedsNow, findFeeds, favTeam } from '../games.js';
 import { playLive, watching } from '../player.js';
 import { current } from '../router.js';
 import { focus } from '../focus.js';
@@ -15,7 +15,7 @@ const STATS = [['fieldGoalPct', 'Field goal %'], ['threePointFieldGoalPct', '3-p
 const COLS = ['MIN', 'PTS', 'REB', 'AST', 'FG', '3PT', '+/-'];
 
 // Empty states that say what's actually going on: before tip-off, still loading, or ESPN has nothing for it.
-const none = (g, s, what) => `<div class="t-body" style="padding:24px 0">${g.state === 'pre' ? `${what} ${what === 'Box score' ? 'appears' : 'appear'} at tip-off.` : !s ? `Loading the ${what.toLowerCase()}…` : g.state === 'in' ? `ESPN hasn't sent the ${what.toLowerCase()} yet. It fills in as the game goes.` : `No ${what.toLowerCase()} from ESPN for this game.`}</div>`;
+const none = (g, s, what) => `<div class="t-body" style="padding:24px 0">${g.state === 'pre' ? `${what} ${what === 'Box score' ? 'appears' : 'appear'} at tip-off.` : !s && nba.sumFail.has(g.id) ? `ESPN didn't send the ${what.toLowerCase()} for this game. Trying again.` : !s ? `Loading the ${what.toLowerCase()}…` : g.state === 'in' ? `ESPN hasn't sent the ${what.toLowerCase()} yet. It fills in as the game goes.` : `No ${what.toLowerCase()} from ESPN for this game.`}</div>`;
 function table(s, abbr, g) {
   const team = s?.box.find((b) => b.abbr === abbr);
   if (!team || !team.players.length) return none(g, s, 'Box score');
@@ -61,10 +61,9 @@ function draw() {
   setHtml(el, `<div class="gd-head">
       <div class="abs row-flex" style="left:20px;top:8px;gap:10px;height:24px">${status}</div>
       <div class="mt">${side(g.away)}<div class="sc">${mid}</div>${side(g.home, 1)}</div>
-      <div class="abs row-flex" data-row style="right:20px;top:26px;gap:10px">${watch}</div>
     </div>
-    <div class="gd-tabs" data-row>${tabs.map(([k, l]) => `<span class="chip lg fx${k === tab && !v.hidden ? ' sel' : ''}" tabindex="-1" data-tab-g="${k}">${esc(l)}</span>`).join('')}<span class="t-cap" style="margin-left:auto">${v.hidden ? '' : '▶ ◀ change tab · ▼ scroll'}</span></div>
-    <div class="gd-body" style="bottom:27px;overflow:hidden"><div class="inner" style="transform:translateY(${-scroll}px)" ${v.hidden ? 'data-row' : ''}>${body}</div></div>`);
+    <div class="gd-tabs" data-row>${tabs.map(([k, l]) => `<span class="chip lg fx${k === tab && !v.hidden ? ' sel' : ''}" tabindex="-1" data-tab-g="${k}">${esc(l)}</span>`).join('')}<span class="t-cap" style="margin-left:auto">${v.hidden ? '' : '▼ scroll'}</span>${watch.replace('class="btn fx"', 'class="btn sm fx" style="transform-origin:100% 50%"')}</div>
+    <div class="gd-body" style="bottom:27px;overflow:hidden"><div class="inner" style="transform:translateY(${-scroll}px);--sy:${scroll}px" ${v.hidden ? 'data-row' : ''}>${body}</div></div>`);
 }
 
 export default {
@@ -109,9 +108,11 @@ export default {
     if (!a?.dataset?.tabG) return false;
     const inner = el.querySelector('.gd-body .inner');
     if (!inner) return false;
+    if (inner.querySelector('.fx')) return false;   // something to focus below (Reveal score): ▼ goes there
     const max = Math.max(0, inner.scrollHeight - (513 - 220));
-    if (k === 'down') { if (scroll >= max) return true; scroll = Math.min(max, scroll + 120); inner.style.transform = `translateY(${-scroll}px)`; return true; }
-    if (k === 'up' && scroll > 0) { scroll = Math.max(0, scroll - 120); inner.style.transform = `translateY(${-scroll}px)`; return true; }
+    const to = (y) => { scroll = y; inner.style.transform = `translateY(${-scroll}px)`; inner.style.setProperty('--sy', `${scroll}px`); };
+    if (k === 'down') { if (scroll < max) to(Math.min(max, scroll + 120)); return true; }
+    if (k === 'up' && scroll > 0) { to(Math.max(0, scroll - 120)); return true; }
     return false;
   },
 };
