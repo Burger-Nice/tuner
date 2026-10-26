@@ -3,7 +3,7 @@
 // the game on this channel at the synced delay, live games, groups, favourites) and acts on what you pick in its panels.
 // It also records where you got to in movies and episodes.
 import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
-import { busy, catalog } from './catalog.js';
+import { busy, catalog, versionLabel, pickVersion } from './catalog.js';
 import { native } from './native.js';
 import { gameOn, gameById, setWatching, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
 import { guideFor, guideNow, onNow, nextUp } from './guide.js';
@@ -238,6 +238,36 @@ export async function playVod(item, { queue, restart } = {}) {
   ctx.cur = { kind: 'vod', items: list, index: 0, session: r.session };
 }
 
+// ---------- other copies of what's playing (the player's Quality panel) ----------
+// A film: its versions (language, quality). A channel: the provider's channels with the same name once quality tags
+// are set aside ("ESPN HD", "ESPN FHD", "ESPN 4K"). Episodes have one copy.
+const QTAG = [[/\b(4k|uhd|2160p?)\b/i, '4K'], [/\b(fhd|1080p?)\b/i, 'Full HD'], [/\b(hd|720p?)\b/i, 'HD'], [/\bsd\b/i, 'SD']];
+const qTag = (name) => (QTAG.find(([re]) => re.test(name)) || [, ''])[1];
+let twinsOf = null;   // channel list -> Map(cleaned name -> channels), built once per list
+function channelTwins(ch) {
+  const live = catalog.live;
+  if (!live || !ch) return [];
+  if (twinsOf?.list !== live) {
+    const m = new Map();
+    for (const x of live.items) { if (x._sep) continue; const k = window.Titles.clean(x.name).key; if (!k) continue; if (!m.has(k)) m.set(k, []); m.get(k).push(x); }
+    twinsOf = { list: live, m };
+  }
+  return twinsOf.m.get(window.Titles.clean(ch.name).key) || [ch];
+}
+function versionsNow() {
+  const c = ctx.cur;
+  if (!c) return null;
+  const it = c.items[c.index];
+  if (!it) return null;
+  if (c.kind === 'live') {
+    const list = channelTwins(it).slice(0, 8).map((x) => ({ id: String(x.id), name: x.name, label: [qTag(x.name), `Channel ${x.num}`].filter(Boolean).join(' · ') }));
+    return { id: String(it.id), list };
+  }
+  const t = it.kind === 'movie' ? catalog.movie?.titleById?.get(it.id) : null;
+  const vs = t?.versions || [it];
+  return { id: `${it.kind}:${it.id}`, list: vs.slice(0, 8).map((v) => ({ id: `${v.kind}:${v.id}`, name: versionLabel(v), label: v.year ? String(v.year) : '' })) };
+}
+
 // ---------- what the player asks for and what you pick in it ----------
 native?.player.onEvent((e) => {
   const c = ctx.cur;
@@ -252,6 +282,7 @@ native?.player.onEvent((e) => {
     sendMeta(e.ids || []);
   } else if (e.type === 'need') {
     if (e.what === 'groups') cmd('groups', ringGroups());
+    else if (e.what === 'versions') { const v = versionsNow(); if (v) cmd('versions', v); }
     else if (e.what === 'games') { sent.games = ''; push(); }
     else if (e.what === 'clocks') {
       const g = watch.gameId && gameById(watch.gameId);
@@ -293,6 +324,17 @@ native?.player.onEvent((e) => {
     cmd('show-text', `Synced · ${sec} s behind live`);
     sent.game = '';
     push();
+  } else if (e.type === 'version' && c.kind === 'vod') {
+    // another copy of the film, from where you are (the choice is remembered for the title, as on its page)
+    const [, id] = String(e.id).split(':');
+    const was = c.items[e.index];
+    const t = catalog.movie?.titleById?.get(id) || (was && catalog.movie?.titleById?.get(was.id));
+    const v = t?.versions.find((x) => String(x.id) === id);
+    if (!v) { cmd('show-text', 'That copy is no longer in your list'); return; }
+    if (was && e.d) recordProgress(was, e.t, e.d, true);
+    if (e.d) recordProgress(v, e.t, e.d, true);
+    pickVersion(t, v);
+    playVod(v);
   } else if (e.type === 'progress' && c.kind === 'vod') {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {

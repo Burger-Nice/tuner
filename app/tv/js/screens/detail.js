@@ -118,7 +118,7 @@ function draw() {
   <div class="t-label t-2">${eyebrow}</div>
   <div class="t-display clamp2" data-ttl style="margin-top:6px">${esc(t.name)}</div>
   <div class="metaline" style="margin-top:10px">${meta}${tags ? dot + tags : ''}</div>
-  ${d.plot ? `<div class="t-body clamp2" data-plot style="margin-top:12px;width:460px">${esc(d.plot)}</div>` : `<div class="t-body" style="margin-top:12px;color:var(--a-text-3)">${info ? '' : 'Loading details…'}</div>`}
+  ${d.plot ? `<div data-row style="margin-top:12px"><div class="t-body clamp2 plotfx" data-plot data-act="about" style="width:460px">${esc(d.plot)}</div></div>` : `<div class="t-body" style="margin-top:12px;color:var(--a-text-3)">${info ? '' : 'Loading details…'}</div>`}
   ${movie && credits ? `<div class="t-cap ellipsis" style="margin-top:8px;width:500px">${credits}</div>` : ''}
   <div class="row-flex" data-row style="gap:20px;margin-top:${movie ? 20 : 16}px;height:44px;padding-left:2px">${play}<span class="btn2 fx" tabindex="-1" data-act="save">${ic(saved ? 'check' : 'saved')}${saved ? 'Saved' : 'Save'}</span>${movie ? '' : `<span class="pillbtn fx" tabindex="-1" data-act="subs">${ic('cc')}Subtitles: ${esc(subLabel())}</span>`}</div>
   ${movie ? `<div class="row-flex" data-row style="gap:10px;margin-top:12px;height:36px">${pills}</div>` : ''}
@@ -128,6 +128,35 @@ function draw() {
 }
 // The text column never runs into what's below it (More like this for a film, the seasons for a series): a long plot
 // goes to one line, then a long title gets smaller, and the last few pixels move the row below down a little.
+// The whole description, with the credits and facts the page has no room for. ▲▼ scroll it when it's long.
+function aboutSheet() {
+  const d = info || {}, movie = t.kind === 'movie';
+  const genres = t._genres?.length ? t._genres : d.genre ? String(d.genre).split(/[,/]/).map((x) => x.trim()).filter(Boolean) : [];
+  const facts = [d.year || t.year, movie ? d.duration : d.seasons?.length ? `${d.seasons.length} season${d.seasons.length > 1 ? 's' : ''}` : '', t._ir ? `IMDb ${t._ir.toFixed(1)}` : d.rating ? `Rated ${d.rating}` : ''].filter(Boolean).map(esc).join(dot);
+  const part = (h, v) => (v ? `<div class="sec">${h}</div><div class="t-body" style="color:var(--a-text-2)">${esc(v)}</div>` : '');
+  const ov = openOverlay(`<div class="sheet about" style="width:520px"><h3 class="clamp2">${esc(t.name)}</h3>${facts ? `<div class="t-cap" style="margin-top:-4px">${facts}</div>` : ''}
+    <div class="sheet-body"><div class="inner fx" tabindex="-1" data-col style="outline:none">
+      <div class="t-body" style="white-space:pre-line">${esc(d.plot || 'No description from your provider.')}</div>
+      ${part('Genres', genres.join(' · '))}${part('Directed by', d.director)}${part('Cast', d.cast)}
+    </div></div><div class="t-cap" data-more style="text-align:right"></div></div>`, {
+    focusSel: '.inner',
+    onKey: (k) => {
+      if (k !== 'up' && k !== 'down') return false;
+      const inner = ov.el.querySelector('.inner'), box = inner.parentElement;
+      const max = Math.max(0, inner.scrollHeight - box.clientHeight + 16);
+      const y = Math.max(0, Math.min(max, (inner._y || 0) + (k === 'down' ? 120 : -120)));
+      inner._y = y; inner.style.transform = `translateY(${-y}px)`;
+      hint();
+      return true;
+    },
+  });
+  const hint = () => {
+    const inner = ov.el.querySelector('.inner'), box = inner.parentElement, y = inner._y || 0;
+    const more = inner.scrollHeight - box.clientHeight + 16 - y > 4;
+    ov.el.querySelector('[data-more]').textContent = more ? '▼ More' : y > 0 ? '▲ Back to the top' : '';
+  };
+  hint();
+}
 function fitCol(movie) {
   const col = el.querySelector('.d-col');
   const below = movie ? [...el.querySelectorAll('.rowtitle, .rail')] : [...el.querySelectorAll('.seas, .rail, .epsyn')];
@@ -136,6 +165,9 @@ function fitCol(movie) {
   const bottom = () => col.offsetTop + col.offsetHeight;
   if (bottom() > limit) col.querySelector('[data-plot]')?.classList.add('clamp1');
   if (bottom() > limit) col.querySelector('[data-ttl]')?.classList.add('shrink');
+  // a description that doesn't fit is reachable (▲ from the buttons): OK reads all of it
+  const pl = col.querySelector('[data-plot]');
+  if (pl) { const cut = pl.scrollHeight > pl.clientHeight + 2 || !!(info?.cast || info?.director); pl.classList.toggle('fx', cut); if (cut) pl.tabIndex = -1; else pl.removeAttribute('tabindex'); }
   const push = Math.max(0, Math.min(room, bottom() - limit));
   for (const b of below) { b.style.top = `${(b._top ??= parseFloat(b.style.top)) + push}px`; }
   // (pushed far, the episode's one-line summary under the row would run off the screen: it steps aside)
@@ -193,6 +225,7 @@ export default {
       else if (act === 'save') { const on = toggleFav(t); toast(on ? `Saved ${t.name}` : `Removed ${t.name} from Saved`); draw(); focus(el.querySelector('[data-act="save"]')); }
       else if (act === 'version') versionSheet();
       else if (act === 'subs') subsMenu();
+      else if (act === 'about') aboutSheet();
     });
     root.addEventListener('tvfocus', (e) => {
       placeTracks();

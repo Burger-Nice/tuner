@@ -67,3 +67,8 @@ input.field[readonly]{caret-color:transparent}
 .offline-bar{position:absolute;left:48px;bottom:14px;z-index:40;display:flex;align-items:center;gap:8px;height:32px;padding:0 14px;border-radius:999px;background:var(--a-bg-1);border:1px solid var(--a-border-strong);font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
 .offline-bar b{color:var(--a-text-1);font-weight:650}
 .offline-bar .ic{color:var(--a-text-2)}
+/* the movie / show page's description when it doesn't fit: reachable with ▲, OK reads all of it (padding cancelled by
+   the margin, so the text doesn't move) */
+.plotfx{padding:4px 8px;margin:-4px -8px;border-radius:10px}
+.plotfx.fx:focus{background:var(--a-surface-1);box-shadow:var(--a-focus-ring);position:relative;z-index:3}
+.sheet.about .sec{margin-top:16px}

@@ -129,6 +129,7 @@ public class PlayerActivity extends AppCompatActivity {
     private boolean played, exited;
     private String error;
     private String quality = "";
+    private JSONObject versions;   // {id, list:[{id, name, label}]}: other copies of what's playing, from the app
     private boolean hdr;
     private int textTracks, audioTracks, retries;
     private long stoppedAt, tunedAt;
@@ -917,6 +918,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     void openOptions() {
         if (player == null || isFinishing()) return;
+        if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions");   // for Quality, ready when it's opened
         ListPanel p = new ListPanel(this, "Options", true, 320);
         List<ListPanel.Item> items = new ArrayList<>();
         if (live) {
@@ -932,6 +934,7 @@ public class PlayerActivity extends AppCompatActivity {
         items.add(audioTracks > 1 ? row("Audio", null, audioValue(), "audio", () -> openAudio(true))
                 : disabled(row("Audio", audioTracks == 1 ? audioValue() : "One audio track", null, "audio", null)));
         items.add(row("Picture size", live ? "This channel" : "This title", PICTURE_NAMES[pictureIndex(pictureFor(cur))], "pic", this::openPicture2));
+        items.add(row("Quality", qualityDetails(player.getVideoFormat()), qualityName(player.getVideoFormat()), "quality", () -> openQuality(true)));
         if (live) {
             JSONObject m = metaOf(cur);
             boolean fav = m != null && m.optBoolean("fav");
@@ -1076,6 +1079,112 @@ public class PlayerActivity extends AppCompatActivity {
     }
     private String pictureKey(Entry e) { return "pic:" + (live ? "" : "v:") + (e == null ? "" : e.id); }
     private String pictureFor(Entry e) { return prefs.getString(pictureKey(e), prefs.getString("picture", "fit")); }
+    // ---------- quality ----------
+    // What's on screen (resolution, frame rate, bit rate, codec), the stream's own levels when it has several (HLS):
+    // Best available (the default: always the top level), Auto (steps down on a slow connection) or one level, and the
+    // provider's other copies (the film in 4K or another language, the channel's HD / 4K twin), sent by the app.
+    private static String qualityName(Format f) {
+        if (f == null || f.height <= 0) return "—";
+        return f.height >= 2000 ? "4K" : f.height + "p";
+    }
+    private String qualityDetails(Format f) {
+        if (f == null) return "Starting…";
+        List<String> b = new ArrayList<>();
+        if (f.frameRate > 0) b.add(Math.round(f.frameRate) + " fps");
+        int br = f.bitrate > 0 ? f.bitrate : Math.max(f.averageBitrate, f.peakBitrate);
+        if (br > 0) b.add(String.format(java.util.Locale.ROOT, "%.1f Mb/s", br / 1e6));
+        String m = f.sampleMimeType == null ? "" : f.sampleMimeType;
+        String codec = MimeTypes.VIDEO_H264.equals(m) ? "H.264" : MimeTypes.VIDEO_H265.equals(m) ? "HEVC" : MimeTypes.VIDEO_AV1.equals(m) ? "AV1" : MimeTypes.VIDEO_VP9.equals(m) ? "VP9" : MimeTypes.VIDEO_MPEG2.equals(m) ? "MPEG-2" : "";
+        if (!codec.isEmpty()) b.add(codec);
+        if (hdr) b.add("HDR");
+        return b.isEmpty() ? null : android.text.TextUtils.join(" · ", b);
+    }
+    private ListPanel.Item radioRow(String title, String sub, boolean on, Runnable ok) {
+        ListPanel.Item it = new ListPanel.Item(title);
+        it.sub = sub; it.radio = true; it.radioOn = on; it.ok = ok;
+        return it;
+    }
+    void openQuality(boolean fromOptions) {
+        if (player == null || isFinishing()) return;
+        Format f = player.getVideoFormat();
+        List<ListPanel.Item> items = new ArrayList<>();
+        ListPanel.Item now = new ListPanel.Item(f == null || f.height <= 0 ? "Now: starting…" : "Now: " + f.width + " × " + f.height);
+        now.sub = qualityDetails(f);
+        now.disabled = true;
+        items.add(now);
+        int sel = -1;
+        // the stream's own levels
+        TrackSelectionParameters ps = player.getTrackSelectionParameters();
+        List<Tracks.Group> lg = new ArrayList<>();
+        List<Integer> li = new ArrayList<>();
+        boolean pinned = false;
+        for (Tracks.Group g : player.getCurrentTracks().getGroups()) {
+            if (g.getType() != C.TRACK_TYPE_VIDEO) continue;
+            if (ps.overrides.containsKey(g.getMediaTrackGroup())) pinned = true;
+            for (int i = 0; i < g.length; i++) if (g.isTrackSupported(i)) { lg.add(g); li.add(i); }
+        }
+        if (lg.size() > 1) {
+            Integer[] order = new Integer[lg.size()];
+            for (int k = 0; k < order.length; k++) order[k] = k;
+            java.util.Arrays.sort(order, (x, y) -> {
+                Format a = lg.get(x).getTrackFormat(li.get(x)), b = lg.get(y).getTrackFormat(li.get(y));
+                return a.height != b.height ? b.height - a.height : b.bitrate - a.bitrate;
+            });
+            items.add(radioRow("Best available", "Always the top level (default)", !pinned && ps.forceHighestSupportedBitrate, () -> { setLevel(null, 0, true); after(fromOptions); showText("Quality: best available", 1800); }));
+            items.add(radioRow("Auto", "Steps down when the connection is slow", !pinned && !ps.forceHighestSupportedBitrate, () -> { setLevel(null, 0, false); after(fromOptions); showText("Quality: auto", 1800); }));
+            for (Integer k : order) {
+                Tracks.Group g = lg.get(k);
+                int i = li.get(k);
+                Format lf = g.getTrackFormat(i);
+                String name = qualityName(lf);
+                List<String> d = new ArrayList<>();
+                if (lf.frameRate > 0) d.add(Math.round(lf.frameRate) + " fps");
+                if (lf.bitrate > 0) d.add(String.format(java.util.Locale.ROOT, "%.1f Mb/s", lf.bitrate / 1e6));
+                items.add(radioRow(name, d.isEmpty() ? null : android.text.TextUtils.join(" · ", d), pinned && g.isTrackSelected(i), () -> { setLevel(g, i, false); after(fromOptions); showText("Quality: " + name, 1800); }));
+            }
+        }
+        // the provider's other copies
+        JSONArray vs = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONArray("list") : null;
+        if (vs != null && vs.length() > 1) {
+            ListPanel.Item head = new ListPanel.Item(live ? "This channel in other qualities" : "Other copies of this title");
+            head.disabled = true;
+            head.height = 40;
+            items.add(head);
+            for (int k = 0; k < vs.length(); k++) {
+                JSONObject o = vs.optJSONObject(k);
+                if (o == null) continue;
+                String id = o.optString("id");
+                boolean on = cur != null && id.equals(cur.id);
+                items.add(radioRow(o.optString("name"), o.optString("label", null), on, on ? () -> after(fromOptions) : () -> { closeOverlay(); pickVersion(id); }));
+            }
+        }
+        for (int k = 0; k < items.size(); k++) if (items.get(k).radioOn) { sel = k; break; }
+        ListPanel p = new ListPanel(this, "Quality", true, 352);
+        p.source(ListPanel.of(items), Math.max(0, sel));
+        while (p.sel < items.size() - 1 && items.get(p.sel).disabled) p.sel++;
+        boolean one = lg.size() <= 1 && (vs == null || vs.length() <= 1);
+        p.setFoot(one ? (live ? "Your provider sends this channel in one quality." : "Your provider sends this video in one quality.")
+                : lg.size() > 1 ? "Best available is the default." : "Switching starts the other copy where you are.");
+        if (fromOptions) p.backTo = this::openOptions;
+        show(p);
+    }
+    private void setLevel(Tracks.Group g, int i, boolean best) {
+        TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon()
+                .clearOverridesOfType(C.TRACK_TYPE_VIDEO).setForceHighestSupportedBitrate(best);
+        if (g != null) b.setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(), i));
+        player.setTrackSelectionParameters(b.build());
+    }
+    /** Another copy: a channel tunes like any pick; a film or episode asks the app to play that copy from here. */
+    private void pickVersion(String id) {
+        if (live) { pick(id, "version"); return; }
+        JSObject e = event("version");
+        e.put("id", id);
+        e.put("index", index);
+        e.put("t", Math.max(0, player.getCurrentPosition() / 1000.0));
+        e.put("d", Math.max(0, player.getDuration() / 1000.0));
+        TunerPlayerPlugin.emit(e);
+    }
+
     void openPicture() { openPicture(false); }
     private void openPicture2() { openPicture(true); }
     private void openPicture(boolean fromOptions) {
@@ -1397,6 +1506,7 @@ public class PlayerActivity extends AppCompatActivity {
                     if (open == channels && channels != null) channels.render();
                     break;
                 }
+                case "versions": versions = new JSONObject(arg); break;
                 case "pinned": pinned = arg == null || arg.isEmpty() ? null : new JSONObject(arg); break;
                 case "games": liveGames = new JSONArray(arg); if (banner.getVisibility() == View.VISIBLE) hintsChanged(); break;
                 case "groups": groups = new JSONArray(arg); if (wantGroups) { wantGroups = false; openGroups(); } break;

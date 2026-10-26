@@ -239,6 +239,7 @@ final class Ui {
                 case "next": d("M5 5l9 7-9 7zM18 5v14"); break;
                 case "speed": path.addCircle(12, 13, 8, Path.Direction.CW); d("M12 13l4-4M12 3v2"); break;
                 case "frames": rect(3, 4, 18, 16, 2.5f); d("M3 9h18M3 15h18"); break;
+                case "quality": rect(3, 5, 18, 14, 3); d("M7 9.5v5M7 12h3.2M10.2 9.5v5M13.5 9.5v5h1.3a2.5 2.5 0 0 0 0-5z"); break;
                 case "info": path.addCircle(12, 12, 9, Path.Direction.CW); d("M12 11v5.5M12 7.8v.2"); break;
                 default: break;
             }
