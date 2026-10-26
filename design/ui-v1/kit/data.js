@@ -62,21 +62,20 @@
   ];
 
   /* Team identity (UI-SPEC 3.4). c1/c2 = the stand-in crest (the app shows the ESPN logo, 500-dark, inside the same neutral disc).
-     p = flat field colour (dark enough for 7:1 chalk text), a = 4 px edge accent. Red, orange and crimson teams (HOU, MIA, CLE, PHX, OKC) get
-     a non-red accent so no team colour can read as LIVE. */
+     p = flat field colour (dark enough for 7:1 chalk text), a = 4 px edge accent (v1.2, BRAND.md UI-phase rule: never red, orange, amber-orange, violet, orchid or pink; gold only as a bar of 4 px or a crest). NY, MIA, PHX, HOU, CLE, OKC are re-pointed so none can read as LIVE or as the action gradient. */
   const TEAMS = {
     MEM: { n: 'Grizzlies', city: 'Memphis', c1: '#12173F', c2: '#5D76A9', p: '#12173F', a: '#5D76A9' },
     GS: { n: 'Warriors', city: 'Golden State', c1: '#1D428A', c2: '#FFC72C', p: '#10285C', a: '#FFC72C' },
     BOS: { n: 'Celtics', city: 'Boston', c1: '#007A33', c2: '#F3EFE6', p: '#00381C', a: '#BA9653' },
-    NY: { n: 'Knicks', city: 'New York', c1: '#006BB6', c2: '#F58426', p: '#00305A', a: '#F58426' },
+    NY: { n: 'Knicks', city: 'New York', c1: '#006BB6', c2: '#F58426', p: '#00305A', a: '#A7A9AC' },
     LAL: { n: 'Lakers', city: 'Los Angeles', c1: '#552583', c2: '#FDB927', p: '#3A1A5A', a: '#FDB927' },
-    PHX: { n: 'Suns', city: 'Phoenix', c1: '#1D1160', c2: '#E56020', p: '#1D1160', a: '#8E7ED8' },
+    PHX: { n: 'Suns', city: 'Phoenix', c1: '#1D1160', c2: '#E56020', p: '#1D1160', a: '#C4CED4' },
     DAL: { n: 'Mavericks', city: 'Dallas', c1: '#00538C', c2: '#B8C4CA', p: '#00285E', a: '#7FA6D0' },
     HOU: { n: 'Rockets', city: 'Houston', c1: '#CE1141', c2: '#C4CED4', p: '#26262B', a: '#C4CED4' },
     DEN: { n: 'Nuggets', city: 'Denver', c1: '#0E2240', c2: '#FEC524', p: '#0E2240', a: '#FEC524' },
     OKC: { n: 'Thunder', city: 'Oklahoma City', c1: '#0A3A5E', c2: '#007AC1', p: '#0A3A5E', a: '#4DA6E0' },
     MIL: { n: 'Bucks', city: 'Milwaukee', c1: '#00471B', c2: '#EEE1C6', p: '#00331A', a: '#EEE1C6' },
-    MIA: { n: 'Heat', city: 'Miami', c1: '#98002E', c2: '#F9A01B', p: '#1F1B22', a: '#F9A01B' },
+    MIA: { n: 'Heat', city: 'Miami', c1: '#98002E', c2: '#F9A01B', p: '#1F1B22', a: '#FDBB30' },
     CLE: { n: 'Cavaliers', city: 'Cleveland', c1: '#860038', c2: '#FDBB30', p: '#2B1A33', a: '#FDBB30' },
     IND: { n: 'Pacers', city: 'Indiana', c1: '#002D62', c2: '#FDBB30', p: '#00204A', a: '#FDBB30' },
   };
