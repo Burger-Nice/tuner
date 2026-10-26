@@ -1,0 +1,6 @@
+// Sharp variant: which wordmark reads best with the wedge. node tests/sharp-word.js (SHARP_WORD env switches the lockup)
+const fs = require('fs'), path = require('path'); const A = require('../tools/assets.js');
+const opts = ['sharpL', 'sharpU', 'sharpU9']; let cells = '';
+for (const k of opts) { process.env.SHARP_WORD = k; delete require.cache[require.resolve('../tools/assets.js')]; const B = require('../tools/assets.js'); const u = 'data:image/svg+xml;utf8,' + encodeURIComponent(B.lockupSvg(B.sharp, 'x'));
+  cells += `<div class="c"><div class="t">${k}: ${k === 'sharpL' ? 'lowercase italic condensed' : k === 'sharpU' ? 'UPPERCASE italic condensed 800' : 'UPPERCASE italic condensed 900'}</div><div class="r"><img src="${u}" style="height:130px"><img src="${u}" style="height:44px"><img src="${u}" style="height:26px"><span style="filter:blur(2.2px)"><img src="${u}" style="height:56px"></span></div></div>`; }
+fs.writeFileSync(path.join(__dirname, 'sharp-word.html'), `<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#0C0B12;color:#a29fb4;font:12px system-ui;padding:20px;width:1500px}.c{background:#14121c;border:1px solid #272332;border-radius:12px;padding:12px 16px;margin-bottom:12px}.t{color:#fff;margin-bottom:8px;font-weight:600}.r{display:flex;gap:30px;align-items:center}</style>${cells}`);

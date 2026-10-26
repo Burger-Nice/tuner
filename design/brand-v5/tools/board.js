@@ -1,0 +1,60 @@
+// Builds ../directions.html (1800 px wide): AIRGLOW Soft and Sharp side by side. node tools/board.js
+const fs = require('fs'), path = require('path'); const A = require('./assets.js'); const c = require('./color.js'); const { P } = A; const root = path.join(__dirname, '..');
+const REF = { 'IMDb': '#F5C518', 'Plex': '#E5A00D', 'Netflix': '#E50914', 'YouTube': '#FF0000', 'Prime Video': '#00A8E1', 'Hulu': '#1CE783', 'Paramount+': '#0064FF', 'Disney+': '#113CCF', 'Twitch': '#9146FF', 'Letterboxd blue': '#40BCF4', 'LIVE red': '#FF4B4B' };
+const near = (hex) => Object.entries(REF).map(([k, v]) => [k, c.dE(hex, v)]).sort((a, b) => a[1] - b[1])[0];
+const acc = [['orchid', P.orchid], ['pink', P.pink], ['deep violet', P.violet]];
+const adj = acc.map(([n, h]) => { const [k, v] = near(h); return `<span class="adj"><i style="background:${h}"></i>${n} ${h} nearest ${k} ${v.toFixed(1)}</span>`; }).join('');
+const V = [
+  { slug: 'soft', t: 'Soft', sub: 'airglow as he saw it, taken further', idea: 'The glow trailing a play button: a halo and three receding blurred echoes, in gradient light.',
+    tags: 'echo = halo + 3 blurred, receding, fading copies · Outfit lowercase · rounded · 8° hero edge only',
+    frames: ['Frame 1 · 0.4 s. The play button slides in and leaves three glow echoes, a halo blooming.', 'Frame 2 · 1.2 s. Echoes stretch into a gradient streak; the lockup rises through it.', 'Frame 3 · 1.9 s. The gradient dissolves off the left on an 8° slant; home is revealed.'],
+    verdict: ['Closest to what he saw and loved: glow, gradient, friendliest, and the echo now reads as glow, not fast-forward (see the tests). The best launch animation.', 'Blur filters in the SVG (Android VectorDrawable can\'t do them: ship the PNG adaptive layers); least edgy, slant is minimal; glow can mush at 24 px, so the small mark drops to halo + one echo.', 'Icon: gradient tile reads at 48 and 24 px; across the room (blurred) it is a soft pink glow with a clear triangle.'] },
+  { slug: 'sharp', t: 'Sharp', sub: 'airglow with FLARE\'s slant and edge', idea: 'The same glow idea cut with a blade: a skewed play wedge and three crisp echo bars, wiped in at 14°.',
+    tags: 'echo = 3 crisp parallelogram bars, shorter and fainter · Barlow Condensed italic lowercase · skewed buttons, tiles, hero · 14° wipes',
+    frames: ['Frame 1 · 0.15 s. Hard cut; a slab wipes in at 14° and the wedge slams in with three echo bars.', 'Frame 2 · 0.7 s. The lockup lands (two-frame shake); the slab pulls right.', 'Frame 3 · 1.4 s. The slab sweeps off right on the same 14°, revealing home.'],
+    verdict: ['Much more energy and the slant he loved from TIPOFF, without the lime; the bars are not triangles, so there is no skip-button read; wipes are a real brand device.', 'More sporty; lowercase italic condensed is a compromise (uppercase read as FLARE/TIPOFF); skewed UI text needs care for legibility; the diagonal tile is busy next to calm tiles.', 'Icon: the diagonal three-tone tile is the loudest in the launcher row; the wedge survives 24 px, the bars fuse into a stripe.'] },
+];
+const refTile = (k, bg, fg) => `<div class="rt" style="background:${bg};color:${fg}"><span>${k}</span></div>`;
+const row = (v) => `<div class="tiles">${refTile('IMDb', '#F5C518', '#111')}${refTile('Plex', '#1F2326', '#E5A00D')}${refTile('Netflix', '#141414', '#E50914')}${refTile('Prime', '#0F171E', '#00A8E1')}${refTile('Hulu', '#0B0C0F', '#1CE783')}${refTile('Twitch', '#9146FF', '#fff')}${refTile('Para+', '#0064FF', '#fff')}<img src="${v.slug}/icon-1024.png" alt=""></div>`;
+const mk = (v, h) => `<img class="dk" src="${v.slug}/${v.slug === 'soft' && h <= 32 ? 'mark-small' : 'mark'}.svg" height="${h}">`;
+const sizes = (v) => `<div class="sizes"><img src="${v.slug}/icon-1024.png" width="96" style="border-radius:22%"><img src="${v.slug}/icon-1024.png" width="48" style="border-radius:22%"><img src="${v.slug}/icon-1024.png" width="24" style="border-radius:22%"><span class="sep"></span>${mk(v, 56)}${mk(v, 32)}${mk(v, 20)}<span class="sep"></span><img class="dk" src="${v.slug}/lockup.svg" height="46"><img class="dk" src="${v.slug}/lockup.svg" height="26"><span class="sep"></span><span style="filter:blur(2.4px);display:flex;gap:10px;align-items:center"><img class="dk" src="${v.slug}/lockup.svg" height="46"><img src="${v.slug}/icon-1024.png" width="56" style="border-radius:22%"></span></div><div class="cap">icon 96 / 48 / 24 · mark 56 / 32 (small) / 20 · lockup 46 / 26 px tall · last pair blurred = across the room</div>`;
+const sw = (arr) => arr.map(([n, h]) => `<span class="sw"><i style="background:${h}"></i><b>${n}</b>${h}</span>`).join('');
+const frames = (v) => [0, 1, 2].map(i => `<div class="fr"><div class="sbf" style="background-image:url(${v.slug}-launch.png);background-size:${2100 * 0.4}px;background-position:${-(20 + 660 * i) * 0.4}px ${-20 * 0.4}px"></div><div class="cap2">${v.frames[i]}</div></div>`).join('');
+const col = (v) => `<section class="col">
+  <div class="head"><div><h2>airglow · ${v.t}</h2><div class="lbl">${v.sub}</div></div></div><p class="idea">${v.idea}</p><div class="tags">${v.tags}</div>
+  <div class="assets"><figure><img class="dk mk" src="${v.slug}/mark.svg" alt=""><figcaption>mark</figcaption></figure><figure><img class="dk lk" src="${v.slug}/lockup.svg" alt=""><figcaption>lockup</figcaption></figure><figure><img class="ic" src="${v.slug}/icon-1024.png" alt=""><figcaption>1024 tile</figcaption></figure><figure><span class="circ"><img src="${v.slug}/icon-background-432.png"><img src="${v.slug}/icon-foreground-432.png"></span><figcaption>adaptive (circle mask)</figcaption></figure></div>
+  <figure style="margin-top:12px"><img class="bn" src="${v.slug}/banner.png" alt=""><figcaption>Google TV banner 320×180 (shown 1.5×)</figcaption></figure>
+  <img class="tv" src="${v.slug}-tv.png" alt=""><div class="cap">Home, 1080p. The rail carries the mark only.</div>
+  <img class="tv" src="${v.slug}-detail.png" alt=""><div class="cap">Series detail, 1080p.</div>
+  <div class="h">Launch storyboard (stills; the lockup is never on a screen with the standalone mark)</div><div class="frs">${frames(v)}</div>
+  <div class="h" style="margin-top:12px">Launcher row (icon among IMDb / Plex / Netflix / Prime / Hulu / Twitch / Paramount+ colours)</div>${row(v)}
+  <div class="h" style="margin-top:12px">Icon-size and across-the-room check</div>${sizes(v)}
+  <ul class="vd"><li><b>+</b> ${v.verdict[0]}</li><li><b>−</b> ${v.verdict[1]}</li><li><b>↔</b> ${v.verdict[2]}</li></ul></section>`;
+const html = `<!doctype html><html><head><meta charset="utf-8"><title>AIRGLOW v5</title><style>
+@font-face{font-family:"Inter V";src:url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations");font-weight:100 900}
+*{box-sizing:border-box;margin:0}body{width:1800px;background:#0b0a10;color:#eceef4;font:14px/1.45 "Inter V",sans-serif;padding:52px 64px 70px}
+h1{font-size:44px;font-weight:800;letter-spacing:-.02em}.sub{color:#a29fb4;font-size:17px;margin:8px 0 18px;max-width:1550px}
+.rules{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}.rules span{background:#14121c;border:1px solid #272332;border-radius:99px;padding:5px 14px;font-size:12px;color:#cdcade}
+.tests{background:#12101a;border:1px solid #272332;border-radius:18px;padding:18px 20px;margin-bottom:26px}.tests img{width:100%;display:block;border-radius:10px}.tests .h{margin-bottom:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:28px}.col{background:#12101a;border:1px solid #272332;border-radius:22px;padding:24px 26px;min-width:0}
+h2{font-size:32px;font-weight:800}.lbl{color:#a29fb4;font-size:13px}.idea{font-size:18px;margin:10px 0 6px;color:#fff;font-weight:600}.tags{font-size:12px;color:#8b88a0;margin-bottom:14px}
+.assets{display:flex;gap:18px;align-items:flex-end;background:#08070c;border-radius:14px;padding:14px 18px;flex-wrap:wrap}figure{display:flex;flex-direction:column;gap:8px;align-items:flex-start}figcaption,.cap{font-size:11px;color:#8b88a0;letter-spacing:.06em;text-transform:uppercase}.cap{margin:6px 0 12px}
+.dk{background:#0C0B12}.mk{height:110px}.lk{height:84px;max-width:340px}.ic{height:110px;border-radius:22%}
+.circ{position:relative;display:block;width:110px;height:110px;border-radius:50%;overflow:hidden}.circ img{position:absolute;inset:0;width:110px;height:110px}
+.bn{width:480px;height:270px;border-radius:8px;outline:1px solid #2c2838;display:block}
+.tv{width:100%;border-radius:10px;display:block;outline:1px solid #2c2838;margin-top:14px}
+.h{font-size:11px;color:#8b88a0;letter-spacing:.08em;text-transform:uppercase;margin:12px 0 8px}
+.frs{display:flex;gap:10px}.fr{flex:1}.sbf{width:100%;aspect-ratio:16/9;background-repeat:no-repeat;border-radius:6px;outline:1px solid #2c2838;background-color:#0C0B12}.cap2{font-size:11px;color:#a29fb4;margin-top:6px;line-height:1.35}
+.tiles{display:flex;gap:8px;background:#050408;padding:10px;border-radius:14px}.tiles>*{width:70px;height:70px;border-radius:16px;display:block;flex:none}.rt{display:grid;place-items:center;font-weight:800;font-size:10px;letter-spacing:.03em;text-transform:uppercase}
+.sizes{display:flex;flex-wrap:wrap;gap:12px;align-items:center;background:#3a3846;padding:12px 16px;border-radius:12px}.sizes .sep{width:1px;height:46px;background:#ffffff33}
+.vd{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:#cdcade;margin-top:14px}.vd b{display:inline-block;width:20px;color:#fff}
+.sw{display:inline-flex;flex-direction:column;font-size:11px;color:#a29fb4;width:90px;margin-right:6px}.sw i{height:34px;border-radius:8px;margin-bottom:5px;border:1px solid #ffffff22}.sw b{color:#fff;font-size:12px}.adj{display:inline-flex;gap:6px;align-items:center;font-size:11px;color:#b9b5cc;margin-right:14px}.adj i{width:14px;height:14px;border-radius:4px;display:inline-block}
+</style></head><body>
+<h1>airglow: Soft and Sharp</h1>
+<p class="sub">The name is AIRGLOW. Both variations share the palette (SLATE's ink, chalk and orchid, extended with pink and deep violet) and the echo-glow idea. Soft is airglow as he saw it, refined; Sharp takes FLARE's slant and edge while staying airglow.</p>
+<div class="rules"><span>red for LIVE only</span><span>no amber or yellow</span><span>mark and lockup never on one screen</span><span>palette: ${acc.map(([n, h]) => `<i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${h};margin:0 4px 0 6px"></i>${n} ${h}`).join('')} · ink ${P.ink} · chalk ${P.chalk}</span></div>
+<div class="tests"><div class="h">Echo tests (Soft): glow trailing a play button, or fast-forward? E10 wins: halo plus three receding, blurred, fading echoes. Hard equal copies side by side (E0) read as fast-forward.</div><img src="tests/echo-tests.png" alt="" style="margin-top:0"></div>
+<div class="two">${V.map(col).join('')}</div>
+<p class="sub" style="margin-top:22px;font-size:13px">Accent distance from known brand colours (reported values, ΔE×100): ${adj}</p>
+</body></html>`;
+fs.writeFileSync(path.join(root, 'directions.html'), html); console.log('directions.html written');
