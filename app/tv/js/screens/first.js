@@ -21,9 +21,9 @@ function welcome() {
   return `<div class="center-col" style="top:${saved.length ? 70 : 100}px">${lockup(64)}
     <div class="t-head" style="margin-top:34px">${add ? 'Add another provider' : 'Add your TV provider'}</div>
     <div class="t-body" style="margin-top:8px;width:560px;text-align:center">airglow plays the channels, films and series you already have. Paste your provider's link, or type the server, username and password.</div>
-    ${err ? `<div class="t-body" style="margin-top:10px;color:var(--a-text-1)">${ic('info', 'sm')} ${esc(err)}</div>` : ''}
+    ${err ? `<div class="t-body" style="margin-top:10px;color:var(--a-text-1);display:flex;align-items:center;gap:6px">${ic('info', 'sm')}<span>${esc(err)}</span></div>` : ''}
     <div class="row-flex" data-row style="gap:14px;margin-top:30px"><span class="btn fx" tabindex="-1" data-act="type">${ic('tv')}Type it here</span><span class="btn2 fx" tabindex="-1" data-act="m3u">Load an M3U link</span></div>
-    ${saved.length ? `<div class="t-label" style="margin-top:28px">Saved accounts</div><div class="row-flex" data-row style="gap:12px;margin-top:10px">${saved.slice(0, 4).map((a, i) => `<span class="btn2 fx" tabindex="-1" data-acc="${i}">${esc(a.name)}</span>`).join('')}</div>` : ''}
+    ${saved.length ? `<div class="t-label" style="margin-top:28px">Saved accounts</div><div class="row-flex" data-row style="gap:12px;margin-top:10px;max-width:864px">${saved.slice(0, 3).map((a, i) => `<span class="btn2 fx" tabindex="-1" data-acc="${i}" style="max-width:260px"><span class="ellipsis">${esc(a.name)}</span></span>`).join('')}</div>` : ''}
   </div>`;
 }
 // An error sits under the field it's about (errAt 'server' or 'pass').
@@ -36,13 +36,13 @@ function typeIt() {
       ${fld('fServer', 'Provider link or server', 'http://line.provider.tv:8080')}${errLine('server') || '<div class="t-cap" style="margin:-2px 0 12px">Paste a full get.php link and the rest fills in. OK opens the keyboard.</div>'}
       ${fld('fUser', 'Username', 'Username')}${fld('fPass', 'Password', 'Password', 'password')}${errLine('pass')}
     </div>
-    <div class="abs row-flex" data-row style="left:48px;top:${err && errAt === 'pass' ? 466 : 440}px;gap:14px"><span class="btn fx" tabindex="-1" data-act="signin">Sign in</span><span class="t-cap">Back returns to the choices</span></div>`;
+    <div class="abs row-flex" data-row style="left:48px;top:${err && errAt === 'pass' ? 458 : 440}px;gap:14px"><span class="btn fx" tabindex="-1" data-act="signin" style="transform-origin:0 50%">Sign in</span><span class="t-cap">Back returns to the choices</span></div>`;
 }
 function m3u() {
   return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
     <div class="abs t-head" style="left:48px;top:96px">Load an M3U link</div>
     <div class="abs" data-col style="left:48px;top:150px;width:620px">${fld('fUrl', 'Playlist link', 'https://example.com/playlist.m3u')}<div class="t-cap" style="margin:-2px 0 12px">An Xtream get.php link signs in as a full Xtream account, with movies and series.</div></div>
-    <div class="abs row-flex" data-row style="left:48px;top:300px;gap:14px"><span class="btn fx" tabindex="-1" data-act="loadm3u">Load</span><span class="t-cap"${err ? ' style="color:var(--a-text-1)"' : ''}>${err ? `${ic('info', 'sm')} ${esc(err)}` : 'Back returns to the choices'}</span></div>`;
+    <div class="abs row-flex" data-row style="left:48px;top:300px;gap:14px"><span class="btn fx" tabindex="-1" data-act="loadm3u" style="transform-origin:0 50%">Load</span><span class="t-cap" style="display:flex;align-items:center;gap:6px${err ? ';color:var(--a-text-1)' : ''}">${err ? `${ic('info', 'sm')}<span>${esc(err)}</span>` : 'Back returns to the choices'}</span></div>`;
 }
 function verifying(state) {
   const spin = '<svg class="ic" viewBox="0 0 24 24" style="width:28px;height:28px;color:var(--a-pink)"><path d="M12 3a9 9 0 1 0 9 9"/></svg>';
@@ -80,7 +80,8 @@ function draw(state) {
 }
 const val = (id) => el.querySelector('#' + id)?.value.trim() || '';
 
-const formOf = (a) => (a.saved ? 'welcome' : a.type === 'm3u' && a.url ? 'm3u' : a.server ? 'type' : 'welcome');
+// (the form it was typed into, even when what was typed was empty)
+const formOf = (a) => a.form || (a.saved ? 'welcome' : a.type === 'm3u' && a.url ? 'm3u' : a.server ? 'type' : 'welcome');
 // Back to the form it came from, the values kept. A wrong password lands on Password (cleared, to retype); a timeout or an
 // unreachable server keeps everything and lands on Sign in, so trying again is one OK.
 function backToForm(a, e) {
@@ -121,16 +122,16 @@ async function run(a) {
 }
 function signInTyped() {
   let p;
-  const typed = { type: 'xtream', server: val('fServer'), username: val('fUser'), password: val('fPass') };
+  const typed = { type: 'xtream', server: val('fServer'), username: val('fUser'), password: val('fPass'), form: 'type' };
   try { p = window.Core.parseLogin(typed.server, typed.username, typed.password); } catch (e) { return backToForm(typed, e); }
   if (!p.username || !p.password) return backToForm(typed, new Error('Enter your username and password, or paste the full link.'));
   run({ type: 'xtream', ...p, name: host(p.server) });
 }
 function loadM3u() {
   const url = val('fUrl');
-  if (!url) return toast('Enter the playlist link.');
-  if (/get\.php\?.*username=/.test(url)) { const p = window.Core.parseLogin(url); return run({ type: 'xtream', ...p, name: host(p.server) }); }
-  run({ type: 'm3u', url, name: host(url) });
+  if (!url) return backToForm({ type: 'm3u', url: '', form: 'm3u' }, new Error('Enter the playlist link.'));
+  if (/get\.php\?.*username=/.test(url)) { const p = window.Core.parseLogin(url); return run({ type: 'xtream', ...p, name: host(p.server), form: 'm3u', url }); }
+  run({ type: 'm3u', url, name: host(url), form: 'm3u' });
 }
 // A full get.php link pasted into the server field fills in the username and password.
 function splitLink(input) {

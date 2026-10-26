@@ -80,7 +80,7 @@ function cells(ch, ri) {
     const live = !!(g && g.state === 'in');
     const sub = live ? liveP(true) : `${p.start < winStart ? '◂ ' : ''}${hm(p.start)}${e - s >= 36 * 60e3 ? dot + hm(p.end) : ''}`;
     const pg = isNow ? `<div class="prog"><i style="width:${Math.min(100, ((now - p.start) / (p.end - p.start)) * 100)}%"></i></div>` : '';
-    if (w < 52) return `<div class="g-cell sliver fx" tabindex="-1" data-r="${ri}" data-s="${p.start}" data-e="${p.end}" style="left:${left}px;width:${Math.max(4, w)}px"></div>`;
+    if (w < 52) return `<div class="g-cell sliver fx${isNow ? ' now' : ''}" tabindex="-1" data-hold data-r="${ri}" data-s="${p.start}" data-e="${p.end}" style="left:${left}px;width:${Math.max(4, w)}px"></div>`;
     return `<div class="g-cell fx${isNow ? ' now' : ''}" tabindex="-1" data-hold data-r="${ri}" data-s="${p.start}" data-e="${p.end}" style="left:${left}px;width:${w}px"><b>${esc(p.title)}</b><div class="sb">${sub}</div>${pg}</div>`;
   }).join('');
 }
@@ -91,10 +91,11 @@ function row(ch, ri) {
 }
 function ruler() {
   const ticks = [];
-  for (let t = Math.ceil((winStart + 1) / 1800e3) * 1800e3; t < winStart + SPAN; t += 1800e3) if (x(t) > 40 && x(t) < AXIS - 40) ticks.push(`<span style="left:${x(t)}px">${hm(t)}</span>`);
-  const n = Date.now();
+  const n = Date.now(), nx = n >= winStart && n < winStart + SPAN ? x(n) : -999;
+  // (a time label the Now pill would cover is left out)
+  for (let t = Math.ceil((winStart + 1) / 1800e3) * 1800e3; t < winStart + SPAN; t += 1800e3) if (x(t) > 40 && x(t) < AXIS - 40 && Math.abs(x(t) - nx) > 64) ticks.push(`<span style="left:${x(t)}px">${hm(t)}</span>`);
   const flag = n >= winStart && n < winStart + SPAN ? `<span class="g-nowflag" style="left:${x(n)}px">Now</span>` : '';
-  return `<div class="g-ruler"><div class="g-corner" data-row><span class="chip lg fx" tabindex="-1" data-act="group">${ic(group === 'fav' ? 'star' : 'tv')}<span class="ellipsis" style="max-width:120px">${esc(groupName())}</span><span class="t-3" style="font-weight:500">${chans.length}</span></span></div><div class="g-time">${flag}${ticks.join('')}</div></div>`;
+  return `<div class="g-ruler"><div class="g-corner" data-row><span class="chip lg fx" tabindex="-1" data-act="group">${ic(group === 'fav' ? 'star' : 'tv')}<span class="ellipsis" style="max-width:104px">${esc(groupName())}</span><span class="t-3" style="font-weight:500">${chans.length}</span></span></div><div class="g-time">${flag}${ticks.join('')}</div></div>`;
 }
 function nowPanel() {
   const ch = chans[r];
@@ -112,8 +113,8 @@ function nowPanel() {
   const right = toastT > Date.now() ? `<span class="toast"><b>${isFav(ch) ? 'Added to Favourites' : 'Removed from Favourites'}</b><span class="t-cap">Hold OK to undo</span></span>` : '<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune<br>Hold OK favourite</div>';
   return `${pv}<div class="grow">
     <div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(p?.title || ch.name)}</span>${g?.state === 'in' ? liveP() : ''}</div>
-    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap">${esc(ch.name)}${p ? `${dot}${hm(p.start)} to ${hm(p.end)}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</div>
-    <div class="ellipsis row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide ? 'var(--a-text-3)' : 'var(--a-text-2)'}">${desc}</div>
+    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${hm(p.start)} to ${hm(p.end)}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
+    <div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${desc}</span></div>
   </div>${right}`;
 }
 let warmT = 0, frame = 0, pendingFocus = null;
@@ -186,7 +187,8 @@ function hook(dir, cur, repeat) {
   if (winStart + SPAN < nowFloor + 22 * 3600e3) { winStart += 3600e3; at = Math.max(+cur.dataset.e, winStart); draw(() => focusCell(ri, at)); return true; }
   return false;
 }
-function page(d) { r = Math.max(0, Math.min(chans.length - 1, r + d * ROWS)); top = Math.max(0, Math.min(r, top + d * ROWS)); draw(() => focusCell(r, at)); }
+// (the last page is a full page, not one channel and empty rows)
+function page(d) { r = Math.max(0, Math.min(chans.length - 1, r + d * ROWS)); top = Math.max(0, Math.min(r, top + d * ROWS, chans.length - ROWS)); draw(() => focusCell(r, at)); }
 
 function tune(ch) { playLive(ch, chans, groupName()); }
 function cellOk(cell) {
@@ -196,7 +198,7 @@ function cellOk(cell) {
   if (cell.hasAttribute('data-ch') || s <= n || cell.classList.contains('empty')) return tune(ch);
   // A later programme: its details, and the channel as it is now.
   const p = (guideNow(ch) || []).find((q) => q.start === s);
-  const ov = openOverlay(`<div class="menu" style="left:48px;top:120px;width:520px"><h3>${esc(p?.title || 'Later')}</h3><div class="t-cap" style="padding:0 8px 8px">${esc(ch.name)}${p ? `${dot}${hm(p.start)} to ${hm(p.end)}` : ''}</div>${p?.desc ? `<p class="t-body clamp3" style="padding:0 8px 12px">${esc(p.desc)}</p>` : ''}<div data-row class="row-flex" style="gap:12px;padding:4px 8px"><span class="btn fx" tabindex="-1" data-act="tune">${ic('play')}Watch ${esc(ch.name)} now</span></div></div>`, {
+  const ov = openOverlay(`<div class="menu" style="left:48px;top:120px;width:520px"><h3>${esc(p?.title || 'Later')}</h3><div class="t-cap" style="padding:0 8px 8px">${esc(ch.name)}${p ? `${dot}${hm(p.start)} to ${hm(p.end)}` : ''}</div>${p?.desc ? `<p class="t-body clamp3" style="margin:0 8px 12px">${esc(p.desc)}</p>` : ''}<div data-row class="row-flex" style="gap:12px;padding:4px 8px"><span class="btn fx" tabindex="-1" data-act="tune" style="max-width:480px;transform-origin:0 50%">${ic('play')}<span class="ellipsis" style="min-width:0">Watch ${esc(ch.name)} now</span></span></div></div>`, {
     onClick: (act) => { ov.close(false); if (act === 'tune') tune(ch); },
   });
 }
@@ -249,7 +251,16 @@ export default {
     obs.observe(grid, { childList: true });
     on('catalog', (k) => { if (k === 'live' && current() === 'live') { rebuild(); draw(); } });
     on('nba', () => { if (current() === 'live') draw(); });
-    on('favs', () => { if (current() === 'live' && group === 'fav') { rebuild(); draw(); } });
+    // (favouriting re-orders the Favourites group: focus stays on that channel, wherever it moved, so Hold OK undoes it)
+    on('favs', () => {
+      if (current() !== 'live' || group !== 'fav') return;
+      const keep = chans[r];
+      rebuild();
+      const i = keep ? chans.indexOf(keep) : -1;
+      if (i >= 0) { r = i; if (r < top || r >= top + ROWS) top = Math.max(0, Math.min(r, chans.length - ROWS)); }
+      const inGuide = el.contains(document.activeElement);
+      draw(inGuide ? () => focusCell(r, at) : undefined);
+    });
     on('session', () => { group = 'fav'; r = 0; top = 0; winStart = 0; });
     setInterval(() => { if (current() === 'live') draw(); }, 30000);
   },

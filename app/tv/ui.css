@@ -170,7 +170,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .g-ch{width:204px;flex:none;display:flex;align-items:center;gap:8px;padding:0 10px 0 4px;border-radius:12px 0 0 12px;background:var(--a-surface-1);border:1px solid var(--a-border);border-right:0;height:48px;margin-right:4px}
 .g-ch.sel{background:var(--a-surface-2);border-color:transparent}
 .g-ch .num{width:30px;text-align:right;font:650 14px/1 var(--a-font-text);color:var(--a-text-3)}
-.g-ch .nm{font:650 15px/17px var(--a-font-text);color:var(--a-text-1);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.g-ch .nm{font:650 15px/17px var(--a-font-text);color:var(--a-text-1);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .g-ch .fv{color:var(--a-text-1);flex:none;margin-left:auto;display:flex}.g-ch .fv svg{width:16px;height:16px}
 .g-cells{position:relative;flex:1;height:48px;overflow:hidden;border-radius:0 12px 12px 0}
 .g-cell{position:absolute;top:0;height:48px;padding:4px 9px 0;background:var(--a-surface-1);border:1px solid var(--a-border);border-radius:8px;overflow:hidden}
@@ -214,8 +214,13 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .gc .st{display:flex;align-items:center;gap:8px;height:22px;font:650 14px/16px var(--a-font-text);color:var(--a-text-2);letter-spacing:.06em;text-transform:uppercase}
 .gc .st .tvn{margin-left:auto;color:var(--a-text-3);letter-spacing:.02em;text-transform:none;font-weight:500}
 .gc .tr{display:flex;align-items:center;gap:8px;height:38px;position:relative}
-.gc .tr .nm{font:650 16px/20px var(--a-font-text);color:var(--a-text-1)}
-.gc .tr .rc{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-left:4px}
+.gc .tr{padding-right:96px}   /* the score plate sits on the right: long names end in … before it */
+.gc .tr .nm{font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.gc .tr .rc{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-left:4px;flex:none}
+/* in a peeking row (Home's second row) a game card is its status line and one line of matchup, not sliced team rows */
+.gc .pk{display:none}
+.rail.peek .gc .tr,.rail.peek .gc .plate{display:none}
+.rail.peek .gc .pk{display:block;margin-top:8px;font:650 16px/20px var(--a-font-text);color:var(--a-text-1)}
 .gc .tr.lose .nm{color:var(--a-text-2);font-weight:500}
 .gc .st+.tr{margin-top:2px}
 .gc .plate{position:absolute;right:12px;top:32px;width:88px;height:80px}

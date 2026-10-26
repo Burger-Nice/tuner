@@ -15,14 +15,14 @@ export function poster(t, i, { sm = false } = {}) {
   const p = t.kind === 'movie' ? progressOf(t.versions?.[0] || t) : null;
   const art = t.poster ? `<div class="art" data-ini="${esc(initials(t.name))}" data-nt="${esc(t.name)}">${img(t.poster)}</div>` : `<div class="noart"><span class="ini">${esc(initials(t.name))}</span><span class="nt clamp3">${esc(t.name)}</span></div>`;
   const meta = [t.year, t._ir ? `★ ${t._ir.toFixed(1)}` : (t._genres?.[0] || '')].filter(Boolean).join(' · ');
-  return `<div class="pc fx${sm ? ' sm' : ''}" tabindex="-1" data-i="${i}" data-hold><div class="box">${art}${tl ? `<div class="tl">${tl}</div>` : ''}${tr ? `<div class="tr">${tr}</div>` : ''}${p && p.t > 30 && p.t < p.d * 0.94 ? `<div class="prog flush"><i style="width:${pct(p)}%"></i></div>` : ''}</div>
+  return `<div class="pc fx${sm ? ' sm' : ''}" tabindex="-1" data-i="${i}" data-key="t:${esc(t.kind)}:${esc(t.id)}" data-hold><div class="box">${art}${tl ? `<div class="tl">${tl}</div>` : ''}${tr ? `<div class="tr">${tr}</div>` : ''}${p && p.t > 30 && p.t < p.d * 0.94 ? `<div class="prog flush"><i style="width:${pct(p)}%"></i></div>` : ''}</div>
     <div class="cap">${esc(t.name)}</div><div class="cm">${esc(meta)}</div></div>`;
 }
 
 // Game card (272 x 124, the NBA hub's grid and Home's Tonight row): text at the top so a peeking row still reads.
 export function liveCard(ch, prog, { i, live, pending } = {}) {   // pending: its guide hasn't come yet
   const pg = prog ? Math.max(0, Math.min(100, ((Date.now() - prog.start) / (prog.end - prog.start)) * 100)) : 0;
-  return `<div class="hc fx" tabindex="-1" data-i="${i}" data-hold><div class="art noimg-bg"></div><div class="hs"></div>
+  return `<div class="hc fx" tabindex="-1" data-i="${i}" data-key="ch:${esc(ch.id)}" data-hold><div class="art noimg-bg"></div><div class="hs"></div>
     <div class="tp">${logo(ch.logo, ch.name, 'sm')}${live ? liveP() : ''}<span class="n">${ch.num}</span></div>
     <div class="bt"><b>${esc(prog?.title || ch.name)}</b><span>${esc(prog ? ch.name : pending ? '' : 'No guide information')}</span></div>${prog ? `<div class="prog flush"><i style="width:${pg}%"></i></div>` : ''}</div>`;
 }
@@ -31,7 +31,7 @@ export function contCard(p, i) {
   const kind = it.kind === 'episode' ? `S${it.season} · E${it.ep}` : 'Film';
   const title = it.kind === 'episode' ? it.seriesName : it._title || it.name;
   const art = it.still || it.poster;
-  return `<div class="hc fx" tabindex="-1" data-i="${i}" data-hold><div class="art">${img(art)}</div><div class="hs"></div>
+  return `<div class="hc fx" tabindex="-1" data-i="${i}" data-key="p:${esc(it.kind)}:${esc(it.id)}" data-hold><div class="art">${img(art)}</div><div class="hs"></div>
     <div class="tp"><span class="t-label" style="line-height:22px">${esc(kind)}</span><span class="n">${leftText(p.d - p.t)}</span></div>
     <div class="bt"><b>${esc(title)}</b></div><div class="prog flush"><i style="width:${pct(p)}%"></i></div></div>`;
 }
@@ -58,9 +58,10 @@ export function gameCard(g0, i) {
   else plate = `<span class="plate"><span class="x"><span class="score md"${g.state === 'post' && !awWin ? ' style="opacity:.7"' : ''}>${esc(g.away.score)}</span><span class="score md"${g.state === 'post' && !hwWin ? ' style="opacity:.7"' : ''}>${esc(g.home.score)}</span></span></span>`;
   const lose = (w) => (g.state === 'post' && !v.hidden && !w ? ' lose' : '');
   const rec = (t) => (v.hidden ? '' : esc(t.record));
-  return `<div class="gc fx" tabindex="-1" data-i="${i}" data-g="${esc(g0.id)}"><div class="st">${st}${tv}</div>
+  return `<div class="gc fx" tabindex="-1" data-i="${i}" data-g="${esc(g0.id)}" data-key="g:${esc(g0.id)}"><div class="st">${st}${tv}</div>
     <div class="tr${lose(awWin)}">${edge(g.away)}${crest(g.away)}<span class="nm">${esc(g.away.name)}</span><span class="rc">${rec(g.away)}</span></div>
-    <div class="tr${lose(hwWin)}">${edge(g.home)}${crest(g.home)}<span class="nm">${esc(g.home.name)}</span><span class="rc">${rec(g.home)}</span></div>${plate}</div>`;
+    <div class="tr${lose(hwWin)}">${edge(g.home)}${crest(g.home)}<span class="nm">${esc(g.home.name)}</span><span class="rc">${rec(g.home)}</span></div>${plate}
+    <div class="pk ellipsis">${esc(g.away.name)} ${g.state === 'pre' || v.hidden ? 'at' : `${esc(g.away.score)} – ${esc(g.home.score)}`} ${esc(g.home.name)}</div></div>`;
 }
 
 // The broadcast-graphic hero (Home and the NBA hub): status row, two team plates and the score, buttons, and the slab
@@ -113,7 +114,7 @@ export function resumeHero(p) {
 export function channelHero(ch, prog) {
   return `<div class="hero-plate">
   <div class="abs t-label" style="left:24px;top:18px">Last channel</div>
-  <div class="abs row-flex" style="left:24px;top:44px;gap:16px">${logo(ch.logo, ch.name, 'lg')}<div><div class="t-head ellipsis" style="width:560px">${esc(prog?.title || ch.name)}</div><div class="metaline" style="margin-top:4px">${esc(ch.name)}${prog ? `${dot}${hm(prog.start)} to ${hm(prog.end)}` : ''}</div></div></div>
+  <div class="abs row-flex" style="left:24px;top:44px;gap:16px">${logo(ch.logo, ch.name, 'lg')}<div><div class="t-head ellipsis" style="width:560px">${esc(prog?.title || ch.name)}</div><div class="metaline" style="margin-top:4px;width:560px;white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span>${prog ? `${dot}<span style="flex:none">${hm(prog.start)} to ${hm(prog.end)}</span>` : ''}</div></div></div>
   <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:16px"><span class="btn fx" tabindex="-1" data-act="tune">${ic('play')}Watch</span><span class="btn2 fx" tabindex="-1" data-act="guide">Open guide</span></div>
 </div>`;
 }

@@ -75,7 +75,7 @@ document.addEventListener('keydown', (e) => {
   if (k === 'ok') { okPress(e); return; }
   if (k === 'back') { if (!e.repeat) back(); return; }
   if (k === 'search') { go('search'); return; }
-  if (k === 'digit' && !inLayer()) { go('live', { digit: e.key }); }
+  if (k === 'digit' && !inLayer() && S.acc && current() !== 'first') { go('live', { digit: e.key }); }   // (not before you've signed in)
 }, true);
 document.addEventListener('keyup', (e) => {
   const k = keyName(e);

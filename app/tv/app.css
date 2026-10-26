@@ -72,3 +72,11 @@ input.field[readonly]{caret-color:transparent}
 .plotfx{padding:4px 8px;margin:-4px -8px;border-radius:10px}
 .plotfx.fx:focus{background:var(--a-surface-1);box-shadow:var(--a-focus-ring);position:relative;z-index:3}
 .sheet.about .sec{margin-top:16px}
+/* Home's rails slide so the focused card sits at the left edge: it grows from there, inside the safe area */
+[data-rail] .track>.fx:focus{transform-origin:0 50%}
+/* the lifted Home page (second row focused) fades out under the top edge instead of being cut there */
+.topfade{position:absolute;left:0;right:0;top:0;height:96px;background:linear-gradient(180deg,var(--a-bg-0) 70%,rgba(21,19,29,0));z-index:2;pointer-events:none}
+/* Home's and the title page's rails: a card that slid out on the left never shows as a sliver in the 48 px margin */
+.rail[data-rail],.rail.abs{clip-path:inset(0 0 0 36px)}
+/* the Now cell's progress line sits inside its focus ring, not over the ring's bottom edge */
+.g-cell.now.fx:focus .prog{left:3px;right:3px;width:auto;bottom:3px}

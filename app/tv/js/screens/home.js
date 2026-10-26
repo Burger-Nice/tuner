@@ -95,13 +95,15 @@ function placeRails() {
   const a = document.activeElement;
   page.querySelectorAll('.track').forEach((tr) => {
     const f = tr.contains(a) ? a : tr._mem?.isConnected ? tr._mem : null;
-    const i = f ? [...tr.children].indexOf(f) : 0;
     const step = (tr.firstElementChild?.classList.contains('gc') ? 272 : 198) + 24;   // card widths are fixed: no layout read
+    // ...but never past the last card: at the end of the row the last cards fill the width instead of one and a gap
+    const i = Math.min(f ? [...tr.children].indexOf(f) : 0, Math.max(0, tr.children.length - Math.floor((864 + 24) / step)));
     tr.style.transform = i > 0 ? `translateX(${-i * step}px)` : '';
   });
   const second = page.querySelectorAll('.rail')[1];
   const lift = second && second.contains(a);
   page.style.transform = lift ? 'translateY(-144px)' : '';
+  el.querySelector('.topfade').hidden = !lift;
   if (current() === 'home') barHidden(lift);   // the lifted hero would slide under the top bar: it steps away, as in Movies
   el.querySelectorAll('.rail').forEach((r, k) => r.classList.toggle('peek', k === 1 && !lift));
 }
@@ -183,7 +185,7 @@ export default {
   name: 'home',
   mount(root) {
     el = root;
-    root.innerHTML = '<div class="page"></div><div class="edgefade"></div>';
+    root.innerHTML = '<div class="page"></div><div class="edgefade"></div><div class="topfade" hidden></div>';
     page = root.querySelector('.page');
     root.dataset.entry = '.hero-btns .btn';
     root.addEventListener('click', (e) => {
@@ -220,7 +222,7 @@ export default {
   },
   entry: (root) => root.querySelector('.hero-btns .btn'),
   leave() { barHidden(false); },
-  toTop() { page.style.transform = ''; },
+  toTop() { page.style.transform = ''; el.querySelector('.topfade').hidden = true; },
 };
 // What's on now on the rail's channels: a couple at a time.
 // The cards in view first, then the rest of the rail.

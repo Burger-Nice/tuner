@@ -85,17 +85,19 @@ document.addEventListener('error', (e) => {
 
 // Redraw a block only when its content changed, and keep focus on the same control. The control is found again by its
 // path (its data-* attributes and its containers', e.g. the Continue watching rail's card 2, not On now's card 2);
-// if it's gone, focus goes to the screen's entry, never to whatever happens to be first.
+// if it's gone, focus goes to the screen's entry, never to whatever happens to be first. A card that carries data-key
+// (a channel, a game, a title) is found by that first: rows re-order (a channel saved, a game going live) and the
+// same position would be another channel.
 const part = (n) => n.getAttributeNames().filter((k) => k.startsWith('data-')).map((k) => `[${k}="${CSS.escape(n.getAttribute(k))}"]`).join('') || (n.id ? `#${CSS.escape(n.id)}` : '');
 export function focusPath(a, root) {
   const parts = [];
   for (let n = a; n && n !== root; n = n.parentElement) { const p = part(n); if (p) parts.unshift(p); }
-  return { path: parts.join(' '), leaf: part(a) };
+  return { path: parts.join(' '), leaf: part(a), key: a.dataset?.key || '' };
 }
 // The control a path describes, inside root (or null).
 export function findPath(root, key) {
   const q = (s) => { try { return s ? root.querySelector(s) : null; } catch { return null; } };
-  return key ? q(key.path) || q(key.leaf) : null;
+  return key ? (key.key && q(`[data-key="${CSS.escape(key.key)}"]`)) || q(key.path) || q(key.leaf) : null;
 }
 export function setHtml(el, html, restore = true) {
   if (!el || (el._html === html && el.childNodes.length)) return false;
@@ -104,8 +106,7 @@ export function setHtml(el, html, restore = true) {
   el.innerHTML = html;
   el._html = html;
   if (key) {
-    const q = (s) => { try { return s ? el.querySelector(s) : null; } catch { return null; } };
-    const to = q(key.path) || q(key.leaf);
+    const to = findPath(el, key);
     if (to) focus(to);
     else { const scr = el.closest('[data-screen]'); focus(entryOf(scr || el)); }
   }

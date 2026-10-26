@@ -35,17 +35,19 @@ function draw() {
     const rows = order.map((c, i) => {
       const p = onNow(guideNow(c)), g = p && gameOn(c, [p]);
       const lifted = lift === i;
-      return `<div class="srow fx${lifted ? ' lift' : ''}" tabindex="-1" data-hold data-ci="${i}"><span class="grip">${lifted ? ic('chevU', 'sm') + ic('chevD', 'sm') : '<i></i><i></i><i></i>'}</span><span class="num">${i + 1}</span>${logo(c.logo, c.name)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(c.name)}</div><div class="t-cap ellipsis">${esc(p?.title || 'No guide information')}</div></div>${g?.state === 'in' ? '<span class="a-live">Live</span>' : ''}</div>`;
+      return `<div class="srow fx${lifted ? ' lift' : ''}" tabindex="-1" data-hold data-ci="${i}"><span class="grip">${lifted ? ic('chevU', 'sm') + ic('chevD', 'sm') : '<i></i><i></i><i></i>'}</span><span class="num">${i + 1}</span>${logo(c.logo, c.name)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(c.name)}</div><div class="t-cap ellipsis">${esc(p?.title || (guideNow(c) ? 'No guide information' : 'Loading guide…'))}</div></div>${g?.state === 'in' ? '<span class="a-live">Live</span>' : ''}</div>`;
     }).join('');
     body = order.length
-      ? `<div class="abs" style="left:48px;top:134px;width:560px;height:379px;overflow:hidden"><div class="t-cap" style="margin-bottom:10px">${lift != null ? '<b style="color:var(--a-text-1)">Move with Up and Down. OK drops it.</b> Back puts it back.' : 'OK plays. Hold OK to reorder.'}</div><div class="inner" data-col style="transform:translateY(${-gridTop}px);transition:transform 200ms var(--a-ease)">${rows}</div></div>
+      // (the instructions stay put above the list; the list's clip leaves room for the focus ring and a lifted row)
+      ? `<div class="abs t-cap" style="left:48px;top:134px">${lift != null ? '<b style="color:var(--a-text-1)">Move with Up and Down. OK drops it.</b> Back puts it back.' : 'OK plays. Hold OK to reorder.'}</div><div class="abs" style="left:36px;top:158px;width:584px;height:355px;padding:6px 12px 0;box-sizing:border-box;overflow:hidden"><div class="inner" data-col style="transform:translateY(${-gridTop}px);transition:transform 200ms var(--a-ease)">${rows}</div></div>
          <div class="abs card" style="left:640px;top:134px;width:272px;padding:16px"><b style="font:700 18px/24px var(--a-font-display)">This order is used by</b><ul class="ul"><li>On now on Home</li><li>The Favourites guide group</li><li>Up and Down in the player when you tune from Favourites</li></ul></div>`
       : `<div class="center-col" style="top:180px"><div class="state big"><div class="ico">${ic('star')}</div><b>No saved channels yet</b><p>In the guide, hold OK on a channel to save it. Saved channels lead On now and the Favourites group.</p></div></div>`;
   } else if (tab === 'movie' || tab === 'series') {
     const list = titles(tab);
     el._list = list;
     body = list.length
-      ? `<div class="lib-grid" data-grid data-cols="6" style="top:134px;transform:translateY(${-gridTop}px);transition:transform 320ms var(--a-ease)">${list.map((t, i) => poster(t, i)).join('')}</div>`
+      // (in a clip under the header, so scrolled posters never paint over it or the top bar)
+      ? `<div class="abs" style="left:36px;right:36px;top:122px;bottom:0;overflow:hidden"><div class="lib-grid" data-grid data-cols="6" style="left:12px;top:12px;transform:translateY(${-gridTop}px);transition:transform 320ms var(--a-ease)">${list.map((t, i) => poster(t, i).replace('class="pc fx', `data-c="${i % 6}" class="pc fx`)).join('')}</div></div>`
       : `<div class="center-col" style="top:180px"><div class="state big"><div class="ico">${ic('saved')}</div><b>Nothing saved yet</b><p>Open a ${tab === 'movie' ? 'movie' : 'series'} and choose Save, or hold OK on its poster.</p></div></div>`;
   } else {
     const h = history();
@@ -62,7 +64,7 @@ function draw() {
 function place() {
   const a = document.activeElement, inner = el.querySelector('.inner, .lib-grid');
   if (!inner || !inner.contains(a)) { if (gridTop) { gridTop = 0; if (inner) inner.style.transform = ''; } return; }
-  const y = a.offsetTop, h = tab === 'movie' || tab === 'series' ? 252 : 64, view = 379 - 28;
+  const y = a.offsetTop, grid = tab === 'movie' || tab === 'series', h = grid ? 252 : 64, view = grid ? 351 : 340;
   if (y - gridTop > view - h) gridTop = y - view + h; else if (y < gridTop) gridTop = y;
   inner.style.transform = `translateY(${-gridTop}px)`;
 }
@@ -88,7 +90,7 @@ export default {
       const r = e.target.closest('[data-ci]');
       if (r) { lift = +r.dataset.ci; liftFrom = lift; draw(); focus(el.querySelector(`[data-ci="${lift}"]`)); return; }
       const p = e.target.closest('.pc');
-      if (p) { const x = el._list?.[+p.dataset.i]; if (x) contextMenu(p, [{ icon: 'saved', label: 'Remove from Saved', run: () => { toggleFav(x); draw(); } }, { icon: 'info', label: 'Details', run: () => push('detail', { title: x }) }]); }
+      if (p) { const x = el._list?.[+p.dataset.i], i = +p.dataset.i; if (x) contextMenu(p, [{ icon: 'saved', label: 'Remove from Saved', run: () => { toggleFav(x); draw(); place(); focus(el.querySelector(`.lib-grid [data-i="${Math.min(i, (el._list?.length || 1) - 1)}"]`) || el.querySelector(`[data-tab-s="${tab}"]`)); } }, { icon: 'info', label: 'Details', run: () => push('detail', { title: x }) }]); }
     });
     root.addEventListener('tvfocus', (e) => { place(); const t = e.target.dataset.tabS; if (t && t !== tab) { tab = t; lift = null; gridTop = 0; draw(); } });
     on('favs', () => { if (current() === 'saved' && lift == null) draw(); });

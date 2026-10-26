@@ -1,7 +1,7 @@
 // Overlays shared by every screen: toasts, sheets and menus. A sheet takes the focus while it is open and gives it back
 // to whatever opened it when it closes (Back closes it).
-import { $, esc, ic } from './util.js';
-import { pushLayer, popLayer, focus } from './focus.js';
+import { $, esc, ic, focusPath, findPath } from './util.js';
+import { pushLayer, popLayer, focus, entryOf } from './focus.js';
 import { sfx } from './sfx.js';
 
 let toastT;
@@ -24,7 +24,9 @@ export function openOverlay(html, { onClick, onClose, focusSel, scrim = true, on
   el.className = 'ov';
   el.innerHTML = (scrim ? '<div class="scrim"></div>' : '') + html;
   host.appendChild(el);
-  const entry = { el, opener: document.activeElement, onClose, onKey };
+  // the control that opened it, and how to find it again if the screen redraws while the sheet is up
+  const opener = document.activeElement, scr = opener?.closest?.('[data-screen]');
+  const entry = { el, opener, scr, key: scr ? focusPath(opener, scr) : null, onClose, onKey };
   stack.push(entry);
   sfx.request('open');   // only when a key opened it
   el.addEventListener('click', (e) => { const t = e.target.closest('[data-act]'); if (t && onClick) onClick(t.dataset.act, t, e); });
@@ -40,7 +42,8 @@ function closeOverlay(entry, restore = true) {
   if (i < 0) return;
   stack.splice(i, 1);
   entry.el.remove();
-  popLayer(entry.el, restore ? entry.opener : null);
+  const back = !restore ? null : entry.opener?.isConnected ? entry.opener : entry.scr ? findPath(entry.scr, entry.key) || entryOf(entry.scr) : null;
+  popLayer(entry.el, back);
   entry.onClose?.();
 }
 // Back closes the topmost overlay. Returns true if one was closed.
@@ -77,14 +80,21 @@ export function confirmMenu({ title, text, yes, no = 'Cancel', onYes }) {
   return ov;
 }
 // Sheets with more rows than fit: the list slides so the focused row stays inside (with room for its ring).
+// It's placed at once for the row the sheet opens on (focus() from opening a sheet fires no tvfocus), and the
+// focused row keeps 14 px from either edge: its ring is 4-5 px outside it.
 export function scrollList(root) {
-  root.addEventListener('tvfocus', (e) => {
-    const body = e.target.closest('.sheet-body'); if (!body) return;
-    const inner = body.querySelector('.inner'), y = e.target.offsetTop, h = body.clientHeight;
+  const place = (row) => {
+    const body = row?.closest?.('.sheet-body'); if (!body) return;
+    const inner = body.querySelector('.inner'), y = row.offsetTop, rh = row.offsetHeight, h = body.clientHeight;
     const cur = -(parseFloat((inner.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0);
     let t = cur;
-    if (y - cur > h - 70) t = y - h + 70; else if (y - cur < 8) t = Math.max(0, y - 8);
+    if (y + rh - cur > h - 14) t = y + rh - h + 14; else if (y - cur < 14) t = Math.max(0, y - 14);
     inner.style.transform = `translateY(${-t}px)`;
-  });
+  };
+  root.addEventListener('tvfocus', (e) => place(e.target));
+  if (root.contains(document.activeElement)) {
+    const inner = document.activeElement.closest('.sheet-body')?.querySelector('.inner');
+    if (inner) { inner.style.transition = 'none'; place(document.activeElement); inner.offsetHeight; inner.style.transition = ''; }
+  }
 }
 export { focus };
