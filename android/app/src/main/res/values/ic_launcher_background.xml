@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0B0D11</color>
+    <color name="ic_launcher_background">#15131D</color>
+    <!-- airglow bg-0: the canvas, the splash and the player's letterbox -->
+    <color name="bg0">#15131D</color>
 </resources>

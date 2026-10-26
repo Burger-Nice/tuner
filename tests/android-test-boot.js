@@ -1,5 +1,5 @@
-// Drives the Google TV app inside the emulator on CI. Remote-control presses (D-pad, OK, Back) and typing
-// are sent by tests/android-shots.js through adb when this script asks for them, and it screenshots each step.
+// Drives the Google TV app (the airglow TV interface, app/tv/) inside the emulator on CI. Remote presses (D-pad, OK,
+// Back) are sent by tests/android-shots.js through adb when this script asks for them, and it screenshots each step.
 window.TUNER_TEST = true;
 (function () {
   const API = window.TEST_API || 'http://10.0.2.2:8899';
@@ -8,7 +8,6 @@ window.TUNER_TEST = true;
   const $ = (s) => document.querySelector(s);
   const state = () => window.__tunerTest?.state();
   const until = async (fn, ms = 20000) => { for (let t = 0; t < ms && !fn(); t += 250) await wait(250); return !!fn(); };
-  // Each step waits until android-shots.js says it has pressed the keys and taken the screenshot.
   const acked = async (name) => {
     for (let t = 0; t < 60000; t += 500) {
       try { if ((await (await fetch(`${API}/_reports`)).json()).some((r) => r.step === 'ack' && r.data?.name === name)) return; } catch {}
@@ -18,114 +17,131 @@ window.TUNER_TEST = true;
   const step = async (data, after) => { report(data.keys ? 'keys' : 'shot', { ...data, state: state() }); await acked(data.name); if (after) await wait(after); report('after', { name: data.name, state: state() }); };
   const shot = (name) => step({ name });
   const press = (keys, name, after = 0) => step({ keys, name }, after);
-  const type = (text, name) => step({ keys: [], text, name });
+  const focused = () => { const a = document.activeElement; return a ? `${a.className} ${Object.entries(a.dataset || {}).map(([k, v]) => `${k}=${v}`).join(' ')}`.trim() : ''; };
+  const check = (name, ok, data) => report('check', { name, ok: !!ok, focus: focused(), ...data });
   window.addEventListener('error', (e) => report('error', String(e.message)));
+  window.addEventListener('unhandledrejection', (e) => report('error', String(e.reason?.stack || e.reason)));
 
   window.addEventListener('load', async () => {
     try {
       localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`));
-      await until(() => $('#xtServer') && !$('#login').hidden);
+      await until(() => $('[data-act="type"]'), 30000);
       await wait(1500);
-      report('boot', { tv: document.documentElement.classList.contains('tv'), bridge: !!window.tuner, ua: navigator.userAgent, size: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, font: getComputedStyle(document.documentElement).fontSize, state: state() });
+      const t0 = performance.now();
+      report('boot', { bridge: !!window.Capacitor?.isNativePlatform?.(), ua: navigator.userAgent, size: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, modules: typeof window.__tunerTest, state: state() });
+      await shot('welcome');
 
-      // Sign in: the keyboard must stay down while moving over the boxes, and come up on OK.
-      $('#xtServer').focus();
-      await press(['DPAD_DOWN', 'DPAD_UP'], 'login-move-no-keyboard');
-      await press(['DPAD_CENTER'], 'login-ok-keyboard');
-      await press(['BACK'], 'login-keyboard-closed');
-      $('#xtServer').value = `${API}/get.php?username=demo&password=demo`;
-      $('#xtServer').dispatchEvent(new Event('change'));
-      $('#xtForm').requestSubmit();
+      // Sign in: the keyboard comes up only on OK, Back puts it away again.
+      await press(['DPAD_CENTER'], 'type-it-here');
+      check('server field focused', document.activeElement?.id === 'fServer');
+      await press(['DPAD_DOWN', 'DPAD_UP'], 'fields-move-no-keyboard');
+      await press(['DPAD_CENTER'], 'field-ok-keyboard');
+      await press(['BACK'], 'field-keyboard-closed');
+      $('#fServer').value = `${API}/get.php?username=demo&password=demo`;
+      $('#fServer').dispatchEvent(new Event('focusout', { bubbles: true }));
+      $('#fServer').readOnly = false; $('#fServer').blur();
+      $('[data-act="signin"]').focus();
+      await press(['DPAD_CENTER'], 'signing-in', 3000);
+      await until(() => $('[data-act="done"]') || state()?.screen === 'home', 30000);
+      await shot('three-choices');
+      await press(['DPAD_CENTER'], 'home', 2500);
+      check('home after sign-in', state()?.screen === 'home', { took: Math.round(performance.now() - t0) });
+      check('hero primary focused', document.activeElement?.dataset?.act === 'primary' || document.activeElement?.dataset?.act === 'resume' || document.activeElement?.dataset?.act === 'tune');
 
-      // Home
-      await until(() => $('#homeRows .hcard'), 30000);
-      await wait(2500);
-      report('login', { tv: document.documentElement.classList.contains('tv'), bridge: !!window.tuner, rows: [...document.querySelectorAll('.hrow h3')].map((h) => h.textContent) });
-      await shot('home');
-      await press(['DPAD_DOWN', 'DPAD_RIGHT'], 'home-move');
-      await press(['DPAD_LEFT', 'DPAD_LEFT', 'DPAD_LEFT'], 'menu-open');
+      // Home: down to the rail, along it, up to the bar
+      await press(['DPAD_DOWN'], 'home-rail');
+      check('rail card focused', document.activeElement?.classList.contains('hc'));
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'home-rail-right');
+      await press(['DPAD_UP', 'DPAD_UP'], 'home-bar');
+      check('top bar focused', document.activeElement?.classList.contains('tab'));
 
-      // Guide: Live in the menu, OK, then move through the channels
-      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'guide');
-      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_UP'], 'guide-preview');
-      await press(['DPAD_DOWN'], 'guide-not-a-game');
-
-      // Search: moving onto it keeps the keyboard down; OK brings it up; typing filters
-      await press(['DPAD_LEFT', 'DPAD_UP'], 'search-focus-no-keyboard');
-      await press(['DPAD_CENTER'], 'search-ok-keyboard');
-      await type('NBA', 'search-typed');
-      await press(['BACK'], 'search-results');
-      $('#liveQ').value = '';
-      $('#liveQ').dispatchEvent(new Event('input', { bubbles: true }));
-      await wait(800);
-
-      // Watch the NBA channel in the native player: OK opens the score and box score at the side, left/right
-      // switch team, OK closes it; left/right then open the options; zap down, the channel list, back up; Back
-      $('#liveInner .ch').focus();
-      await press(['DPAD_CENTER'], 'player');
-      await press(['DPAD_CENTER'], 'player-stats', 3000);
-      await press(['DPAD_RIGHT'], 'player-stats-other-team');
-      await press(['DPAD_CENTER'], 'player-stats-closed');
-      await press(['DPAD_RIGHT'], 'player-options');
-      await press(['BACK'], 'player-options-closed');
-      await press(['DPAD_DOWN'], 'player-zap');
-      // Off a game, OK brings up the channel list over the picture
-      await press(['DPAD_CENTER'], 'player-channels');
+      // Live: one Right on the bar switches tab (the remote stays on the bar), Down goes into the guide
+      await press(['DPAD_RIGHT'], 'live-tab', 1200);
+      check('live tab, bar keeps focus', state()?.screen === 'live' && document.activeElement?.classList.contains('tab'));
+      await press(['DPAD_DOWN'], 'guide');
+      check('guide cell focused', document.activeElement?.classList.contains('g-cell'));
+      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_RIGHT'], 'guide-moved');
+      await press(['DPAD_UP', 'DPAD_UP', 'DPAD_UP'], 'guide-group-chip');
+      await press(['DPAD_CENTER'], 'guide-groups');
+      await press(['BACK'], 'guide-groups-closed');
+      document.querySelector('.g-row .g-ch')?.focus();   // OK on the channel tunes what's on
+      await press(['DPAD_CENTER'], 'player', 3000);
+      check('native player up', state()?.watching);
+      // The player's own panels: OK the channel list, ◀ from it the groups (asked of the app), ◀ Options, ▶ the game or what's on
+      await press(['DPAD_CENTER'], 'player-channels', 800);
+      await press(['DPAD_DOWN', 'DPAD_DOWN'], 'player-channels-move');
+      await press(['DPAD_LEFT'], 'player-groups', 800);
+      await press(['BACK'], 'player-groups-back');
       await press(['BACK'], 'player-channels-closed');
-      await press(['DPAD_UP'], 'player-back-to-nba');
-      await press(['BACK'], 'back-in-app');
+      await press(['DPAD_LEFT'], 'player-options');
+      await press(['BACK'], 'player-options-closed');
+      await press(['DPAD_RIGHT'], 'player-right', 800);
+      await press(['BACK'], 'player-right-closed');
+      check('still in the player', state()?.watching);
+      await press(['BACK'], 'player-closed', 1500);
 
-      window.__tunerTest.go('nba');
-      await until(() => $('.gcard'));
-      await wait(1500);
-      ($('.gcard.on') || $('.gcard')).focus();
+      await press(['BACK'], 'back-to-tab');
+      check('back focuses the tab', document.activeElement?.classList.contains('tab'));
+
+      // NBA hub and a game page (each section starts from its tab, so one miss doesn't carry over)
+      const tab = async (name) => { window.__tunerTest.go(name); await wait(1500); document.querySelector(`#topbar [data-tab="${name}"]`)?.focus(); };
+      await tab('nba');
       await shot('nba');
-      // Picking a team's box score keeps focus on that tab, so the other team is one press away
-      await until(() => $('#nbaDetail [data-ntab="home"]'));
-      $('#nbaDetail [data-ntab="home"]').focus();
-      await press(['DPAD_CENTER'], 'nba-home-tab');
-      report('nba-tab-focus', { focus: document.activeElement?.dataset?.ntab || document.activeElement?.className || '' });
-      await press(['DPAD_LEFT', 'DPAD_CENTER'], 'nba-away-tab');
-      report('nba-tab-focus', { focus: document.activeElement?.dataset?.ntab || document.activeElement?.className || '' });
+      await press(['DPAD_DOWN'], 'nba-in');
+      await press(['DPAD_RIGHT', 'DPAD_CENTER'], 'nba-game', 2000);
+      check('game page', state()?.screen === 'game');
+      await press(['DPAD_RIGHT'], 'nba-game-other-team');
+      await press(['DPAD_RIGHT'], 'nba-game-plays');
+      await press(['BACK'], 'nba-game-closed');
 
-      window.__tunerTest.go('movie');
-      await until(() => $('#movieGrid .poster'), 30000);
+      // Movies: grid, scroll, detail, play
+      await tab('movie');
       await wait(1500);
-      // Sort & filter chips: OK opens the choices from the right, down + OK picks, focus comes back to the chip;
-      // down from the chips goes into the grid, never the menu
-      $('#movieFilters [data-chip="sort"]').focus();
-      await press(['DPAD_CENTER'], 'movies-sort-sheet');
-      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'movies-sorted');
-      report('chip-focus', { focus: document.activeElement?.dataset?.chip || document.activeElement?.className || '' });
-      await press(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_CENTER'], 'movies-genre-sheet');
-      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'movies-genre-picked');
-      await press(['DPAD_DOWN'], 'movies-down-into-grid');
-      report('chip-down', { focus: document.activeElement?.className || '', inMenu: !!document.activeElement?.closest('.rail') });
-      $('#movieFilters [data-chip="clear"]')?.click();
-      await wait(800);
-      $('#movieGrid .poster').focus();
-      await press(['DPAD_RIGHT'], 'movies');
-      await press(['DPAD_CENTER'], 'detail');
-      await press(['DPAD_CENTER'], 'vod');
-      // Down opens the options: Subtitles (pick English), then Picture size (Zoom)
+      await shot('movies');
+      await press(['DPAD_DOWN'], 'movies-in');
+      check('poster focused', document.activeElement?.classList.contains('pc'));
+      await press(['DPAD_DOWN', 'DPAD_DOWN'], 'movies-scrolled');
+      await press(['DPAD_UP', 'DPAD_UP', 'DPAD_UP', 'DPAD_UP'], 'movies-header');
+      await press(['DPAD_CENTER'], 'movies-sort');
+      await press(['BACK'], 'movies-sort-closed');
+      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_CENTER'], 'detail', 1500);
+      check('detail page', state()?.screen === 'detail');
+      await press(['DPAD_CENTER'], 'vod', 3500);
+      check('vod in the native player', state()?.watching);
       await press(['DPAD_DOWN'], 'vod-options');
-      await press(['DPAD_CENTER'], 'vod-subtitle-menu');
-      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'vod-subtitles-on', 2000);
-      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_CENTER'], 'vod-picture-menu');
-      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'vod-zoom');
-      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-seek');
-      await press(['BACK'], 'vod-closed');
+      await press(['BACK'], 'vod-options-closed');
+      await press(['DPAD_UP'], 'vod-buttons');
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-buttons-moved');
+      await press(['BACK'], 'vod-controls-hidden');
+      await press(['DPAD_RIGHT'], 'vod-seek');
+      await press(['BACK'], 'vod-controls-hidden-2');
+      await press(['BACK'], 'vod-closed', 1500);
+      await press(['BACK'], 'detail-closed');
 
-      $('#sheet .close')?.click();
-      await wait(500);
-      window.__tunerTest.go('settings');
+      // Series detail with episodes
+      await tab('series');
       await wait(1500);
-      $('#settingsPage .srow')?.focus();
-      await wait(600); // let the WebView repaint the focused row before the capture
+      await shot('series');
+      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'series-detail', 2500);
+      await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_RIGHT'], 'series-episodes');
+      await press(['BACK'], 'series-closed');
+
+      // Search with the on-screen keyboard: H, A gives suggestions
+      await tab('search');
+      await press(['DPAD_DOWN'], 'search-keyboard', 800);
+      await press(['DPAD_RIGHT', 'DPAD_DOWN', 'DPAD_CENTER'], 'search-h');
+      await press(['DPAD_UP', 'DPAD_LEFT', 'DPAD_CENTER'], 'search-ha');
+
+      // Account
+      window.__tunerTest.go('account');
+      await wait(1000);
       await shot('account');
-      $('#settingsPage [data-set="team"]')?.focus();
-      await press(['DPAD_CENTER'], 'account-team-sheet');
-      await press(['BACK'], 'account-sheet-closed');
+      await press(['DPAD_LEFT', 'DPAD_DOWN', 'DPAD_DOWN'], 'account-nba');
+      await press(['DPAD_RIGHT', 'DPAD_DOWN', 'DPAD_CENTER'], 'account-shield');
+      await press(['DPAD_DOWN', 'DPAD_CENTER'], 'account-shield-on');
+      window.__tunerTest.go('home');
+      await wait(1500);
+      await shot('home-shielded');
       report('done', state());
     } catch (e) {
       report('error', String((e && e.stack) || e));

@@ -7,28 +7,35 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, 'www');
 const copy = (from, to) => fs.cpSync(path.join(root, from), path.join(out, to), { recursive: true });
 
-fs.rmSync(out, { recursive: true, force: true });
-copy('app', '.');
-for (const dep of [
-  'hls.js/dist/hls.min.js',
-  'mpegts.js/dist/mpegts.js',
-  '@fontsource-variable/bricolage-grotesque',
-  '@fontsource-variable/figtree',
-  '@fontsource-variable/jetbrains-mono',
-  '@fontsource-variable/inter',
-]) copy(path.join('node_modules', dep), path.join('node_modules', dep));
 const target = process.argv[2];
 if (!['tv', 'phone'].includes(target)) throw new Error('Say which build: node scripts/build-web.js tv|phone');
+fs.rmSync(out, { recursive: true, force: true });
 const index = path.join(out, 'index.html');
+if (target === 'tv') {
+  // The TV has its own interface (app/tv.html + app/tv/) and plays everything in its native player: it ships only
+  // that and the shared data code, not the PC/phone interface, the web video libraries or their fonts (about 4 MB).
+  fs.mkdirSync(out, { recursive: true });
+  copy('app/tv', 'tv');
+  for (const f of ['core.js', 'nba.js', 'titles.js']) copy(path.join('app', f), f);
+  copy('app/tv.html', 'index.html');
+} else {
+  copy('app', '.');
+  for (const dep of [
+    'hls.js/dist/hls.min.js',
+    'mpegts.js/dist/mpegts.js',
+    '@fontsource-variable/bricolage-grotesque',
+    '@fontsource-variable/figtree',
+    '@fontsource-variable/jetbrains-mono',
+    '@fontsource-variable/inter',
+  ]) copy(path.join('node_modules', dep), path.join('node_modules', dep));
+}
 // The TV app talks to its native player and updater through Capacitor's plugin bridge, which needs @capacitor/core.
 const head = [`<script>window.TUNER_TARGET = ${JSON.stringify(target)};</script>`];
 if (target === 'tv') {
   copy('node_modules/@capacitor/core/dist/capacitor.js', 'node_modules/@capacitor/core/dist/capacitor.js');
   head.push('<script src="node_modules/@capacitor/core/dist/capacitor.js"></script>');
 }
-// The TV plays everything in its native player, so it skips the web video libraries (about 900 KB to parse).
-let html = fs.readFileSync(index, 'utf8').replaceAll('../node_modules/', 'node_modules/');
-if (target === 'tv') html = html.replace(/<script src="node_modules\/(hls\.js|mpegts\.js)\/[^"]+"><\/script>\n?/g, '');
+const html = fs.readFileSync(index, 'utf8').replaceAll('../node_modules/', 'node_modules/');
 fs.writeFileSync(index, html
   .replace('<script src="core.js"></script>', `${head.join('\n')}\n<script src="core.js"></script>`));
 if (process.env.TUNER_TEST) {

@@ -1,0 +1,53 @@
+/* airglow launch, 1100 ms (design/ui-v1/launch/, UI-SPEC section 8). Transform and opacity only; no filter, blur or sprite.
+   Every selector is l- / #l- so it can't touch the app's own classes. Classes on #app:
+     l-on       the launch layer is up and the app underneath is hidden
+     l-run      the intro plays: 0-300 the bands step out, 300-700 the wedge moves into the lockup (above the letters,
+                so they resolve from behind it), 380-860 the letters
+     l-loading  the hold when the first screen isn't ready at 820 ms: the bands breathe; l-slow adds the 4 s caption
+     l-wiping   820-1100 the 8° slab sweeps; the launch layer fades out in 100 ms, the app fades in from 100 ms,
+                and the top-bar mark only from 160 ms, so the lockup and the mark are never on screen together
+     l-rm       reduced motion: the wedge alone, then a 120 ms fade */
+:root{--l-ease:cubic-bezier(.2,.7,.2,1);--l-ease-wipe:cubic-bezier(.7,0,.2,1)}
+#l-launch{display:none;position:absolute;inset:0;background:#15131D;z-index:50}   /* = bg-0 = the native splash */
+.l-on #l-launch{display:block}
+.l-on>#topbar,.l-on>#screens{opacity:0}
+.l-stage{position:absolute;left:256px;top:218.7px;width:448px;height:102.6px}
+.l-stage svg{position:absolute;display:block;overflow:visible}
+.l-mk{position:absolute;left:-1.7px;top:1.7px;width:102.5px;height:80.9px;transform-origin:50% 50%;z-index:2;transform:translate(148.5px,9.2px) scale(1.595)}
+.l-mk svg{left:0;top:0;width:100%;height:100%}
+.l-lt{left:0;top:0;width:448px;height:102.6px;z-index:1;opacity:0}
+.l-b1,.l-b2,.l-b3{opacity:0}
+
+@keyframes l-band{from{transform:translateX(24px);opacity:0}25%{opacity:1}to{transform:none;opacity:1}}
+@keyframes l-settle{from{transform:translate(148.5px,9.2px) scale(1.595)}to{transform:none}}
+@keyframes l-letter{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes l-wipe{from{transform:translateX(-340px) skewX(-8deg)}to{transform:translateX(1300px) skewX(-8deg)}}
+@keyframes l-out{from{opacity:1}to{opacity:0}}
+@keyframes l-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes l-fade{from{opacity:0}to{opacity:1}}
+@keyframes l-breathe{from{opacity:1}to{opacity:.55}}
+
+.l-run .l-b1,.l-run .l-b2,.l-run .l-b3{animation:l-band 300ms var(--l-ease) both;animation-delay:var(--s)}
+.l-run .l-b1{--s:0ms}.l-run .l-b2{--s:40ms}.l-run .l-b3{--s:80ms}
+.l-run .l-mk{animation:l-settle 400ms var(--l-ease) 300ms both}
+.l-run .l-lt{animation:l-letter 240ms var(--l-ease) both;animation-delay:var(--s)}
+.l-run .l-c0{--s:380ms}.l-run .l-c1{--s:420ms}.l-run .l-c2{--s:460ms}.l-run .l-c3{--s:500ms}.l-run .l-c4{--s:540ms}.l-run .l-c5{--s:580ms}.l-run .l-c6{--s:620ms}
+
+.l-slab{position:absolute;top:-60px;bottom:-60px;left:0;width:300px;background:linear-gradient(100deg,#F95BAC,#D540F5);z-index:60;opacity:0;pointer-events:none}
+.l-slabline{position:absolute;top:-60px;bottom:-60px;left:0;width:10px;background:#D540F5;opacity:0;z-index:60;pointer-events:none}
+.l-wiping .l-slab{animation:l-wipe 280ms var(--l-ease-wipe) both;opacity:1}
+.l-wiping .l-slabline{animation:l-wipe 280ms var(--l-ease-wipe) 34ms both;opacity:.6}
+.l-wiping #l-launch{animation:l-out 100ms linear both}
+.l-wiping>#topbar,.l-wiping>#screens{animation:l-in 180ms var(--l-ease) 100ms both}
+.l-wiping>#topbar .mk{animation:l-fade 120ms linear 160ms both}
+
+/* the hold: calm, the three bands breathe in a ripple (the only loop in the app besides a spinner) */
+.l-loading .l-b1,.l-loading .l-b2,.l-loading .l-b3{animation:l-breathe 1.6s ease-in-out infinite alternate both}
+.l-loading .l-b2{animation-delay:.18s}.l-loading .l-b3{animation-delay:.36s}
+.l-loading .l-mk{transform:none}.l-loading .l-lt{opacity:1}
+.l-cap{position:absolute;left:0;right:0;top:372px;text-align:center;font:500 16px/24px var(--a-font-text);color:var(--a-text-2);opacity:0}
+.l-slow .l-cap{opacity:1;animation:l-fade 200ms linear both}
+
+/* reduced motion: the wedge alone, then a 120 ms fade */
+.l-rm .l-b1,.l-rm .l-b2,.l-rm .l-b3,.l-rm .l-lt,.l-rm .l-slab,.l-rm .l-slabline{animation:none!important;opacity:0}
+.l-rm.l-fading #l-launch{animation:l-out 120ms linear both}.l-rm.l-fading>#topbar,.l-rm.l-fading>#screens{animation:l-fade 120ms linear both}

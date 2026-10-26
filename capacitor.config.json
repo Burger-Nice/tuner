@@ -1,10 +1,10 @@
 {
   "appId": "app.tuner.player",
-  "appName": "Tuner",
+  "appName": "airglow",
   "webDir": "www",
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#0b0d11",
+    "backgroundColor": "#15131D",
     "scrollEnabled": false,
     "allowsLinkPreview": false
   },
@@ -15,6 +15,6 @@
   },
   "android": {
     "allowMixedContent": true,
-    "backgroundColor": "#0b0d11"
+    "backgroundColor": "#15131D"
   }
 }
