@@ -9,7 +9,7 @@
       : `<span class="score" style="margin-left:6px">77</span><span class="t-3" style="font:700 22px var(--a-font-display)">–</span><span class="score">70</span>`;
     const side = shield ? '' : `<table class="ls abs" style="left:530px;top:36px"><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>T</th></tr>
     <tr><td>MEM</td><td>24</td><td>21</td><td>32</td><td class="dim">–</td><td class="t">77</td></tr><tr><td>GS</td><td>19</td><td>25</td><td>26</td><td class="dim">–</td><td class="t">70</td></tr></table>
-  <div class="abs lead" style="left:530px;top:108px;width:190px"><b>G. Marshall</b> 24 pts, 7 reb</div>`;
+  <div class="abs lead" style="left:530px;top:108px;width:190px"><b>G. Marshall</b> 24 pts, 7 reb</div><span class="synced abs" style="left:330px;top:12px">${ic('clock')}Synced · 42 s behind live</span>`;
     return `${topbar({ sel: 'nba', live: true })}
 <div class="dayrow"><span class="t-head">NBA</span>
   <span class="row-flex" style="gap:8px;margin-left:12px"><span class="chip lg">${ic('chevL')}Sun 25</span><span class="chip lg sel">Today · Mon 26 Oct</span><span class="chip lg">Tue 27${ic('chevR')}</span></span>

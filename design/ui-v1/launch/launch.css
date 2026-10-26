@@ -1,0 +1,57 @@
+/* airglow launch, 1100 ms. Transform and opacity only. No filter, no blur, no sprite.
+   Timeline (ms):  0-300 bands step out (40 ms stagger)  ->  300-700 wedge moves into the lockup, letters resolve
+                   ->  700-820 hold  ->  820-1100 8 deg soft slab wipes to Home (launch layer fades 200 ms inside it).
+   --t freezes the whole thing at an instant for stills (index.html?t=450).  .loading = hold with the bands breathing. */
+:root{--ease:cubic-bezier(.2,.7,.2,1);--ease-wipe:cubic-bezier(.7,0,.2,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:960px;height:540px;overflow:hidden;background:#15131D}
+#app{position:absolute;inset:0;background:#15131D}
+#home{position:absolute;inset:0;opacity:0}                         /* Home sits under the launch layer */
+#launch{position:absolute;inset:0;background:#15131D;z-index:5}      /* = bg-0 = native splash window background */
+.stage{position:absolute;left:256px;top:218.7px;width:448px;height:102.6px}  /* lockup box, centred; scale .7043 of lockup.svg */
+.stage svg{position:absolute;display:block;overflow:visible}
+.mk{position:absolute;left:-1.7px;top:1.7px;width:102.5px;height:80.9px;transform-origin:50% 50%}
+.mk svg{left:0;top:0;width:100%;height:100%}
+.lt{left:0;top:0;width:448px;height:102.6px}
+
+/* resting state = the final lockup. The animations start from the splash frame (wedge alone, centred, 96 px tall)
+   and fill backwards, so the first painted frame is identical to the native splash. */
+
+@keyframes band{from{transform:translateX(24px);opacity:0}25%{opacity:1}to{transform:none;opacity:1}}
+@keyframes settle{from{transform:translate(148.5px,9.2px) scale(1.595)}to{transform:none}}
+@keyframes letter{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes wipe{from{transform:translateX(-340px) skewX(-8deg)}to{transform:translateX(1300px) skewX(-8deg)}}
+@keyframes out{from{opacity:1}to{opacity:0}}
+@keyframes inn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes breathe{from{opacity:1}to{opacity:.55}}
+
+.run .b1,.run .b2,.run .b3{animation:band 300ms var(--ease) both;animation-delay:calc(var(--s) - var(--t,0ms))}
+.run .b1{--s:0ms}.run .b2{--s:40ms}.run .b3{--s:80ms}
+.run .mk{animation:settle 400ms var(--ease) both;animation-delay:calc(300ms - var(--t,0ms))}
+.run .lt{animation:letter 240ms var(--ease) both;animation-delay:calc(var(--s) - var(--t,0ms))}
+.run .l0{--s:380ms}.run .l1{--s:420ms}.run .l2{--s:460ms}.run .l3{--s:500ms}.run .l4{--s:540ms}.run .l5{--s:580ms}.run .l6{--s:620ms}
+/* the wedge's final state is set explicitly so it holds after the animation */
+
+.slab{position:absolute;top:-60px;bottom:-60px;left:0;width:300px;background:linear-gradient(100deg,#F95BAC,#D540F5);z-index:9;opacity:0}
+.slabline{position:absolute;top:-60px;bottom:-60px;left:0;width:10px;background:#D540F5;opacity:0;z-index:9}
+.wiping .slab{animation:wipe 280ms var(--ease-wipe) both;animation-delay:calc(0ms - var(--w,0ms));opacity:1}
+.wiping .slabline{animation:wipe 280ms var(--ease-wipe) both;animation-delay:calc(-34ms - var(--w,0ms));opacity:.6}
+.wiping #launch{animation:out 200ms linear both;animation-delay:calc(60ms - var(--w,0ms))}
+.wiping #home{animation:inn 220ms var(--ease) both;animation-delay:calc(80ms - var(--w,0ms))}
+.done #launch,.done .slab,.done .slabline{display:none}.done #home{opacity:1}
+
+/* loading hold: calm, the three bands breathe in a ripple. The only loop in the app besides a spinner. */
+.loading .b1,.loading .b2,.loading .b3{animation:breathe 1.6s ease-in-out infinite alternate both}
+.loading .b2{animation-delay:.18s}.loading .b3{animation-delay:.36s}
+
+/* warm resume: no launch layer at all */
+.warm #launch{display:none}.warm #home{opacity:1}
+
+/* reduced motion: static wedge, then a 120 ms fade into Home. No bands, no slab, no breathing. */
+.rm .b1,.rm .b2,.rm .b3,.rm .lt,.rm .slab,.rm .slabline{animation:none!important}
+.rm .b1,.rm .b2,.rm .b3{opacity:0}.rm .lt{opacity:0}.rm .mk{transform:translate(148.5px,9.2px) scale(1.595)}
+.rm.fading #launch{animation:out 120ms linear both}.rm.fading #home{animation:inn2 120ms linear both}
+@keyframes inn2{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.run .b1,.run .b2,.run .b3,.run .lt,.run .mk{animation:none!important}}
+.hud{position:absolute;left:12px;top:8px;z-index:20;font:500 11px/14px monospace;color:#8a8398;display:none}
+body.hud-on .hud{display:block}

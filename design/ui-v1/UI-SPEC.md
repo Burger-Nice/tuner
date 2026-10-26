@@ -1,173 +1,255 @@
-# airglow TV UI v1: design spec
+# airglow TV UI v1: design spec (final milestone)
 
-Status: **milestone 1** (IA and navigation decision, Home, Live guide, Movies grid with sort and filters, detail for movies and series, NBA hub). The final milestone adds the rest of the TV screens, the native player overlays, phone and PC adaptations, the launch animation, and the consultants' feedback. Provisional items are marked **(provisional)**: they wait for the UX brief.
+Scope: **TV only** (owner decision: phone and PC adaptations are on hold). Every TV screen, the native player overlays, and the launch animation.
+Inputs: brand v5.4 (`design/brand-v5/v5.4/`, `BRAND.md`, `tokens.css`, `BRIEF-for-UI.md`), `UX-BRIEF.md`, and the two milestone-1 checks (`UX-CHECK-m1.md`, `BRAND-CHECK-m1.md`). Where this spec departs from a brief, section 12 says why.
 
-How to read this: every mock is real HTML/CSS in `tv/*.html` at the TV's true CSS viewport (960 x 540, 2x), built on `design/brand-v5/v5.4/tokens.css`. `ui.css` is the part meant to be ported into the app. The renders are `png/*.png` at 1920 x 1080 (`node tools/render.js tv/home.html`). `png/overview-m1.png` is a contact sheet; `png/ia.png` is the IA board.
+How to read it: every mock is real HTML/CSS at the TV's true CSS viewport (960 x 540, 2x), built on `tokens.css`. `ui.css` is the part meant to be ported. Renders are `png/*.png` at 1920 x 1080. `png/overview-final.png` is the contact sheet, `png/ia.png` the IA board, `launch/index.html` the working launch animation.
 
-| File | What |
+| Path | What |
 |---|---|
-| `ui.css` | components and layout, all on brand tokens; only transform and opacity are ever animated |
-| `kit/kit.js`, `kit/movies.js` | markup builders for the mocks (they emit the class names `ui.css` styles) |
-| `kit/art.js`, `kit/data.js` | procedural key art (flat gradients and shapes, no filters) and realistic messy content |
-| `tv/home.html` `live.html` `nba.html` `movies*.html` `detail-*.html` | the screens |
-| `ia.html` | IA and navigation board |
+| `ui.css` | components and layout on the brand tokens; only transform and opacity are ever animated |
+| `kit/*.js` | markup builders for the mocks: `kit` (top bar, cards, game card, guide cell), `home`, `live`, `movies`, `detail`, `nba`, `game`, `screens` (first run, search, saved, account, update, states), `player` (native overlays), `art`/`data` (procedural art, messy content) |
+| `tv/*.html` | 43 TV screens and states; `player/*.html` 21 native overlay mocks; `launch/` the working launch |
+| `tools/render.js` | `node tools/render.js tv/home.html` writes `png/tv-home.png` (needs Playwright). `tools/audit.js` checks every mock: one focus ring, node count, banned CSS, text below 14 px |
 
 ---
 
-## 1. Design principles (what every decision answers to)
+## 1. Principles (every decision answers to these)
 
-1. **Open on the thing you came for.** Home is a single contextual hero with one primary button focused at launch: live game, else resume, else last channel. From cold start to playing is one press. (Apple HIG, Live-viewing apps: "let people tap once, or not at all, to start playback"; Playing video: avoid asking whether to resume.)
-2. **Live looks live; everything else is calm.** Red appears only as the LIVE pill. The Sharp dialect (12° plates, italic condensed scores) appears only where live or NBA content is. Soft is the rest. (Apple HIG: "make sure live content looks live.")
-3. **Density where it helps, air where it reads.** Six poster columns, a three-hour guide, a 16:9 row with a peek. One line of meta per card; the focused item and the detail page carry the rest. (NN/g Smart-TV usability: every remote selection is expensive, so cut steps; Android TV: limit text and complexity at 10 ft.)
-4. **The d-pad has one job per axis.** Left and right move along a row, up and down move between rows, the top bar is one step above everything. No dead ends, no focus traps, Back always leaves a layer. (Android TV, Navigation on TV.)
-5. **Cheap to draw.** Under about 200 UI nodes per screen, no filters, no blur, no soft shadows, animation on transform and opacity only, one focused element promoted at a time. The brand rules and the WebView budget agree here.
+1. **Open on the thing you came for.** Home's hero is one contextual item with its primary button focused at launch: your team's game, else resume, else the last channel. Cold launch to the game is one press.
+2. **Live looks live, everything else is calm.** Red appears only as the LIVE pill. The Sharp dialect (12° plates, italic condensed scores) appears only in live and NBA places. (Apple HIG, Live-viewing apps.)
+3. **The picture is sacred and spoilers are a mode.** In the player nothing covers the centre half except subtitles; one panel at a time. One switch (the spoiler shield) covers every surface, and every score shows at the stream's synced delay.
+4. **One job per axis.** Left and Right move along a row, Up and Down between rows, the top bar is one step above everything. The same key never changes meaning with hidden state (player OK is always the channel panel).
+5. **Shelves are optional, one grid is enough.** At 960 x 540 one grid with Popular first and view chips shows 12 strong candidates on the first screen, with about a tenth of the nodes of six shelves. (The UX brief adopted this over its own shelves page.)
+6. **Cheap to draw.** 9 to 250 UI nodes per screen (audit), no filters or blur, no soft shadows, animation on transform and opacity only.
 
-## 2. Platform research and how it was used
+## 2. Research behind the structure
 
-Numbers marked (P) are from the primary page fetched during this work; (S) are secondary summaries and are treated as hints, not rules.
+(P) = the primary page was read; (S) = a secondary summary, treated as a hint.
 
 | Source | Fact | Used for |
 |---|---|---|
-| [Apple HIG, Layout, tvOS](https://developer.apple.com/design/human-interface-guidelines/layout) (P) | Safe area 60 pt top/bottom, 80 pt sides; grids with 40 pt gutters and at least 100 pt between rows; six columns = 260 pt wide cards; "make partially hidden content look symmetrical"; titled rows need extra vertical space | Safe area 48 x 27 (brand token), 6-column grid with 129 px posters (258 pt) and 18 px gutters, row pitch with 59 px between a poster and the next row, rows bleed off the right edge |
-| [Apple HIG, Typography](https://developer.apple.com/design/human-interface-guidelines/typography) (P) | tvOS default 29 pt, minimum 23 pt | Brand floor 13 px = 26 pt on 1080p; body 16 px = 32 pt |
-| [Apple HIG, Focus and selection](https://developer.apple.com/design/human-interface-guidelines/focus-and-selection) (P) | Focus is not selection; five states (unfocused, focused, highlighted, selected, unavailable); focused item gets larger so leave padding; use a ring for fields and a highlight for lists | Selected vs focused rules; scale-up needs the 18 px gutter; the guide uses an inset highlight, not an outer ring |
-| [Apple HIG, Tab bars](https://developer.apple.com/design/human-interface-guidelines/tab-bars) (P) | tvOS tab bar at the top, 68 pt high, 46 pt from the top; Menu returns focus to the tab bar; live apps order tabs Live, recorded, other; do not hide or disable tabs | Top bar decision, Back model, tab order, tabs never disabled |
-| [Apple HIG, Live-viewing apps](https://developer.apple.com/design/human-interface-guidelines/live-viewing-apps) (P) | Live content first and one step from playback; mark live content; show progress of in-progress live; keep actions in the same order everywhere (Watch, Start over, Record, Favorite); EPG opens on the current programme and returns to playback easily; favourites group; content footer for browsing while playing; instant feedback on channel change | Home hero, LIVE pill, progress bars on live cards, guide now line, Favourites first, mini guide (final milestone), action order Watch then secondary |
-| [Apple HIG, Remotes](https://developer.apple.com/design/human-interface-guidelines/remotes) (P) | Back opens the parent screen; press and hold Back goes Home; page up/down browses the EPG, and changes channel during playback; avoid reacting to inadvertent taps during live video | Key map; CH +/- = page in lists and zap in the player |
-| [Apple HIG, Playing video](https://developer.apple.com/design/human-interface-guidelines/playing-video) (P) | Avoid loading screens; if more than 2 s use a black screen with a spinner; resume automatically; exiting playback lands on the detail page; keep overlays translucent and short (image retention) | Resume without a prompt, exit lands on the detail page, native overlays in the final milestone |
-| [Apple HIG, Search fields, tvOS](https://developer.apple.com/design/human-interface-guidelines/search-fields) (P) | Keyboard on top, results grid beneath; provide suggestions and recent searches because nobody wants to type | Search screen (final milestone) |
-| [Android TV, Layouts](https://developer.android.com/design/ui/tv/guides/styles/layouts) (P) | Design at 960 x 540 dp, about 5% margins (58 dp sides are used in the 12-column grid), card widths 844 / 412 / 268 / 196 / 124 dp for 1 to 5 across, 20 dp gaps, peek of the next card, background art edge to edge | 960 x 540 canvas, 16:9 cards at 204 px (4 across plus a peek), backdrops bleed |
-| [Android TV, Cards](https://developer.android.com/design/ui/tv/guides/components/cards) (P) | 16:9 most common, 2:3 for emphasis, 1:1 for logos; title, subtitle, description; scrim over art for readable text | Movie posters 2:3, rows 16:9, channel and team logos 1:1, scrim on every card title |
-| [Android TV, Navigation drawer](https://developer.android.com/design/ui/tv/guides/components/navigation-drawer) (P) | Rail needs 3 to 7 destinations, 5 or 6 recommended; icons and labels, never mixed | Why top tabs were preferred: 6 destinations plus search and account fit a bar and keep full width for content |
-| [Android TV, Tabs](https://developer.android.com/design/ui/tv/guides/components/tabs) (P) | Pill indicator for full-page destinations, bar indicator within a content area; states default, focused, selected | Selected = chalk text + gradient underline; focused = ring; chips for in-page choices |
-| [Android TV, Immersive list](https://developer.android.com/design/ui/tv/guides/components/immersive-list) and [Featured carousel](https://developer.android.com/design/ui/tv/guides/components/featured-carousel) (P) | Large preview that updates with focus; subject top right; no text in backgrounds; scrim so title, text and button stay readable | Detail pages: art on the right, scrim on the left; the Home hero is one contextual item, not an auto-advancing carousel |
-| [Android TV, Focus system](https://developer.android.com/design/ui/tv/guides/styles/focus-system) (P) | Scale 1.025, 1.05, 1.1; outline outside the element with an inset; one focused element; focus never colour alone | Ring + 1.05 scale on cards and primary buttons |
-| [Android TV, Navigation on TV](https://developer.android.com/design/ui/tv/guides/foundations/navigation-on-tv) (P) | D-pad moves to the nearest element; every element reachable; Back returns to the previous destination, no confirmation, no on-screen back button; do not put splash in the back stack; two axes with distinct roles | Key map, no back buttons, Back model |
-| [Android TV, Color on TV](https://developer.android.com/design/ui/tv/guides/foundations/color-on-tv) (P) | Test in Standard picture mode; Vivid raises saturation, Sports raises brightness; sRGB for UI; avoid banding with dithering or flat colour; never colour alone | Brand tokens, grain on large fills, status always icon + text |
-| [Amazon Fire TV design guidelines](https://developer.amazon.com/docs/fire-tv/design-and-user-experience-guidelines.html) (S, search summary) | Keep UI out of the outer 5%; design at 1080p, 960 x 540 dp; prefer less saturated, cooler colours | Same safe area; confirms the brand palette direction |
-| [NN/g, Smart-TV usability](https://www.nngroup.com/articles/smart-tv-usability/) (S, search summary) | Moving a cursor with a remote is a discrete, costly step; reduce the number of selections | One-press launch, chips rather than menus for common filters, favourites first |
-| Netflix device UI notes, 2011 to 2013 (S) | Design for the weakest common device; CSS transforms paint into GPU layers, so layer size matters | Per-screen budgets in section 6 |
+| [Apple HIG, Layout](https://developer.apple.com/design/human-interface-guidelines/layout) (P) | tvOS safe area 60 pt top/bottom, 80 pt sides; grids use 40 pt gutters and at least 100 pt between rows; make partially hidden content symmetrical | 48 x 27 safe area (brand), 24 px gutters, row pitch 252, rows bleed off the right edge |
+| [Apple HIG, Tab bars](https://developer.apple.com/design/human-interface-guidelines/tab-bars) (P) | tab bar at the top; live apps order tabs Live first; do not hide or disable tabs; Menu returns focus to the bar | Top bar, Back model |
+| [Apple HIG, Live-viewing apps](https://developer.apple.com/design/human-interface-guidelines/live-viewing-apps) (P) | live first and one step from playback; mark live; progress for in-progress live; EPG opens on the current programme; favourites group; content footer for browsing while playing; instant feedback on channel change | Hero, LIVE pill, progress bars, now line, Favourites, mini guide, zap card |
+| [Apple HIG, Remotes](https://developer.apple.com/design/human-interface-guidelines/remotes) (P) | Back opens the parent screen; page up/down browses the EPG and changes channel in playback; ignore inadvertent taps in live video | Key map |
+| [Apple HIG, Playing video](https://developer.apple.com/design/human-interface-guidelines/playing-video) (P) | no loading screens if avoidable (black + spinner after 2 s); resume without asking; exiting lands on a detail view; translucent overlays, short (image retention) | Launch hold, resume rule, VOD overlays |
+| [Apple HIG, Search fields](https://developer.apple.com/design/human-interface-guidelines/search-fields) (P) | tvOS: keyboard on top, results beneath; give suggestions, nobody wants to type | Search |
+| [Apple HIG, Focus and selection](https://developer.apple.com/design/human-interface-guidelines/focus-and-selection) (P) | focus is not selection; five states; ring for fields, highlight for lists; padding for the scale | Selected vs focused, row focus |
+| [Android TV: Layouts, Cards, Tabs, Navigation drawer, Navigation on TV, Focus system, Color on TV](https://developer.android.com/design/ui/tv) (P) | 960 x 540 dp, 5% margins, 16:9 and 2:3 cards, peek, 20 dp gaps; pill tabs for pages; rail 3 to 7 destinations; Back goes to the previous destination with no confirmation and no on-screen back button; one focus, scale 1.025 to 1.1; test in Standard picture mode, avoid banding | Whole system |
+| [WCAG 2.2, 1.4.3 and 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html) (S) | 4.5:1 text, 3:1 non-text | Brand tokens (checked by the brand script) |
+| UX brief sources S1 to S51 (UX-BRIEF.md) | zap time below 0.43 s is "good", 2 s video start abandonment, EPG grids orient fastest, YouTube TV hold-OK last channel, spoilers leak through thumbnails and records | Press counts, AC tables, shield scope |
+| Netflix device UI notes 2011 to 2013 (S) | design for the weakest device; transforms paint into GPU layers so layer size matters | Performance rules |
 
 ## 3. Layout system
 
-Canvas 960 x 540 CSS px (1920 x 1080 device). 1 rem = 16 px.
+Canvas 960 x 540 CSS px (1920 x 1080 device). 1 rem = 16 px. Safe area x 48 to 912, y 27 to 513. Interactive content never leaves it; art and rows may bleed.
 
-- **Safe area:** 48 px left and right, 27 px top and bottom (brand). Interactive content never leaves it. Rows may bleed off the right edge (peek) and backdrops bleed edge to edge.
-- **Vertical rhythm:** top bar 27 to 71. Page header 80 to 120. Chips 128 to 164. Content from 176. Row title 28 px line, 8 px to cards. Sections 16 px apart.
-- **Columns:** 864 px content width. Posters: 6 x 129 px (2:3, 194 px tall) with 18 px gutters, caption 9 px below (title 18 + meta 16). 16:9 cards: 204 x 115, 16 px gap, four across plus a peek (the fifth card starts at x = 928). Game cards: 3 x 276 px, 18 px gutters. Episode cards: 200 x 112.
-- **Radii:** cards 16, posters 12 (they are small), rows 8 to 12, pills 999, dialogs 24, sheets square on the screen edge.
-- **Elevation:** surface steps and 1 px `--a-border`. No shadows. Overlays use `--a-scrim`.
-- **Top bar:** mark 28 px tall, tabs Outfit 500 18 px (selected 700 plus 3 px gradient underline, inset 16), search icon button 40 px, avatar 36 px. The NBA tab carries the LIVE pill only while a game is live. The bar slides away (translateY) when focus is more than one row down and comes back on Up or Back; detail pages and the player do not show it.
-- **Tab order:** Home, Live, NBA, Movies, Series, Saved (live first, per the HIG), then Search and Account on the right.
+| Element | Value |
+|---|---|
+| Top bar | y 32 to 72 (40 high pills so a 5 px ring stays inside y 27). Mark `mark-small.svg` 28 px, then Search, Home, Live, NBA, Movies, Series, Saved; Account avatar 36 px at the right. Tabs Outfit 500 18, selected 700 with a 3 px gradient underline inset 16. NBA carries the compact LIVE pill only while your team is live |
+| Page header | y 80 to 120: head title (Outfit 700 28), count and "English first" in caption, then Sort, Filters, Jump pills (36 high) |
+| Chip row | y 128 to 164, 8 chips (36 high, 8 gap), inside 48 to 912 |
+| 2:3 poster | 124 x 186, radius 12, 6 per row, 24 gap (6 x 124 + 5 x 24 = 864). Caption 14 px below the art (title Inter 650 16, meta 14); row pitch 252 |
+| 16:9 card | 198 x 111, radius 16, 24 gap, four across plus a peek at x 928 |
+| Game card | 272 x 124, three across, 24 gap |
+| Episode card | 200 x 112 |
+| Hero plate | 864 x 176 at y 84 (radius 16, surface-1) |
+| Guide | channel column 208, time axis 656 px = 2.5 h (4.37 px/min) with "now" at the left edge; rows 50 + 6 gap; 6 rows visible |
+| Sheets | right sheet 392 to 420 wide (full height, bg-1), left sheet 340, menus 320 to 352 (radius 24) |
+| Native panels | left 352 (channels) or 320 (options), right 264 (game), banner 64 high, hint bar 34 |
 
-### 3.1 Type usage (brand tokens; nothing new)
+**Gutter rule (AC-F3):** a focused 124 px poster scaled 1.05 plus its 5 px ring needs about 8.2 px on each side; gutters are 24 (12 each side to the neighbour). Chips and rows use ring only, no scale.
+
+### 3.1 Type (brand tokens, nothing new)
 
 | Where | Token | Size / line |
 |---|---|---|
-| Page title ("Movies", "NBA") | head | 28 / 32 Outfit 700 |
 | Detail title | display | 40 / 44 Outfit 700 |
-| Row title ("Continue watching") | title | 22 / 28 Outfit 700 |
+| Page title | head | 28 / 32 Outfit 700 |
+| Row title, dialogs | title | 22 / 28 Outfit 700 |
 | Buttons | Outfit 700 | 17 |
-| Card title | Inter 650 | 15 / 20 |
-| Card meta, captions, guide sub-lines | caption | 13 / 16, text-3 or text-2 |
-| Body (plot) | body | 16 / 24, text-2 |
-| Labels (eyebrows, section names) | label | 14 / 18, caps, +0.08em |
-| Scores (Sharp only) | score | 56 / 52 hero, 34 / 36 game plate, Barlow Condensed 800 italic |
+| Card and cell titles, poster title | Inter 650 | 16 / 20 |
+| Meta, times, channel names in the guide, box-score cells, setting values | caption | **14 / 18** (brand floor since v5.4) |
+| Body (plot) | body | 16 / 24, text-2, 3 lines max |
+| Eyebrows | label | 14 / 18 caps +0.08em |
+| Badges only (LIVE, 4K, HD, CC, TV-MA, +3, team abbreviations, episode numbers) | badge | 12, caps, 650/700, 5 characters or fewer |
+| Scores (Sharp only) | score | 56 / 52 in heroes, 34 / 36 in game cards, 30 in the player plate |
 
-Numerals are tabular everywhere (set on `body`).
+`tools/audit.js` flags any text below 14 px that is not one of those badges: none found.
 
-### 3.2 Focus and selection
+### 3.2 Focus, selection, states
 
-- **Focus ring** (`.f`): `--a-focus-ring` (3 px white, 2 px canvas gap) plus `scale(1.05)` on posters, wide cards, game cards, primary buttons.
-- **Ring only** (`.f-ring`): chips, tabs, pill buttons, list rows, fields (text stays sharp; a 1.05 scale on a 15 px label is soft on weak panels).
-- **Inset ring** (`.f-in`): guide cells only. Cells are 4 to 6 px apart, so an outside ring would sit on the neighbours. The 3 px white line is drawn inside the cell over `surface-3`. This is the one deviation from the brand focus spec; it is listed in section 9 for the brand check.
-- **Selected** persists without focus: chip = surface-3 + pink dot + pink-text; tab = gradient underline; radio = pink dot; channel row in the guide = surface-2. Selected and focused show both.
-- **Exactly one focused element per screen** (verified on each mock).
+- **Focus** = `--a-focus-ring` (3 px white, 2 px canvas gap) plus scale 1.05 on posters, 16:9 cards, game cards, episode cards, primary buttons (`.f`). **Ring only** on chips, tabs, pills, list rows, fields (`.f-ring`). **Inset ring** on guide cells and keyboard-style dense rows (`.f-in`, approved variant: only where gaps are 8 px or less; no scale; fill moves to surface-3).
+- **Selected is not focused.** Persists after focus leaves: chip = surface-3 + pink dot + pink-text; tab = gradient underline; radio = pink dot; toggle = gradient track + ink knob + the word On; guide channel = surface-2. Selected and focused show both.
+- **Exactly one ring per screen** (audit: every mock passes; the only exceptions are the HUD-style player overlays that take no focus: banner, zap card, action chip, reconnect, subtitles). When a sheet opens, the opener loses its ring and the sheet's first row takes it (F6).
+- **Hold OK** (500 ms) shows the pressed state at 150 ms, then a context menu with **Save to Saved first and focused**, so hold then OK saves (2 presses). The guide's hold OK toggles a favourite and shows an undo toast ("Added to Favourites · OK to undo", 4 s, never takes focus).
 
-## 4. Motion (all transform and opacity)
+## 4. Motion (transform and opacity only; reduced motion = 120 ms opacity fade)
 
-| Moment | Property | Duration | Easing |
+| Moment | Property | ms | Easing |
 |---|---|---|---|
-| Focus ring and lift | box-shadow swap (instant) and transform | 120 ms | `cubic-bezier(.2,.7,.2,1)` |
-| Poster / card lift | transform scale 1 to 1.05 | 200 ms | same |
-| Top bar hide/show | translateY(-100%) and opacity | 200 ms | same |
-| Row scroll (vertical) | translateY of the page; target row sits 176 px from the top with the next row peeking | 320 ms | same |
-| Rail scroll (horizontal) | translateX | 200 ms | same |
-| Tab change | cross-fade of page content only (no slide, the guide is heavy) | 200 ms, started after a 250 ms dwell | same |
-| Sheets and menus | translateX(24 px) to 0 plus opacity | 320 ms | same |
-| Live wipe (live states only) | 12° slab translateX | 280 ms | `cubic-bezier(.7,0,.2,1)` |
-| Reduced motion | everything above becomes a 120 ms opacity fade | | |
+| Ring on/off | instant swap of box-shadow class, no transition | 0 | n/a |
+| Card lift | transform scale 1 to 1.05 | 200 | `cubic-bezier(.2,.7,.2,1)` |
+| Chip, pill, press | background swap | 120 | same |
+| Top bar hide/show | translateY(-100%), opacity | 200 | same |
+| Row scroll vertical | translateY of the page, target row aligned to y 176 | 320, **0 while a key repeats** | same |
+| Rail scroll horizontal | translateX, fixed focus position | 200, 0 on repeat | same |
+| Tab switch | page cross-fade, after a 250 ms dwell and only if rendered from cache | 200 | same |
+| Sheets and menus | translateX(24 px) to 0 plus opacity | 320 | same |
+| Native panels | same, 24 dp | 200 | same |
+| Live wipe | 12° slab translateX | 280 | `cubic-bezier(.7,0,.2,1)` |
+| Launch | see section 8 | 1100 | |
 
-Never animate width, height, top, left, box-shadow or filter. Promote with `will-change: transform` only on the focused element; remove on blur.
+Never animate width, height, top, left, box-shadow or filter. `will-change: transform` is set on the focused element and removed on blur. While a direction key repeats (F10): no smooth scroll, no lift animation, ring moves instantly.
 
-## 5. Screens (milestone 1)
+## 5. Screens
 
-Each entry: purpose, layout, content rules, states, keys.
+Each screen: purpose, layout, states, keys. Keys: ▲▼◀▶ move, OK activate, hold OK = menu, Back, Menu = Sort/Filters/Options alias, CH± = page. Entry focus is named per screen.
 
-### 5.1 Home (`tv/home.html`)
+### 5.1 First launch and sign-in (`tv/first-*.html`, `tv/update.html`)
+Welcome (gradient lockup on bg-0 at 64 px, "Add your TV provider", primary **Use your phone**, secondary Type it here, Load an M3U link) → phone path (QR + `192.168.1.23:8765` + code 4821, three numbered steps, a "Waiting for your phone" bar; the TV app serves a one-page form on the LAN) → fallback type path (one "Provider link or server" field that fills the rest from a pasted `get.php` link) → verifying (steps with ticks; Home opens as soon as channels are in; Cancel focused) → **Three quick choices** (your team, spoilers Off / My team / All games, languages shown first; Back skips). Entry focus: Use your phone. Target: 4 TV presses via the phone, under 90 s. The lockup uses the gradient file on bg-0 only; the mark is not shown separately.
 
-Purpose: get to something playing in one press; surface what is live and what you were watching.
-Layout: hero plate 864 x 182 at y 84 (radius 16, surface-1). For a live game: LIVE pill + quarter and clock; team discs 48 px with names and records; scores in Barlow italic 56 with a dash; leaders; primary Watch live (focused at launch), secondary Box score, a caption with where the game is on. A 12° slab at the right edge occupies about 17% of the hero with a parallel orchid line. Then "Continue watching" (16:9 cards, title and meta inside on a scrim, progress bar flush at the bottom) and "On now" (favourite channels first; logo tile, LIVE pill on live events, channel number, programme title, channel name and quality, progress to the end). Further rows after scrolling: NBA tonight (game cards), New in English (movies), New series, Saved.
-Hero priority: your team live > any live game with a matched channel > resume (art backdrop, Resume button, minutes left) > last watched channel > "Pick something" empty state.
-States: no game today shows the resume hero; no provider data shows skeleton blocks (flat surface-2, no shimmer); offline shows the offline card from section 8.
-Keys: OK on a card plays or opens detail (movies and series open detail; live channels play; continue-watching items resume without a prompt). Hold OK saves. Up from the hero goes to the top bar.
-Why not an auto-advancing carousel: Android TV warns against distracting backgrounds and text in hero art, and a rotating hero moves the primary button under the user's thumb.
+### 5.2 Home (`tv/home*.html`)
+Hero priority (owner's game first): **your team from 3 h before tip-off to 30 min after the final** > resume > last channel. Other live games lead the On now row, not the hero.
+- *live*: LIVE pill, quarter and clock, team discs (neutral placeholders), Barlow italic score in the Sharp slab hero, leaders, "Synced · 42 s behind live", primary **Watch live**, secondary Box score, caption "On NBA League Pass 4 / Hold OK for 2 more channels".
+- *shield*: the score becomes a "Score hidden · Spoiler shield · My team" tile, leaders and sync line disappear, the secondary becomes **Reveal score**.
+- *pre*: "Tip-off 21:30 · in 49 min", the tip time in the plate, **Watch pre-game**.
+- *choose*: no channel known: primary **Choose channel** opens the sheet (EPG match first, then NBA / League Pass channels, then your Sports group); the pick is remembered per team.
+- *resume*: no game: art-backed hero, **Resume** (focused), Start over, Details, progress and minutes left.
+Below: **On now** (favourites first, 198 x 111 cards with a logo tile, LIVE pill, number, programme, channel and quality, progress) and **Continue watching** (resume immediately, no detail page; a finished episode becomes the next one). Entry focus: the hero's primary button, from launch, from Back and from the tab. Keys: OK on a card plays; hold OK menu; Up from the hero = bar.
 
-### 5.2 Live guide (`tv/live.html`)
+### 5.3 Live guide (`tv/live*.html`)
+Now panel (display only, so no extra stops): logo tile, programme, LIVE, channel, quality, times, time left, progress, one-line description (hidden under the shield: "Description hidden (spoiler shield)"). Ruler row: group chip at the left (reachable with **Up from the first row**, no Menu key needed), "Now" flag and a 2 px pink line behind the cells, times every 30 min. Rows: channel number, 32 px logo tile, name (two lines), star or pin; your team's game is **pinned first**. Programme cells are positioned by time, inset focus ring; cells under 36 min show the start time only; missing guide = one dashed "No guide information" cell, still tunable.
+Keys: ◀▶ along time (◀ at the now column goes to the channel column, never the bar), ▲▼ channels, OK tunes the current programme or opens info for a future one, hold OK toggles favourite with undo, CH± pages six rows (±2 h along the axis), OK on the group chip opens the group list (left sheet, Live games, Sports, News, UK…). **The selected group is the zap ring** and the banner names it ("Favourites · 3 of 10"). Entry focus: the current programme cell of the last channel.
 
-Purpose: see what is on, jump to it, favourite a channel.
-Layout: now panel at y 80 (logo tile 56, programme title Outfit 22, LIVE pill, channel, times, time left and progress, one line of description, Watch primary, star toggle). Under it a ruler row: group chip at the left (All channels, Favourites, Sports, News, UK, Movies...), time labels every 30 min, the **now flag** (gradient pill with ink) and a 2 px pink line that sits behind the cells so it never crosses text. Rows are 48 px with 6 px gaps, six visible; channel cell 200 px (number, 32 px logo tile, name up to two lines, star for favourites), programme cells positioned by time over a 660 px window of three hours (about 3.67 px per minute, 30 min is 110 px). The window starts on the half hour before now; a cell that began before the window shows a left arrow and its start time. Cells under 45 min show the start time only.
-Content: names are cleaned (`US| NBA LEAGUE PASS 04 ᴴᴰ` becomes "NBA League Pass 4", tag US, quality HD in the list view and now panel). Favourites first, then English-language groups, then others. The live event on a favourite channel is marked with the LIVE pill inside its cell.
-States: no guide data for a channel = one cell spanning the window, "No guide information", still tunable; no guide for the provider = the List view (two-column channel list with now playing from the stream title, if any); loading = grey rows with the channel cells real and programme cells skeleton.
-Keys: Left and Right move across programmes; Up and Down move channels; OK on the current programme tunes; OK on a future programme opens its info (no reminders in v1); hold OK toggles favourite; CH +/- page six rows; Menu opens the group list; Back returns to the top bar. The guide virtualises rows and cells (about 6 x 4 mounted plus one page either way).
+### 5.4 NBA hub and game page (`tv/nba*.html`, `tv/nba-game*.html`)
+Hub: day strip (chips; ◀▶ change day), your-team hero with the slab (linescore table, leader, Watch live, Box score, Plays, "Synced · 42 s"), then "Tonight" as a 3-up grid ordered live, upcoming (relative time "In 49 min"), final. A game card is an upright Soft card with a skewed (-12°) score plate holding upright numbers; **under the shield** the plate shows an eye-off glyph and "hidden", finals read "Ended" with no "OT" and no winner emphasis, records are frozen. Counts ("2 live · 2 later · 3 final") never spoil.
+Game page: compact Sharp header (status, team discs, score, Watch live; shielded: "Score hidden" + Reveal score), tabs **Grizzlies · Warriors · Plays · Team stats** (◀▶ switch), body upright: 8-row box score (Player, MIN, PTS, REB, AST, FG, 3P, +/-) at 14 px, plays (scoring plays in chalk with a pink dot), team-stat bars (gradient for your team, border-strong for the other). Tables are never skewed (brand rule); this was the open "Sharp on dense tables" risk: **only the header plate slants and the dialect holds**. Entry focus: your team's game card (hub), the first tab (game).
 
-### 5.3 NBA hub (`tv/nba.html`)
+### 5.5 Movies and Series (`tv/movies*.html`, series uses the same builders)
+One screen: header (title, count, **Sort Popular**, **Filters (n)**, **Jump**), 8 view chips (All, New in English, Top rated, 4K, four genres) that write into the same Sort/Filter state (selecting a chip clears conflicting choices, the Filters count reflects it, so nothing is filtered in two places), and the 6-column grid. One card per title: tag 4K top-left, **+N versions** top-right (otherwise a language tag), resume bar flush, art without overlaid titles (the title is in the caption; the initials tile with its title is the only fallback).
+- **Sort** (menu): Popular (default, "IMDb, this week"), Top rated, Newest, Recently added, Title; below it the persistent **English first** toggle.
+- **Filters** (right sheet 420, scrolls): Language, Genre, Quality, Subtitles, IMDb, Decade; **every chip shows its live count and zero-count chips are disabled** (surface-2, text-4, never hidden); "N active" and Clear all at the top; pinned **Show 214 titles**. Back keeps the changes and closes.
+- **Jump**: top of list, then the sort's own key (years for Popular and Newest, letters for Title, rating bands for Top rated).
+- **Scrolled**: bar and header slide away; a 14 px context line stays ("Movies · Popular · 3 filters"); while Down is held more than 1.5 s a **scroll bubble** shows the sort key and position ("7.4 · row 120 of 8,300"). The focused row sits at y 50 so its caption stays inside the safe area.
+- **Hold OK on a card**: menu with **Save to Saved** (focused), Mark watched, Details.
+Entry focus: first card. States: no results ("Nothing matches these filters" with Remove last filter / Clear all), no art (initials tile), unavailable version hidden.
 
-Purpose: where is my team, what is live, what is next; the only screen where Sharp is the main voice.
-Layout: day strip (chips; Left/Right change day), your-team hero (slab, linescore table, leaders, Watch live, Box score, Plays), then "Tonight" as a 3-up grid of game cards ordered live, then upcoming by tip, then final. A game card is an upright Soft card; inside it a skewed (-12°) score plate holds upright numbers (live and final: both scores stacked in line with the two team rows; upcoming: the tip time). Status row: LIVE pill + period and clock, or "In 49 min", or "Final / OT"; broadcaster at the right.
-Rules: plates skew, text, tables and focus rings never do. Box scores and standings are upright tables (final milestone; open item 3 of the brand brief).
-States: no game for your team = the hero shows the next game and days away; no games = empty state with the next game day; scores service down = the offline card with a retry, last known data stays visible.
-Keys: OK on a game card opens game detail (final milestone) with Watch in the first position; OK on Watch live tunes the matched channel (the user can change channel in the player).
+### 5.6 Detail (`tv/detail-*.html`)
+Art on the right (640 px) with a flat left scrim; column: eyebrow (type and genres), title, meta (rating, year, runtime, tags), 3-line plot, credits, actions. **Play** or **Resume 1:12:40 + Start over** (focused), **Save**; second row: **version pill** ("English · 4K HDR") that opens the version sheet (language, quality, subtitles, size; default = your language at the best quality this TV decodes; remembered per title; shown only when more than one version exists), and the **Subtitles: English** pill (a choice, so it shows its value). "More like this" 16:9 row. Series: Resume S1 · E3, season chips, episode row (number, watched check and dimmed art, resume bar on the current one; next-up focused when entering from Continue). Back returns to the card that opened it.
 
-### 5.4 Movies and Series grid (`tv/movies*.html`)
+### 5.7 Search (`tv/search*.html`)
+Left: field with a mic key first, 6 x 6 keyboard (A to Z, 0 to 9, 52 x 40 keys) and Space / Delete / Clear. Right: results grouped Top result (poster, meta, Play), On TV (guide titles, next 24 h), Movies and series (small posters, one card per title). Results update after every letter (target 150 ms). Empty: Recent chips and Trending posters; none: "No results for …" with Clear. Entry focus: **A** (the mic is one Up away). Right goes to results, Back clears focus to the keyboard then leaves (query kept 10 min). Matching normalises accents, punctuation and prefixes ("spiderman" = "Spider-Man").
 
-Purpose: browse a big, messy catalogue quickly, English first.
-Layout: page header (title, count and "English first", Sort pill and Filters pill, with an active-filter count badge), category chip row (single select, chips from provider categories after cleaning; "New in English", "Top rated" and "4K" are smart chips), then the 6-column poster grid. Poster: 2:3 art with the title baked in by the provider (fallback: initials tile with the title, 3 lines), 4K tag top-left, language tag top-right when not English, resume bar flush at the bottom, caption below (title one line, then year and first genre).
-Scrolled state: header and top bar slide away; two full rows plus captions fit between 24 and 514 px.
-Sort menu: Recently added, Rating, Year, Title; "English first" is a persistent toggle inside the menu (on by default). Filters sheet (right, 420 px): Language (English first, English only, All), Genre (multi), Year (decades), Rating (6+, 7+, 8+); primary button "Show 214 titles" updates live. One primary per sheet.
-Large catalogues: A to Z jump rail appears at the right when sorted by title (provisional); CH +/- page by a screenful; holding Down accelerates.
-States: no results = "Nothing matches these filters" with Reset (secondary); poster without art = initials tile; provider category missing = chip hidden.
+### 5.8 Saved (`tv/saved.html`)
+Chips Channels · Movies · Series · History. The Channels page is where the favourite order is set: rows with a grip, the focused row **lifts** (ring, 1.02) and ▲▼ move it, OK drops, Back restores. The side card says what the order drives: On now, the Favourites guide group, the zap ring when tuned from Favourites.
 
-### 5.5 Detail: movie (`tv/detail-movie.html`) and series (`tv/detail-series.html`)
+### 5.9 Account (`tv/account*.html`)
+Two panes: groups (Provider, Playback, NBA, Languages, Home rows, Updates, About) and a list of 56 px rows. Provider: status pill, expiry and days left, connections "1 of 2", switch/add account, refresh, sign out. **NBA**: your team, **Spoiler shield (Off / My team / All games)**, Score on picture, **Score delay per channel** ("NBA League Pass 4: 42 s behind live"). Updates: version, "airglow 1.6 is ready", automatic download. A white dot on the avatar and the Updates group shows an update is waiting. Entry focus: first row.
 
-Purpose: decide and play.
-Layout: art on the right 640 px with a left scrim (flat 2-stop, solid to 36%); text column 500 px: eyebrow (type and genres), title (display), meta line (star and rating in chalk, year, runtime or seasons, rating tag, 4K/HDR tags, language), plot (three lines max), credits, actions. Movies: Play (primary, focused), Save, subtitles shortcut; below, "More like this" (16:9 cards, 176 x 99). If a resume point exists: Resume (primary) with minutes left under it and Start over (secondary). Series: Resume S1 E3 (primary) with time left, Save, season chips, episode row (200 x 112 cards, episode number tag, watched check with dimmed art, progress bar on the current one); the next-up episode is focused when entering from the row.
-Keys: Down from the actions to the row; Left and Right in the row; Back to the grid with the same item focused. Season chip OK swaps the row (200 ms).
+### 5.10 Update prompt (`tv/update.html`)
+Downloaded in the background; offered **only at a natural break**: the next cold launch before Home, as a card with the lockup, one line of news, **Update now** / Later (asks again after 24 h). Never over the player, never in your team's game window, never by taking focus on another screen (F8).
 
-## 6. Performance budget (measured on the mocks)
+### 5.11 States (`tv/state-*.html`)
+Loading = flat surface-2 blocks, no shimmer, only on cold section loads (cache-first makes them rare); focus stays on the current tab. Offline ("Can't reach the server", Try again, last reached time). Subscription ended (Switch account, Refresh). Empty filters. No-art fallback. Native: "Reconnecting, attempt 2 of 6", then "This channel stopped" with Try again and Next channel inside the player.
 
-UI nodes per screen (excluding the procedural art SVG, which is a single `<img>` for real posters): Home 143, Live 174, NBA 184, Movies 142, Movies scrolled 93, Sort 164, Filters 178, Detail movie 63, Detail series 98. Budget is 1500. Rules: no filter or backdrop-filter, no box-shadow other than the focus ring, 2-stop gradients on small elements only (the two scrims are the exception and are flat vertical or horizontal), images decoded at display size (poster 129 x 194 css = 258 x 388 device px; card 204 x 115 = 408 x 230), rows virtualised to about two screens, guide virtualised both axes, `will-change` only on the focused element.
+## 6. Cross-cutting rules
 
-## 7. Content rules (messy provider data)
+- **Back:** overlay/sheet closes and restores the opener; detail returns to its card; **anywhere in a tab's content: scroll to the top, show the bar, focus the tab**; another tab goes to Home with the hero focused; Home exits. Game time from deep in a grid is Back, Back, OK = 3 presses.
+- **Focus (F1 to F11):** one ring; memory per row, tab and page; edges stop and an auto-repeated key never crosses a container boundary; data never moves focus; nothing steals focus (updates, toasts, score refreshes).
+- **Spoiler shield (AC-B1):** hero, game cards, game page, NBA hub counts, guide descriptions, toasts, records, "OT", leaders and plays are covered; reveal with hold OK > Reveal, or the Reveal button. In the player the score appears only when the game panel opens, at the synced delay.
+- **Score delay (AC-B2):** remembered per channel (first value 60 s); while a game is watched every surface shows it at that delay; Options > Sync score stores a new one.
+- **Titles and names (UX 4.9):** strip `EN|`, `US:`, `|EN|`, `┃NL┃`, `FHD/UHD/4K` (becomes a tag), `ᴴᴰ`, years in brackets (become meta), MULTI-SUB; sentence-case ALL CAPS; merge versions into one card.
 
-- Channel names: strip leading `XX|`, `XX:`, `|XX|`, `┃XX┃`, `USA|`; strip `HD FHD UHD 4K` and the superscript `ᴴᴰ` into a quality tag; sentence-case ALL CAPS only when the whole name is upper case and longer than 4 letters; keep the country as a tag. Numbers are the provider's channel numbers.
-- Titles: strip `EN|`, year in parentheses (shown as meta), quality and `MULTI-SUB` noise; ALL CAPS to title case.
-- Language: prefix (`EN|`, `FR|`, `SE|`) sets the language tag; English first is a sort policy, not a filter.
-- Art: use `<img>` with the provider's poster; fallback is the initials tile; never stretch (cover, centred).
+## 7. Native player (Android, Media3), `player/*.html`
 
-## 8. Components added in v1 (states: default, focused, selected, disabled)
+dp = CSS px on the 960 x 540 canvas. Colours are brand tokens. Each element below maps to a plain Java view; there are no blur, no gradients except the 4 dp progress and the seek bar fill, and no images except channel logos. Panels are `bg-1` at 92 to 94% over the video, border 1 px `--a-border`, radius 16 (banner 14). Only one panel at a time; nothing but subtitles covers the centre 50% of the picture; the hint bar and panels are removed after 5 views of each.
 
-Top bar and tabs, poster card, wide card, live card, episode card, game card with score plate, hero plate with slab, guide row and cell, now flag, chip row, pill button (Sort, Filters with count), sort menu (radio list + toggle), filter sheet, metaline, tags (quality, language), linescore table. Brand components reused unchanged: primary and secondary buttons, chips, LIVE pill, progress bar, toggle, list row, scrim.
+| Overlay | Position / size | Content and views | Timing |
+|---|---|---|---|
+| **Zap card** | centre, wraps content | logo tile 56, channel name Outfit 700 22, now title 16 `text-2` (a `LinearLayout` horizontal; shown instantly on key down, never black) | until first frame, min 600 ms |
+| **Banner** | left 48, top 27, right 48, 64 high, radius 14 | number (Inter 700 24) · logo tile 44 · name 16/20 650 + ring name "Favourites · 3 of 10" 14 + now title and times 14 · 4 dp gradient progress 120 wide + "Next 22:00 NBA Postgame" 14 · tags HD, CC (badge 12) · LIVE pill (22 high, 2 px red outline) | 4 s, instantly on zap |
+| **Hint bar** | bottom, 34 high, scrim 72% | key caps (surface-2, chalk 14, radius 5) + labels 14 `text-2`: `OK Channels · ◀ Options · ▶ Game · ▲▼ Zap · Hold OK Last` | with the banner, first 5 times, then on Info |
+| **Channel panel (mini guide)** | left 352, top 27, bottom 42 | header "‹ Favourites · 3 of 10" (Outfit 700 22); pinned team row (pin, logo, "Grizzlies at Warriors", channel, LIVE) when it is on another channel; 56 dp rows: number 14 · logo 32 · name 16/20 650 · now title 14 `text-3` · LIVE · 3 dp progress; current = surface-2, focused = surface-3 + 3 dp ring | opens in 150 ms on the current channel; closes after a tune or Back |
+| **Groups** | same panel, ◀ from the list | radio rows (Favourites, Recent, Live games, Sports, News, Movies, UK, All), count at the right | sets the zap ring |
+| **Game panel** | right 264 | plate: abbreviation discs 36, upright score in Barlow italic 30 on a -12° surface-2 plate (the only skewed view; draw it as a rotated GradientDrawable behind an upright TextView); "Q3 7:29 · Synced · 42 s"; tab chips (Grizzlies, Warriors, Plays); 14 sp tabular table MIN PTS REB AST, rows 29 dp | until closed; updates without moving the scroll |
+| **Live games** | right 264 | live games, your team first, LIVE pills, OK switches channel; shielded games show no score | same |
+| **Options** | left 320 | rows 48: Subtitles (value) · Audio · Picture size "This channel" · Sync score · Favourite · Score on picture · Report "won't play" | – |
+| **Subtitles / Audio** | left 320 | radio rows (pink dot), "Remembered by language"; a missing track is a disabled row "No subtitles in this file" | – |
+| **Picture size** | left 320 | Fit / Zoom / Stretch with a one-line description; the picture changes as the focus moves; saved per channel (live) and per title (VOD) | – |
+| **Sync score** | left 400 | "Which basket did you just see?" 5 rows (score, play, clock); OK stores the delay for this channel | – |
+| **Action chip** | bottom-right above the hint bar, max 420 | countdown ring 40 (pink arc on surface-3), "Grizzlies are live / NBA League Pass 4", `OK to switch`; binds OK for 8 s while no panel is open; never in the first 10 s after a tune | 8 s |
+| **Reconnect / failed** | bottom centre | spinner arc + "Reconnecting, attempt 2 of 6"; then "This channel stopped" with Try again (OK) and Next channel (▼) | – |
+| **VOD controls** | bottom bar 16 from the safe edge, radius 16; top title block | play (44, focused ring), −10, +10, then CC, audio, picture (40); 6 dp seek bar (surface-3, gradient fill, chalk thumb 18); elapsed and remaining 14; "Ends at 22:14" top right | hide after 4 s |
+| **Scrub** | bubble above the thumb | time chip chalk on ink; hold ◀▶ accelerates ×2 per second up to ×32 | on key |
+| **Up next** | bottom-right above the bar | countdown ring, "Next episode in 7 s · S1 · E4", OK plays now, Back cancels | last 10 s |
+| **Subtitles on picture** | bottom inset 10% | Inter 600, 28 dp (5.3% of height), chalk, 1.5 dp black edge, no box | – |
 
-## 9. Requests and exceptions for the brand consultant
+Key map in the live player (no modes): ▲ next, ▼ previous (hold scrolls the banner and tunes 450 ms after release), **OK = channel panel, always**, hold OK = last channel, **▶ = game panel** (or Live games, or programme info), **◀ / Menu = Options**, CC = Subtitles, 0 to 9 = channel number, Back = close panel then leave (focus returns to the channel you watched). Movies: ◀▶ seek 10 s (hold scrubs), OK pause and controls, ▼/Menu options, CH+ next episode.
 
-1. Inset focus ring for guide cells (section 3.2).
-2. Poster radius 12 (brand card radius 16 is for 16:9 cards).
-3. LIVE pill inside the NBA tab and inside guide cells at 19 px height (brand pill is 22).
-4. Team logo placeholders are flat discs in team colours with the abbreviation; real logos arrive from the data feed. Team colours are data, not UI colour; no amber or yellow is used in chrome.
-5. Procedural art is a stand-in; the real-poster contrast check (scrim strength) is open item 1 of the brand brief. Card titles sit on an 86 to 94% scrim.
+## 8. Launch animation (`launch/index.html`, `launch.css`, `launch.js`)
 
-## 10. Open items
+Working HTML/CSS, 1100 ms, transform and opacity only, no filter, blur or sprite. `python3 launch/build.py` regenerates `index.html` from the brand SVG paths; open `launch/index.html` in a browser (Chrome 113 equivalent) to play it. Query options: `?t=450` freezes at 450 ms (used for the stills), `?ready=1500` makes Home ready after 1500 ms, `?ready=never` holds on the loading state, `?warm=1` warm resume, `?rm=1` reduced motion, `?hud=1` shows the clock; R replays.
 
-- UX brief: IA, flows, key map and acceptance criteria will replace the provisional parts.
-- Final milestone: first launch and sign-in, Live list view, in-player mini guide, Series and Movies variants, search, NBA game detail (box score, team stats, plays), Saved, Account, update prompt, empty, error and loading states, native player overlays, phone and PC, launch animation.
+| Window (ms) | Motion | Duration / easing |
+|---|---|---|
+| 0 | **Frame 0 = the native splash**: bg-0 `#15131D`, the gradient wedge alone, centred at (480, 270), **96 dp tall**. The three bands start hidden behind it (translateX 24 px, opacity 0) | static |
+| 0 to 300 | the three bands step out from behind the wedge: translateX 24 px to 0, opacity 0 to 1 by 25% | 300 each, starts 0 / 40 / 80, `cubic-bezier(.2,.7,.2,1)` |
+| 300 to 700 | the wedge-and-bands group moves left into its lockup slot: translate(148.5 px, 9.2 px) scale 1.595 to identity | 400, same easing |
+| 380 to 860 | the seven letters resolve left to right: opacity 0 to 1, translateX −10 px to 0 | 240 each, starts 380 + 40 per letter |
+| 820 | hold ends. If Home is ready: wipe now. If not: the **loading hold** | |
+| 820 to 1100 | the 8° soft slab (pink to orchid, one orchid line parallel, 34 ms behind) sweeps left to right; the launch layer fades out over 200 ms starting at 60 ms; Home fades in with a 24 px translateX over 220 ms starting at 80 ms | 280, `cubic-bezier(.7,0,.2,1)` |
+
+**Loading hold** (also the loading screen): if data is not ready at 820 ms the lockup stays and the three bands breathe: opacity 1 to .55, 1.6 s ease-in-out alternate, delays 0 / .18 / .36 s. This is the only loop in the app besides a spinner. After 4 s a caption "Connecting to your provider…" appears under the lockup; after 12 s the offline card replaces it. When Home is ready the wipe plays (280 ms), never longer.
+**Warm resume**: the launch layer is skipped entirely. **Reduced motion**: the wedge alone (no bands, no letters, no slab), then a 120 ms opacity fade into Home when ready.
+**Native splash (Android)**: `windowSplashScreenBackground` = `#15131D` (API 31+: `windowSplashScreenAnimatedIcon` = the 96 dp wedge, `windowSplashScreenIconBackgroundColor` unset); API 26 to 30 and TV launchers: `windowBackground` layer-list with bg-0 and the wedge bitmap centred 96 dp tall (`drawable-nodpi` PNG 192 px). Keep the splash up until the WebView reports the first paint of `#launch` (`setKeepOnScreenCondition`); `#launch` has the same background and the wedge at the same position and size, so there is no visible jump. The splash is never in the back stack.
+Stills of the timeline: `png/launch-0.png` to `launch-1100.png`, `launch-hold.png`, `launch-rm.png`.
+
+## 9. Performance (measured on the mocks, `tools/audit.js`)
+
+UI nodes per screen (the art SVG excluded; real posters are one `<img>` each): 9 to 245 (the busiest are the two sign-in screens with a QR drawn as 200 rects, 245, then Filters 197 and the NBA hub 188; a real QR is one image), against a target of about 250 and a hard limit of 1,500. No `filter`, `backdrop-filter`, `mask`, text-shadow (except the subtitle edge, native), animated gradient, or soft shadow; the only `box-shadow` is the focus ring. Gradients are 2-stop on small elements, plus two flat scrims. Images decoded at display size (poster 124 x 186 CSS = 248 x 372 device). Grids and the guide are virtualised (at most 6 poster rows, 12 guide rows mounted); no smooth scrolling under key repeat; skeletons are static.
+
+## 10. Press counts against the UX acceptance criteria
+
+| ID | Task | Result in this design |
+|---|---|---|
+| AC-P1 | Cold launch on a game day to your team's stream | 1 (OK on Watch live); 2 with Choose channel |
+| AC-P2 | Any section root to the game | 3 (Back to the tab, Back to Home, OK); from a grid also 3 |
+| AC-P3 | Watching another channel to the game | 1 with the action chip; 2 with ▶ then OK |
+| AC-P4 | Launch to resume | 1 (hero Resume) |
+| AC-P5 | Zap ±1, last channel | 1, hold OK |
+| AC-P6 | Open and close score | ▶ then OK or Back |
+| AC-P7 | Subtitles in the player | ▼, OK, OK (3), or the pill on the detail page before playing |
+| AC-P9 | Any screen to the top bar | 1 (Back) |
+| AC-P10 | Home to exit | 2 |
+| AC-P11 | Install an update | Update now (1) |
+| AC-P12 | Phone sign-in | Use your phone (1) plus the phone |
+| AC-F1 | One ring | audit passes |
+| AC-T2 | Informational text 14 px | audit passes |
+| AC-B1 | No spoiler when shielded | designed on every surface (section 6) |
+
+## 11. Brand notes (for the consultant)
+
+Used from the brand: neutral placeholder team discs (BRAND-CHECK M1), `mark-small.svg` in the bar (M2), 14 px caption token, badge 12 px exception, compact LIVE pill (`--a-live-compact-h`), inset focus ring, 2:3 poster card. Two new things to approve: the **scroll bubble** (bg-1, border, 28 px number) and the **action chip with countdown ring** (pink arc on surface-3). The breathing bands in the launch loading hold are the only looped animation.
+
+## 12. Where this departs from the briefs, and why
+
+| Brief | Departure | Evidence |
+|---|---|---|
+| UX 4.3 Home rows and UX 4.9 shelves page | Hero + On now + Continue; Movies is one grid with chips, not a shelves page | UX-CHECK-m1 section 4 adopted both; fewer nodes, one mental model |
+| UX 4.2 fold Saved | Saved stays a tab and owns channel reordering | six destinations plus Search is inside Android's 5 to 6 guidance; UX check adopted it |
+| UX 4.13 Account as one list | Two panes (groups left, list right) | seven groups of 3 to 6 rows would be a 25-row scroll; Left/Right is free on that page so it does not collide with the bar rule |
+| UX 4.7 tab dwell 300 ms | 250 ms, only when rendered from cache; else OK | UX check accepted |
+| UX S2 hold-OK context menu everywhere | Guide keeps a one-gesture favourite toggle with an undo toast | the guide is the only place a channel is favourited, and a menu would add a press to a frequent action |
+| Brand: 13 px caption | 14 px | brand approved the floor (UX AC-T2) |
+| Brand BRIEF: gradient only on bg-0 for the wordmark | First-run and update screens use `lockup.svg` on bg-0 | kept; the chalk lockup is not needed because no surface other than bg-0 carries a lockup in this set |
+
+## 13. Open items (need the real TV)
+
+1. Real posters: scrim legibility and the 1 px border on warm photographic art (brand brief risk 1). The mocks use procedural art.
+2. Surface steps and the focus ring on the Philips in Standard and Vivid modes; the gradient banner loudness.
+3. Frame rate of focus moves and the launch on the weakest target; measure AC-L1 to L10.
+4. Provider EPG cost for a 2.5 h grid; typical stream delay of the NBA channels (to tune the 60 s default).
+5. Silent self-update on this Android TV version; `SpeechRecognizer` availability for the mic key.
+6. Phone and PC adaptations: on hold by owner decision.

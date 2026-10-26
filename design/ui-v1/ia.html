@@ -35,47 +35,47 @@ td:first-child{color:var(--a-text-1);font-weight:650;white-space:nowrap;width:12
 .tagp{font:700 12px/16px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-pink-text)}
 </style></head><body>
 <h1>airglow TV: information architecture and navigation</h1>
-<div class="sub">Milestone 1 decision, provisional until the UX brief lands. One top bar, six destinations plus Search and Account. Playback is a native layer on top.</div>
+<div class="sub">Final. One top bar: Search, Home, Live, NBA, Movies, Series, Saved, Account at the right. Playback is a native layer on top. TV only (phone and PC are on hold).</div>
 <div class="cols"><div>
   <h2>Map</h2>
-  <div class="flow"><span class="node">Launch<small>1.1 s, native splash first</small></span><span class="arrow">→</span><span class="node">Sign in<small>first run only (code, link or type)</small></span><span class="arrow">→</span><span class="node">Home<small>start destination, every Back ends here</small></span></div>
+  <div class="flow"><span class="node">Launch<small>1.1 s, native splash first</small></span><span class="arrow">→</span><span class="node">First run<small>phone, link or type; team, spoilers, languages</small></span><span class="arrow">→</span><span class="node">Home<small>entry focus: the hero button. Every Back ends here</small></span></div>
   <div class="bar">
-    <div class="tabh u">Home</div><div class="tabh u">Live</div><div class="tabh u live">NBA</div><div class="tabh u">Movies</div><div class="tabh u">Series</div><div class="tabh u">Saved</div><div class="tabh u">Search</div><div class="tabh u">Account</div>
+    <div class="tabh u">Search</div><div class="tabh u">Home</div><div class="tabh u">Live</div><div class="tabh u live">NBA</div><div class="tabh u">Movies</div><div class="tabh u">Series</div><div class="tabh u">Saved</div><div class="tabh u">Account</div>
   </div>
   <div class="bar">
-    <div class="col"><div class="s"><b>Hero (one, contextual)</b>live game · resume · last channel</div><div class="s"><b>Continue watching</b></div><div class="s"><b>On now</b>favourite channels</div><div class="s"><b>NBA tonight</b></div><div class="s"><b>New in English</b></div><div class="s"><b>New series</b></div></div>
-    <div class="col"><div class="s"><b>Guide</b>now line, 3 h window</div><div class="s"><b>List</b>for providers without a guide</div><div class="s"><b>Group chip</b>All · Favourites · Sports…</div><div class="s next"><b>Channel → Player</b></div></div>
-    <div class="col"><div class="s"><b>Day strip</b></div><div class="s"><b>Your team</b>live · pre · final</div><div class="s"><b>Games grid</b>live first</div><div class="s next"><b>Game detail</b>box score · team stats · plays</div><div class="s next"><b>Watch → Player + score panel</b></div></div>
-    <div class="col"><div class="s"><b>Grid</b>6 across, English first</div><div class="s"><b>Category chips</b></div><div class="s"><b>Sort</b> menu · <b>Filters</b> sheet</div><div class="s next"><b>Detail</b>play · save · more like this</div><div class="s next"><b>Play → Player</b></div></div>
-    <div class="col"><div class="s"><b>Grid</b>same as Movies</div><div class="s"><b>Category chips · Sort · Filters</b></div><div class="s next"><b>Detail</b>seasons · episodes row</div><div class="s next"><b>Episode → Player</b>up next</div></div>
-    <div class="col"><div class="s"><b>Channels</b></div><div class="s"><b>Movies</b></div><div class="s"><b>Series</b></div><div class="s"><b>Recently watched</b></div></div>
-    <div class="col"><div class="s"><b>Keyboard</b>+ suggestions + recent</div><div class="s"><b>Results</b>Live · Movies · Series · NBA</div><div class="s pl">voice: system Assistant</div></div>
-    <div class="col"><div class="s"><b>Providers</b>add · switch · sign out</div><div class="s"><b>Playback</b></div><div class="s"><b>Language and sort</b></div><div class="s"><b>About and update</b></div></div>
+    <div class="col"><div class="s"><b>Keyboard</b>6 x 6, mic first</div><div class="s"><b>Results</b>top result · on TV · movies and series</div><div class="s"><b>Empty</b>recent · trending</div></div>
+    <div class="col"><div class="s"><b>Hero</b>your team · resume · last channel</div><div class="s"><b>On now</b>favourites first</div><div class="s"><b>Continue watching</b></div></div>
+    <div class="col"><div class="s"><b>Group chip</b>Up from row 1</div><div class="s"><b>Guide</b>now at the left edge, 2.5 h</div><div class="s"><b>Now panel</b>display only</div><div class="s next"><b>OK → Player</b></div></div>
+    <div class="col"><div class="s"><b>Day strip</b></div><div class="s"><b>Your team</b>live · pre · final</div><div class="s"><b>Games</b>live first</div><div class="s next"><b>Game page</b>box · plays · team</div><div class="s next"><b>Choose channel</b>if none found</div></div>
+    <div class="col"><div class="s"><b>Chips</b>views over Sort and Filters</div><div class="s"><b>Sort · Filters · Jump</b></div><div class="s"><b>Grid</b>6 across, virtualised</div><div class="s next"><b>Detail</b>version · subtitles · resume</div></div>
+    <div class="col"><div class="s"><b>Same as Movies</b></div><div class="s next"><b>Detail</b>seasons and episodes</div><div class="s next"><b>Episode → Player</b>up next</div></div>
+    <div class="col"><div class="s"><b>Channels</b>reorder drives On now and zap</div><div class="s"><b>Movies</b></div><div class="s"><b>Series</b></div><div class="s"><b>History</b></div></div>
+    <div class="col"><div class="s"><b>Provider</b></div><div class="s"><b>Playback</b></div><div class="s"><b>NBA</b>team · shield · delay</div><div class="s"><b>Languages · Home rows</b></div><div class="s"><b>Updates · About</b></div></div>
   </div>
-  <div class="layer"><h2 style="margin-bottom:8px">Native player layer (Android, Media3), reached from every Play</h2>
-    <div class="row"><span class="pill">OSD banner on zap</span><span class="pill">Mini guide (channel panel)</span><span class="pill">Options menu</span><span class="pill">Subtitles · Audio · Picture</span><span class="pill">Score and stats panel</span><span class="pill">Sync the score</span><span class="pill">Seek bar · Up next</span></div></div>
-  <div class="layer" style="margin-top:14px"><h2 style="margin-bottom:8px">Overlays and states used by every tab</h2>
-    <div class="row"><span class="pill">Sort menu</span><span class="pill">Filters sheet</span><span class="pill">Toast</span><span class="pill">Update prompt</span><span class="pill">Loading skeleton</span><span class="pill">Empty</span><span class="pill">Error</span><span class="pill">Offline</span></div></div>
+  <div class="layer"><h2 style="margin-bottom:8px">Native player (Android, Media3), reached from every Play</h2>
+    <div class="row"><span class="pill">Banner: now and next</span><span class="pill">Channel panel (mini guide)</span><span class="pill">Groups</span><span class="pill">Game panel</span><span class="pill">Live games</span><span class="pill">Options</span><span class="pill">Subtitles · Audio · Picture</span><span class="pill">Sync score</span><span class="pill">Action chip</span><span class="pill">Reconnect</span><span class="pill">Seek bar · Up next</span></div></div>
+  <div class="layer" style="margin-top:14px"><h2 style="margin-bottom:8px">Sheets and states</h2>
+    <div class="row"><span class="pill">Sort</span><span class="pill">Filters</span><span class="pill">Jump</span><span class="pill">Hold OK menu</span><span class="pill">Version</span><span class="pill">Choose channel</span><span class="pill">Group list</span><span class="pill">Update card</span><span class="pill">Loading</span><span class="pill">Empty</span><span class="pill">Offline</span><span class="pill">Expired</span></div></div>
 </div>
 <div>
-  <h2>Decision: top tabs, not a rail</h2>
+  <h2>Decision: top bar, not a rail</h2>
   <div class="box"><h3>Why</h3><ul>
-   <li>tvOS places the tab bar at the top and orders live apps Live first (Apple HIG: Tab bars; Live-viewing apps). Android TV tabs use a pill indicator for full-page destinations, and say to limit a nav rail to 5 or 6.</li>
-   <li>Width is the scarce resource in a poster grid: a rail takes 80 of 960 px and drops a 6th column; the bar takes 44 px of height, and it scrolls away.</li>
-   <li>One job per axis: left and right move along a row, up and down move between rows, and the bar is one step above everything.</li></ul></div>
-  <div class="box"><h3>Focus and Back</h3><ul>
-   <li>Launch focus: the hero's primary button (Watch live, Resume). One press from open to playing.</li>
-   <li>Up from the first row: top bar, on the current tab. Down: back to the last focused item (remembered per tab).</li>
-   <li>Back from a detail: the grid, same focus. Back from deep in a grid: first press scrolls to the top and focuses the chips; second: top bar; third: Home; then the system.</li>
-   <li>The bar slides away while you scroll down (transform only) and returns on Up or Back. Detail pages hide it.</li></ul></div>
-  <div class="box"><h3>Remote key map (standard Google TV remote, no number pad assumed)</h3>
-   <table><tr><th>Key</th><th>Browse</th><th>Player</th></tr>
-   <tr><td><span class="kb">◀ ▶ ▲ ▼</span></td><td>Move focus</td><td>Live: ▲ ▼ zap · ◀ ▶ options. Movies: ◀ ▶ seek 10 s · ▼ options</td></tr>
-   <tr><td><span class="kb">OK</span></td><td>Open / play</td><td>Live: channel panel (game: score panel). Movies: transport</td></tr>
-   <tr><td>Hold <span class="kb">OK</span></td><td>Save or remove from Saved</td><td>Live: previous channel</td></tr>
-   <tr><td><span class="kb">Back</span></td><td>Up one level</td><td>Close panel, then leave</td></tr>
-   <tr><td><span class="kb">Menu</span></td><td>Sort / Filters / Options</td><td>Options</td></tr>
-   <tr><td><span class="kb">CH ±</span></td><td>Page up / down</td><td>Zap</td></tr>
-   <tr><td><span class="kb">Play/Pause</span></td><td>Play focused item</td><td>Pause / resume</td></tr></table></div>
+   <li>Left and Right are the content axis everywhere: rows, the guide's time axis, the grid, the player panels. A rail on the left is the focus-overshoot bug by construction. (UX brief 4.1; Android TV top-nav rule.)</li>
+   <li>tvOS puts tabs at the top and orders live apps Live first (HIG, Tab bars; Live-viewing apps). Search sits first, one Left from Home.</li>
+   <li>The bar slides away (translateY) when focus is below row 1, so it costs no height while browsing.</li></ul></div>
+  <div class="box"><h3>Focus and Back (final)</h3><ul>
+   <li>Entry focus: Home = hero button; Live = the current programme cell; NBA = your team's game; Movies and Series = first card; Search = A; Detail = Play or Resume.</li>
+   <li>Up from the first row of any page = the bar. Fresh press only: an auto-repeated key stops at the edge.</li>
+   <li><b>Back anywhere in a tab's content = scroll to the top, show the bar, focus the tab.</b> Back on another tab = Home, hero focused. Back on Home = leave. A detail page returns to its card.</li>
+   <li>Game time from deep in a grid: Back, Back, OK = 3 presses.</li></ul></div>
+  <div class="box"><h3>Remote key map (no number pad assumed)</h3>
+   <table><tr><th>Key</th><th>Browse</th><th>Live in the player</th><th>Movies and episodes</th></tr>
+   <tr><td><span class="kb">▲ ▼</span></td><td>Rows</td><td>Next / previous channel</td><td>Controls / options</td></tr>
+   <tr><td><span class="kb">◀ ▶</span></td><td>Along a row</td><td><b>◀ Options · ▶ Game</b> (or live games, or info)</td><td>Seek 10 s, hold scrubs</td></tr>
+   <tr><td><span class="kb">OK</span></td><td>Open or play</td><td><b>Channel panel, always</b></td><td>Pause and controls</td></tr>
+   <tr><td>Hold <span class="kb">OK</span></td><td>Menu: Save first</td><td>Last channel</td><td>–</td></tr>
+   <tr><td><span class="kb">Back</span></td><td>As left</td><td>Close panel, then leave</td><td>Hide controls, then leave</td></tr>
+   <tr><td><span class="kb">Menu</span></td><td>Sort / Filters</td><td>Options (alias for ◀)</td><td>Options</td></tr>
+   <tr><td><span class="kb">CH ±</span></td><td>Page</td><td>Zap</td><td>Next episode</td></tr></table></div>
 </div></div>
 </body></html>

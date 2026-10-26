@@ -15,7 +15,7 @@
     ].join('');
     return { now, cont };
   };
-  function gameHero(v) {
+  function gameHero(v, nofocus) {
     const shield = v === 'shield', pre = v === 'pre', choose = v === 'choose';
     let status, mid, side = '';
     if (pre) {
@@ -40,7 +40,7 @@
     <div class="mteam">${team('MEM', 'lg')}<div><div class="nm">Grizzlies</div><div class="rc">${rec[0]}</div></div></div>${mid}
     <div class="mteam"><div style="text-align:right"><div class="nm">Warriors</div><div class="rc">${rec[1]}</div></div>${team('GS', 'lg')}</div>
   </div>${side}
-  <div class="abs row-flex" style="left:24px;top:112px;gap:12px"><span class="btn f">${primary}</span><span class="btn2">${secondary}</span><span class="t-cap" style="margin-left:8px;line-height:18px">${cap}</span></div>
+  <div class="abs row-flex" style="left:24px;top:112px;gap:12px"><span class="btn${nofocus ? '' : ' f'}">${primary}</span><span class="btn2">${secondary}</span><span class="t-cap" style="margin-left:8px;line-height:18px">${cap}</span></div>
 </div>`;
   }
   function resumeHero() {
@@ -53,10 +53,10 @@
   <div class="abs row-flex" style="left:24px;top:118px;gap:12px"><span class="btn f">${ic('play', 'fill')}Resume</span><span class="btn2">Start over</span><span class="btn2">Details</span></div>
 </div>`;
   }
-  function home({ v = 'live', shield = false } = {}) {
+  function home({ v = 'live', shield = false, nofocus = false } = {}) {
     if (shield) v = 'shield';
     const { now, cont } = rows();
-    const hero = v === 'resume' ? resumeHero() : gameHero(v);
+    const hero = v === 'resume' ? resumeHero() : gameHero(v, nofocus);
     const contHtml = v === 'resume' ? cont.replace(/<div class="wc"[^>]*>(?:(?!<div class="wc").)*?Night Circuit.*?<\/div><\/div>(?=<div class="wc")/s, '') : cont;
     return `${topbar({ sel: 'home', live: v !== 'resume' })}${hero}
 <div class="abs rowtitle" style="left:48px;top:272px">On now</div>
