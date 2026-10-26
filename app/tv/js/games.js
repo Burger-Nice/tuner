@@ -1,5 +1,6 @@
 // NBA: today's games, box scores, the spoiler shield, the per-channel score delay, and which channels carry a game.
 // Every surface that shows a score asks `show(g)` for it, so the shield and the synced delay hold everywhere.
+import { launchDone } from './launch.js';
 import { S, store, settings, saveSettings, scoped, emit } from './state.js';
 import { catalog, ensure } from './catalog.js';
 import { guideFor, onNow, warm } from './guide.js';
@@ -105,7 +106,9 @@ export const delayFor = (chId) => { const d = delays()[chId]; return d == null ?
 export const delayKnown = (chId) => delays()[chId] != null;
 export function setDelay(chId, sec) { const d = delays(); d[chId] = sec; store.set(scoped('delays'), d); emit('nba'); }
 export const watch = { gameId: null, chId: null };   // set by the player: the game on the channel you're watching
+const lastSeen = new Map();   // gameId -> the channel you last watched it on: its scores stay at that delay until it ends
 export function setWatching(gameId, chId) {
+  if (gameId && chId) lastSeen.set(gameId, chId);
   if (watch.gameId && watch.gameId !== gameId) wantSummary(watch.gameId, false);
   watch.gameId = gameId; watch.chId = chId;
   if (gameId) { wantSummary(gameId); revealed.add(gameId); }   // watching the game is choosing to see it
@@ -126,8 +129,9 @@ function remember(g) {
 export function delayed(g) {
   if (!g) return { g, s: null };
   const s = nba.sums.get(g.id) || null;
-  if (watch.gameId !== g.id || g.state !== 'in') return { g, s };
-  const d = delayFor(watch.chId) * 1000, h = hist.get(g.id);
+  const ch = watch.gameId === g.id ? watch.chId : lastSeen.get(g.id);
+  if (!ch || g.state !== 'in') return { g, s };
+  const d = delayFor(ch) * 1000, h = hist.get(g.id);
   if (!d || !h?.length) return { g, s };
   const target = Date.now() - d;
   let pick = h[0];
@@ -137,7 +141,11 @@ export function delayed(g) {
 
 // ---------- the spoiler shield ----------
 export const shieldMode = () => settings().shield || 'off';   // off | mine | all
-export const setShield = (m) => { saveSettings({ shield: m }); emit('nba'); };
+// Turning the shield on hides games you revealed earlier too (the one on your screen stays: you're watching it).
+export const setShield = (m) => {
+  if (m !== 'off' && m !== shieldMode()) for (const id of [...revealed]) if (id !== watch.gameId) revealed.delete(id);
+  saveSettings({ shield: m }); emit('nba');
+};
 export const shielded = (g) => { const m = shieldMode(); return m === 'all' || (m === 'mine' && isMine(g)); };
 // Hidden: no score, no leaders, no records changing, no winner, no "OT".
 export const hidden = (g) => !!g && g.state !== 'pre' && shielded(g) && !revealed.has(g.id);
@@ -146,7 +154,9 @@ export function reveal(id) { revealed.add(id); emit('nba'); }
 export function show(g) {
   if (!g) return null;
   const v = delayed(g);
-  return { ...v, hidden: hidden(g), synced: watch.gameId === g.id && g.state === 'in' ? delayFor(watch.chId) : null };
+  // synced: the delay you matched on this channel; delayed: the delay in use (the 60 s default until you sync).
+  const on = watch.gameId === g.id && g.state === 'in';
+  return { ...v, hidden: hidden(g), synced: on && delayKnown(watch.chId) ? delayFor(watch.chId) : null, delayed: on ? delayFor(watch.chId) : null };
 }
 
 // ---------- which channels carry a game ----------
@@ -167,6 +177,7 @@ export function findFeeds(g) {
   return feedJobs.get(g.id);
 }
 async function scanFeeds(g) {
+  await launchDone;   // dozens of guide requests: not while the app is starting
   const live = await ensure('live').catch(() => null);
   if (!live) return [];
   const named = [], sporty = [];

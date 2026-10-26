@@ -1,6 +1,6 @@
 // Screens: the tabs in the top bar, plus pages pushed on top of them (detail, game). Back pops a page and restores the
 // card that opened it; in a tab's content it scrolls to the top and focuses the tab; on a tab it goes Home; Home exits.
-import { $, ic, brandImg, esc } from './util.js';
+import { $, ic, brandImg, esc, focusPath, findPath } from './util.js';
 import { focus, entryOf, inLayer } from './focus.js';
 
 const screens = new Map();   // name -> { def, el, mounted }
@@ -45,7 +45,9 @@ export function go(name, params, opts = {}) {
 }
 // Push a page (detail, game). Back returns to the opener.
 export function push(name, params) {
-  nav.stack.push({ name, params, opener: document.activeElement });
+  const a = document.activeElement, from = a?.closest?.('[data-screen]');
+  // the opener, and how to find it again if its screen has been redrawn meanwhile (Home updates on game nights)
+  nav.stack.push({ name, params, opener: a, openerPath: from ? focusPath(a, from) : null });
   drawBar();
   show(name, params);
 }
@@ -55,7 +57,7 @@ export function pop() {
   drawBar();
   const name = current();
   show(name, nav.stack.length ? nav.stack[nav.stack.length - 1].params : null, { focusIn: false, fresh: false });
-  requestAnimationFrame(() => focus(top.opener?.isConnected ? top.opener : entryOf(screenEl(name))));
+  requestAnimationFrame(() => focus(top.opener?.isConnected ? top.opener : findPath(screenEl(name), top.openerPath) || entryOf(screenEl(name))));
   return true;
 }
 export function refresh(name = current()) { const s = screens.get(name); if (s?.el && !s.el.hidden) s.def.enter?.(s.el, {}, { fresh: false }); }

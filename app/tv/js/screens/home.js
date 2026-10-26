@@ -2,13 +2,13 @@
 // On a game day Continue watching sits above On now (resume = Down, OK). The hero is chosen before first paint and
 // kept for 3 s so the focused button never changes under your thumb.
 import { $, esc, setHtml, ic } from '../util.js';
-import { S, on, store, scoped, favList, continueRows, toggleFav, isFav, markWatched } from '../state.js';
+import { S, on, store, scoped, favList, continueRows, toggleFav, isFav, markWatched, settings } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
 import { nba, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
 import { gameHero, resumeHero, channelHero, liveCard, contCard } from '../cards.js';
 import { playLive, playVod, watching } from '../player.js';
-import { push, go, current } from '../router.js';
+import { push, go, current, barHidden } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, contextMenu, toast, scrollList } from '../ui.js';
 import { resumeItem, openTitle } from '../actions.js';
@@ -18,6 +18,7 @@ const ROW_TOP = [278, 422];
 
 // Your team's game counts from 3 h before tip-off to 30 min after the final.
 function heroGame() {
+  if (settings().heroGame === false) return null;   // Account > Home rows > Your team first
   const g = myGame();
   if (!g) return null;
   if (g.state === 'in') return g;
@@ -92,6 +93,7 @@ function placeRails() {
   const second = page.querySelectorAll('.rail')[1];
   const lift = second && second.contains(a);
   page.style.transform = lift ? 'translateY(-144px)' : '';
+  if (current() === 'home') barHidden(lift);   // the lifted hero would slide under the top bar: it steps away, as in Movies
   el.querySelectorAll('.rail').forEach((r, k) => r.classList.toggle('peek', k === 1 && !lift));
 }
 
@@ -198,7 +200,13 @@ export default {
     const g = myGame(); if (g) findFeeds(g);
   },
   entry: (root) => root.querySelector('.hero-btns .btn'),
+  leave() { barHidden(false); },
   toTop() { page.style.transform = ''; },
 };
 // What's on now on the rail's channels: a couple at a time.
-function warmRails() { const list = onNowList(); warm(list, { still: () => current() === 'home' }).then((n) => { if (n) draw(); }); }
+// The cards in view first, then the rest of the rail.
+function warmRails() {
+  const list = onNowList(), still = () => current() === 'home';
+  warm(list.slice(0, 6), { still, urgent: true }).then((n) => { if (n) draw(); });
+  warm(list.slice(6), { still }).then((n) => { if (n) draw(); });
+}

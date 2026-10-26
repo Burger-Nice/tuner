@@ -2,7 +2,7 @@
 // sheet with live counts, and Jump. Only the rows around the focus are mounted, so 50,000 titles scroll like 50.
 import { $, esc, ic, dot, setHtml, compact } from '../util.js';
 import { S, on, store, scoped, toggleFav, isFav, markWatched } from '../state.js';
-import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, optionCounts, filterCount, jumpTargets, prefLangs, genresOf } from '../catalog.js';
+import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, facetCounts, filterCount, jumpTargets, prefLangs, genresOf } from '../catalog.js';
 import { poster } from '../cards.js';
 import { push, barHidden, current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
@@ -13,7 +13,7 @@ const CHIP_GENRES = 4;
 
 export default function lib(kind) {
   const label = kind === 'movie' ? 'Movies' : 'Series';
-  let el, list = [], view = null, row = 0, bubbleT = 0, repeatSince = 0;
+  let el, list = [], view = null, row = 0, bubbleT = 0, repeatSince = 0, loadT = 0, unhook = () => {};
   const vkey = () => scoped(kind + 'View');
   function loadView() {
     const v = store.get(vkey(), {});
@@ -150,9 +150,10 @@ export default function lib(kind) {
       ['Decade', 'decade', [['', 'Any'], ...DECADES.map(([l]) => [l, l])]],
     ];
     const total = () => browse(kind, { ...view, f: draft }).length;
-    const body = () => secs().map(([title, key, opts, note]) => {
-      const vals = opts.map(([v]) => v);
-      const counts = optionCounts(kind, { f: draft }, key, vals.map((v) => (v === '' ? undefined : v)));
+    const body = () => {
+      const all = facetCounts(kind, draft, secs().map(([, key, opts]) => [key, opts.map(([v]) => (v === '' ? undefined : v))]));
+      return secs().map(([title, key, opts, note]) => {
+      const counts = all[key];
       const picked = genresOf(draft);
       return `<div class="sec">${title}${note ? `<span class="t-cap" style="margin-left:10px;font-weight:500;text-transform:none;letter-spacing:0">${note}</span>` : ''}</div><div class="chips" data-row>${opts.map(([v, l], j) => {
         const sel = key === 'genre' ? (v === '' ? !picked.length : picked.includes(v))
@@ -160,7 +161,8 @@ export default function lib(kind) {
         const n = v === '' || v === 'all' ? null : counts[j];
         return `<span class="chip fx${sel ? ' sel' : ''}${n === 0 && !sel ? ' dis' : ''}" tabindex="-1" data-act="f" data-k="${key}" data-v="${esc(String(v))}">${esc(l)}${n != null ? `<span class="n">${compact(n)}</span>` : ''}</span>`;
       }).join('')}</div>`;
-    }).join('');
+      }).join('');
+    };
     const active = () => filterCount(draft);
     const draw = () => {
       const keep = document.activeElement?.dataset;
@@ -188,7 +190,10 @@ export default function lib(kind) {
           }
           draft = { ...draft, [key]: v };
           if (!v || (key === 'lang' && v === 'all')) delete draft[key];
-          draw();
+          // the chip you pressed shows its new state at once; the counts follow on the next frame
+          if (key === 'genre') { const g = genresOf(draft); ov.el.querySelectorAll('[data-k="genre"]').forEach((c) => c.classList.toggle('sel', c.dataset.v ? g.includes(c.dataset.v) : !g.length)); }
+          else { ov.el.querySelectorAll(`[data-k="${key}"]`).forEach((c) => c.classList.toggle('sel', c === t)); }
+          requestAnimationFrame(() => setTimeout(draw, 0));
         } else if (act === 'clear') { draft = {}; draw(); }
         else if (act === 'show') ov.close();
       },
@@ -255,14 +260,22 @@ export default function lib(kind) {
         root.querySelector('[data-head]').innerHTML = `<div class="lib-head"><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px">Loading…</span></div>`;
         root.querySelector('.lib-grid').innerHTML = Array.from({ length: 12 }, (_, i) => `<span class="skb" style="position:absolute;left:${(i % 6) * COLW}px;top:${Math.floor(i / 6) * PITCH}px;width:124px;height:186px;border-radius:12px"></span>`).join('');
         root.querySelector('.lib-grid').style.transform = 'translateY(176px)';
-        ensure(kind).then(() => { if (current() === kind) { refreshList(); if (!root.contains(document.activeElement) && mayFocus()) focus(root.querySelector('.pc')); } })
-          .catch((e) => { if (e.message !== 'stale') root.querySelector('.lib-grid').innerHTML = `<div class="state big" style="position:relative;margin:24px auto 0"><div class="ico">${ic('wifiOff')}</div><b>Could not load ${label.toLowerCase()}</b><p>${esc(e.message)}</p></div>`; });
+        const load = () => {
+          clearTimeout(loadT); loadT = 0;
+          document.removeEventListener('keydown', onDown, true);
+          ensure(kind).then(() => { if (current() === kind) { refreshList(); if (!root.contains(document.activeElement) && mayFocus()) focus(root.querySelector('.pc')); } })
+            .catch((e) => { if (e.message !== 'stale') root.querySelector('.lib-grid').innerHTML = `<div class="state big" style="position:relative;margin:24px auto 0"><div class="ico">${ic('wifiOff')}</div><b>Could not load ${label.toLowerCase()}</b><p>${esc(e.message)}</p></div>`; });
+        };
+        const onDown = (e) => { if (e.key === 'ArrowDown' || e.key === 'Enter') load(); };
+        // Passing over the tab on the top bar doesn't load tens of thousands of titles: resting on it (0.8 s), OK or Down does.
+        if (mayFocus()) load();
+        else { clearTimeout(loadT); loadT = setTimeout(() => { if (current() === kind) load(); }, 800); document.addEventListener('keydown', onDown, true); unhook = () => document.removeEventListener('keydown', onDown, true); }
         return;
       }
       if (takeFresh(kind) || fresh || !list.length) refreshList(!fresh);
       else drawGrid();
     },
-    leave() { barHidden(false); },
+    leave() { barHidden(false); clearTimeout(loadT); loadT = 0; unhook(); },
     entry: (root) => root.querySelector(`.pc[data-i="${row * COLS}"]`) || root.querySelector('.pc') || root.querySelector('.chip.sel'),
     toTop(root) { row = 0; drawGrid(); },
   };

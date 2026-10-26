@@ -40,7 +40,6 @@ function body() {
     return `<div class="t-title" style="margin-bottom:10px">Playback</div>
       ${row('zap', 'Up arrow in the player', more(s.zapUp === 'prev' ? 'Previous channel' : 'Next channel'), 'Down goes the other way. Applies to the zap ring and the channel list')}
       ${row('format', 'Stream format', more(s.liveFormat === 'ts' ? 'Transport stream' : 'HLS'), 'Try the other one if a channel stutters')}
-      ${row('previews', 'Live previews', toggle(!!s.previews && maxC !== 1), maxC === 1 ? 'Unavailable: your account allows one connection' : 'Muted video on Home and in the guide. Off by default', maxC === 1)}
       ${row('ua', 'User agent', more(s.ua || 'Default'), 'Some providers only answer known players')}
       <div class="t-cap" style="margin-top:4px">Subtitles, audio, picture size and Match frame rate are in the player: press ▼ in a movie.</div>`;
   }
@@ -90,7 +89,8 @@ function draw() {
   if (!el || el.hidden) return;
   const u = upd();
   const side = GROUPS.map(([k, l]) => `<div class="gl fx${k === group ? ' sel' : ''}" tabindex="-1" data-g="${k}">${l}${k === 'updates' && u.state === 'ready' ? '<i class="udot s"></i>' : ''}</div>`).join('');
-  setHtml(el, `<div class="abs" data-col style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:272px;top:90px;width:640px;height:423px;overflow:hidden"><div class="inner" data-col style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
+  // ◀ ▶ between the panes: into the groups on the selected one, into the settings on the first (not the item level with you)
+  setHtml(el, `<div class="abs" data-col data-mem="off" data-entry=".gl.sel" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:272px;top:90px;width:640px;height:423px;overflow:hidden"><div class="inner" data-col data-mem="off" data-entry=".arow:not(.dis)" style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
 }
 
 // A toggle row's sound: on is bright, off is dim (replaces the OK sound for that press).

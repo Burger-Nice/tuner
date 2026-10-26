@@ -11,17 +11,51 @@ let refreshQ = Promise.resolve();
 export let lastKey = Date.now();
 document.addEventListener('keydown', () => (lastKey = Date.now()), true);
 // Set by the player module: true while the native player is on screen.
-export const busy = { watching: () => false, showing: () => false };
+export const busy = { watching: () => false, showing: () => false, gameOn: () => false };
 
 export function resetCatalogs() { for (const k in catalog) { catalog[k] = null; delete fresh[k]; delete pending[k]; } }
 
 const cacheable = () => S.acc && (S.acc.type === 'xtream' || !!S.acc.url);
 // The saved copy keeps what prepare() and the ratings worked out, so the next start skips that work (bump PREP when
 // prepare() changes what it computes).
-const PREP = 3;
-const KEEP = new Set(['_s', '_ts', '_lang', '_q', '_hdr', '_sub', '_genres', '_hot', '_title', '_key', '_ck', '_cy', '_ir', '_iv', '_pop', '_top']);
-const lean = (c) => ({ at: c.at || Date.now(), pv: c.pv, rated: !!c._rated, cats: c.cats, items: c.items.map((x) => { const o = {}; for (const k in x) if (k[0] !== '_' || KEEP.has(k)) o[k] = x[k]; return o; }) });
-const save = (kind, c) => { if (cacheable()) window.Core.cache.set(cacheKey(kind), lean(c)); };
+// One version per kind, so changing how one kind is prepared doesn't redo the others (3 is what every kind has had
+// since separator channel names were cleaned up).
+const PREP = { live: 3, movie: 3, series: 3 };
+const KEEP = new Set(['_s', '_sep', '_lang', '_q', '_hdr', '_sub', '_genres', '_hot', '_title', '_key', '_ck', '_cy', '_ir', '_iv', '_pop', '_top']);
+// Saved in parts of 5,000 with a breath between, read the same way: one record of 60,000 films froze the remote for
+// seconds each time it was written or read. (kind is the same on every item and is put back on reading.)
+const PART = 5000;
+const leanItem = (x) => { const o = {}; for (const k in x) if (k !== 'kind' && (k[0] !== '_' || KEEP.has(k))) o[k] = x[k]; return o; };
+const saving = {};
+function save(kind, c) {
+  if (!cacheable()) return;
+  const key = cacheKey(kind), my = S.epoch;
+  const run = async () => {
+    const n = Math.ceil(c.items.length / PART);
+    for (let i = 0; i < n; i++) {
+      if (my !== S.epoch) return;
+      await window.Core.cache.set(`${key}:p${i}`, c.items.slice(i * PART, (i + 1) * PART).map(leanItem));
+      await breathe();
+    }
+    // the head last: a list is only read back once every part of it is there
+    await window.Core.cache.set(key, { at: c.at || Date.now(), pv: c.pv, rated: !!c._rated, cats: c.cats, kind, parts: n, count: c.items.length });
+  };
+  saving[kind] = (saving[kind] || Promise.resolve()).then(run, run);
+}
+async function readSaved(kind) {
+  const key = cacheKey(kind);
+  const head = await window.Core.cache.get(key);
+  if (!head) return null;
+  if (head.items) return head;   // saved before lists were split into parts
+  const items = [];
+  for (let i = 0; i < head.parts; i++) {
+    const part = await window.Core.cache.get(`${key}:p${i}`);
+    if (!part) return null;
+    for (const x of part) { x.kind = head.kind; items.push(x); }
+    await breathe();
+  }
+  return items.length === head.count ? { ...head, items } : null;
+}
 function cacheKey(kind) {
   const a = S.acc;
   const who = `${a.type}|${a.server || ''}|${a.username || ''}|${a.password || ''}|${a.url || ''}`;
@@ -39,13 +73,13 @@ export function ensure(kind) {
     const my = S.epoch;
     const load = async () => {
       if (cacheable()) {
-        const hit = await window.Core.cache.get(cacheKey(kind));
+        const hit = await readSaved(kind);
         if (my !== S.epoch) throw new Error('stale');
         if (hit?.items?.length) {
           // Channels are checked for changes every couple of hours, films and series every six.
           if (Date.now() - hit.at > (kind === 'live' ? 2 : 6) * 3600e3) refreshLater(kind, my);
           hit._cached = true;
-          hit._rated = !!hit.rated && hit.pv === PREP;
+          hit._rated = !!hit.rated && hit.pv === PREP[kind];
           return hit;
         }
       }
@@ -74,8 +108,10 @@ export function ensure(kind) {
   return pending[kind];
 }
 
-// The provider is only asked when the remote has been idle for a while and the TV player isn't up.
-const settled = async () => { while (busy.watching() || Date.now() - lastKey < 10000) await sleep(3000); };
+// A refresh is a big download and seconds of work: done while you're watching in the TV player (nothing of this app is on
+// screen then) or after a minute without a key, and never in the first 3 minutes after the app starts.
+const started = Date.now();
+const settled = async () => { while (Date.now() - started < 180000 || busy.gameOn() || !(busy.watching() || Date.now() - lastKey > 60000)) await sleep(3000); };
 function refreshLater(kind, my) {
   refreshQ = refreshQ.then(async () => {
     await sleep(5000);
@@ -199,14 +235,14 @@ const sharedGenres = (list) => { const key = list.join('|'); let g = genreSets.g
 
 async function prepare(kind, c) {
   c._at = c.at || Date.now();
-  const done = c.pv === PREP;   // a saved copy that was prepared already
+  const done = c.pv === PREP[kind];   // a saved copy that was prepared already
   c._unprepared = !done;
-  c.pv = PREP;
+  c.pv = PREP[kind];
   await breathe();   // the saved copy was just read in one go: let the remote through before the next step
   if (!done) for (let i = 0; i < c.items.length; i++) {
     const x = c.items[i];
     // "##### AT&T RAW #####", "==== SPORTS ====": providers' section separators; keep the words, drop the decoration
-    if (kind === 'live' && /^[#=*~_\-\s]{3,}|[#=*~_\-\s]{3,}$/.test(x.name)) x.name = x.name.replace(/^[#=*~_\-\s]{3,}|[#=*~_\-\s]{3,}$/g, '').trim() || x.name;
+    if (kind === 'live' && /^[#=*~_\-\s]{3,}|[#=*~_\-\s]{3,}$/.test(x.name)) { x.name = x.name.replace(/^[#=*~_\-\s]{3,}|[#=*~_\-\s]{3,}$/g, '').trim() || x.name; x._sep = true; }
     x._s = Titles.norm(x.name);
     if (i % 5000 === 4999) await breathe();
   }
@@ -429,6 +465,36 @@ export function optionCounts(kind, view, key, values) {
   const fs = values.map((v) => ({ [key]: v }));
   for (const t of pool) for (let i = 0; i < fs.length; i++) if (match(t, fs[i], '')) counts[i]++;
   return counts;
+}
+// Every section's counts for the Filters sheet in one walk over the titles: a title counts towards a section when it
+// passes every other active filter. Genres and languages are counted from the title's own lists.
+// sections: [[key, values]] (undefined = "Any", not counted); returns { key: counts[] }.
+export function facetCounts(kind, f, sections) {
+  const c = catalog[kind];
+  L = prefLangs();
+  const active = ['lang', 'genre', 'q', 'sub', 'imdb', 'decade'].filter((k) => f[k] && !(k === 'lang' && f[k] === 'all')).map((k) => [k, { [k]: f[k] }]);
+  const out = {}, plan = [];
+  for (const [key, vals] of sections) {
+    const counts = vals.map(() => 0);
+    out[key] = counts;
+    const at = new Map(), rest = [];
+    vals.forEach((v, i) => {
+      if (v === undefined || v === 'all') return;
+      if (key === 'genre' || (key === 'lang' && v !== 'mine')) at.set(v, i); else rest.push([i, { [key]: v }]);
+    });
+    plan.push({ key, counts, at, rest });
+  }
+  for (const t of c?.titles || []) {
+    let failed = null, nf = 0;
+    for (const [k, one] of active) if (!match(t, one, '')) { failed = k; if (++nf > 1) break; }
+    if (nf > 1) continue;
+    for (const s of plan) {
+      if (nf === 1 && failed !== s.key) continue;
+      if (s.at.size) for (const v of s.key === 'genre' ? t._genres || [] : t._langs || []) { const i = s.at.get(v); if (i !== undefined) s.counts[i]++; }
+      for (const [i, one] of s.rest) if (match(t, one, '')) s.counts[i]++;
+    }
+  }
+  return out;
 }
 // Jump follows the sort: rank bands for Popular and Top rated, years for Newest, letters for Title, months for Recently added.
 export function jumpTargets(view, list) {

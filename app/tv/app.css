@@ -62,3 +62,8 @@ input.field[readonly]{caret-color:transparent}
 /* scrolled library: a band of canvas above the first visible row, under the context line and the bubble */
 .lib-cover{position:absolute;left:0;right:0;top:0;height:84px;background:linear-gradient(180deg,var(--a-bg-0) 86%,rgba(21,19,29,0));z-index:2;pointer-events:none}
 .ctxline,.bubble{z-index:4}
+
+/* offline: a slim bar that stays until the provider answers again (never focusable; nothing to do but wait) */
+.offline-bar{position:absolute;left:48px;bottom:14px;z-index:40;display:flex;align-items:center;gap:8px;height:32px;padding:0 14px;border-radius:999px;background:var(--a-bg-1);border:1px solid var(--a-border-strong);font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.offline-bar b{color:var(--a-text-1);font-weight:650}
+.offline-bar .ic{color:var(--a-text-2)}

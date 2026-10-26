@@ -89,11 +89,12 @@ final class GamePanel extends Overlay {
         sub.setPadding(0, Ui.dp(4), 0, Ui.dp(8));
         if (hidden()) { sub.addView(Ui.iconView(c, "eyeOff", Ui.T3, 16)); sub.addView(space(c, 4)); }
         sub.addView(Ui.text(c, d.optString("clock"), 14, Ui.T3, Ui.inter500));
-        if (!hidden() && d.has("synced") && !d.isNull("synced")) {
+        boolean synced = d.has("synced") && !d.isNull("synced"), delayed = d.has("delayed") && !d.isNull("delayed");
+        if (!hidden() && (synced || delayed)) {   // only "Synced" once a sync is stored; the 60 s default says so
             sub.addView(Ui.text(c, "  ·  ", 14, Ui.T3, Ui.inter500));
             sub.addView(Ui.iconView(c, "clock", Ui.T3, 16));
             sub.addView(space(c, 4));
-            sub.addView(Ui.text(c, "Synced · " + d.optInt("synced") + " s", 14, Ui.T3, Ui.inter500));
+            sub.addView(Ui.text(c, synced ? "Synced · " + d.optInt("synced") + " s" : "Delayed " + d.optInt("delayed") + " s (default)", 14, Ui.T3, Ui.inter500));
         }
         box.addView(sub);
 

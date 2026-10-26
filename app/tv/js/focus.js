@@ -56,10 +56,15 @@ function pickIn(box, from, dir) {
   if (mem?.isConnected && box.contains(mem) && visible(mem) && box.dataset.mem !== 'off') return mem;
   const e = box.dataset.entry && box.querySelector(box.dataset.entry);
   if (e && visible(e)) return e;
-  const items = itemsOf(box);
+  let items = itemsOf(box);
   if (!items.length) return null;
   const a = rectOf(from);
   const vert = dir === 'up' || dir === 'down';
+  // Coming into a row that wraps onto more lines: its nearest line first (the first going down, the last going up).
+  if (vert && box.hasAttribute('data-row')) {
+    const edge = dir === 'down' ? Math.min(...items.map((el) => rectOf(el).top)) : Math.max(...items.map((el) => rectOf(el).bottom));
+    items = items.filter((el) => Math.abs((dir === 'down' ? rectOf(el).top : rectOf(el).bottom) - edge) < 4);
+  }
   let best = null, bd = Infinity;
   for (const el of items) {
     const b = rectOf(el);

@@ -4,7 +4,7 @@
 import { $, esc, ic, dot, liveP, logo, hm, setHtml } from '../util.js';
 import { S, on, store, scoped, favList, toggleFav, isFav } from '../state.js';
 import { catalog, ensure, takeFresh } from '../catalog.js';
-import { guideFor, guideNow, onNow, warm } from '../guide.js';
+import { guideFor, guideNow, guideFailed, onNow, warm, known } from '../guide.js';
 import { myGame, gameOn, hidden, feedsNow, findFeeds, liveGames, isMine, show } from '../games.js';
 import { playLive, watching } from '../player.js';
 import { current, mayFocus } from '../router.js';
@@ -13,7 +13,8 @@ import { openOverlay, toast, scrollList } from '../ui.js';
 
 const ROWS = 6, PITCH = 52, AXIS = 656, SPAN = 150 * 60e3, PX = AXIS / SPAN;
 let el, group = 'fav', chans = [], top = 0, r = 0, at = Date.now(), winStart = 0, nowFloor = 0, toastT = 0, digitBuf = '', digitT = 0;
-const floor10 = (t) => t - (t % 600000);
+// The window starts at the half hour that holds now, so the programme on now shows whole (not cut to its last minutes).
+const floor30 = (t) => { const d = new Date(t); d.setMinutes(d.getMinutes() < 30 ? 0 : 30, 0, 0); return d.getTime(); };
 
 // Counted once per channel list, favourites and live games (it's read on every draw).
 let groupsMemo = { key: '', list: [] };
@@ -67,7 +68,9 @@ function cells(ch, ri) {
   const end = winStart + SPAN;
   if (!list) return `<div class="g-cell fx" tabindex="-1" data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b style="color:var(--a-text-3);font-weight:500">Loading guide…</b></div>`;
   const vis = list.filter((p) => p.end > winStart && p.start < end);
-  if (!vis.length) return `<div class="g-cell empty fx" tabindex="-1" data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b>No guide information</b></div>`;
+  // Say why there's nothing: offline, or the provider didn't answer this time (tried again soon), or it has no guide.
+  const why = S.offline ? 'Offline · OK still tunes' : guideFailed(ch) ? "Guide didn't load · OK still tunes" : 'No guide information';
+  if (!vis.length) return `<div class="g-cell empty fx" tabindex="-1" data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b>${why}</b></div>`;
   const now = Date.now();
   return vis.map((p) => {
     const s = Math.max(p.start, winStart), e = Math.min(p.end, end);
@@ -122,7 +125,7 @@ function draw(focusAt) {
   if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
   if (!catalog.live) return;
-  nowFloor = floor10(Date.now());
+  nowFloor = floor30(Date.now());
   if (!winStart || winStart < nowFloor) winStart = nowFloor;
   if (r < top) top = r;
   if (r >= top + ROWS) top = r - ROWS + 1;
@@ -135,12 +138,16 @@ function draw(focusAt) {
   else if (changed && was === 'ch') focus(el.querySelector(`.g-ch[data-r="${r}"]`));
   else if (changed && was === 'cell') focusCell(r, at);
   else setHtml(el.querySelector('.g-now'), nowPanel());   // (a focus move draws it)
+  // Guide data once the remote settles: the rows on screen first, each drawn as it arrives, then the next six.
   clearTimeout(warmT);
-  warmT = setTimeout(() => warm(chans.slice(top, top + ROWS + 6), { still: () => current() === 'live' }).then((n) => { if (n && current() === 'live') draw(); }), 200);
+  warmT = setTimeout(() => {
+    for (const ch of chans.slice(top, top + ROWS)) if (!known(ch)) guideFor(ch, { urgent: true }).then(() => { if (current() === 'live') drawSoon(); });
+    warm(chans.slice(top + ROWS, top + ROWS + 6), { still: () => current() === 'live' });
+  }, 120);
 }
 // While a key is held, one draw per frame however fast the repeats come.
 function drawSoon(focusAt) {
-  pendingFocus = focusAt;
+  if (focusAt) pendingFocus = focusAt;   // (data arriving doesn't cancel a move waiting to be drawn)
   if (frame) return;
   frame = requestAnimationFrame(() => { frame = 0; const f = pendingFocus; pendingFocus = null; draw(f); });
 }

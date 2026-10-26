@@ -1,9 +1,10 @@
 // airglow TV: start-up, the remote's keys, and Back.
-import { $, sleep } from './util.js';
-import { S, on, settings } from './state.js';
+import { $, sleep, ic } from './util.js';
+import { S, on, emit, settings, store } from './state.js';
 import { setBase, move, focus, entryOf, inLayer, topLayer } from './focus.js';
 import { closeTop, overlayKey, toast } from './ui.js';
-import { register, go, pop, nav, current, screenDef, screenEl, focusTab, setBar, barHidden } from './router.js';
+import { register, go, pop, nav, current, screenDef, screenEl, focusTab, setBar, barHidden, refresh } from './router.js';
+import { resetGuides } from './guide.js';
 import { native } from './native.js';
 import { resume } from './session.js';
 import { startNba, myGame, nba } from './games.js';
@@ -19,14 +20,15 @@ import search from './screens/search.js';
 import saved from './screens/saved.js';
 import account from './screens/account.js';
 import first from './screens/first.js';
-import { launchOpen, launchReady } from './launch.js';
+import { launchOpen, launchReady, launchKey } from './launch.js';
 import { sfx } from './sfx.js';
 
 const app = $('#app');
 setBase(app);
 // Sounds: the Account choice, else on (or off when the TV's own system sounds are off; known once the bridge answers).
 sfx.init();
-sfx.mode(settings().sounds || 'on');
+// (the TV's system sounds setting as it was last time, so the launch chord doesn't play on a TV that has them off)
+sfx.mode(settings().sounds || (store.get('systemSounds', true) === false ? 'off' : 'on'));
 app.addEventListener('tvfocus', (e) => sfx.focused(e.target));
 // The layout is drawn for 960 x 540 CSS px (a 1080p TV at 2x); other screens scale it.
 function fit() { const z = window.innerWidth / 960; document.body.style.zoom = Math.abs(z - 1) > 0.01 ? z : ''; }
@@ -51,7 +53,9 @@ let okDown = null;   // { el, t, held, timer }
 document.addEventListener('keydown', (e) => {
   const k = keyName(e);
   if (!k) return;
-  if (!launchOpen()) { e.preventDefault(); e.stopPropagation(); return; }   // keys count from the wipe on
+  // A held key's repeats that waited behind a busy moment are dropped, so focus never runs on by several rows.
+  if (e.repeat && DIRS.has(k) && performance.now() - e.timeStamp > 250) { e.preventDefault(); e.stopPropagation(); return; }
+  if (!launchOpen()) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) launchKey(); return; }   // keys count from the wipe on; one skips to Home once it's ready
   if (typing()) {
     // The keyboard owns the field; Back (or ▲▼) leaves it without leaving the page.
     if (!['back', 'up', 'down'].includes(k)) return;
@@ -116,6 +120,8 @@ window.addEventListener('popstate', () => {});
 // ---------- start ----------
 // A refreshed catalog is swapped in at once unless its section is on screen.
 busy.showing = (k) => { const c = current(); return c === k || (k !== 'live' && c === 'detail'); };
+// No big catalog refresh while your team is playing (seconds of work and a lot of memory, mid-game).
+busy.gameOn = () => myGame()?.state === 'in';
 on('nba', () => setBar({ live: myGame()?.state === 'in' }));
 on('session', () => {
   if (!S.acc) return;
@@ -124,7 +130,24 @@ on('session', () => {
   startNba();
 });
 on('signed-out', (msg) => go('first', { error: msg }));
-on('offline', () => toast('Offline · showing what airglow remembers', 5000));
+// Offline: a slim bar that stays while the provider can't be reached (a toast went by unseen under the launch),
+// and a quiet retry every 30 s; when it answers again the bar goes and the guide is asked again.
+let offlineT = 0;
+on('offline', () => {
+  let bar = $('#offline');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'offline'; bar.className = 'offline-bar'; app.appendChild(bar); }
+  bar.innerHTML = `${ic('wifiOff', 'sm')}<span><b>Offline</b> · showing what airglow remembers · trying again</span>`;
+  bar.hidden = false;
+  clearTimeout(offlineT);
+  const retry = () => {
+    if (!S.src || !S.offline) return;
+    S.src.login().then((d) => {
+      S.offline = false; S.info = d; bar.hidden = true;
+      resetGuides(); emit('online'); refresh();
+    }).catch(() => { offlineT = setTimeout(retry, 30000); });
+  };
+  offlineT = setTimeout(retry, 30000);
+});
 if (native) {
   const upd = (st) => setBar({ update: st?.state === 'ready' });
   native.updates.onStatus(upd);
@@ -133,7 +156,9 @@ if (native) {
 
 async function start() {
   await Promise.race([Promise.resolve(native?.ready), sleep(1500)]);
-  if (!settings().sounds && native?.info().systemSounds === false) sfx.mode('off');
+  const sys = native?.info().systemSounds;
+  if (sys !== undefined) store.set('systemSounds', sys);
+  if (!settings().sounds) sfx.mode(sys === false ? 'off' : 'on');
   if (resume()) {
     // Home's first look needs the channel list (last channel, On now); the saved copy loads inside the launch.
     await Promise.race([ensure('live').catch(() => null), sleep(700)]);

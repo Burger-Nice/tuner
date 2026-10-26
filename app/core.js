@@ -99,6 +99,7 @@
 
   // ---------- Xtream Codes ----------
   // "2026-10-26 14:30:00" as a time in the given IANA zone (the panel's), or the device's own when none is known.
+  const zoneFmt = {};   // one formatter per zone: making one per programme time cost a lot on a TV
   function panelTime(str, tz) {
     const m = /^(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)(?::(\d\d))?/.exec(String(str || ''));
     if (!m) return 0;
@@ -106,7 +107,8 @@
     if (!tz) return new Date(y, mo - 1, d, h, mi, se || 0).getTime();
     const guess = Date.UTC(y, mo - 1, d, h, mi, se || 0);
     try {
-      const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(guess).map((x) => [x.type, x.value]));
+      const fmt = zoneFmt[tz] || (zoneFmt[tz] = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      const p = Object.fromEntries(fmt.formatToParts(guess).map((x) => [x.type, x.value]));
       const asZone = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
       return guess - (asZone - guess);
     } catch { return new Date(y, mo - 1, d, h, mi, se || 0).getTime(); }

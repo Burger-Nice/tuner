@@ -35,7 +35,9 @@ export const sfx = {
     document.addEventListener('keydown', (e) => { if (e.isTrusted && !e.repeat) keysDown++; keyAt = performance.now(); }, true);
     document.addEventListener('keyup', (e) => { if (e.isTrusted) keysDown = Math.max(0, keysDown - 1); keyAt = performance.now(); }, true);
     window.addEventListener('blur', () => { keysDown = 0; });
-    const order = ['launch-full', 'launch-brief', ...Object.keys(DEF).filter((n) => !n.startsWith('launch'))];
+    // the launch first; the reduced-motion one only when that's what will play
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const order = [reduce ? 'launch-brief' : 'launch-full', ...Object.keys(DEF).filter((n) => !n.startsWith('launch'))];
     for (const n of order) loading[n] = fetch(`${BASE}${n}.wav`).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)).then((buf) => { bufs[n] = buf; }).catch(() => {});
   },
   mode(m) { if (m in LEVEL) level = m; },

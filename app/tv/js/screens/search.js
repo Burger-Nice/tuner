@@ -3,13 +3,12 @@
 // Matching is word-prefix only and ignores accents and punctuation ("spiderman" finds Spider-Man).
 import { esc, ic, dot, logo, setHtml, hm, sized } from '../util.js';
 import { S, on, store } from '../state.js';
-import { catalog, ensure, searchAll } from '../catalog.js';
+import { catalog, ensure, searchAll, defaultVersion } from '../catalog.js';
 import { guideNow, onNow } from '../guide.js';
 import { poster } from '../cards.js';
 import { playLive, playVod, watching } from '../player.js';
 import { push, current } from '../router.js';
 import { focus } from '../focus.js';
-import { defaultVersion } from '../catalog.js';
 import { ringFor, ringName } from './home.js';
 
 const KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
@@ -38,7 +37,7 @@ function results() {
   if (!top && !onTv.length && !chans.length && !rest.length) return `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b>No results for “${esc(q)}”</b><p>Check the spelling, or try fewer letters. Search covers channels, programmes, movies and series.</p><span class="btn2 sm fx" tabindex="-1" data-act="clear">Clear</span></div>`;
   const mini = (t) => `<div class="mini2" style="height:40px;width:28px"><div class="art">${t.poster ? `<img src="${esc(sized(t.poster, 92))}" alt="">` : ''}</div></div>`;
   let html = '<div data-col>';
-  if (top) html += `<div class="t-label" style="margin-bottom:8px">Top result</div><div class="rrow fx" tabindex="-1" data-res="t:${top.kind}:${top.id}" style="height:84px"><div class="mini2"><div class="art">${top.poster ? `<img src="${esc(sized(top.poster, 154))}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
+  if (top) html += `<div class="t-label" style="margin-bottom:8px">Top result</div><div class="rrow fx" tabindex="-1" data-res="${top.kind === 'movie' ? 'p' : 't'}:${top.kind}:${top.id}" style="height:84px"><div class="mini2"><div class="art">${top.poster ? `<img src="${esc(sized(top.poster, 154))}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
   if (onTv.length || chans.length) {
     html += '<div class="t-label" style="margin:14px 0 8px">On TV</div>';
     html += onTv.slice(0, 2).map(({ ch, p }) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(p.title)}</div><div class="t-cap ellipsis">${esc(ch.name)}${dot}${hm(p.start)} to ${hm(p.end)}</div></div></div>`).join('');
@@ -82,9 +81,13 @@ function openRes(v) {
   const [kind, a, b] = v.split(':');
   if (kind === 'c') { const ch = catalog.live?.byId.get(a); if (ch) playLive(ch, ringFor(ch), ringName(ch)); return; }
   const t = catalog[a]?.titleById?.get(b) || catalog[a]?.titles?.find((x) => x.id === b);
-  if (t) push('detail', { title: t });
+  if (!t) return;
+  // the top result's Play plays (your language and best quality, from where you stopped); everything else opens its page
+  if (kind === 'p') playVod(defaultVersion(t));
+  else push('detail', { title: t });
 }
 
+let bigT = 0;
 export default {
   name: 'search',
   mount(root) {
@@ -102,7 +105,14 @@ export default {
   },
   enter(root) {
     if (Date.now() - keptAt > 10 * 60e3) q = '';   // the query is kept for 10 minutes
-    ['live', 'movie', 'series'].forEach((k) => ensure(k).catch(() => {}));
+    // Channels at once; films and series (the big lists) once you stay (0.8 s) or press a key here, not when the
+    // top bar passes over Search on its way to Home.
+    ensure('live').catch(() => {});
+    clearTimeout(bigT);
+    const big = () => { clearTimeout(bigT); document.removeEventListener('keydown', inside, true); if (current() === 'search') ['movie', 'series'].forEach((k) => ensure(k).catch(() => {})); };
+    const inside = () => { if (!document.getElementById('topbar').contains(document.activeElement)) big(); };
+    bigT = setTimeout(big, 800);
+    document.addEventListener('keydown', inside, true);
     draw();
   },
   entry: (root) => root.querySelector('[data-key="A"]'),

@@ -188,7 +188,7 @@ public class PlayerActivity extends AppCompatActivity {
             long left = chipUntil - SystemClock.uptimeMillis();
             if (chipIsUpNext) left = upNextLeft();
             if (left <= 0) { hideChip(); return; }
-            float total = chipIsUpNext ? 10000f : 8000f;
+            float total = chipIsUpNext ? 30000f : 8000f;
             chipRing.set(Math.min(1, left / total), (int) Math.ceil(left / 1000.0));
             if (chipIsUpNext) chipTitle.setText("Next episode in " + (int) Math.ceil(left / 1000.0) + " s");
             handler.postDelayed(this, 200);
@@ -204,7 +204,7 @@ public class PlayerActivity extends AppCompatActivity {
                     e.put("d", d / 1000.0);
                     TunerPlayerPlugin.emit(e);
                     long left = d - player.getCurrentPosition();
-                    if (player.hasNextMediaItem() && stayIndex != index && left > 0 && left <= 10000) {
+                    if (player.hasNextMediaItem() && stayIndex != index && left > 0 && left <= 30000) {
                         if (!chipUp && open == null) showUpNext();
                     } else if (chipUp && chipIsUpNext) hideChip();
                 }
@@ -230,6 +230,8 @@ public class PlayerActivity extends AppCompatActivity {
         String lv = x.getString("sounds", "on");
         soundLevel = "off".equals(lv) ? 0f : "quiet".equals(lv) ? 0.5f : 1f;
         if (x.containsKey("scoreBug")) prefs.edit().putBoolean("scorebug", x.getBoolean("scoreBug")).apply();   // the app's setting wins
+        String sub = x.getString("sub");
+        if (sub != null && !sub.isEmpty()) prefs.edit().putString("sub", sub).apply();   // Account / the title page's subtitle choice
         if (live && soundLevel > 0) {
             sounds = new android.media.SoundPool.Builder().setMaxStreams(1).setAudioAttributes(new android.media.AudioAttributes.Builder()
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build();
@@ -659,8 +661,10 @@ public class PlayerActivity extends AppCompatActivity {
 
     // ---------- the action chip and Up next ----------
 
+    private String[] chipLater;   // a chip that came while a panel was open: shown when it closes
     private void showChip(String title, String sub, String id) {
-        if (open != null || !live) return;
+        if (!live) return;
+        if (open != null) { chipLater = new String[] { title, sub, id }; return; }
         long since = SystemClock.uptimeMillis() - tunedAt;
         if (since < 10000) {   // never in the first 10 s after a tune
             handler.postDelayed(() -> { if (cur != null && !id.equals(cur.id)) showChip(title, sub, id); }, 10000 - since);
@@ -688,7 +692,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (index + 1 >= ring.size()) return;
         Entry n = ring.get(index + 1);
         chipIsUpNext = true;
-        chipTitle.setText("Next episode in 10 s");
+        chipTitle.setText("Next episode in 30 s");
         chipSub.setText(n.sub == null || n.sub.isEmpty() ? n.title : n.sub);
         chipOk.setText("play now");
         chipUp = true;
@@ -731,6 +735,7 @@ public class PlayerActivity extends AppCompatActivity {
         hintsOn = false;
         hintsChanged();
         updateBug();
+        if (chipLater != null && open == null) { String[] c = chipLater; chipLater = null; if (cur != null && !c[2].equals(cur.id)) showChip(c[0], c[1], c[2]); }
     }
     private ListPanel.Item row(String title, String sub, String value, String icon, Runnable ok) {
         ListPanel.Item it = new ListPanel.Item(title);
@@ -784,6 +789,8 @@ public class PlayerActivity extends AppCompatActivity {
                 return it;
             }
         }, Math.max(0, index));
+        // Watching another game while your team plays: the list opens on your team's row, one OK away.
+        if (!p.fixed.isEmpty() && gameLinked) p.sel = 0;
         p.onLeft = this::openGroups;
         p.onMove = (i) -> { handler.removeCallbacks(askMeta); handler.postDelayed(askMeta, 150); };
         p.onClosed = () -> channels = null;
@@ -1170,6 +1177,9 @@ public class PlayerActivity extends AppCompatActivity {
         if (retries >= 6) { error = "Reconnected 6 times. The provider may be down."; showFailed(error); return; }
         long wait = 1000L << Math.min(retries, 4);
         retries++;
+        // A game channel: from the second try, offer the game's other feeds right away (reconnecting carries on underneath;
+        // if this one comes back the card goes).
+        if (retries == 2 && gameLinked && otherFeeds().length() > 0 && open == null) { showFailed(null); handler.removeCallbacks(retune); handler.postDelayed(retune, wait); return; }
         toast.setVisibility(View.GONE);
         spinner.setVisibility(View.VISIBLE);
         cardTitle.setText("Reconnecting");
@@ -1574,14 +1584,24 @@ public class PlayerActivity extends AppCompatActivity {
         if (g == null) {
             b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
             prefs.edit().putString("sub", "off").apply();
+            subChanged("off");
         } else {
             Format f = g.getTrackFormat(i);
             String lang = f.language == null || f.language.isEmpty() ? "und" : f.language;
             b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(), i));
             if ("und".equals(lang)) b.setSelectUndeterminedTextLanguage(true); else b.setPreferredTextLanguage(lang);
             prefs.edit().putString("sub", lang).apply();
+            subChanged(lang);
         }
         player.setTrackSelectionParameters(b.build());
+    }
+
+    /** A subtitle choice made here becomes the app's choice too (Account, the title page). */
+    private void subChanged(String lang) {
+        JSObject ev = event("setting");
+        ev.put("key", "sub");
+        ev.put("value", lang);
+        TunerPlayerPlugin.emit(ev);
     }
 
     private static String trackName(Format f, int n) {

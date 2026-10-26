@@ -43,7 +43,8 @@ const chOf = (id) => catalog.live?.byId.get(id) || catalog.live?.byId.get(+id) |
 // ring: the channels Up/Down zap through (the group you tuned from), name: shown in the banner ("Favourites · 3 of 10").
 export async function playLive(ch, ring, ringName = 'All channels') {
   if (!ch) return;
-  const list = ring?.length ? ring : catalog.live?.items || [ch];
+  // separator entries ("##### SPORTS #####") are headings, not channels: never in the zap order
+  const list = (ring?.length ? ring : catalog.live?.items || [ch]).filter((c) => !c._sep || c.id === ch.id);
   let index = list.findIndex((c) => c.id === ch.id);
   if (index < 0) { list.unshift(ch); index = 0; }
   addRecent(ch);
@@ -131,6 +132,7 @@ function ringOf(key) {
   return c.items.filter((x) => String(x.cat) === key);
 }
 function sendRing(list, name, tune) {
+  list = list.filter((c) => !c._sep || String(c.id) === String(tune));
   if (!list.length || !ctx.cur) return;
   ctx.cur.items = list;
   ctx.cur.ring = name;
@@ -165,7 +167,7 @@ function gameData(g) {
     away: teamOf(dg.away), home: teamOf(dg.home),
     score: hid || dg.state === 'pre' ? null : [String(dg.away.score ?? 0), String(dg.home.score ?? 0)],
     clock: dg.state === 'pre' ? `Tip-off ${hm(dg.date)}` : clockText(dg), hidden: hid,
-    synced: v.synced, delay: watch.chId ? delayFor(watch.chId) : 60,
+    synced: v.synced, delayed: v.delayed, delay: watch.chId ? delayFor(watch.chId) : 60,
     box: { away: team('away'), home: team('home') },
     plays: hid ? [] : (s?.plays || []).slice(0, 40).map((p) => ({ clock: `${ordinal(p.period)} ${p.clock}`, team: p.team || '', text: p.text || '', scoring: !!p.scoring, score: p.scoring ? `${p.away}–${p.home}` : '' })),
     feeds: feeds.map((f, i) => ({ id: String(f.ch.id), name: f.ch.name, num: f.ch.num || 0, logo: f.ch.logo || '', label: `Feed ${i + 1} of ${feeds.length}${f.why === 'Your pick' ? ' · Your pick' : ''}` })),
@@ -207,7 +209,11 @@ function push() {
 setInterval(push, 1000);
 
 // What the player needs from Account: the sound level (for its one sound, Your team is live) and Score on picture.
-const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug });
+// Subtitles: Account / the title page keep a language name; the player works in ISO codes.
+const SUB_CODE = { English: 'en', Spanish: 'es', French: 'fr', German: 'de', Italian: 'it', Portuguese: 'pt', Dutch: 'nl', Swedish: 'sv', Norwegian: 'no', Danish: 'da', Icelandic: 'is', Polish: 'pl', Turkish: 'tr', Arabic: 'ar', Hindi: 'hi' };
+const subCode = (v) => (!v || v === 'auto' ? 'auto' : v === 'off' ? 'off' : SUB_CODE[v] || v);
+const subName = (c) => (c === 'off' ? 'off' : Object.keys(SUB_CODE).find((k) => SUB_CODE[k] === c) || c);
+const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug, sub: subCode(settings().subLang) });
 
 // ---------- movies and episodes ----------
 function vodEntry(it, restart) {
@@ -291,6 +297,7 @@ native?.player.onEvent((e) => {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {
     if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
+    if (e.key === 'sub') saveSettings({ subLang: subName(String(e.value)) });   // picked in the player: the same choice everywhere
   } else if (e.type === 'exit') {
     ctx.cur = null;
     sfx.zone('ui');

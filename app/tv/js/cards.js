@@ -13,7 +13,7 @@ export function poster(t, i, { sm = false } = {}) {
   const lang = t._lang && !prefLangs().includes(t._lang) ? LANG_SHORT[t._lang] || '' : '';
   const tr = t.versions?.length > 1 ? tag('+' + (t.versions.length - 1)) : lang ? tag(lang) : '';
   const p = t.kind === 'movie' ? progressOf(t.versions?.[0] || t) : null;
-  const art = t.poster ? `<div class="art">${img(t.poster)}</div>` : `<div class="noart"><span class="ini">${esc(initials(t.name))}</span><span class="nt clamp3">${esc(t.name)}</span></div>`;
+  const art = t.poster ? `<div class="art" data-ini="${esc(initials(t.name))}" data-nt="${esc(t.name)}">${img(t.poster)}</div>` : `<div class="noart"><span class="ini">${esc(initials(t.name))}</span><span class="nt clamp3">${esc(t.name)}</span></div>`;
   const meta = [t.year, t._ir ? `★ ${t._ir.toFixed(1)}` : (t._genres?.[0] || '')].filter(Boolean).join(' · ');
   return `<div class="pc fx${sm ? ' sm' : ''}" tabindex="-1" data-i="${i}" data-hold><div class="box">${art}${tl ? `<div class="tl">${tl}</div>` : ''}${tr ? `<div class="tr">${tr}</div>` : ''}${p && p.t > 30 && p.t < p.d * 0.94 ? `<div class="prog flush"><i style="width:${pct(p)}%"></i></div>` : ''}</div>
     <div class="cap">${esc(t.name)}</div><div class="cm">${esc(meta)}</div></div>`;
@@ -73,7 +73,7 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   const status = pre
     ? `<span class="t-label" style="color:var(--a-pink-text)">Your team</span><span class="t-label t-2">NBA${dot}Tip-off</span>`
     : post ? `<span class="t-label t-2">NBA${dot}${shield ? 'Ended' : 'Final'}</span>`
-    : `${liveP()}<span class="t-label t-2">NBA</span>${!shield && v.synced != null ? `<span class="synced">${ic('clock')}Synced · ${v.synced} s behind live</span>` : ''}`;
+    : `${liveP()}<span class="t-label t-2">NBA</span>${!shield && v.delayed != null ? `<span class="synced">${ic('clock')}${v.synced != null ? `Synced · ${v.synced} s behind live` : `Delayed ${v.delayed} s (default)`}</span>` : ''}`;
   const score = pre ? '<span class="score md">VS</span>'
     : shield ? `<span class="shield" style="height:44px;padding:0 12px;font-size:16px;gap:8px">${ic('eyeOff')}<span>Score hidden</span></span>`
     : `<span class="score">${esc(g.away.score)}</span><span class="t-3" style="font:700 22px var(--a-font-display)">–</span><span class="score">${esc(g.home.score)}</span>`;

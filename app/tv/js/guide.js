@@ -4,28 +4,52 @@ import { S } from './state.js';
 const guides = new Map();   // chId -> { at, list: Promise, ready: [] | undefined }
 export const resetGuides = () => guides.clear();
 
-export function guideFor(ch) {
+// The provider is one server, often with a limit on requests: at most 3 at a time, and what's on screen goes first
+// (urgent), ahead of look-ahead rows and the search for your team's channel.
+const MAX = 3, lanes = { now: [], later: [] }, queued = new Map();   // chId -> job still waiting
+let running = 0;
+function pump() {
+  while (running < MAX) {
+    const job = lanes.now.shift() || lanes.later.shift();
+    if (!job) return;
+    queued.delete(job.id);
+    running++;
+    job.run().then(job.res, job.rej).finally(() => { running--; pump(); });
+  }
+}
+function enqueue(id, run, urgent) {
+  return new Promise((res, rej) => { const job = { id, run, res, rej }; queued.set(id, job); (urgent ? lanes.now : lanes.later).push(job); pump(); });
+}
+// A failed answer is tried again after 30 s (a provider busy for a moment must not mean "no guide" for 10 minutes).
+export function guideFor(ch, { urgent = false } = {}) {
   const hit = guides.get(ch.id);
-  if (hit && Date.now() - hit.at < 600000) return hit.list;
+  if (hit && Date.now() - hit.at < (hit.failed ? 30000 : 600000)) {
+    const job = urgent && queued.get(ch.id);   // asked for again, now on screen: move it to the front
+    if (job && lanes.later.includes(job)) { lanes.later.splice(lanes.later.indexOf(job), 1); lanes.now.push(job); }
+    return hit.list;
+  }
   const my = S.epoch;
-  const list = (S.src?.epg ? S.src.epg(ch) : Promise.resolve([])).catch(() => []).then((l) => {
+  const list = enqueue(ch.id, () => (S.src?.epg ? S.src.epg(ch) : Promise.resolve([])), urgent).then((l) => {
     if (my === S.epoch) guides.set(ch.id, { at: Date.now(), list: Promise.resolve(l), ready: l });
     return l;
+  }, () => {
+    const keep = hit?.ready || [];
+    if (my === S.epoch) guides.set(ch.id, { at: Date.now(), list: Promise.resolve(keep), ready: hit?.ready, failed: true });
+    return keep;
   });
   guides.set(ch.id, { at: Date.now(), list, ready: hit?.ready });
   return list;
 }
 export const guideNow = (ch) => guides.get(ch.id)?.ready;
+// The last try for this channel's guide failed (it is tried again after 30 s).
+export const guideFailed = (ch) => !!guides.get(ch.id)?.failed;
 export const known = (ch) => guides.has(ch.id);
 export const onNow = (list, now = Date.now()) => list?.find((p) => p.start <= now && p.end > now) || null;
 export const nextUp = (list, now = Date.now()) => list?.find((p) => p.start > now) || null;
 
-// Fetch a few channels at a time (the provider is one server), stopping when the caller no longer wants them.
-export async function warm(chs, { batch = 2, still = () => true } = {}) {
+// Fetch guides for these channels through the queue, stopping when the caller no longer wants them.
+export async function warm(chs, { still = () => true, urgent = false } = {}) {
   const want = chs.filter((c) => c && !known(c));
-  for (let i = 0; i < want.length; i += batch) {
-    if (!still()) return i;
-    await Promise.all(want.slice(i, i + batch).map(guideFor));
-  }
+  await Promise.all(want.map((c) => (still() ? guideFor(c, { urgent }) : null)));
   return want.length;   // how many were fetched, so callers redraw only when something arrived
 }

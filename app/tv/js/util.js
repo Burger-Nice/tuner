@@ -76,6 +76,9 @@ document.addEventListener('error', (e) => {
   const img = e.target;
   if (img.tagName !== 'IMG') return;
   const ini = img.dataset.ini;
+  // a poster that won't load becomes the same initials tile as a title without one (never a blank grey card)
+  const tile = img.closest('[data-nt]');
+  if (tile) { tile.className = 'noart'; tile.innerHTML = `<span class="ini">${esc(tile.dataset.ini || '')}</span><span class="nt clamp3">${esc(tile.dataset.nt)}</span>`; return; }
   if (ini != null) img.replaceWith(document.createTextNode(ini));
   else img.remove();
 }, true);
@@ -84,10 +87,15 @@ document.addEventListener('error', (e) => {
 // path (its data-* attributes and its containers', e.g. the Continue watching rail's card 2, not On now's card 2);
 // if it's gone, focus goes to the screen's entry, never to whatever happens to be first.
 const part = (n) => n.getAttributeNames().filter((k) => k.startsWith('data-')).map((k) => `[${k}="${CSS.escape(n.getAttribute(k))}"]`).join('') || (n.id ? `#${CSS.escape(n.id)}` : '');
-function focusPath(a, root) {
+export function focusPath(a, root) {
   const parts = [];
   for (let n = a; n && n !== root; n = n.parentElement) { const p = part(n); if (p) parts.unshift(p); }
   return { path: parts.join(' '), leaf: part(a) };
+}
+// The control a path describes, inside root (or null).
+export function findPath(root, key) {
+  const q = (s) => { try { return s ? root.querySelector(s) : null; } catch { return null; } };
+  return key ? q(key.path) || q(key.leaf) : null;
 }
 export function setHtml(el, html, restore = true) {
   if (!el || (el._html === html && el.childNodes.length)) return false;

@@ -93,6 +93,7 @@ public class TunerPlayerPlugin extends Plugin {
         i.putExtra("ring", call.getString("ring", ""));
         i.putExtra("upNext", call.getBoolean("upNext", true));
         i.putExtra("sounds", call.getString("sounds", "on"));
+        i.putExtra("sub", call.getString("sub", ""));
         Boolean bug = call.getBoolean("scoreBug");
         if (bug != null) i.putExtra("scoreBug", bug.booleanValue());
         i.putExtra("session", session);

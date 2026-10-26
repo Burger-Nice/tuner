@@ -22,11 +22,11 @@ function finish() {
   if (reduce) {
     sfx.play('launch-brief');   // the chord lands with the fade
     app.classList.add('l-fading');
-    setTimeout(() => app.classList.remove('l-on', 'l-rm', 'l-fading'), 120);
+    setTimeout(() => { app.classList.remove('l-on', 'l-rm', 'l-fading'); done(); }, 120);
     return;
   }
   app.classList.add('l-wiping');   // (no sound: the launch chord is the last thing you hear)
-  setTimeout(() => app.classList.remove('l-on', 'l-run', 'l-wiping'), T_WIPE + 40);
+  setTimeout(() => { app.classList.remove('l-on', 'l-run', 'l-wiping'); done(); }, T_WIPE + 40);
 }
 
 // The first screen has drawn: wipe now if the intro is done, else as soon as it is.
@@ -36,10 +36,19 @@ export function launchReady() {
   if (performance.now() - t0 >= T_HOLD) finish();
 }
 
-// Start once the page and its fonts are ready, so none of it plays while the TV is still busy loading
-// (until then the wedge sits where the native splash left it).
-const fontsReady = document.fonts?.ready || Promise.resolve();
-Promise.race([fontsReady, new Promise((r) => setTimeout(r, 700))]).then(() => requestAnimationFrame(() => requestAnimationFrame(begin)));
+// A key pressed once Home is ready skips the rest of the launch (that key only ends it: it doesn't act on Home).
+// Until then keys are held back, as before.
+export function launchKey() {
+  if (shown) return false;
+  if (ready) finish();
+  return true;
+}
+// Resolves when the launch has gone (other start-up work that can wait, waits for it).
+let done;
+export const launchDone = new Promise((r) => (done = r));
+
+// Start on the first frames the page can draw (the lockup is shapes, not text: nothing to wait for).
+requestAnimationFrame(() => requestAnimationFrame(begin));
 function begin() {
   t0 = performance.now();
   if (!reduce) sfx.launch(t0);   // in step with the animation, however late its file was ready
