@@ -1,10 +1,21 @@
-# airglow · Soft — brand v5.3
+# airglow · Soft — brand v5.4
 
 One identity: a gradient play wedge with stepped echo bands, pink to orchid on a violet-ink canvas. **Soft** is the whole app. **Sharp** is a UI dialect for live and NBA content only.
 
 Scope: branding and component language. Screen layout is not designed here (UI pass later). `context.png` is the only screen-like frame.
 
 Everything is generated from `tools/palette.js` and checked by `tools/contrast.js` (**0 failures**). `tokens.css` is the source of truth for code. Nothing is trademark-cleared (personal app); known overlaps are in section 13.
+
+## v5.4 changes (answering review #4, 7.0/10)
+
+**Story, one line:** *airglow: a signal travels through the air (the wedge) and leaves a lit afterimage behind it (the stepped bands); the play wedge even dots the "i".*
+
+1. **Icon tile off Twitch.** v5.3's violet tile measured ΔE 9.6 from Twitch purple `#9146FF` (OKLab ×100; lowest 10% of the tile 6.0). Five tiles beside a Twitch-like tile (`tests/tile-refine.png`): T1 reviewer's warm magenta (16.8), **T2 plum to magenta to pink (16.8, lowest 10% 15.4, chalk ring 4.1:1) chosen**, T3 owner look with a small plum corner (15.2, but a bright magenta streak that reads as a glow), T4 magenta to rose (17.6). T2 keeps the owner's dark-to-pink diagonal sweep; the violet hue is gone from the tile (`#820C82` → `#BC1BB3` → `#E2449E`). Violet remains only as the back band of the mark.
+2. **One family.** The primary banner is now the icon's sibling: the same ramp, chalk wedge, solid chalk-tint bands and a chalk wordmark. The dark canvas banner with the full-colour lockup is the alternative (`banner-dark.svg`). Test both on the TV (the gradient is the loud one).
+3. **Wordmark** (`tests/word-refine.png`, large / 32 / 19 px / blur): W0 stock all chalk; W1 "glow" in the pink to orchid gradient; W2 W1 with tracking −2% (the i stands apart); **W3 = W2 + the i-dot is the mark's wedge, chosen**. "air" stays chalk, so "ai" no longer reads as one gradient unit; the wedge dot is the one custom touch and ties the name to the mark. On the gradient banner the wordmark is all chalk (a gradient cannot sit on a gradient).
+4. **Glow removed everywhere.** `sprites/glow-*.png` deleted, `--a-sprite-*` glow tokens removed, focus glow removed from components (the 3 px ring does the work, 18:1), the violet atmosphere blob in `context.png` replaced by a flat 2-stop `bg-1` to `bg-0` vertical gradient. Only `grain.png` remains. The story line above is the name-to-mark link the review asked for.
+5. **`mark-micro.svg`:** plain gradient wedge for under 24 px. Tiers: 3 bands at 48 px and up, 2 bands (`mark-small`, `icon-small`) at 24 to 48 px, plain wedge under 24 px.
+6. **Adaptive foreground inside the safe circle:** scale reduced from .66 to .625 so the whole mark stays within radius 32 dp (safe radius 33); checked by `fgRadius()` in `tools/assets3.js` (build fails the scale search until it passes).
 
 ## v5.3 logo (owner decision)
 
@@ -28,13 +39,13 @@ The owner chose the **original v5 Soft echo mark** over the v5.2 lit-core mark: 
 
 **Lockup A** (`tests/lockup-refine.png`): mark height = ascender height, standing on the baseline, gap 26 units from apex to the "a"; single-weight Outfit 700 (the v5.2 two-weight "air glow" split is gone, which also removes the "air glow" reading). B (mark 1.2 × x-height) reads as a bullet; C (cap-height, gap 34) floats.
 
-**Icon (I2).** Reviewer concern: chalk on the tile was 2.1 to 2.8:1. Fix inside the owner's concept: keep the chalk wedge and the pink-to-violet tile, but deepen the pink end to `#E2449E` and the violet to `#4F24C4` with an orchid middle (`#B83BEA`). The wedge is now at least 3.66:1 against the tile in a 14 px ring around it (computed in `tests/icon-refine.js`). The echo bands are **solid** chalk tints (30 / 50 / 70% mixed into the tile colour under each band), computed per band, not alpha strips: they stay legible at 1024 and in the adaptive foreground layer. The ink-on-warm-tile versions (I3, I4) stay as tested alternatives and as the gradient banner. `icon-small.svg` is a two-band version for 48 px and below.
+**Icon (v5.3 I2, superseded in v5.4 by the plum tile above).** Reviewer concern: chalk on the tile was 2.1 to 2.8:1. Fix inside the owner's concept: keep the chalk wedge and the pink-to-violet tile, but deepen the pink end to `#E2449E` and the violet to `#4F24C4` with an orchid middle (`#B83BEA`). The wedge is now at least 3.66:1 against the tile in a 14 px ring around it (computed in `tests/icon-refine.js`). The echo bands are **solid** chalk tints (30 / 50 / 70% mixed into the tile colour under each band), computed per band, not alpha strips: they stay legible at 1024 and in the adaptive foreground layer. The ink-on-warm-tile versions (I3, I4) stay as tested alternatives and as the gradient banner. `icon-small.svg` is a two-band version for 48 px and below.
 
-**Banner.** Primary `assets/banner.svg`: the canvas `#15131D` with the lockup in full colour (quiet; the mark supplies the colour; nothing violet-led). Alternative `assets/banner-gradient.svg`: pink to orchid field with an ink lockup and ink-tint solid bands; the reviewer asked for the icon's sibling and also flagged loudness, so choose on the TV (Standard and Vivid). The v5.2 bloom banners are gone.
+**Banner (v5.4: swapped).** Primary `assets/banner.svg` is the gradient banner on the icon's ramp; `assets/banner-dark.svg` is the quiet alternative. The v5.2 bloom banners are gone.
 
 **Fast-forward / skip read.** Heights step down to the left, the bands are layered behind the wedge instead of beside it, and the wedge is the only gradient shape. R8 is the control that does read as skip; R1 does not.
 
-**Sprites.** `sprites/glow-*.png` remain only as the optional UI focus glow behind primary buttons in the component sheet; they are unrelated to the logo and can be removed without touching it.
+**Sprites.** None for glow (removed in v5.4); `grain.png` only.
 
 **Not changed:** colours, tokens, type, components, Sharp rules, native player spec (only the v5.2 quick fixes below).
 
@@ -47,8 +58,8 @@ The owner chose the **original v5 Soft echo mark** over the v5.2 lit-core mark: 
 | `board.png` | one-page summary |
 | `assets/mark.svg` `mark-small.svg` `lockup.svg` | mark (3 bands), small mark (2 bands, 40 px and below), lockup A. Vector only: no `<text>`, no filters, no raster |
 | `assets/icon-1024.svg/.png`, `icon-small.svg` + `icon-small-256.png`, `icon-foreground`, `icon-background` (+432 px PNGs) | app icon (1024 tile), two-band small icon, Android adaptive layers |
-| `assets/banner.svg/.png/@2x.png`, `banner-gradient.svg/.png` | Google TV banner 320×180 (canvas primary, gradient alternative) |
-| `tokens.css`, `fonts.css`, `fonts/`, `sprites/` | tokens, 99 KB of woff2, UI focus-glow and grain sprites |
+| `assets/banner.svg/.png/@2x.png`, `banner-dark.svg/.png`, `mark-micro.svg` | Google TV banner 320×180 (gradient primary, dark alternative); plain wedge under 24 px |
+| `tokens.css`, `fonts.css`, `fonts/`, `sprites/` | tokens, 99 KB of woff2, grain sprite only |
 | `components.png/.html` | all components, Sharp dialect, native player sheet |
 | `launch.png/.html` | 4-frame launch, 1100 ms |
 | `context.png/.html` | Soft surface beside a Sharp NBA plate |
@@ -67,7 +78,7 @@ Final **R1 (tuned)**, `tools/mark3.js`: wedge 62 long × 70 high (base radius 6,
 
 ## 3. Wordmark and lockup
 
-`airglow`, Outfit 700, single weight, lowercase, outlined to paths (as the owner saw it). Lockup A: the mark is as tall as the ascender and stands on the baseline; the gap from the wedge apex to the "a" is 26 units (cap height = 100). On dark the wordmark is chalk `#F3EFE6`; on the gradient banner it is ink `#14101F`.
+`airglow`, Outfit 700, lowercase, outlined to paths. v5.4 (W3): "air" chalk, "glow" in the pink to orchid gradient, tracking −2%, the i-dot is the mark wedge in pink. Lockup A: the mark is as tall as the ascender and stands on the baseline; the gap from the wedge apex to the "a" is 26 units (cap height = 100). On the gradient banner the whole wordmark and the i-dot are chalk.
 
 ## 4. Colour
 
@@ -158,7 +169,6 @@ Never: body text, labels, captions, anything over three words; box scores, stand
 - **No `filter: blur`, no `backdrop-filter`, no big `box-shadow` spreads.** Glows are the 256 × 256 alpha PNG sprites in `sprites/` (about 10 KB each), scaled with `background-size`. Compose with `opacity` and `transform` only.
 - Gradients: two stops, small elements. The large atmosphere on Home is a sprite, not a CSS gradient. Over large flat fills (hero, banner) add `sprites/grain.png` at its own 7/255 alpha to break banding on 8-bit panels.
 - Mark, lockup, icon and banner use vector radial gradients (no `feGaussianBlur`), so the same SVG is a legal Android VectorDrawable source.
-- One glow sprite visible at a time on a screen apart from the Home atmosphere. Promote only the focused element (`will-change: transform` set on focus, removed on blur).
 - Fonts: 99 KB, `font-display: swap`; the launch frame uses only outlined SVG, so it does not wait for fonts.
 - Native splash is the static mark: no WebView work before first paint.
 

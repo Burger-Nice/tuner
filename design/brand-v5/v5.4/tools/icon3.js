@@ -4,11 +4,12 @@ const hx = h => c.hex2rgb(h).map(v => v * 255);
 const toHex = a => '#' + a.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('').toUpperCase();
 const mixRgb = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 // tile gradient: from bottom-left (t=0) to top-right (t=1) of the 512 tile, stops [[t,hex],...]
-function tileAt(stops, x, y, S) { const t = Math.max(0, Math.min(1, ((x / S) + (1 - y / S)) / 2)); for (let i = 1; i < stops.length; i++) if (t <= stops[i][0]) { const [t0, h0] = stops[i - 1], [t1, h1] = stops[i]; return mixRgb(hx(h0), hx(h1), (t - t0) / (t1 - t0)); } return hx(stops[stops.length - 1][1]); }
+function tileAt(stops, x, y, S, H) { const t = Math.max(0, Math.min(1, ((x / S) + (1 - y / (H || S))) / 2)); for (let i = 1; i < stops.length; i++) if (t <= stops[i][0]) { const [t0, h0] = stops[i - 1], [t1, h1] = stops[i]; return mixRgb(hx(h0), hx(h1), (t - t0) / (t1 - t0)); } return hx(stops[stops.length - 1][1]); }
 const TILES = {
   owner: [[0, '#5B2BD9'], [.5, '#E04BFF'], [1, '#FF5CB8']],            // the v5 tile (pink to violet)
   deep: [[0, '#4F24C4'], [.55, '#B83BEA'], [1, '#E2449E']],             // chalk-safe: no light pink anywhere near the wedge
-  warm: [[0, '#F95BAC'], [1, '#D540F5']],                               // v5.2 tile
+  warm: [[0, '#F95BAC'], [1, '#D540F5']],
+  family: [[0, '#820C82'], [.5, '#BC1BB3'], [1, '#E2449E']],        // v5.4 icon + banner ramp (T2): plum to magenta to pink, 15+ dE from Twitch purple                               // v5.2 tile
 };
 const V = {
   I1: { name: 'owner tile (pink to violet), chalk wedge, chalk-tint bands', tile: 'owner', wedge: '#F3EFE6', band: [.26, .46, .66], bandMix: '#F3EFE6' },
@@ -32,4 +33,5 @@ function ringContrast(variant, S = 512, s = 3.2) { const p = iconParts(variant, 
   const dist = (x, y) => { const seg = (P, Q) => { const t = Math.max(0, Math.min(1, ((x - P[0]) * (Q[0] - P[0]) + (y - P[1]) * (Q[1] - P[1])) / ((Q[0] - P[0]) ** 2 + (Q[1] - P[1]) ** 2))); return Math.hypot(x - (P[0] + t * (Q[0] - P[0])), y - (P[1] + t * (Q[1] - P[1]))); }; return Math.min(seg(A, B), seg(B, C), seg(C, A)); };
   const lum = a => { const l = a.map(v => { v /= 255; return v <= .04045 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * l[0] + .7152 * l[1] + .0722 * l[2]; };
   const wl = lum(hx(v.wedge)); let min = 99; for (let x = A[0] - 12; x < B[0] + 12; x += 4) for (let y = A[1] - 12; y < C[1] + 12; y += 4) { if (inside(x, y)) continue; if (dist(x, y) > 14) continue; if (x < A[0]) continue; const tl = lum(tileAt(p.stops, x, y, S)); const R = (Math.max(wl, tl) + .05) / (Math.min(wl, tl) + .05); if (R < min) min = R; } return min; }
+V.F1 = { name: 'v5.4 family tile (plum to magenta to pink), chalk wedge, chalk-tint solid bands', tile: 'family', wedge: '#F3EFE6', band: [.3, .5, .7], bandMix: '#F3EFE6' };
 module.exports = { iconParts, iconSvg, ringContrast, V, TILES, tileAt, hx, toHex, mixRgb, place };

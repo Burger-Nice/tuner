@@ -8,23 +8,26 @@ const mark = () => M3.svgMark('mk', FINAL, 6);
 const markSmall = () => M3.svgMark('ms', SMALL, 5);
 const lockup = () => L3.lockupSvg('lk', 'A', { lk: { gap: GAP } });
 // ---- icon: deepened tile (violet to orchid to deep pink) + chalk wedge + solid chalk-tint bands ----
-const S_ICON = 3.5, BANDS = [.3, .5, .7]; I3.V.I2.band = BANDS;
-const icon = () => I3.iconSvg('I2', 512, S_ICON);
-const iconSmall = () => { I3.V.I2.band = [.5, .72]; const s = I3.iconSvg('I2', 512, 4.3, SMALL).replace('width="1024" height="1024"', 'width="256" height="256"'); I3.V.I2.band = BANDS; return s; };
-const FG_S = 0.66;                                                 // 108 canvas, whole mark inside the 66 dp safe circle (checked on the board)
-const iconFg = () => { const p = I3.iconParts('I2', 108, FG_S); return W(`<defs>${p.defs}</defs>${p.fg}`, '0 0 108 108', 108, 108); };
-const iconBg = () => { const p = I3.iconParts('I2', 108, FG_S); return W(`<defs>${p.tileDef}</defs><rect width="108" height="108" fill="url(#tile)"/>`, '0 0 108 108', 108, 108); };
-// ---- banners 320x180 ----
-const banner = () => { const l = L3.lockup('bn', 'A', { lk: { gap: GAP } }); const w = 236, sc = w / l.vb[2], h = l.vb[3] * sc;
+const S_ICON = 3.5, BANDS = [.3, .5, .7]; I3.V.F1.band = BANDS;
+const icon = () => I3.iconSvg('F1', 512, S_ICON);
+const iconSmall = () => { I3.V.F1.band = [.5, .72]; const s = I3.iconSvg('F1', 512, 4.3, SMALL).replace('width="1024" height="1024"', 'width="256" height="256"'); I3.V.F1.band = BANDS; return s; };
+// adaptive foreground: largest scale whose conservative outline (apex and the back band corners) stays inside radius 32 dp of the centre (safe radius is 33)
+const fgRadius = (sc) => { const p = I3.iconParts('F1', 108, sc), m = FINAL, n = m.n || 3, pts = [[p.tx + m.L * sc, p.ty]]; const Hb = m.H * (1 - n * m.dh) / 2; pts.push([p.tx - n * m.step * sc, p.ty - Hb * sc], [p.tx - n * m.step * sc, p.ty + Hb * sc], [p.tx, p.ty - m.H / 2 * sc], [p.tx, p.ty + m.H / 2 * sc]); return Math.max(...pts.map(q => Math.hypot(q[0] - 54, q[1] - 54))); };
+let FG_S = 0.66; while (fgRadius(FG_S) > 32) FG_S = +(FG_S - 0.005).toFixed(3);
+const iconFg = () => { const p = I3.iconParts('F1', 108, FG_S); return W(`<defs>${p.defs}</defs>${p.fg}`, '0 0 108 108', 108, 108); };
+const iconBg = () => { const p = I3.iconParts('F1', 108, FG_S); return W(`<defs>${p.tileDef}</defs><rect width="108" height="108" fill="url(#tile)"/>`, '0 0 108 108', 108, 108); };
+// mark-micro: plain gradient wedge for under 24 px (no bands)
+const markMicro = () => { const M2 = require('./mark2.js'); const d = M2.tri(0, -35, 35, FINAL.L, FINAL.ra, FINAL.rb); return W(`<defs><linearGradient id="mi" x1="0" y1="-35" x2="${FINAL.L}" y2="35" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${P.pink}"/><stop offset="1" stop-color="${P.orchid}"/></linearGradient></defs><path d="${d}" fill="url(#mi)"/>`, `-3 -38 ${FINAL.L + 6} 76`, FINAL.L + 6, 76); };
+// ---- banners 320x180: the primary is the icon's sibling (same ramp, chalk wedge + chalk-tint solid bands, chalk wordmark); the dark one is the alternative ----
+const banner = () => { const stops = I3.TILES.family, vx = 320, vy = -180, field = (x, y) => { const t = Math.max(0, Math.min(1, (x * vx + (y - 180) * vy) / (vx * vx + vy * vy))); const seg = (a, b, u) => I3.mixRgb(I3.hx(a), I3.hx(b), u); return t < .5 ? seg(stops[0][1], stops[1][1], t / .5) : seg(stops[1][1], stops[2][1], (t - .5) / .5); };
+  const w = 244, chalk = P['text-1'], l0 = L3.lockup('x', 'A', { lk: { gap: GAP } }), sc = w / l0.vb[2], ox = (320 - w) / 2, oy = (180 - l0.vb[3] * sc) / 2;
+  const cols = [0, 1, 2].map(i => I3.toHex(I3.mixRgb(field(ox + (8 + i * 14) * sc, 90), I3.hx(chalk), [.3, .5, .7][i])));
+  const l = L3.lockup('bg', 'A', { lk: { gap: GAP }, mark: { frontFill: chalk, bandFills: cols }, word: { split: false, dot: true, dotFill: chalk } });
+  return W(`<defs><linearGradient id="bgf" x1="0" y1="180" x2="320" y2="0" gradientUnits="userSpaceOnUse">${stops.map(([t, h]) => `<stop offset="${t}" stop-color="${h}"/>`).join('')}</linearGradient></defs><rect width="320" height="180" fill="url(#bgf)"/><svg x="${r(ox)}" y="${r(oy)}" width="${r(w)}" height="${r(l.vb[3] * sc)}" viewBox="${l.vb.map(r).join(' ')}">${l.body}</svg>`, '0 0 320 180', 320, 180); };
+const bannerDark = () => { const l = L3.lockup('bn', 'A', { lk: { gap: GAP } }); const w = 236, sc = w / l.vb[2], h = l.vb[3] * sc;
   return W(`<rect width="320" height="180" fill="${P['bg-0']}"/><svg x="${r((320 - w) / 2)}" y="${r((180 - h) / 2)}" width="${r(w)}" height="${r(h)}" viewBox="${l.vb.map(r).join(' ')}">${l.body}</svg>`, '0 0 320 180', 320, 180); };
-// gradient alternative: pink to orchid field, ink wordmark, ink wedge with ink-tint solid bands
-const bannerGradient = () => { const stops = I3.TILES.warm, field = (x, y) => { const vx = 320, vy = -120, t = Math.max(0, Math.min(1, ((x) * vx + (y - 150) * vy) / (vx * vx + vy * vy))); return I3.mixRgb(I3.hx(stops[0][1]), I3.hx(stops[1][1]), t); };
-  const w = 236, l0 = L3.lockup('x', 'A', { lk: { gap: GAP } }), sc = w / l0.vb[2], ox = (320 - w) / 2, oy = (180 - l0.vb[3] * sc) / 2;
-  const cols = [0, 1, 2].map(i => { const px = ox + (6 + i * 14 * 1.4) * sc, py = 90; return I3.toHex(I3.mixRgb(field(px, py), I3.hx(P['ink-on-brand']), [.18, .34, .52][i])); });
-  const l = L3.lockup('bg', 'A', { lk: { gap: GAP }, ink: P['ink-on-brand'], mark: { frontFill: P['ink-on-brand'], bandFills: cols } });
-  return W(`<defs><linearGradient id="bgf" x1="0" y1="150" x2="320" y2="30" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${stops[0][1]}"/><stop offset="1" stop-color="${stops[1][1]}"/></linearGradient></defs><rect width="320" height="180" fill="url(#bgf)"/><svg x="${r(ox)}" y="${r(oy)}" width="${r(w)}" height="${r(l.vb[3] * sc)}" viewBox="${l.vb.map(r).join(' ')}">${l.body}</svg>`, '0 0 320 180', 320, 180); };
 function writeAll() { fs.mkdirSync(dir, { recursive: true });
-  const f = { 'mark.svg': mark(), 'mark-small.svg': markSmall(), 'lockup.svg': lockup(), 'icon-1024.svg': icon(), 'icon-small.svg': iconSmall(), 'icon-foreground.svg': iconFg(), 'icon-background.svg': iconBg(), 'banner.svg': banner(), 'banner-gradient.svg': bannerGradient() };
+  const f = { 'mark.svg': mark(), 'mark-small.svg': markSmall(), 'lockup.svg': lockup(), 'icon-1024.svg': icon(), 'icon-small.svg': iconSmall(), 'icon-foreground.svg': iconFg(), 'icon-background.svg': iconBg(), 'banner.svg': banner(), 'banner-dark.svg': bannerDark(), 'mark-micro.svg': markMicro() };
   for (const [k, v] of Object.entries(f)) fs.writeFileSync(path.join(dir, k), v); console.log('assets written', Object.keys(f).length); }
-module.exports = { mark, markSmall, lockup, icon, iconSmall, iconFg, iconBg, banner, bannerGradient, writeAll };
+module.exports = { mark, markSmall, markMicro, lockup, icon, iconSmall, iconFg, iconBg, banner, bannerDark, writeAll, get FG_S() { return FG_S; } };
 if (require.main === module) writeAll();

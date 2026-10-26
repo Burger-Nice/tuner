@@ -42,18 +42,18 @@ const head = `<!doctype html><html><head><meta charset="utf-8"><link rel="styles
 .stats{width:250px;background:rgba(30,27,40,.94);border:1px solid var(--a-border);border-radius:14px;padding:12px 14px;font:500 13px/18px var(--a-font-text);color:var(--a-text-2)}.stats h6{font:650 13px/16px var(--a-font-text);letter-spacing:.1em;text-transform:uppercase;color:var(--a-text-3);margin-bottom:6px}.stats div{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}.stats b{color:var(--a-text-1);font-weight:600}
 .spec{font:500 12px/18px var(--a-font-text);color:var(--a-text-2);margin-top:10px;columns:2;column-gap:28px}.spec b{color:var(--a-text-1)}
 </style></head><body>`;
-const poster = (t, s, art, p, f, w = 220, h = 124) => `<div class="rel" style="width:${w}px;height:${h}px;">${f ? `<div class="glow" style="left:-30px;top:-30px;width:${w + 60}px;height:${h + 60}px;background-image:var(--a-sprite-orchid);opacity:.5"></div>` : ''}<div class="poster ${f ? 'f' : ''}" style="width:${w}px;height:${h}px;${f ? 'box-shadow:var(--a-focus-ring);' : ''}background:${art}"><div class="t">${t}<span>${s}</span></div><div class="prog" style="border-radius:0"><i style="width:${p}%"></i></div></div></div>`;
+const poster = (t, s, art, p, f, w = 220, h = 124) => `<div class="rel" style="width:${w}px;height:${h}px;"><div class="poster ${f ? 'f' : ''}" style="width:${w}px;height:${h}px;${f ? 'box-shadow:var(--a-focus-ring);' : ''}background:${art}"><div class="t">${t}<span>${s}</span></div><div class="prog" style="border-radius:0"><i style="width:${p}%"></i></div></div></div>`;
 const live = (sz) => `<span class="a-live" style="${sz ? `height:${sz}px;font-size:${sz * .55}px;padding:0 ${sz * .45}px` : ''}">Live</span>`;
 const comp = head + `<div style="width:960px">
 <div class="sec"><h4>Buttons (Soft): 44 px tall, pill, ink label on the pink-orchid gradient (5.2 to 6.3:1)</h4><div class="flex" style="gap:28px;padding:10px 0">
  <span class="a-btn">▶ Watch live</span>
- <span class="rel"><span class="glow" style="left:-34px;top:-34px;width:260px;height:112px;background-image:var(--a-sprite-orchid);opacity:.55"></span><span class="a-btn f" style="position:relative">▶ Watch live</span></span>
+ <span class="rel"><span class="a-btn f" style="position:relative">▶ Watch live</span></span>
  <span class="btn2">From the start</span><span class="btn2 f">From the start</span><span class="btn-dis">Unavailable</span></div>
-<div class="cap">primary · primary focused (white 3 px ring, 2 px canvas gap, 1.05 lift, glow sprite behind) · secondary · secondary focused · disabled. One primary per screen.</div></div>
+<div class="cap">primary · primary focused (white 3 px ring, 2 px canvas gap, 1.05 lift,) · secondary · secondary focused · disabled. One primary per screen.</div></div>
 <div class="sec"><h4>Chips and badges</h4><div class="flex"><span class="chip">All</span><span class="chip sel">Live now</span><span class="chip">Movies</span><span class="chip f">Series</span>${live()}<span class="a-live" style="opacity:1">Live</span><span style="font:500 13px var(--a-font-text);color:var(--a-text-3)">LIVE: 2 px red outline + dot + the word, never alone, never a fill</span></div></div>
 <div class="sec"><h4>Poster card (16:9), progress bar</h4><div class="flex" style="gap:26px;padding:8px 0 4px">${poster('Harbor Lights', 'S2 · E4 · 21 min left', 'linear-gradient(160deg,#27566a,#14212c 80%)', 62)}${poster('The Long Take', 'Film · 1h 48m', 'linear-gradient(160deg,#7a4635,#241519 80%)', 28, true)}
  <div style="width:260px"><div class="a-label" style="margin-bottom:8px">Progress</div><div class="prog" style="height:6px"><i style="width:62%"></i></div><div class="a-caption" style="margin-top:6px">38 min of 1h 02</div><div class="prog" style="height:6px;margin-top:14px"><i style="width:100%"></i></div><div class="a-caption" style="margin-top:6px">watched</div></div></div>
-<div class="cap">radius 16, 1 px border; focus = ring + 1.05 lift + glow sprite. Progress is pink to orchid only (violet never appears in a bar).</div></div>
+<div class="cap">radius 16, 1 px border; focus = ring + 1.05 lift. Progress is pink to orchid only (violet never appears in a bar).</div></div>
 <div class="sec"><h4>Channel row</h4><div style="display:flex;flex-direction:column;gap:8px;width:640px">
  <div class="row"><span class="n">02</span><span class="lg">ESPN</span><span class="tt"><b>ESPN HD</b><span>SportsCenter · 19:00 to 20:00</span></span><span class="pg"><div class="prog"><i style="width:45%"></i></div></span></div>
  <div class="row sel f" style="margin:2px 0"><span class="n" style="color:var(--a-text-1)">01</span><span class="lg">NBA</span><span class="tt"><b>NBA League Pass</b><span>Grizzlies at Warriors</span></span>${live()}<span class="pg"><div class="prog"><i style="width:60%"></i></div></span></div>
@@ -91,8 +91,7 @@ fs.writeFileSync(path.join(root, 'components.html'), comp);
 
 // brand-in-context: Soft surface next to a Sharp NBA plate, 960x540 css at 2x
 const ctx = head + `<style>.rail{position:absolute;left:0;top:0;bottom:0;width:75px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;align-items:center;padding-top:30px;gap:22px}.rail img{height:40px}.rail i{width:24px;height:24px;border-radius:6px;background:var(--a-surface-2)}.rail i.on{background:var(--a-grad)}</style>
-<div style="position:relative;width:960px;height:540px;overflow:hidden;background:var(--a-bg-0)"><nav class="rail"><img src="assets/mark.svg"><i class="on"></i><i></i><i></i><i></i></nav>
-<div class="glow" style="left:420px;top:-120px;width:620px;height:420px;background-image:var(--a-sprite-violet);opacity:.7"></div>
+<div style="position:relative;width:960px;height:540px;overflow:hidden;background:linear-gradient(180deg,var(--a-bg-1),var(--a-bg-0) 55%)"><nav class="rail"><img src="assets/mark.svg"><i class="on"></i><i></i><i></i><i></i></nav>
 <div style="position:absolute;left:100px;top:27px;right:48px">
 <div class="a-display" style="margin-bottom:14px">Tonight</div>
 <div style="display:grid;grid-template-columns:330px 1fr;gap:22px">

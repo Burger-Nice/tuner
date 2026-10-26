@@ -1,7 +1,7 @@
-/* airglow tokens v5.2: dark, TV-first, Soft identity with a Sharp dialect for live.
+/* airglow tokens v5.4: dark, TV-first, Soft identity with a Sharp dialect for live.
    Source of truth: tools/palette.js (OKLCH). Contrast for every pair: tools/contrast.js, tables in BRAND.md.
    TV canvas: 960x540 CSS px rendered at 2x (Chrome 113 WebView). 1 rem = 16 px. Desktop/phone override at the bottom.
-   Performance rules baked into these tokens: no filter:blur, no big box-shadow spreads, gradients are two stops, glows are the small PNG sprites in sprites/. */
+   Performance rules baked into these tokens: no filter:blur, no big box-shadow spreads, gradients are two stops, there are no glows in sprites/. */
 
 :root {
   /* ---- surfaces: one hue (295), chroma .02 (v5.1 .032: tinted artwork); steps vs canvas 1.35 / 1.71 / 2.26:1; no channel below 18/255; native splash and window background = bg-0 ---- */
@@ -26,7 +26,7 @@
   --a-orchid:      #D540F5;   /* L.66 C.268 h320  fills, strokes, progress */
   --a-pink-text:   #FFB4D4;   /* brand colour as TEXT: >= 4.5:1 on every surface */
   --a-orchid-text: #E9AFF2;
-  --a-violet:      #5B2BD9;   /* anchor of large glows and the icon only: 2.4:1 on canvas, NEVER a line, bar or text */
+  --a-violet:      #5B2BD9;   /* anchor of the back band of the mark only (#5B2BD9; bands start at #6A33E6): 2.4:1 on canvas, NEVER a UI line, bar or text */
   --a-violet-ui:   #9D7DFF;   /* the violet allowed as a UI stroke (>= 3:1 on bg-0..surface-2) */
   --a-grad:        linear-gradient(100deg, #F95BAC, #D540F5);   /* THE gradient: two stops, pink to orchid, ink labels stay >= 5.2:1 */
   --a-pink-soft:   rgba(249, 91, 172, 0.14);   /* chip / tint behind pink-text */
@@ -41,10 +41,7 @@
   --a-focus:       #FFFFFF;
   --a-focus-ring:  0 0 0 2px var(--a-bg-0), 0 0 0 5px var(--a-focus);
 
-  /* ---- sprites (pre-rendered, tiny): use as background-image, scaled; never recreate with blur ---- */
-  --a-sprite-orchid: url("sprites/glow-orchid.png");
-  --a-sprite-pink:   url("sprites/glow-pink.png");
-  --a-sprite-violet: url("sprites/glow-violet.png");
+  /* ---- grain sprite only (no glow sprites since v5.4: the 3 px focus ring does the work) ---- */
   --a-grain:         url("sprites/grain.png");   /* repeat over large fills at its own 7/255 alpha: kills banding */
 
   /* ---- type: three families, three weights of display + one variable text face, ~100 KB of woff2 (Latin only) ---- */
@@ -66,7 +63,7 @@
   --a-skew: calc(-1 * var(--a-angle-live));   /* alias: skewX() value for plates */
   --a-wipe: var(--a-angle-live);             /* alias */
   --a-edge: var(--a-angle-soft);             /* alias */
-  --a-field-h: 48px; --a-toggle-w: 52px; --a-toggle-h: 30px; --a-radius-dialog: 24px;   /* controls (v5.2) */
+  --a-field-h: 48px; --a-toggle-w: 52px; --a-toggle-h: 30px; --a-radius-dialog: 24px;   /* controls (v5.4) */
   --a-space-1: 4px; --a-space-2: 8px; --a-space-3: 12px; --a-space-4: 16px; --a-space-6: 24px; --a-space-8: 32px;
   --a-safe-x: 48px; --a-safe-y: 27px;
 
