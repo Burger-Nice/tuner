@@ -3,7 +3,7 @@
 An ad-free IPTV app for Xtream Codes and M3U providers, built for one owner: a Memphis Grizzlies fan who watches on a
 Philips 55" OLED (55OLED810/12, Google TV) with the remote. The TV app comes first; the Windows and phone builds
 exist but are on hold. The brand is "airglow" (the repo and Android package are still `tuner` / `app.tuner`).
-The plan for what's next is in `NEXT.md`.
+The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`; the plan for what's next is in `NEXT.md`.
 
 ## How it fits together
 
