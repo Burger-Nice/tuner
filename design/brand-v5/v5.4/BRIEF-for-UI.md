@@ -56,7 +56,7 @@ Launch (1100 ms, see `launch.png`): static wedge on bg-0 (native splash, same co
 
 Hard colour rules, with reasons:
 1. **Red is LIVE and nothing else.** Always a 2 px red outline pill + dot + the word LIVE; never a fill, never alone. Reason: a colour that means one thing is read in a glance across the room.
-2. **Nothing amber or yellow.** Not for ratings, not for warnings. Reason: yellow is IMDb's; stars are chalk.
+2. **Nothing amber or yellow.** Not for ratings, not for warnings. Reason: yellow is IMDb's; stars are chalk. The single exception is team data: a 4 px team accent bar or a crest (BRAND.md, UI-phase additions 1).
 3. **Errors and warnings are neutral:** outline icon + a plain sentence in chalk on a surface. No red, no amber, no exclamation mark. Reason: red must keep meaning LIVE.
 4. **Violet is not UI colour.** It lives only as the back band of the mark. Strokes use `violet-ui`. Reason: violet on the canvas is 2.4:1 and sits next to Twitch.
 5. **No glow, no blur, no soft shadow.** The owner called the glow version "cheaply made". Separation comes from surface steps, 1 px borders and the focus ring.
