@@ -13,7 +13,7 @@
     return `${topbar({ sel: 'nba', live: true })}
 <div class="dayrow"><span class="t-head">NBA</span>
   <span class="row-flex" style="gap:8px;margin-left:12px"><span class="chip lg">${ic('chevL')}Sun 25</span><span class="chip lg sel">Today · Mon 26 Oct</span><span class="chip lg">Tue 27${ic('chevR')}</span></span>
-  <span class="grow"></span>${shield ? `<span class="t-cap row-flex" style="gap:6px;margin-right:14px;color:var(--a-text-2)">${ic('eyeOff', 'sm')}Shield: My team</span>` : ''}<span class="t-cap">2 live${dot}2 upcoming${dot}3 final</span></div>
+  <span class="grow"></span>${shield ? `<span class="t-cap row-flex" style="gap:6px;margin-right:14px;color:var(--a-text-2)">${ic('eyeOff', 'sm')}Shield: My team</span>` : ''}<span class="t-cap">2 live${dot}2 later${dot}3 final</span></div>
 <div class="nba-hero">
   <div class="slab" style="left:742px;width:260px"></div><div class="slabline" style="left:722px"></div>
   <div class="abs row-flex" style="left:24px;top:14px;gap:12px"><span class="t-label" style="color:var(--a-pink-text)">Your team</span>${liveP()}<span class="t-label t-2">Q3${dot}7:29</span></div>
