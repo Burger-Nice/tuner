@@ -3,6 +3,7 @@
 // ~150 ms, nothing that a key didn't cause, and nothing at all while the native player is on screen (it plays its own alert).
 //   sfx.init()  sfx.mode('on' | 'quiet' | 'off')  sfx.launch(t0)  sfx.play(name)  sfx.request(name)  sfx.dir(k, repeat)
 //   sfx.focused(el)  sfx.zone('player' | 'ui')
+import { native } from './native.js';
 const BASE = 'tv/sounds/';
 // p = priority inside one key press (the highest wins), cd = minimum ms between two plays of the same sound
 const DEF = {
@@ -17,6 +18,9 @@ const RATE = { up: 1.1225, down: 0.8409 };      // the tick is A5: up lands on B
 const KEY_WINDOW = 300;                         // ms after a key in which request() is still honoured
 
 let ctx = null, level = 'on', zone = 'ui';
+// On the TV the key sounds go through Android's SoundPool (native.sfx): the WebView's audio path sits a buffer behind it,
+// and that delay is what made the sounds trail the remote. The launch stays on Web Audio, which can start part-way in.
+let nat = false;
 const bufs = {}, loading = {}, last = {};
 let pend = null, pendOpts = null, flushing = false;
 let dirAt = -1e9, dirRepeat = false, dirKey = '', lastRepeatTick = -1e9;
@@ -38,10 +42,13 @@ export const sfx = {
     // the launch first; the reduced-motion one only when that's what will play
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const order = [reduce ? 'launch-brief' : 'launch-full', ...Object.keys(DEF).filter((n) => !n.startsWith('launch'))];
+    if (native?.sfx) native.sfx.load(order.filter((n) => !n.startsWith('launch'))).then((r) => { nat = r?.loaded > 0; }).catch(() => {});
     for (const n of order) loading[n] = fetch(`${BASE}${n}.wav`).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)).then((buf) => { bufs[n] = buf; }).catch(() => {});
   },
   mode(m) { if (m in LEVEL) level = m; },
   level: () => level,
+  // For Account > Sound: whether the TV's audio is up and how many sounds loaded.
+  status: () => ({ audio: ctx ? ctx.state : 'none', loaded: Object.keys(bufs).length, total: Object.keys(DEF).length - 1, native: nat }),
   // The WebView stays awake under the native player: suspend so nothing can chime over the programme.
   zone(z) {
     zone = z;
@@ -51,10 +58,13 @@ export const sfx = {
 
   play(name, { rate = 1, gain = 1, cd, offset = 0 } = {}) {
     const d = DEF[name], b = bufs[name];
-    if (!ctx || !d || !b || !LEVEL[level] || document.hidden || zone === 'player' || ctx.state !== 'running') return false;
+    if (!d || !LEVEL[level] || document.hidden || zone === 'player') return false;
+    const viaNative = nat && !NO_KEY_NEEDED.has(name);
+    if (!viaNative && (!ctx || !b || ctx.state !== 'running')) return false;
     const now = performance.now();
     if (now - (last[name] ?? -1e9) < (cd ?? d.cd ?? 0)) return false;
     last[name] = now;
+    if (viaNative) { native.sfx.play(name, rate, LEVEL[level] * gain); return true; }
     const s = ctx.createBufferSource(), g = ctx.createGain(), t = ctx.currentTime, v = LEVEL[level] * gain;
     s.buffer = b; s.playbackRate.value = rate;
     // Started part-way into the file (a late launch): fade in over 4 ms so it can't click.

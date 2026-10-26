@@ -28,7 +28,9 @@ setBase(app);
 // Sounds: the Account choice, else on (or off when the TV's own system sounds are off; known once the bridge answers).
 sfx.init();
 // (the TV's system sounds setting as it was last time, so the launch chord doesn't play on a TV that has them off)
-sfx.mode(settings().sounds || (store.get('systemSounds', true) === false ? 'off' : 'on'));
+// On unless you turned them down in Account. (Android TV's own System sounds switch is off on many TVs out of the box,
+// so following it meant no sounds at all.)
+sfx.mode(settings().sounds || 'on');
 app.addEventListener('tvfocus', (e) => sfx.focused(e.target));
 // The layout is drawn for 960 x 540 CSS px (a 1080p TV at 2x); other screens scale it.
 function fit() { const z = window.innerWidth / 960; document.body.style.zoom = Math.abs(z - 1) > 0.01 ? z : ''; }
@@ -156,9 +158,6 @@ if (native) {
 
 async function start() {
   await Promise.race([Promise.resolve(native?.ready), sleep(1500)]);
-  const sys = native?.info().systemSounds;
-  if (sys !== undefined) store.set('systemSounds', sys);
-  if (!settings().sounds) sfx.mode(sys === false ? 'off' : 'on');
   if (resume()) {
     // Home's first look needs the channel list (last channel, On now); the saved copy loads inside the launch.
     await Promise.race([ensure('live').catch(() => null), sleep(700)]);

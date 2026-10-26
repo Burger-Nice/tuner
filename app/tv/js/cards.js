@@ -20,11 +20,11 @@ export function poster(t, i, { sm = false } = {}) {
 }
 
 // Game card (272 x 124, the NBA hub's grid and Home's Tonight row): text at the top so a peeking row still reads.
-export function liveCard(ch, prog, { i, live } = {}) {
+export function liveCard(ch, prog, { i, live, pending } = {}) {   // pending: its guide hasn't come yet
   const pg = prog ? Math.max(0, Math.min(100, ((Date.now() - prog.start) / (prog.end - prog.start)) * 100)) : 0;
   return `<div class="hc fx" tabindex="-1" data-i="${i}" data-hold><div class="art noimg-bg"></div><div class="hs"></div>
     <div class="tp">${logo(ch.logo, ch.name, 'sm')}${live ? liveP() : ''}<span class="n">${ch.num}</span></div>
-    <div class="bt"><b>${esc(prog?.title || ch.name)}</b><span>${esc(prog ? ch.name : 'No guide information')}</span></div>${prog ? `<div class="prog flush"><i style="width:${pg}%"></i></div>` : ''}</div>`;
+    <div class="bt"><b>${esc(prog?.title || ch.name)}</b><span>${esc(prog ? ch.name : pending ? '' : 'No guide information')}</span></div>${prog ? `<div class="prog flush"><i style="width:${pg}%"></i></div>` : ''}</div>`;
 }
 export function contCard(p, i) {
   const it = p.item;

@@ -68,7 +68,9 @@ export default function lib(kind) {
     for (const i of want) if (!have.has(i)) html += poster(list[i], i).replace('class="pc fx', `data-c="${i % COLS}" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px" class="pc fx`);
     if (html) grid.insertAdjacentHTML('beforeend', html);
     for (const node of grid.children) if (node.dataset.i) node._t = list[+node.dataset.i];
-    grid.style.transform = `translateY(${(scrolled ? 84 : 176) - topRow * PITCH}px)`;
+    // Scrolled, the focused row sits low enough to show the row above under the top fade, and high enough that its own
+    // titles stay on screen (a card is 238 tall: poster 186 + title and year): its bottom lands 14 px above the edge.
+    grid.style.transform = `translateY(${(scrolled ? 36 : 176) - topRow * PITCH}px)`;
     el.querySelector('[data-head]').style.opacity = scrolled ? 0 : 1;
     el.querySelector('[data-head]').style.visibility = scrolled ? 'hidden' : '';
     barHidden(scrolled && current() === kind);

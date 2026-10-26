@@ -2,7 +2,7 @@
 import { S } from './state.js';
 
 const guides = new Map();   // chId -> { at, list: Promise, ready: [] | undefined }
-export const resetGuides = () => guides.clear();
+export const resetGuides = () => { guides.clear(); shifted = S.acc?.epgShift || 0; };
 
 // The provider is one server, often with a limit on requests: at most 3 at a time, and what's on screen goes first
 // (urgent), ahead of look-ahead rows and the search for your team's channel.
@@ -30,7 +30,7 @@ export function guideFor(ch, { urgent = false } = {}) {
   }
   const my = S.epoch;
   const list = enqueue(ch.id, () => (S.src?.epg ? S.src.epg(ch) : Promise.resolve([])), urgent).then((l) => {
-    if (my === S.epoch) guides.set(ch.id, { at: Date.now(), list: Promise.resolve(l), ready: l });
+    if (my === S.epoch) { reshift(); guides.set(ch.id, { at: Date.now(), list: Promise.resolve(l), ready: l }); }
     return l;
   }, () => {
     const keep = hit?.ready || [];
@@ -39,6 +39,14 @@ export function guideFor(ch, { urgent = false } = {}) {
   });
   guides.set(ch.id, { at: Date.now(), list, ready: hit?.ready });
   return list;
+}
+// The provider's clock offset (core.js epg) can be settled after some guides came in: move those by the difference.
+let shifted = 0;
+function reshift() {
+  const k = S.acc?.epgShift || 0, d = k - shifted;
+  if (!d) return;
+  shifted = k;
+  for (const g of guides.values()) if (g.ready) { g.ready = g.ready.map((p) => ({ ...p, start: p.start + d, end: p.end + d })); g.list = Promise.resolve(g.ready); }
 }
 export const guideNow = (ch) => guides.get(ch.id)?.ready;
 // The last try for this channel's guide failed (it is tried again after 30 s).

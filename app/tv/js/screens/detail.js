@@ -36,12 +36,38 @@ function seriesResume() {
   return next ? { ep: next, label: `Play S${next.season} · E${next.ep}` } : { ep: eps[0], label: 'Watch again from S1 · E1' };
 }
 
+// More like this: the titles that share the most genres with this one (all of them, not only the first), the same series
+// of films first, then the same provider category, a near year and a good rating as tie-breakers. One entry per title:
+// other copies of the same film (another year bucket, another provider name for it) and of this one are left out.
+// Scored once per title (tens of thousands of entries), not on every redraw.
+const franchise = (s) => String(s || '').replace(/\s+(?:\d{1,2}|[ivx]{1,4}|part \d+|chapter \d+)$/, '');
 function moreLikeThis() {
   const c = catalog[t.kind];
   if (!c?.titles) return [];
-  const g = t._genres?.[0];
-  const pool = (c._sorted.popular || c.titles).filter((x) => x !== t && (!g || x._genres?.includes(g)));
-  return pool.slice(0, 8);
+  if (el._moreFor === t && el._moreList) return el._moreList;
+  const gs = new Set(t._genres || []), me = franchise(t._s), yr = +t.year || 0;
+  // the best 12 others and the best 4 of the same series of films (so the row always has something new in it)
+  const top = { fam: [], other: [] }, CAP = { fam: 4, other: 12 };
+  for (const x of c.titles) {
+    if (x === t || x._sep || !x._s || x._s === t._s) continue;
+    let shared = 0;
+    for (const g of x._genres || []) if (gs.has(g)) shared++;
+    const fam = me.length > 3 && franchise(x._s) === me;
+    if (!shared && !fam && x.cat !== t.cat) continue;
+    const union = gs.size + (x._genres?.length || 0) - shared || 1;
+    let sc = (4 * shared) / union + (fam ? 3 : 0) + (x.cat === t.cat ? 0.8 : 0);
+    if (yr && +x.year) sc += Math.max(0, 1 - Math.abs(yr - x.year) / 15) * 0.6;
+    sc += ((x._ir || parseFloat(x.rating) || 0) / 10) * 0.8 + Math.min(1, Math.log10((x._iv || 0) + 1) / 6) * 0.6;
+    const k = fam ? 'fam' : 'other', l = top[k];
+    if (l.length === CAP[k] && sc <= l[l.length - 1][0]) continue;
+    l.push([sc, x]);
+    l.sort((p, q) => q[0] - p[0]);
+    if (l.length > CAP[k]) l.pop();
+  }
+  const seen = new Set(), out = [];
+  for (const [, x] of [...top.fam, ...top.other].sort((p, q) => q[0] - p[0])) if (!seen.has(x._s)) { seen.add(x._s); out.push(x); }
+  el._moreFor = t; el._moreList = out.slice(0, 10);
+  return el._moreList;
 }
 
 let behind = false;
@@ -90,14 +116,31 @@ function draw() {
   setHtml(el, `<div class="d-back"><div class="art">${img(backdrop, 1280)}</div><div class="d-scrim"></div></div><div class="d-scrim2"${movie ? '' : ' style="height:300px"'}></div>
 <div class="d-col"${movie ? '' : ' style="top:32px"'}>
   <div class="t-label t-2">${eyebrow}</div>
-  <div class="t-display clamp2" style="margin-top:6px">${esc(t.name)}</div>
+  <div class="t-display clamp2" data-ttl style="margin-top:6px">${esc(t.name)}</div>
   <div class="metaline" style="margin-top:10px">${meta}${tags ? dot + tags : ''}</div>
-  ${d.plot ? `<div class="t-body clamp2" style="margin-top:12px;width:460px">${esc(d.plot)}</div>` : `<div class="t-body" style="margin-top:12px;color:var(--a-text-3)">${info ? '' : 'Loading details…'}</div>`}
+  ${d.plot ? `<div class="t-body clamp2" data-plot style="margin-top:12px;width:460px">${esc(d.plot)}</div>` : `<div class="t-body" style="margin-top:12px;color:var(--a-text-3)">${info ? '' : 'Loading details…'}</div>`}
   ${movie && credits ? `<div class="t-cap ellipsis" style="margin-top:8px;width:500px">${credits}</div>` : ''}
   <div class="row-flex" data-row style="gap:20px;margin-top:${movie ? 20 : 16}px;height:44px;padding-left:2px">${play}<span class="btn2 fx" tabindex="-1" data-act="save">${ic(saved ? 'check' : 'saved')}${saved ? 'Saved' : 'Save'}</span>${movie ? '' : `<span class="pillbtn fx" tabindex="-1" data-act="subs">${ic('cc')}Subtitles: ${esc(subLabel())}</span>`}</div>
   ${movie ? `<div class="row-flex" data-row style="gap:10px;margin-top:12px;height:36px">${pills}</div>` : ''}
 </div>${below}`);
+  fitCol(movie);
   placeTracks();
+}
+// The text column never runs into what's below it (More like this for a film, the seasons for a series): a long plot
+// goes to one line, then a long title gets smaller, and the last few pixels move the row below down a little.
+function fitCol(movie) {
+  const col = el.querySelector('.d-col');
+  const below = movie ? [...el.querySelectorAll('.rowtitle, .rail')] : [...el.querySelectorAll('.seas, .rail, .epsyn')];
+  if (!col || !below.length) return;
+  const limit = (movie ? 366 : 272) - 14, room = movie ? 16 : 44;
+  const bottom = () => col.offsetTop + col.offsetHeight;
+  if (bottom() > limit) col.querySelector('[data-plot]')?.classList.add('clamp1');
+  if (bottom() > limit) col.querySelector('[data-ttl]')?.classList.add('shrink');
+  const push = Math.max(0, Math.min(room, bottom() - limit));
+  for (const b of below) { b.style.top = `${(b._top ??= parseFloat(b.style.top)) + push}px`; }
+  // (pushed far, the episode's one-line summary under the row would run off the screen: it steps aside)
+  const syn = el.querySelector('.epsyn');
+  if (syn) syn.hidden = push > 24;
 }
 function placeTracks() {
   const a = document.activeElement;

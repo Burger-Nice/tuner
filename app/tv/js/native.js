@@ -51,6 +51,10 @@ function bridge() {
       },
       onStatus: (f) => usubs.push(f),
     },
+    sfx: {
+      load: (names) => TP.sfxLoad({ names }),
+      play: (name, rate, gain) => { TP.sfxPlay({ name, rate, gain }).catch(() => {}); },
+    },
     player: {
       play: (o) => TP.play(o),
       stop: () => TP.stop(),

@@ -12,6 +12,7 @@ import { push, go, current, barHidden } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, contextMenu, toast, scrollList } from '../ui.js';
 import { resumeItem, openTitle } from '../actions.js';
+import { launchOpen, launchDone } from '../launch.js';
 
 let el, page, heroKind = null, heroLockUntil = 0, rows = [], railItems = {};
 const ROW_TOP = [278, 422];
@@ -54,11 +55,12 @@ function draw() {
   if (!el || el.hidden) return;
   const g = heroGame();
   const cont = continueRows().slice(0, 16);
-  // The kind of hero is decided once and locked for 3 s; its content (the score) still updates.
+  // The kind of hero is decided once and locked for 3 s; its content (the score) still updates. Under the launch nobody
+  // can see it yet, so it stays free until the launch has gone, and the 3 s count from there.
   let kind = g ? 'game' : cont.length ? 'resume' : lastChannel() ? 'channel' : 'none';
   // ('none' is never locked: it only means the channel list hasn't loaded yet)
-  if (heroKind && heroKind !== 'none' && Date.now() < heroLockUntil) kind = heroKind;
-  if (!heroKind || heroKind === 'none') heroLockUntil = Date.now() + 3000;
+  if (heroKind && heroKind !== 'none' && launchOpen() && Date.now() < heroLockUntil) kind = heroKind;
+  if (!heroKind || heroKind === 'none' || !launchOpen()) heroLockUntil = Date.now() + 3000;
   heroKind = kind;
   let hero = '';
   if (kind === 'game' && g) {
@@ -75,7 +77,7 @@ function draw() {
   const nowList = onNowList(heroCh);
   const tonight = nba.today.filter((x) => x !== g).slice(0, 15);
   railItems = { cont: kind === 'resume' ? cont.slice(1) : cont, now: nowList, games: tonight };
-  const nowCards = nowList.map((ch, i) => { const p = onNow(guideNow(ch)); return liveCard(ch, p, { i, live: !!(p && gameOn(ch, [p])?.state === 'in') }); }).join('');
+  const nowCards = nowList.map((ch, i) => { const p = onNow(guideNow(ch)); return liveCard(ch, p, { i, live: !!(p && gameOn(ch, [p])?.state === 'in'), pending: !guideNow(ch) }); }).join('');
   const contCards = railItems.cont.map((p, i) => contCard(p, i)).join('');
   const gameCards = tonight.map((x, i) => gameCard(x, i)).join('');
   const gamesTitle = tonight.some((x) => x.state !== 'post') ? "Tonight's games" : "Today's results";
@@ -93,7 +95,7 @@ function placeRails() {
   page.querySelectorAll('.track').forEach((tr) => {
     const f = tr.contains(a) ? a : tr._mem?.isConnected ? tr._mem : null;
     const i = f ? [...tr.children].indexOf(f) : 0;
-    const step = (tr.firstElementChild?.offsetWidth || 198) + 24;   // channel cards 198, game cards 272, gap 24
+    const step = (tr.firstElementChild?.classList.contains('gc') ? 272 : 198) + 24;   // card widths are fixed: no layout read
     tr.style.transform = i > 0 ? `translateX(${-i * step}px)` : '';
   });
   const second = page.querySelectorAll('.rail')[1];
@@ -195,7 +197,16 @@ export default {
       if (e.target.dataset.act === 'primary') { const g = heroGame(); if (g) otherFeeds(g); }
     });
     root.addEventListener('tvfocus', placeRails);
-    const redraw = () => { if (current() === 'home') draw(); };
+    // Under the launch each redraw of Home is a full style, layout and paint (100-200 ms on a TV) competing with the intro
+    // for the TV's graphics: only a change of hero is drawn then (your game's score arriving); the rest waits for the
+    // launch to finish and is drawn once.
+    let later = false;
+    launchDone.then(() => { if (later) { later = false; redraw(); } });
+    const redraw = () => {
+      if (current() !== 'home') return;
+      if (!launchOpen() && (heroGame() ? 'game' : '') === (heroKind === 'game' ? 'game' : '')) { later = true; return; }
+      draw();
+    };
     on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('progress', redraw); on('favs', redraw);
     on('catalog', (k) => { if (k === 'live') { redraw(); warmRails(); } });
     setInterval(redraw, 30000);
@@ -212,7 +223,8 @@ export default {
 };
 // What's on now on the rail's channels: a couple at a time.
 // The cards in view first, then the rest of the rail.
-function warmRails() {
+async function warmRails() {
+  await launchDone;   // what's on now on the rail: its answers redraw Home, which waits for the launch to go
   const list = onNowList(), still = () => current() === 'home';
   warm(list.slice(0, 6), { still, urgent: true }).then((n) => { if (n) draw(); });
   warm(list.slice(6), { still }).then((n) => { if (n) draw(); });

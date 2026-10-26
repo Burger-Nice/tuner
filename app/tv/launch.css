@@ -28,6 +28,8 @@
 @keyframes l-fade{from{opacity:0}to{opacity:1}}
 @keyframes l-breathe{from{opacity:1}to{opacity:.55}}
 
+/* each moving piece on its own layer from the start, painted once: the TV's graphics then only move them */
+.l-on .l-mk,.l-on .l-b1,.l-on .l-b2,.l-on .l-b3,.l-on .l-lt,.l-on .l-slab,.l-on .l-slabline{will-change:transform,opacity}
 .l-run .l-b1,.l-run .l-b2,.l-run .l-b3{animation:l-band 560ms var(--l-ease) both;animation-delay:var(--s)}
 .l-run .l-b1{--s:100ms}.l-run .l-b2{--s:190ms}.l-run .l-b3{--s:280ms}
 .l-run .l-mk{animation:l-settle 700ms var(--l-ease) 700ms both}

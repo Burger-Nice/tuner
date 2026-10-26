@@ -6,7 +6,7 @@ import { catalog, ensure } from '../catalog.js';
 import { nba, dayGames, dayLabel, isMine, mySide, show, shieldMode, findFeeds, feedsNow, teamChannel, reveal, startNba } from '../games.js';
 import { gameCard, gameHero } from '../cards.js';
 import { playLive, watching } from '../player.js';
-import { push, current, mayFocus } from '../router.js';
+import { push, current, mayFocus, barHidden } from '../router.js';
 import { focus } from '../focus.js';
 import { toast } from '../ui.js';
 import { ringFor, ringName } from './home.js';
@@ -41,12 +41,22 @@ function draw() {
   el._rest = rest; el._mine = mine;
   place();
 }
-// Rows past the second slide up into view.
+// Rows past the second slide up into view, but never past the last row: it stops at the bottom of the screen, so there's
+// no empty space under it. Scrolled, the top bar steps away (as in Movies) and the rows above fade under the top edge.
+const ROW = 140, CARD = 124, BOTTOM = 540 - 24;
 function place() {
   const a = document.activeElement, grid = el.querySelector('.nba-grid');
   let shift = 0;
-  if (grid?.contains(a)) { const i = [...grid.children].indexOf(a.closest('.gc')); const rowI = Math.floor(i / 3); if (rowI >= 1) shift = (rowI - (el._mine ? 0 : 1)) * 140 + (el._mine ? 240 : 0); }
+  if (grid?.contains(a)) {
+    const i = [...grid.children].indexOf(a.closest('.gc')), rowI = Math.floor(i / 3);
+    const top = parseFloat(grid.style.top), rows = Math.ceil(grid.children.length / 3);
+    if (rowI >= 1) shift = (rowI - (el._mine ? 0 : 1)) * ROW + (el._mine ? 240 : 0);
+    shift = Math.min(shift, Math.max(0, top + rows * ROW - (ROW - CARD) - BOTTOM));   // the last row's bottom on the edge
+    shift = Math.max(shift, top + rowI * ROW + CARD - BOTTOM, 0);                     // the focused row always whole
+  }
   el.querySelector('.page').style.transform = shift > 0 ? `translateY(${-shift}px)` : '';
+  el.querySelector('.hub-cover').hidden = !(shift > 0);
+  if (current() === 'nba') barHidden(shift > 0);
 }
 async function load(o) {
   offset = o; loading = true; err = ''; draw();
@@ -73,7 +83,7 @@ export default {
   name: 'nba',
   mount(root) {
     el = root;
-    root.innerHTML = '<div class="page"></div>';
+    root.innerHTML = '<div class="page"></div><div class="lib-cover hub-cover" hidden></div>';
     root.addEventListener('click', (e) => {
       const d = e.target.closest('[data-day]');
       if (d) { const v = +d.dataset.day; if (v) load(offset + v); return; }
@@ -99,5 +109,6 @@ export default {
     if (a?.dataset?.day === '0' && (k === 'left' || k === 'right')) { load(offset + (k === 'right' ? 1 : -1)); return true; }
     return false;
   },
-  toTop(root) { root.querySelector('.page').style.transform = ''; },
+  leave() { barHidden(false); },
+  toTop(root) { root.querySelector('.page').style.transform = ''; root.querySelector('.hub-cover').hidden = true; },
 };

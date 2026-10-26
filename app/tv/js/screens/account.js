@@ -19,6 +19,7 @@ let el, group = 'provider', scroll = 0;
 const toggle = (on) => `<span class="onoff">${on ? 'On' : 'Off'}</span><span class="tg${on ? ' on' : ''}"><i></i></span>`;
 const row = (act, t, v, sub = '', dis = false) => `<div class="arow fx${dis ? ' dis' : ''}" tabindex="-1" data-act="${act}"><span class="grow" style="min-width:0">${t}${sub ? `<div class="t-cap" style="margin-top:0">${sub}</div>` : ''}</span><span class="av">${v}</span></div>`;
 const more = (v) => `${esc(v)} ${ic('chevR', 'sm')}`;
+const short = (t, n) => (t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t);
 const upd = () => native?.updates.status() || { state: 'idle' };
 
 function body() {
@@ -32,6 +33,7 @@ function body() {
       ${f.cons ? row('info', 'Connections', esc(f.cons)) : ''}
       ${S.accounts.length > 1 ? row('switch', 'Switch account', more(S.accounts.filter((a) => a.id !== S.acc?.id).map((a) => a.name).join(' · ').slice(0, 30))) : ''}
       ${row('add', 'Add account', ic('plus', 'sm'))}
+      ${row('guidecheck', 'Check the guide', more(short(lastCh()?.name || 'No channel yet', 28)), 'What your provider sends for the last channel you watched')}
       ${row('refresh', 'Refresh channels and guide', esc(catalog.live?._at ? `Updated ${new Date(catalog.live._at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''))}
       ${row('signout', 'Sign out', ic('chevR', 'sm'))}`;
   }
@@ -47,7 +49,8 @@ function body() {
     const lv = { on: 'On', quiet: 'Quiet', off: 'Off' }[sfx.level()];
     return `<div class="t-title" style="margin-bottom:10px">Sound</div>
       ${row('sounds', 'Sounds', more(lv), 'Soft sounds for moving around, OK and Back, and the start-up. Never in the player, except Your team is live')}
-      <div class="t-cap" style="margin-top:4px">Quiet is half as loud. The sounds follow the TV's volume.</div>`;
+      <div class="t-cap" style="margin-top:4px">Quiet is half as loud. The sounds follow the TV's volume.</div>
+      <div class="t-cap" style="margin-top:4px">${audioLine()}</div>`;
   }
   if (group === 'nba') {
     const t = TEAMS.find((x) => x.abbr === favTeam());
@@ -90,14 +93,46 @@ function draw() {
   const u = upd();
   const side = GROUPS.map(([k, l]) => `<div class="gl fx${k === group ? ' sel' : ''}" tabindex="-1" data-g="${k}">${l}${k === 'updates' && u.state === 'ready' ? '<i class="udot s"></i>' : ''}</div>`).join('');
   // ◀ ▶ between the panes: into the groups on the selected one, into the settings on the first (not the item level with you)
-  setHtml(el, `<div class="abs" data-col data-mem="off" data-entry=".gl.sel" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:272px;top:90px;width:640px;height:423px;overflow:hidden"><div class="inner" data-col data-mem="off" data-entry=".arow:not(.dis)" style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
+  setHtml(el, `<div class="abs" data-col data-mem="off" data-entry=".gl.sel" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:260px;top:84px;width:664px;height:435px;padding:6px 12px;box-sizing:border-box;overflow:hidden"><div class="inner" data-col data-mem="off" data-entry=".arow:not(.dis)" style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
 }
 
 // A toggle row's sound: on is bright, off is dim (replaces the OK sound for that press).
 const flip = (on) => sfx.request(on ? 'toggle-on' : 'toggle-off');
 
+const lastCh = () => catalog.live?.byId.get(store.get(`a:${S.acc?.id}:lastLive`, '')) || catalog.live?.items.find((c) => !c._sep) || null;
+function audioLine() {
+  const st = sfx.status();
+  if (st.native) return 'Playing through the TV\'s low-latency sound path';
+  if (st.audio === 'none') return 'This TV gives apps no audio for sounds.';
+  return `Audio ${st.audio === 'running' ? 'ready' : st.audio} · ${st.loaded} of ${st.total} sounds loaded`;
+}
+// What the provider sends for one channel's guide, straight from the server (not the 10-minute copy): for a photo
+// when the guide is empty.
+async function guideCheck() {
+  const ch = lastCh();
+  if (!ch || !S.src?.epg) return toast('Watch a channel first, then check again.');
+  const ov = openOverlay(`<div class="sheet"><h3>Guide check</h3><div class="sheet-body"><div class="inner" data-col><div class="lr fx" tabindex="-1"><span class="grow">Asking your provider about ${esc(ch.name)}…</span></div></div></div></div>`);
+  const why = {}, now = Date.now(), t = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+  let list = [], err = '';
+  try { list = await S.src.epg(ch, why); } catch (e) { err = e.message; }
+  const on = list.find((p) => p.start <= now && p.end > now);
+  const lines = [
+    ['Channel', `${ch.name} · id ${ch.id}`],
+    ['Short guide', err ? `Error: ${err}` : `${why.short ?? 0} entries`],
+    ['Full table', why.table == null ? 'Not needed' : `${why.table} entries`],
+    ['Clock offset', why.shift ? `${why.shift > 0 ? '+' : '−'}${Math.abs(why.shift) / 3600e3} h (fixed here)` : 'None'],
+    ['On now', on ? `${on.title} · ${t(on.start)}–${t(on.end)}` : 'Nothing'],
+    ['First entry', list[0] ? `${list[0].title} · ${t(list[0].start)}` : '—'],
+    ['Last entry', list.length ? `${list[list.length - 1].title} · ${t(list[list.length - 1].end)}` : '—'],
+    ['TV time', `${t(now)} · provider time zone ${S.acc?.tz || 'not sent'}`],
+  ];
+  if (!ov.el.isConnected) return;
+  ov.el.querySelector('.inner').innerHTML = lines.map(([k, v], i) => `<div class="lr fx" tabindex="-1"${i ? '' : ' data-first'}><span style="width:120px;flex:none" class="t-3">${k}</span><span class="grow ellipsis">${esc(v)}</span></div>`).join('');
+  focus(ov.el.querySelector('.lr'));
+}
 function act(a) {
   const s = settings();
+  if (a === 'guidecheck') return guideCheck();
   if (a === 'switch') {
     radioMenu({ title: 'Switch account', value: S.acc?.id, rows: S.accounts.map((x) => ({ v: x.id, l: x.name, sub: x.type === 'xtream' ? x.username : 'Playlist' })), onPick: async (id) => {
       const x = S.accounts.find((y) => y.id === id); if (!x || x.id === S.acc?.id) return;
