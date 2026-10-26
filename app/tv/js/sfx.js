@@ -6,11 +6,11 @@
 const BASE = 'tv/sounds/';
 // p = priority inside one key press (the highest wins), cd = minimum ms between two plays of the same sound
 const DEF = {
-  launch: { p: 5 }, 'launch-wipe': { p: 4 }, 'launch-brief': { p: 4 },
+  'launch-full': { p: 5 }, 'launch-brief': { p: 4 },
   focus: { p: 1, cd: 60 }, select: { p: 3, cd: 120 }, back: { p: 3, cd: 150 }, open: { p: 4, cd: 200 }, close: { p: 4, cd: 200 },
   'toggle-on': { p: 3, cd: 150 }, 'toggle-off': { p: 3, cd: 150 },
 };
-const NO_KEY_NEEDED = new Set(['launch', 'launch-wipe', 'launch-brief']);
+const NO_KEY_NEEDED = new Set(['launch-full', 'launch-brief']);
 const LEVEL = { on: 1, quiet: 0.5, off: 0 };   // quiet = -6 dB
 const REPEAT_EVERY = 125, REPEAT_GAIN = 0.6;    // a held key: every third ~50 ms repeat, softer
 const RATE = { up: 1.1225, down: 0.8409 };      // the tick is A5: up lands on B5, down on F#5, both in the key
@@ -35,7 +35,7 @@ export const sfx = {
     document.addEventListener('keydown', (e) => { if (e.isTrusted && !e.repeat) keysDown++; keyAt = performance.now(); }, true);
     document.addEventListener('keyup', (e) => { if (e.isTrusted) keysDown = Math.max(0, keysDown - 1); keyAt = performance.now(); }, true);
     window.addEventListener('blur', () => { keysDown = 0; });
-    const order = ['launch', 'launch-brief', 'launch-wipe', ...Object.keys(DEF).filter((n) => !n.startsWith('launch'))];
+    const order = ['launch-full', 'launch-brief', ...Object.keys(DEF).filter((n) => !n.startsWith('launch'))];
     for (const n of order) loading[n] = fetch(`${BASE}${n}.wav`).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)).then((buf) => { bufs[n] = buf; }).catch(() => {});
   },
   mode(m) { if (m in LEVEL) level = m; },
@@ -66,7 +66,8 @@ export const sfx = {
   // The launch sound lines up with the animation that began at t0: time already gone is skipped from the start of the file
   // (its first 100 ms are silent). Half the reported output latency is added: the TV delays its picture too, and a sound
   // ahead of the picture is noticed sooner than one behind it.
-  async launch(t0, name = 'launch') {
+  // The owner's choice: the long launch (with the warm swell and the breath), and no sound on the wipe.
+  async launch(t0, name = 'launch-full') {
     if (!ctx || !LEVEL[level]) return false;
     await Promise.race([loading[name], new Promise((r) => setTimeout(r, 400))]);
     if (ctx.state === 'suspended') await Promise.race([ctx.resume().catch(() => {}), new Promise((r) => setTimeout(r, 150))]);

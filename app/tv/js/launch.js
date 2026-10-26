@@ -25,8 +25,7 @@ function finish() {
     setTimeout(() => app.classList.remove('l-on', 'l-rm', 'l-fading'), 120);
     return;
   }
-  sfx.play('launch-wipe');
-  app.classList.add('l-wiping');
+  app.classList.add('l-wiping');   // (no sound: the launch chord is the last thing you hear)
   setTimeout(() => app.classList.remove('l-on', 'l-run', 'l-wiping'), T_WIPE + 40);
 }
 
