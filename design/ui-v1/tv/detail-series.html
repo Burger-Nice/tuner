@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="mock-size" content="960x540@2"><title>airglow TV</title>
+<link rel="stylesheet" href="../../brand-v5/v5.4/fonts.css"><link rel="stylesheet" href="../../brand-v5/v5.4/tokens.css"><link rel="stylesheet" href="../ui.css">
+<script src="../kit/art.js"></script><script src="../kit/data.js"></script><script src="../kit/kit.js"></script><script src="../kit/movies.js"></script></head>
+<body><div class="screen" id="s"></div><script>
+const {ic,tag,dot,star,wcard}=Kit, s=Mock.SERIES[0], E=Mock.EPISODES;
+const styles=['rings','city','sun','waves','peaks','retro','forest','figure'];
+const eps=E.map((e,i)=>`<div class="ep${e.done?' done':''}"><div class="th${i===2?' f':''}"><div class="art">${Art.art('nc-ep'+e.n,{style:styles[i%8],hue:262+i*9})}</div><span class="num">${e.n}</span>${e.done?'<span class="chk">'+ic('check')+'</span>':''}${e.prog?'<div class="prog flush"><i style="width:'+e.prog+'%"></i></div>':''}</div><div class="eb"><b>${e.t}</b><span>${e.prog?'21 min left':e.rt}</span></div></div>`).join('');
+document.getElementById('s').innerHTML=`
+<div class="d-art"><div class="art">${Art.art(s.id,{style:s.style,hue:s.hue})}</div><div class="d-scrim"></div></div>
+<div class="d-scrim2" style="height:250px"></div>
+<div class="d-col" style="top:36px">
+  <div class="t-label t-2">Series${dot}${s.g.join(' · ')}</div>
+  <div class="t-display" style="margin-top:6px">${s.t}</div>
+  <div class="metaline" style="margin-top:10px">${star(s.r)}${dot}<span>${s.y}</span>${dot}<span>${s.seasons} seasons</span>${dot}${tag(s.rating)}${tag('4K','q')}${tag('EN')}</div>
+  <div class="t-body clamp3" style="margin-top:12px;width:470px">${s.plot}</div>
+  <div class="row-flex" style="gap:12px;margin-top:18px"><span class="btn">${ic('play','fill')}Resume S1 · E3</span><span class="btn2">${ic('saved')}Save</span></div>
+  <div class="t-cap" style="margin-top:8px;font-size:14px">21 min left in Night Circuit</div>
+</div>
+<div class="abs seas" style="left:48px;top:318px"><span class="chip lg sel">Season 1</span><span class="chip lg">Season 2</span><span class="t-cap" style="align-self:center;margin-left:8px;font-size:14px">8 episodes</span></div>
+<div class="rail abs" style="top:366px;left:0;gap:16px">${eps}</div>`;
+</script></body></html>

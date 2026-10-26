@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="mock-size" content="960x540@2"><title>airglow TV</title>
+<link rel="stylesheet" href="../../brand-v5/v5.4/fonts.css"><link rel="stylesheet" href="../../brand-v5/v5.4/tokens.css"><link rel="stylesheet" href="../ui.css">
+<script src="../kit/art.js"></script><script src="../kit/data.js"></script><script src="../kit/kit.js"></script><script src="../kit/movies.js"></script></head>
+<body><div class="screen" id="s"></div><script>
+const {ic,tag,dot,star,wcard}=Kit, m=Mock.MOVIES[0], by=Movies.byId;
+const more=['m6','m11','m14','m12','m8'].map(id=>by(id)).map(x=>wcard({seed:x.id,style:x.style,hue:x.hue,title:x.t,meta:x.y+' · '+x.g[0],w:176,h:99})).join('');
+document.getElementById('s').innerHTML=`
+<div class="d-art"><div class="art">${Art.art(m.id,{style:m.style,hue:m.hue})}</div><div class="d-scrim"></div></div>
+<div class="d-scrim2"></div>
+<div class="d-col">
+  <div class="t-label t-2" style="margin-top:4px">Movie${dot}${m.g.join(' · ')}</div>
+  <div class="t-display" style="margin-top:6px">${m.t}</div>
+  <div class="metaline" style="margin-top:10px">${star(m.r)}${dot}<span>${m.y}</span>${dot}<span>${m.rt}</span>${dot}${tag('4K','q')}${tag('HDR','q')}${tag('EN')}</div>
+  <div class="t-body clamp3" style="margin-top:14px;width:460px">${m.plot}</div>
+  <div class="t-cap" style="margin-top:12px;font-size:14px;line-height:20px;color:var(--a-text-3)">Directed by <span class="t-2">${m.dir}</span><br>With <span class="t-2">${m.cast}</span></div>
+  <div class="row-flex" style="gap:12px;margin-top:20px"><span class="btn f">${ic('play','fill')}Play</span><span class="btn2">${ic('saved')}Save</span><span class="btn2 icon">${ic('cc')}</span></div>
+</div>
+<div class="abs rowtitle" style="left:48px;top:380px;font-size:20px">More like this</div>
+<div class="rail abs" style="top:414px;left:0">${more}</div>`;
+</script></body></html>
