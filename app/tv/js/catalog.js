@@ -11,12 +11,17 @@ let refreshQ = Promise.resolve();
 export let lastKey = Date.now();
 document.addEventListener('keydown', () => (lastKey = Date.now()), true);
 // Set by the player module: true while the native player is on screen.
-export const busy = { watching: () => false };
+export const busy = { watching: () => false, showing: () => false };
 
 export function resetCatalogs() { for (const k in catalog) { catalog[k] = null; delete fresh[k]; delete pending[k]; } }
 
 const cacheable = () => S.acc && (S.acc.type === 'xtream' || !!S.acc.url);
-const lean = (c) => ({ at: Date.now(), cats: c.cats, items: c.items.map((x) => { const o = {}; for (const k in x) if (k[0] !== '_') o[k] = x[k]; return o; }) });
+// The saved copy keeps what prepare() and the ratings worked out, so the next start skips that work (bump PREP when
+// prepare() changes what it computes).
+const PREP = 2;
+const KEEP = new Set(['_s', '_ts', '_lang', '_q', '_hdr', '_sub', '_genres', '_hot', '_title', '_key', '_ck', '_cy', '_ir', '_iv', '_pop', '_top']);
+const lean = (c) => ({ at: c.at || Date.now(), pv: c.pv, rated: !!c._rated, cats: c.cats, items: c.items.map((x) => { const o = {}; for (const k in x) if (k[0] !== '_' || KEEP.has(k)) o[k] = x[k]; return o; }) });
+const save = (kind, c) => { if (cacheable()) window.Core.cache.set(cacheKey(kind), lean(c)); };
 function cacheKey(kind) {
   const a = S.acc;
   const who = `${a.type}|${a.server || ''}|${a.username || ''}|${a.password || ''}|${a.url || ''}`;
@@ -40,12 +45,12 @@ export function ensure(kind) {
           // Channels are checked for changes every couple of hours, films and series every six.
           if (Date.now() - hit.at > (kind === 'live' ? 2 : 6) * 3600e3) refreshLater(kind, my);
           hit._cached = true;
+          hit._rated = !!hit.rated && hit.pv === PREP;
           return hit;
         }
       }
       const c = await S.src[kind]();
       if (my !== S.epoch) throw new Error('stale');
-      if (cacheable()) window.Core.cache.set(cacheKey(kind), lean(c));
       c.at = Date.now();
       return c;
     };
@@ -54,7 +59,13 @@ export function ensure(kind) {
       .then((c) => {
         if (my !== S.epoch) throw new Error('stale');
         catalog[kind] = c;
-        if (kind !== 'live') rateLib(kind, c).then(() => { if (catalog[kind] === c) { mergeLib(kind, c); emit('catalog', kind); } });
+        // Ratings (and the save) after the screen has something to show; a copy saved rated needs neither.
+        if (kind === 'live') { if (!c._cached || c._unprepared) save(kind, c); }
+        else if (!c._rated) rateLib(kind, c).then(async (rated) => {
+          if (rated && catalog[kind] === c) { await mergeLib(kind, c); emit('catalog', kind); }
+          if (my === S.epoch && (rated || !c._cached || c._unprepared)) save(kind, c);
+        });
+        else if (c._unprepared) save(kind, c);
         emit('catalog', kind);
         return c;
       })
@@ -75,10 +86,13 @@ function refreshLater(kind, my) {
       if (my !== S.epoch) return;
       c.at = Date.now();
       await prepare(kind, c);
-      if (kind !== 'live') await rateLib(kind, c);
+      if (kind !== 'live' && await rateLib(kind, c)) await mergeLib(kind, c);
       await settled();
-      window.Core.cache.set(cacheKey(kind), lean(c));
-      if (my === S.epoch) fresh[kind] = c;
+      if (my !== S.epoch) return;
+      save(kind, c);
+      // Swap it in now unless that section is on screen (then on its next open), so two copies aren't kept.
+      if (busy.showing(kind)) fresh[kind] = c;
+      else { catalog[kind] = c; emit('catalog', kind); }
     } catch {}
   });
 }
@@ -185,10 +199,14 @@ const sharedGenres = (list) => { const key = list.join('|'); let g = genreSets.g
 
 async function prepare(kind, c) {
   c._at = c.at || Date.now();
-  for (let i = 0; i < c.items.length; i++) { const x = c.items[i]; x._s = Titles.norm(x.name); if (i % 5000 === 4999) await breathe(); }
+  const done = c.pv === PREP;   // a saved copy that was prepared already
+  c._unprepared = !done;
+  c.pv = PREP;
+  if (!done) for (let i = 0; i < c.items.length; i++) { const x = c.items[i]; x._s = Titles.norm(x.name); if (i % 5000 === 4999) await breathe(); }
   c.byId = new Map(c.items.map((x) => [x.id, x]));
   c.catName = new Map(c.cats.map((x) => [x.id, x.name]));
   if (kind === 'live') return c;
+  if (done) { await mergeLib(kind, c); return c; }
   const byCat = new Map();
   for (const k of c.cats) byCat.set(k.id, { lang: langOf(k.name), q: qualityOf(k.name), sub: SUBS.test(k.name), hot: HOT.test(k.name), genres: GENRES.filter(([re]) => re.test(k.name)).map(([, g]) => g) });
   const none = { lang: '', q: '', sub: false, hot: false, genres: [] };
@@ -204,11 +222,13 @@ async function prepare(kind, c) {
     x._title = prettyTitle(x.name);
     const cl = Titles.clean(x.name);
     x._key = cl.key || Titles.norm(x._title);
+    x._ck = cl.key || '';
+    x._cy = cl.year || 0;
     if (!x.year && cl.year) x.year = String(cl.year);
     x._pop = popularity(x);
     x._top = topScore(x);
   }
-  mergeLib(kind, c);
+  await mergeLib(kind, c);
   return c;
 }
 
@@ -252,14 +272,15 @@ function loadRatings() {
 }
 function matchImdb(x, kind) {
   const ix = kind === 'movie' ? imdb.m : imdb.s;
-  const { key, year } = Titles.clean(x.name);
+  const key = x._ck, year = x._cy;
   if (!ix || !key) return null;
   const y = +x.year || year;
   if (y) for (const yy of [y, y - 1, y + 1]) { const e = ix.byKey.get(key + '|' + yy); if (e) return e; }
   return !y || kind === 'series' ? ix.byTitle.get(key) || null : null;
 }
+// Returns true when ratings were added (the titles then need merging again).
 async function rateLib(kind, c) {
-  if (!c || c._rated || !(await loadRatings())) return;
+  if (!c || c._rated || !(await loadRatings())) return false;
   c._rated = true;
   for (let i = 0; i < c.items.length; i++) {
     const x = c.items[i], e = matchImdb(x, kind);
@@ -271,6 +292,7 @@ async function rateLib(kind, c) {
     }
     if (i % 1500 === 1499) await breathe();
   }
+  return true;
 }
 
 // ---------- one card per title ----------
@@ -293,22 +315,27 @@ export function defaultVersion(t) {
 }
 export function pickVersion(t, v) { const m = store.get(verKey(), {}); m[t.key] = v.id; store.set(verKey(), m); }
 
-function mergeLib(kind, c) {
+// In chunks, so the remote keeps working while tens of thousands of titles are grouped.
+async function mergeLib(kind, c) {
   const groups = new Map();
-  for (const x of c.items) {
+  for (let i = 0; i < c.items.length; i++) {
+    const x = c.items[i];
     const k = x._key + '|' + (kind === 'movie' ? x.year || '' : '');
     let g = groups.get(k);
     if (!g) groups.set(k, (g = []));
     g.push(x);
+    if (i % 8000 === 7999) await breathe();
   }
   const titles = [];
+  let n = 0;
   for (const [key, vs] of groups) {
+    if (++n % 4000 === 0) await breathe();
     const first = vs[0];
     const t = {
       kind, key, id: first.id, name: first._title, raw: first.name, year: first.year, versions: vs,
       poster: (vs.find((v) => v.poster) || first).poster, cat: first.cat,
       added: Math.max(...vs.map((v) => v.added || 0)), rating: first.rating,
-      _s: Titles.norm(first._title), _ir: first._ir, _iv: first._iv,
+      _s: first._ts || (first._ts = Titles.norm(first._title)), _ir: first._ir, _iv: first._iv,
       _pop: Math.max(...vs.map((v) => v._pop || 0)), _top: Math.max(...vs.map((v) => v._top || 0)),
       _langs: new Set(vs.map((v) => v._lang).filter(Boolean)), _qs: new Set(vs.map((v) => v._q).filter(Boolean)),
       _sub: vs.some((v) => v._sub), _hdr: vs.some((v) => v._hdr),
@@ -339,9 +366,10 @@ const sorters = {
 export const DECADES = [['2020s', 2020, 2099], ['2010s', 2010, 2019], ['2000s', 2000, 2009], ['Older', 0, 1999]];
 export const IMDB_MIN = [['6+', 6], ['7+', 7], ['8+', 8]];
 // A filter set: { lang: 'mine' | 'all' | <language>, genre, q: 'hd' | '4K', sub: true, imdb: 7, decade: '2010s' }
+let L = ['English'];   // your languages, read once per browse() / optionCounts() call
 function match(t, f, skip) {
   if (skip !== 'lang' && f.lang && f.lang !== 'all') {
-    if (f.lang === 'mine') { const langs = prefLangs(); if (t._langs.size && ![...t._langs].some((l) => langs.includes(l))) return false; }
+    if (f.lang === 'mine') { if (t._langs.size && ![...t._langs].some((l) => L.includes(l))) return false; }
     else if (!t._langs.has(f.lang)) return false;
   }
   if (skip !== 'genre' && f.genre && !t._genres?.includes(f.genre)) return false;
@@ -359,25 +387,31 @@ function facets(titles) {
 export const filterCount = (f) => ['lang', 'genre', 'q', 'sub', 'imdb', 'decade'].filter((k) => f[k] && !(k === 'lang' && f[k] === 'all')).length;
 // English (your languages) first, then titles with no language marked, then the rest.
 function langFirst(list) {
-  const langs = prefLangs();
-  const rank = (t) => (langs.includes(t._lang) ? 0 : t._lang ? 2 : 1);
+  const rank = (t) => (L.includes(t._lang) ? 0 : t._lang ? 2 : 1);
   return list.map((t, i) => [rank(t), i, t]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((e) => e[2]);
 }
 export function browse(kind, view) {
   const c = catalog[kind];
   if (!c?.titles) return [];
+  L = prefLangs();
   const sort = sorters[view.sort] ? view.sort : 'popular';
   let base = c._sorted[sort];
   if (!base) base = c._sorted[sort] = [...c.titles].sort(sorters[sort]);
-  let list = base.filter((t) => match(t, view.f));
-  if (view.langFirst !== false && sort !== 'az') list = langFirst(list);
-  return list;
+  // Language-first order is worked out once per sort (filtering keeps the order).
+  if (view.langFirst !== false && sort !== 'az') {
+    const k = 'lf:' + sort + ':' + L.join(',');
+    base = c._sorted[k] || (c._sorted[k] = langFirst(base));
+  }
+  return filterCount(view.f) ? base.filter((t) => match(t, view.f)) : base.slice();
 }
 // Live counts for the Filters sheet: each option counted against every other active filter.
 export function optionCounts(kind, view, key, values) {
   const c = catalog[kind], f = view.f;
+  L = prefLangs();
   const pool = c.titles.filter((t) => match(t, f, key));
-  return values.map((v) => pool.filter((t) => match(t, { [key]: v }, '')).length);
+  const fs = values.map((v) => ({ [key]: v })), counts = values.map(() => 0);
+  for (const t of pool) for (let i = 0; i < fs.length; i++) if (match(t, fs[i], '')) counts[i]++;
+  return counts;
 }
 // Jump follows the sort: rank bands for Popular and Top rated, years for Newest, letters for Title, months for Recently added.
 export function jumpTargets(view, list) {

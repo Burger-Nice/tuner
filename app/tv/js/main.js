@@ -8,6 +8,7 @@ import { native } from './native.js';
 import { resume } from './session.js';
 import { startNba, myGame, nba } from './games.js';
 import { watching } from './player.js';
+import { busy, ensure } from './catalog.js';
 import home from './screens/home.js';
 import live from './screens/live.js';
 import lib from './screens/lib.js';
@@ -105,6 +106,8 @@ native?.onBack(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 
 window.addEventListener('popstate', () => {});
 
 // ---------- start ----------
+// A refreshed catalog is swapped in at once unless its section is on screen.
+busy.showing = (k) => { const c = current(); return c === k || (k !== 'live' && c === 'detail'); };
 on('nba', () => setBar({ live: myGame()?.state === 'in' }));
 on('session', () => {
   if (!S.acc) return;
@@ -122,8 +125,11 @@ if (native) {
 
 async function start() {
   await Promise.race([Promise.resolve(native?.ready), sleep(1500)]);
-  if (resume()) go('home');
-  else go('first');
+  if (resume()) {
+    // Home's first look needs the channel list (last channel, On now); the saved copy loads inside the launch.
+    await Promise.race([ensure('live').catch(() => null), sleep(700)]);
+    go('home');
+  } else go('first');
   requestAnimationFrame(() => requestAnimationFrame(launchReady));   // drawn: the launch can wipe to it
 }
 start();

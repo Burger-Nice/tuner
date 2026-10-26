@@ -19,9 +19,16 @@ function begin(a, src, info) {
 export function resume() {
   const a = activeAccount();
   if (!a) return false;
-  const known = a.type === 'xtream' && store.get('info:' + a.id, null);
+  const acc = withText(a);
+  if (a.type === 'm3u') {
+    // A playlist opens on its saved lists; it's only downloaded again when those are refreshed.
+    if (!acc.url && !acc.text) return false;
+    begin(acc, Core.m3u(acc), store.get('info:' + a.id, null) || {});
+    return true;
+  }
+  const known = store.get('info:' + a.id, null);
   if (!known) return false;
-  const acc = withText(a), src = Core.xtream(acc);
+  const src = Core.xtream(acc);
   begin(acc, src, known);
   src.login().then((d) => {
     if (S.acc?.id !== a.id) return;
@@ -46,7 +53,7 @@ export async function signIn(a) {
   S.accounts = [slim, ...S.accounts.filter((x) => x.id !== a.id)];
   store.set('accounts', S.accounts);
   store.set('active', a.id);
-  if (a.type === 'xtream') store.set('info:' + a.id, d);
+  store.set('info:' + a.id, d);
   begin(a, s, d);
   return d;
 }

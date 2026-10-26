@@ -28,5 +28,7 @@
     <style name="PlayerTheme" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/bg0</item>
         <item name="android:windowFullscreen">true</item>
+        <!-- the player appears at once, no slide or fade -->
+        <item name="android:windowAnimationStyle">@null</item>
     </style>
 </resources>

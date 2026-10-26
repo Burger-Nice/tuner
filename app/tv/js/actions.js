@@ -1,16 +1,30 @@
 // Actions several screens share: resume something, open a title's page.
 import { S } from './state.js';
 import { catalog, ensure } from './catalog.js';
-import { playVod } from './player.js';
+import { playVod, queueAfter } from './player.js';
 import { push } from './router.js';
 
-// Continue watching plays straight away; an episode brings its series along for Up next when that comes quickly.
+// Series episode lists, kept for a while so the next resume has Up next at once.
+const seriesCache = new Map();   // seriesId -> { at, eps }
+export function episodesOf(it) {
+  const hit = seriesCache.get(it.seriesId);
+  if (hit && Date.now() - hit.at < 30 * 60e3) return Promise.resolve(hit.eps);
+  return S.src.seriesInfo({ id: it.seriesId, name: it.seriesName, poster: it.poster }).then((d) => {
+    const eps = d?.seasons?.flatMap((x) => x.eps) || [];
+    seriesCache.set(it.seriesId, { at: Date.now(), eps });
+    return eps;
+  });
+}
+// Continue watching plays straight away. An episode starts at once; the episodes after it join for Up next when
+// the series' list arrives (at once when it was looked up recently).
 export async function resumeItem(it, { restart } = {}) {
   if (it.kind !== 'episode') return playVod(it, { restart });
-  const d = await Promise.race([S.src.seriesInfo({ id: it.seriesId, name: it.seriesName, poster: it.poster }).catch(() => null), new Promise((r) => setTimeout(r, 1500))]);
-  const eps = d?.seasons?.flatMap((x) => x.eps);
-  const ep = eps?.find((e) => e.id === it.id);
-  return playVod(ep || it, { queue: ep ? eps : null, restart });
+  const hit = seriesCache.get(it.seriesId);
+  const known = hit && Date.now() - hit.at < 30 * 60e3 ? hit.eps : null;
+  const ep = known?.find((e) => e.id === it.id);
+  if (ep) return playVod(ep, { queue: known, restart });
+  await playVod(it, { restart });
+  episodesOf(it).then((eps) => { const i = eps.findIndex((e) => e.id === it.id); if (i >= 0) queueAfter(it, eps.slice(i + 1)); }).catch(() => {});
 }
 
 // The title page for a library title, a provider item (a version) or an episode.

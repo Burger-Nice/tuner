@@ -1,4 +1,5 @@
 // Small shared helpers for the TV app: DOM, escaping, icons, time and the team palette.
+import { focus, entryOf } from './focus.js';
 export const $ = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -7,6 +8,9 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const breathe = () => new Promise((r) => setTimeout(r, 0));
 export const host = (u) => { try { return new URL(u).host; } catch { return u; } };
 export const keyOf = (it) => `${it.kind}:${it.id}`;
+// Provider art is often a TMDB link to the full-size original: ask TMDB for the size the slot needs instead
+// (w342 for 296 px posters, w1280 for backdrops), so the TV downloads and decodes a fraction of it.
+export const sized = (url, w) => (url ? String(url).replace(/(image\.tmdb\.org\/t\/p\/)(original|w\d+(?:_and_h\d+_\w+)?)\//, `$1w${w}/`) : url);
 
 // Icons from the design kit (24 x 24, stroked).
 const P = {
@@ -76,15 +80,27 @@ document.addEventListener('error', (e) => {
   else img.remove();
 }, true);
 
-// Redraw a block only when its content changed, and keep focus on the same control.
-const focusKey = (el) => el.getAttributeNames().filter((n) => n.startsWith('data-')).map((n) => `[${n}="${CSS.escape(el.getAttribute(n))}"]`).join('') || (el.id ? `#${CSS.escape(el.id)}` : '');
-export function setHtml(el, html) {
+// Redraw a block only when its content changed, and keep focus on the same control. The control is found again by its
+// path (its data-* attributes and its containers', e.g. the Continue watching rail's card 2, not On now's card 2);
+// if it's gone, focus goes to the screen's entry, never to whatever happens to be first.
+const part = (n) => n.getAttributeNames().filter((k) => k.startsWith('data-')).map((k) => `[${k}="${CSS.escape(n.getAttribute(k))}"]`).join('') || (n.id ? `#${CSS.escape(n.id)}` : '');
+function focusPath(a, root) {
+  const parts = [];
+  for (let n = a; n && n !== root; n = n.parentElement) { const p = part(n); if (p) parts.unshift(p); }
+  return { path: parts.join(' '), leaf: part(a) };
+}
+export function setHtml(el, html, restore = true) {
   if (!el || (el._html === html && el.childNodes.length)) return false;
   const a = document.activeElement;
-  const key = a && a !== el && el.contains(a) ? focusKey(a) : null;
+  const key = restore && a && a !== el && el.contains(a) ? focusPath(a, el) : null;
   el.innerHTML = html;
   el._html = html;
-  if (key !== null) (el.querySelector(key || ':not(*)') || el.querySelector('.fx'))?.focus({ preventScroll: true });
+  if (key) {
+    const q = (s) => { try { return s ? el.querySelector(s) : null; } catch { return null; } };
+    const to = q(key.path) || q(key.leaf);
+    if (to) focus(to);
+    else { const scr = el.closest('[data-screen]'); focus(entryOf(scr || el)); }
+  }
   return true;
 }
 

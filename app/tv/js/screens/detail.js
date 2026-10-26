@@ -1,16 +1,16 @@
 // A title's page: full-bleed backdrop under a flat scrim, a column that flows, Play or Resume (focused), Save, the version
 // pill (language and quality, remembered per title) and More like this; series add season chips and the episode row.
-import { $, esc, ic, dot, tag, setHtml, fmtTime, leftText } from '../util.js';
+import { $, esc, ic, dot, tag, setHtml, fmtTime, leftText, sized } from '../util.js';
 import { S, on, settings, saveSettings, isFav, toggleFav, progressOf, inProgress } from '../state.js';
 import { catalog, defaultVersion, pickVersion, versionLabel, prettyCat } from '../catalog.js';
 import { wideCard } from '../cards.js';
-import { playVod } from '../player.js';
+import { playVod, watching } from '../player.js';
 import { push } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, radioMenu, toast } from '../ui.js';
 
 let el, t = null, ver = null, info = null, season = null, epFocus = null, my = 0;
-const img = (url) => (url ? `<img src="${esc(url)}" alt="" decoding="async">` : '');
+const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" decoding="async">` : '');
 const SUBS = [['auto', 'Auto'], ['off', 'Off'], ['English', 'English'], ['Spanish', 'Spanish'], ['French', 'French'], ['German', 'German']];
 const subLabel = () => SUBS.find(([v]) => v === (settings().subLang || 'auto'))?.[1] || 'Auto';
 
@@ -34,7 +34,10 @@ function moreLikeThis() {
   return pool.slice(0, 8);
 }
 
+let behind = false;
+on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw() {
+  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!t) return;
   const movie = t.kind === 'movie';
   const d = info || {};
@@ -74,7 +77,7 @@ function draw() {
       <div class="abs epsyn" data-syn style="left:48px;top:486px;width:864px"><b>E${fe.ep} · ${esc(fe.name)}</b>${fe.plot ? `${dot}${esc(fe.plot)}` : ''}</div>`;
   } else if (info?.error) below = `<div class="abs t-body" style="left:48px;top:300px">${esc(info.error)}</div>`;
   else if (!movie) below = `<div class="abs t-cap" style="left:48px;top:300px">Loading episodes…</div>`;
-  setHtml(el, `<div class="d-back"><div class="art">${img(backdrop)}</div><div class="d-scrim"></div></div><div class="d-scrim2"${movie ? '' : ' style="height:300px"'}></div>
+  setHtml(el, `<div class="d-back"><div class="art">${img(backdrop, 1280)}</div><div class="d-scrim"></div></div><div class="d-scrim2"${movie ? '' : ' style="height:300px"'}></div>
 <div class="d-col"${movie ? '' : ' style="top:32px"'}>
   <div class="t-label t-2">${eyebrow}</div>
   <div class="t-display clamp2" style="margin-top:6px">${esc(t.name)}</div>

@@ -15,9 +15,17 @@ const ROWS = 6, PITCH = 52, AXIS = 656, SPAN = 150 * 60e3, PX = AXIS / SPAN;
 let el, group = 'fav', chans = [], top = 0, r = 0, at = Date.now(), winStart = 0, nowFloor = 0, toastT = 0, digitBuf = '', digitT = 0;
 const floor10 = (t) => t - (t % 600000);
 
+// Counted once per channel list, favourites and live games (it's read on every draw).
+let groupsMemo = { key: '', list: [] };
 function groups() {
   const c = catalog.live;
   if (!c) return [];
+  const memoKey = `${c._at}:${c.items.length}:${favList('live').length}:${liveGames().length}`;
+  if (groupsMemo.c === c && groupsMemo.key === memoKey) return groupsMemo.list;
+  groupsMemo = { c, key: memoKey, list: countGroups(c) };
+  return groupsMemo.list;
+}
+function countGroups(c) {
   const counts = new Map();
   for (const it of c.items) counts.set(it.cat, (counts.get(it.cat) || 0) + 1);
   const fav = favList('live').length;
@@ -105,6 +113,9 @@ function nowPanel() {
     <div class="ellipsis row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide ? 'var(--a-text-3)' : 'var(--a-text-2)'}">${desc}</div>
   </div>${right}`;
 }
+let warmT = 0, frame = 0, pendingFocus = null;
+// focusAt: where focus goes after the redraw (a move). Without it (new data, the clock) focus stays on the same row
+// and time, never on whatever came first. Guide data is asked for once the remote has settled on a row.
 function draw(focusAt) {
   if (!el || el.hidden) return;
   if (!catalog.live) return;
@@ -113,10 +124,22 @@ function draw(focusAt) {
   if (r < top) top = r;
   if (r >= top + ROWS) top = r - ROWS + 1;
   const vis = chans.slice(top, top + ROWS);
-  setHtml(el.querySelector('.g-grid'), `${ruler()}${vis.map((ch, i) => row(ch, top + i)).join('')}`);
-  setHtml(el.querySelector('.g-now'), nowPanel());
+  const grid = el.querySelector('.g-grid'), a = document.activeElement, inGrid = grid.contains(a) && a !== grid;
+  const was = inGrid ? (a.dataset.act === 'group' ? 'chip' : a.hasAttribute('data-ch') ? 'ch' : 'cell') : null;
+  const changed = setHtml(grid, `${ruler()}${vis.map((ch, i) => row(ch, top + i)).join('')}`, false);
   if (focusAt) focusAt();
-  warm(chans.slice(top, top + ROWS + 6), { still: () => current() === 'live' }).then((n) => { if (n && current() === 'live') draw(); });
+  else if (changed && was === 'chip') focus(el.querySelector('[data-act="group"]'));
+  else if (changed && was === 'ch') focus(el.querySelector(`.g-ch[data-r="${r}"]`));
+  else if (changed && was === 'cell') focusCell(r, at);
+  else setHtml(el.querySelector('.g-now'), nowPanel());   // (a focus move draws it)
+  clearTimeout(warmT);
+  warmT = setTimeout(() => warm(chans.slice(top, top + ROWS + 6), { still: () => current() === 'live' }).then((n) => { if (n && current() === 'live') draw(); }), 200);
+}
+// While a key is held, one draw per frame however fast the repeats come.
+function drawSoon(focusAt) {
+  pendingFocus = focusAt;
+  if (frame) return;
+  frame = requestAnimationFrame(() => { frame = 0; const f = pendingFocus; pendingFocus = null; draw(f); });
 }
 function focusCell(ri, t) {
   const rowEl = el.querySelector(`.g-row[data-ri="${ri}"]`);
@@ -130,11 +153,12 @@ function hook(dir, cur, repeat) {
   const ri = +cur.dataset.r;
   const onCh = cur.hasAttribute('data-ch');
   if (dir === 'up' || dir === 'down') {
-    const nr = ri + (dir === 'down' ? 1 : -1);
+    const nr = (frame ? r : ri) + (dir === 'down' ? 1 : -1);   // a draw still pending: count from where we're going
     if (nr < 0) return repeat ? false : (focus(el.querySelector('[data-act="group"]')), true);
     if (nr >= chans.length) return false;
     r = nr;
-    draw(() => (onCh ? focus(el.querySelector(`.g-ch[data-r="${r}"]`)) : focusCell(r, at)));
+    const to = () => (onCh ? focus(el.querySelector(`.g-ch[data-r="${r}"]`)) : focusCell(r, at));
+    if (repeat) drawSoon(to); else draw(to);
     return true;
   }
   if (onCh) {

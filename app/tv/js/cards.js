@@ -1,10 +1,10 @@
 // Card and hero markup shared by the screens. Class names are the design kit's (design/ui-v1/kit), styled by ui.css.
-import { esc, ic, tag, dot, liveP, logo, crest, teamVars, initials, hm, leftText } from './util.js';
+import { esc, ic, tag, dot, liveP, logo, crest, teamVars, initials, hm, leftText, sized } from './util.js';
 import { progressOf } from './state.js';
 import { LANG_SHORT, prefLangs } from './catalog.js';
 import { show, clockText, isMine, mySide, ordinal } from './games.js';
 
-const img = (url) => (url ? `<img src="${esc(url)}" alt="" decoding="async" loading="lazy">` : '');
+const img = (url) => (url ? `<img src="${esc(sized(url, 342))}" alt="" decoding="async" loading="lazy">` : '');
 const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
 
 // 2:3 poster: tag 4K top-left, +N versions (or a language) top-right, resume bar flush; the caption below is the real title.

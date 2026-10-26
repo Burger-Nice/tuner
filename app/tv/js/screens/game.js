@@ -4,7 +4,7 @@ import { esc, ic, dot, liveP, crest, teamVars, setHtml } from '../util.js';
 import { on } from '../state.js';
 import { catalog } from '../catalog.js';
 import { gameById, show, clockText, ordinal, wantSummary, reveal, isMine, mySide, teamChannel, feedsNow, findFeeds, favTeam } from '../games.js';
-import { playLive } from '../player.js';
+import { playLive, watching } from '../player.js';
 import { current } from '../router.js';
 import { focus } from '../focus.js';
 import { toast } from '../ui.js';
@@ -37,7 +37,10 @@ function teamStats(s, g) {
   }).join('')}</div>`;
 }
 
+let behind = false;
+on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw() {
+  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden || !id) return;
   const g0 = gameById(id);
   if (!g0) { setHtml(el, '<div class="center-col" style="top:200px"><div class="state big"><b>This game is no longer listed</b></div></div>'); return; }

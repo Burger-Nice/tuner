@@ -95,9 +95,21 @@ public class PlayerActivity extends AppCompatActivity {
             return e;
         }
     }
-    static List<Entry> parse(JSONArray a) throws JSONException {
-        List<Entry> out = new ArrayList<>();
-        for (int i = 0; i < a.length(); i++) out.add(Entry.from(a.getJSONObject(i)));
+    /** Rows from the app: objects (movies and episodes), or for channels the compact form [id, name, number, logo, url?]
+     * where a missing url follows the list's pattern tpl ("…/live/user/pass/{id}.ts"). */
+    static List<Entry> parse(JSONArray a, String tpl) throws JSONException {
+        List<Entry> out = new ArrayList<>(a.length());
+        for (int i = 0; i < a.length(); i++) {
+            JSONArray row = a.optJSONArray(i);
+            if (row == null) { out.add(Entry.from(a.getJSONObject(i))); continue; }
+            Entry e = new Entry();
+            e.id = row.optString(0);
+            e.title = row.optString(1);
+            e.num = row.optInt(2);
+            e.logo = row.optString(3);
+            e.url = row.length() > 4 ? row.optString(4) : tpl == null ? "" : tpl.replace("{id}", e.id);
+            out.add(e);
+        }
         return out;
     }
 
@@ -240,9 +252,10 @@ public class PlayerActivity extends AppCompatActivity {
                 .setReadTimeoutMs(live ? 8000 : 20000);
         if (!ua.isEmpty()) http.setUserAgent(ua);
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
-        // Live: a short, steady buffer (quick to start, rebuffers rarely) capped in memory; movies get more room.
+        // Live: starts after 1 s of picture (zapping is quick), waits for 3 s after a stall so it doesn't stutter,
+        // and keeps a steady buffer capped in memory; movies get more room.
         DefaultLoadControl load = new DefaultLoadControl.Builder()
-                .setBufferDurationsMs(live ? 10000 : 15000, live ? 30000 : 50000, 2500, 5000)
+                .setBufferDurationsMs(live ? 10000 : 15000, live ? 30000 : 50000, live ? 1000 : 2500, live ? 3000 : 5000)
                 .setTargetBufferBytes((live ? 64 : 96) << 20)
                 .setPrioritizeTimeOverSizeThresholds(false)
                 .build();
@@ -485,7 +498,8 @@ public class PlayerActivity extends AppCompatActivity {
     // ---------- banner ----------
 
     private JSONObject metaOf(Entry e) { return e == null ? null : meta.get(e.id); }
-    private static String hm(long t) { return new SimpleDateFormat("HH:mm", Locale.ROOT).format(new Date(t)); }
+    private static final SimpleDateFormat HM = new SimpleDateFormat("HH:mm", Locale.ROOT);   // the UI thread only
+    static String hm(long t) { return HM.format(new Date(t)); }
 
     private void showBanner() {
         if (!live || open != null) return;
@@ -1164,7 +1178,12 @@ public class PlayerActivity extends AppCompatActivity {
         i = ((i % n) + n) % n;
         tune(ring.get(i), i, repeat);
     }
+    private long lastPress;
     private void tune(Entry e, int i, boolean repeat) {
+        // Presses in quick succession connect only where they stop (each connection counts against the account's limit).
+        long now = SystemClock.uptimeMillis();
+        boolean quick = !repeat && now - lastPress < 300;
+        lastPress = now;
         if (cur != null && !cur.id.equals(e.id) && !repeat && played) last = cur;
         index = i;
         cur = e;
@@ -1176,7 +1195,7 @@ public class PlayerActivity extends AppCompatActivity {
         showZapCard();
         showBanner();
         handler.removeCallbacks(doTune);
-        handler.postDelayed(doTune, repeat ? 450 : 0);
+        handler.postDelayed(doTune, repeat ? 450 : quick ? 300 : 0);
         handler.removeCallbacks(askMeta);
         handler.postDelayed(askMeta, repeat ? 450 : 0);
     }
@@ -1350,22 +1369,38 @@ public class PlayerActivity extends AppCompatActivity {
                 case "clocks": showClocks(new JSONObject(arg), false); break;
                 case "chip": { JSONObject c = new JSONObject(arg); showChip(c.optString("title"), c.optString("sub"), c.optString("id")); break; }
                 case "tune": { for (int i = 0; i < ring.size(); i++) if (ring.get(i).id.equals(arg)) { tuneTo(i, false); break; } break; }
-                case "ring": {
-                    JSONObject r = new JSONObject(arg);
-                    List<Entry> next = parse(r.getJSONArray("entries"));
-                    if (next.isEmpty()) break;
-                    ring = next;
-                    ringName = r.optString("name", ringName);
-                    index = -1;
-                    for (int i = 0; i < ring.size(); i++) if (cur != null && ring.get(i).id.equals(cur.id)) index = i;
-                    String tune = r.optString("tune", "");
-                    if (!tune.isEmpty()) for (int i = 0; i < ring.size(); i++) if (ring.get(i).id.equals(tune)) { if (i != index) tuneTo(i, false); break; }
-                    if (wantChannels) { wantChannels = false; openChannels(); }
-                    else if (banner.getVisibility() == View.VISIBLE) fillBanner();
+                case "queue": {   // movies and episodes: more to play after the last one (Up next)
+                    if (live || player == null) break;
+                    List<Entry> more = parse(new JSONObject(arg).getJSONArray("entries"), "");
+                    List<MediaItem> items = new ArrayList<>();
+                    for (Entry e : more) items.add(item(e));
+                    ring.addAll(more);
+                    player.addMediaItems(items);
+                    vod.setItem(cur, index < ring.size() - 1);
+                    break;
+                }
+                case "ring": {   // a new channel list: read off the UI thread, then put in place
+                    new Thread(() -> {
+                        try {
+                            JSONObject r = new JSONObject(arg);
+                            List<Entry> next = parse(r.getJSONArray("entries"), r.optString("tpl", ""));
+                            if (!next.isEmpty()) runOnUiThread(() -> { if (!isFinishing()) setRing(next, r); });
+                        } catch (Exception ignored) {}
+                    }, "ring").start();
                     break;
                 }
             }
         } catch (Exception ignored) {}
+    }
+    private void setRing(List<Entry> next, JSONObject r) {
+        ring = next;
+        ringName = r.optString("name", ringName);
+        index = -1;
+        for (int i = 0; i < ring.size(); i++) if (cur != null && ring.get(i).id.equals(cur.id)) index = i;
+        String tune = r.optString("tune", "");
+        if (!tune.isEmpty()) for (int i = 0; i < ring.size(); i++) if (ring.get(i).id.equals(tune)) { if (i != index) tuneTo(i, false); break; }
+        if (wantChannels) { wantChannels = false; openChannels(); }
+        else if (banner.getVisibility() == View.VISIBLE) fillBanner();
     }
     private void showZapCardText() {
         JSONObject m = metaOf(cur);

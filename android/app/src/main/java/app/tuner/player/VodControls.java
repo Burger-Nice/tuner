@@ -211,7 +211,7 @@ final class VodControls {
         remaining.setText("-" + fmt(Math.max(0, d - pos)));
         float speed = p.getPlaybackParameters().speed;
         long endAt = System.currentTimeMillis() + (long) ((d - p.getCurrentPosition()) / Math.max(0.25f, speed));
-        ends.setText("Ends at " + new SimpleDateFormat("HH:mm", Locale.ROOT).format(new Date(endAt)));
+        ends.setText("Ends at " + PlayerActivity.hm(endAt));
         if (scrubbing) {
             bubble.setVisibility(View.VISIBLE);
             bubble.setText(fmt(pos));

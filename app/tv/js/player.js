@@ -15,7 +15,27 @@ let sentKey = '';
 busy.watching = () => !!ctx.cur;
 export const watching = () => !!ctx.cur;
 const cmd = (what, arg) => native?.player.command([what, typeof arg === 'string' ? arg : JSON.stringify(arg)]);
-const entry = (c) => ({ id: String(c.id), url: (c.sources.find((s) => s.engine === 'mpegts') || c.sources[0]).url, title: c.name, num: c.num || 0, logo: c.logo || '' });
+const urlOf = (c) => (c.sources.find((s) => s.engine === 'mpegts') || c.sources[0]).url;
+// A channel list for the player, kept small: one URL pattern ("…/live/user/pass/{id}.ts") and a row per channel
+// [id, name, number, logo, url (only when it doesn't follow the pattern)]. 30,000 channels were 5.7 MB as objects.
+const packed = new WeakMap();
+function pack(list) {
+  const hit = packed.get(list);
+  if (hit && hit.n === list.length) return hit.v;
+  let tpl = '';
+  const u0 = list[0] && urlOf(list[0]), id0 = list[0] && String(list[0].id), at = u0 ? u0.lastIndexOf(id0) : -1;
+  if (at > 0) tpl = u0.slice(0, at) + '{id}' + u0.slice(at + id0.length);
+  const [pre, post] = tpl ? tpl.split('{id}') : ['', ''];
+  const rows = list.map((c) => {
+    const id = String(c.id), u = urlOf(c);
+    const row = [id, c.name, c.num || 0, c.logo || ''];
+    if (!tpl || u.length !== pre.length + id.length + post.length || !u.startsWith(pre) || !u.endsWith(post) || u.slice(pre.length, u.length - post.length) !== id) row.push(u);
+    return row;
+  });
+  const v = { tpl, entries: rows };
+  packed.set(list, { n: list.length, v });
+  return v;
+}
 const chOf = (id) => catalog.live?.byId.get(id) || catalog.live?.byId.get(+id) || ctx.cur?.items.find((c) => String(c.id) === String(id)) || null;
 
 // ---------- live ----------
@@ -31,7 +51,7 @@ export async function playLive(ch, ring, ringName = 'All channels') {
   const key = `${S.epoch}:${list.length}:${list[0].id}:${list[list.length - 1].id}:${ringName}`;
   const opts = { mode: 'live', index, ua: settings().ua, key, ring: ringName, upNext: settings().zapUp !== 'prev' };
   let r = key === sentKey ? await native.player.play(opts).catch(() => null) : null;
-  if (!r) r = await native.player.play({ ...opts, entries: list.map(entry) }).catch((e) => ({ ok: false, error: e?.message || 'The player could not start.' }));
+  if (!r) r = await native.player.play({ ...opts, ...pack(list) }).catch((e) => ({ ok: false, error: e?.message || 'The player could not start.' }));
   if (!r?.ok) { toast(r?.error || 'The player could not start.', 4000); return; }
   sentKey = key;
   ctx.cur = { kind: 'live', items: list, index, session: r.session, ring: ringName };
@@ -112,7 +132,7 @@ function sendRing(list, name, tune) {
   if (!list.length || !ctx.cur) return;
   ctx.cur.items = list;
   ctx.cur.ring = name;
-  cmd('ring', { name, entries: list.map(entry), tune: tune ? String(tune) : '' });
+  cmd('ring', { name, ...pack(list), tune: tune ? String(tune) : '' });
 }
 // A channel picked in the player that isn't in its ring: the Live games ring when it carries a game, else every channel.
 function tuneAnywhere(ch) {
@@ -185,14 +205,21 @@ function push() {
 setInterval(push, 1000);
 
 // ---------- movies and episodes ----------
+function vodEntry(it, restart) {
+  const p = progressOf(it);
+  const ep = it.kind === 'episode';
+  return { id: `${it.kind}:${it.id}`, url: it.url, title: ep ? it.seriesName : it._title || it.name, sub: ep ? `S${it.season} · E${it.ep} · ${it.name}` : '', startAt: restart ? 0 : inProgress(p) ? p.t : 0 };
+}
+// More episodes after the one playing (Up next), when the series' list arrives after playback started.
+export function queueAfter(item, more) {
+  const c = ctx.cur;
+  if (!c || c.kind !== 'vod' || !more.length || c.items[c.items.length - 1]?.id !== item.id) return;
+  c.items.push(...more);
+  cmd('queue', { entries: more.map((it) => ({ ...vodEntry(it, false), startAt: 0 })) });
+}
 export async function playVod(item, { queue, restart } = {}) {
   const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
-  const entries = list.map((it, i) => {
-    const p = progressOf(it);
-    const resume = i === 0 && restart ? 0 : inProgress(p) ? p.t : 0;
-    const ep = it.kind === 'episode';
-    return { id: `${it.kind}:${it.id}`, url: it.url, title: ep ? it.seriesName : it._title || it.name, sub: ep ? `S${it.season} · E${it.ep} · ${it.name}` : '', startAt: resume };
-  });
+  const entries = list.map((it, i) => vodEntry(it, i === 0 && restart));
   if (!native) { toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
   const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua }).catch((e) => ({ ok: false, error: e?.message }));
   if (!r?.ok) { toast(r?.error || 'This video would not play.', 4000); return; }

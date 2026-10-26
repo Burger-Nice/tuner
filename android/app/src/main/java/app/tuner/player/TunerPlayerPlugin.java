@@ -77,7 +77,7 @@ public class TunerPlayerPlugin extends Plugin {
             if (playlist == null || key.isEmpty() || !key.equals(playlist.key)) { call.reject("Send the list again.", "LIST"); return; }
         } else {
             if (entries.length() == 0) { call.reject("Nothing to play."); return; }
-            try { playlist = new Playlist(key, PlayerActivity.parse(entries)); }
+            try { playlist = new Playlist(key, PlayerActivity.parse(entries, call.getString("tpl", ""))); }
             catch (Exception e) { call.reject("Bad playlist: " + e.getMessage()); return; }
         }
         session++;
@@ -88,6 +88,7 @@ public class TunerPlayerPlugin extends Plugin {
         i.putExtra("ring", call.getString("ring", ""));
         i.putExtra("upNext", call.getBoolean("upNext", true));
         i.putExtra("session", session);
+        i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         if (PlayerActivity.current != null) PlayerActivity.current.finish();
         PlayerActivity.launching = true;
         getActivity().startActivity(i);

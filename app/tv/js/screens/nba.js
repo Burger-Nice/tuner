@@ -5,7 +5,7 @@ import { on } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
 import { nba, dayGames, dayLabel, isMine, mySide, show, shieldMode, findFeeds, feedsNow, teamChannel, reveal, startNba } from '../games.js';
 import { gameCard, gameHero } from '../cards.js';
-import { playLive } from '../player.js';
+import { playLive, watching } from '../player.js';
 import { push, current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
 import { toast } from '../ui.js';
@@ -19,7 +19,10 @@ const counts = (list) => {
 };
 const channelFor = (g) => { const id = teamChannel(mySide(g).abbr); return (id && catalog.live?.byId.get(id)) || feedsNow(g)[0]?.ch || null; };
 
+let behind = false;
+on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw() {
+  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
   const mine = games.find(isMine);
   const rest = games.filter((g) => g !== mine);

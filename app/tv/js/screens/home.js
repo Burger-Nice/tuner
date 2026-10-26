@@ -7,7 +7,7 @@ import { catalog, ensure } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
 import { nba, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
 import { gameHero, resumeHero, channelHero, liveCard, contCard } from '../cards.js';
-import { playLive, playVod } from '../player.js';
+import { playLive, playVod, watching } from '../player.js';
 import { push, go, current } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, contextMenu, toast, scrollList } from '../ui.js';
@@ -46,14 +46,18 @@ function onNowList() {
   return out.slice(0, 16);
 }
 
+let behind = false;
+on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw() {
+  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
   const g = heroGame();
   const cont = continueRows().slice(0, 16);
   // The kind of hero is decided once and locked for 3 s; its content (the score) still updates.
   let kind = g ? 'game' : cont.length ? 'resume' : lastChannel() ? 'channel' : 'none';
-  if (heroKind && Date.now() < heroLockUntil) kind = heroKind;
-  if (!heroKind) heroLockUntil = Date.now() + 3000;
+  // ('none' is never locked: it only means the channel list hasn't loaded yet)
+  if (heroKind && heroKind !== 'none' && Date.now() < heroLockUntil) kind = heroKind;
+  if (!heroKind || heroKind === 'none') heroLockUntil = Date.now() + 3000;
   heroKind = kind;
   let hero = '';
   if (kind === 'game' && g) {
