@@ -19,7 +19,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-import org.json.JSONObject;
+import java.util.List;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -63,10 +63,8 @@ public class TunerPlayerPlugin extends Plugin {
     /** The playlist the player works through. Kept here rather than in the Intent, which can't carry thousands of channels. */
     static final class Playlist {
         final String key;
-        final String[] urls, titles;
-        final int[] nums;
-        final long[] starts;
-        Playlist(String key, String[] urls, String[] titles, int[] nums, long[] starts) { this.key = key; this.urls = urls; this.titles = titles; this.nums = nums; this.starts = starts; }
+        final List<PlayerActivity.Entry> entries;
+        Playlist(String key, List<PlayerActivity.Entry> entries) { this.key = key; this.entries = entries; }
     }
     static Playlist playlist;
 
@@ -78,27 +76,17 @@ public class TunerPlayerPlugin extends Plugin {
         if (entries == null) {
             if (playlist == null || key.isEmpty() || !key.equals(playlist.key)) { call.reject("Send the list again.", "LIST"); return; }
         } else {
-            int n = entries.length();
-            if (n == 0) { call.reject("Nothing to play."); return; }
-            String[] urls = new String[n], titles = new String[n];
-            int[] nums = new int[n];
-            long[] starts = new long[n];
-            try {
-                for (int i = 0; i < n; i++) {
-                    JSONObject e = entries.getJSONObject(i);
-                    urls[i] = e.getString("url");
-                    titles[i] = e.optString("title", "");
-                    nums[i] = e.optInt("num", 0);
-                    starts[i] = (long) e.optDouble("startAt", 0);
-                }
-            } catch (Exception e) { call.reject("Bad playlist: " + e.getMessage()); return; }
-            playlist = new Playlist(key, urls, titles, nums, starts);
+            if (entries.length() == 0) { call.reject("Nothing to play."); return; }
+            try { playlist = new Playlist(key, PlayerActivity.parse(entries)); }
+            catch (Exception e) { call.reject("Bad playlist: " + e.getMessage()); return; }
         }
         session++;
         Intent i = new Intent(getContext(), PlayerActivity.class);
         i.putExtra("mode", call.getString("mode", "vod"));
         i.putExtra("index", call.getInt("index", 0));
         i.putExtra("ua", call.getString("ua", ""));
+        i.putExtra("ring", call.getString("ring", ""));
+        i.putExtra("upNext", call.getBoolean("upNext", true));
         i.putExtra("session", session);
         if (PlayerActivity.current != null) PlayerActivity.current.finish();
         PlayerActivity.launching = true;
@@ -116,27 +104,16 @@ public class TunerPlayerPlugin extends Plugin {
         call.resolve();
     }
 
+    /** What the app tells the open player: ["meta", json], ["game", json], ["ring", json], ["show-text", text], … */
     @PluginMethod
     public void command(PluginCall call) {
         JSArray args = call.getArray("args");
         PlayerActivity p = PlayerActivity.current;
-        try {
-            String what = p != null && args != null ? args.getString(0) : "";
-            if ("show-text".equals(what)) {
-                String text = args.getString(1);
-                int ms = args.length() > 2 ? args.getInt(2) : 4000;
-                p.runOnUiThread(() -> p.showText(text, ms));
-            } else if ("stats".equals(what)) {
-                String json = args.optString(1, "");
-                p.runOnUiThread(() -> p.showStats(json));
-            } else if ("linked".equals(what)) {
-                boolean on = args.optBoolean(1, false);
-                p.runOnUiThread(() -> p.setGameLinked(on));
-            } else if ("sync-plays".equals(what)) {
-                String json = args.getString(1);
-                p.runOnUiThread(() -> p.askSync(json));
-            }
-        } catch (Exception ignored) {}
+        if (p != null && args != null && args.length() > 0) {
+            String what = args.optString(0, "");
+            String arg = args.length() > 1 ? args.optString(1, "") : "";
+            p.runOnUiThread(() -> p.command(what, arg));
+        }
         call.resolve();
     }
 

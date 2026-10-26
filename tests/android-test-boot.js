@@ -64,10 +64,20 @@ window.TUNER_TEST = true;
       await press(['DPAD_UP', 'DPAD_UP', 'DPAD_UP'], 'guide-group-chip');
       await press(['DPAD_CENTER'], 'guide-groups');
       await press(['BACK'], 'guide-groups-closed');
-      document.querySelector('.g-row .g-cell.now')?.focus();
+      document.querySelector('.g-row .g-ch')?.focus();   // OK on the channel tunes what's on
       await press(['DPAD_CENTER'], 'player', 3000);
       check('native player up', state()?.watching);
-      await press(['DPAD_CENTER'], 'player-ok');
+      // The player's own panels: OK the channel list, ◀ from it the groups (asked of the app), ◀ Options, ▶ the game or what's on
+      await press(['DPAD_CENTER'], 'player-channels', 800);
+      await press(['DPAD_DOWN', 'DPAD_DOWN'], 'player-channels-move');
+      await press(['DPAD_LEFT'], 'player-groups', 800);
+      await press(['BACK'], 'player-groups-back');
+      await press(['BACK'], 'player-channels-closed');
+      await press(['DPAD_LEFT'], 'player-options');
+      await press(['BACK'], 'player-options-closed');
+      await press(['DPAD_RIGHT'], 'player-right', 800);
+      await press(['BACK'], 'player-right-closed');
+      check('still in the player', state()?.watching);
       await press(['BACK'], 'player-closed', 1500);
 
       await press(['BACK'], 'back-to-tab');
@@ -100,6 +110,11 @@ window.TUNER_TEST = true;
       check('vod in the native player', state()?.watching);
       await press(['DPAD_DOWN'], 'vod-options');
       await press(['BACK'], 'vod-options-closed');
+      await press(['DPAD_UP'], 'vod-buttons');
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-buttons-moved');
+      await press(['BACK'], 'vod-controls-hidden');
+      await press(['DPAD_RIGHT'], 'vod-seek');
+      await press(['BACK'], 'vod-controls-hidden-2');
       await press(['BACK'], 'vod-closed', 1500);
       await press(['BACK'], 'detail-closed');
 
