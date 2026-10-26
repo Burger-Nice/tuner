@@ -143,5 +143,126 @@
 
   const team = (abbr) => byAbbr.get(abbr) || null;
 
-  global.NBA = { TEAMS, team, scoreboard, summary, matchGame, logoFor };
+  // ---------- the league and team pages ----------
+  // site.web.api.espn.com carries the standings and the stats tables (tests point both bases at the fake ESPN).
+  const web = () => global.Core?.store.get('nbaWebBase', null) || 'https://site.web.api.espn.com/apis';
+  const ESPN_ID = { ATL: 1, BOS: 2, NO: 3, CHI: 4, CLE: 5, DAL: 6, DEN: 7, DET: 8, GS: 9, HOU: 10, IND: 11, LAC: 12, LAL: 13, MIA: 14, MIL: 15, MIN: 16, BKN: 17, NY: 18, ORL: 19, PHI: 20, PHX: 21, POR: 22, SAC: 23, SA: 24, OKC: 25, UTAH: 26, WSH: 27, TOR: 28, MEM: 29, CHA: 30 };
+  const idOf = (abbr) => ESPN_ID[abbr] || 0;
+  const abbrOfId = (id) => Object.keys(ESPN_ID).find((k) => String(ESPN_ID[k]) === String(id)) || '';
+  const teamBits = (t = {}) => ({
+    id: String(t.id || ''), abbr: t.abbreviation || abbrOfId(t.id), name: t.shortDisplayName || t.name || t.abbreviation || '',
+    full: t.displayName || '', color: t.color ? '#' + t.color : '', alt: t.alternateColor ? '#' + t.alternateColor : '',
+    logo: logoFor(t.abbreviation || abbrOfId(t.id)),
+  });
+
+  // Standings: both conferences, each team's line, in seed order.
+  async function standings() {
+    const d = await getJSON(`${web()}/v2/sports/basketball/nba/standings`);
+    const confs = (d.children || []).map((c) => ({
+      name: c.name || '', short: /east/i.test(c.name || '') ? 'East' : /west/i.test(c.name || '') ? 'West' : c.abbreviation || '',
+      teams: (c.standings?.entries || []).map((e) => {
+        const st = Object.fromEntries((e.stats || []).map((x) => [x.name || x.type, x]));
+        const v = (k) => st[k]?.displayValue ?? '';
+        return {
+          ...teamBits(e.team), seed: +st.playoffSeed?.value || 0,
+          w: +st.wins?.value || 0, l: +st.losses?.value || 0, pct: v('winPercent'), gb: v('gamesBehind'), streak: v('streak'),
+          l10: v('Last Ten Games'), home: v('Home'), road: v('Road'), conf: v('vs. Conf.'), diff: v('differential'),
+          ppg: v('avgPointsFor'), opp: v('avgPointsAgainst'),
+        };
+      }).sort((a, b) => (a.seed || 99) - (b.seed || 99)),
+    }));
+    return { season: d.season?.displayName || '', confs };
+  }
+
+  // The stats tables: a list of players (or teams) with their numbers by category name, e.g. row.s.avgPoints.
+  function statRows(d, list) {
+    const names = (d.categories || []).map((c) => c.names || []);
+    return (d[list] || []).map((r) => {
+      const s = {}, rank = {};
+      (r.categories || []).forEach((c, i) => (names[i] || []).forEach((n, j) => {
+        if (s[n] == null && c.values?.[j] != null) { s[n] = c.values[j]; if (c.ranks?.[j] != null) rank[n] = c.ranks[j]; }
+      }));
+      return { r, s, rank };
+    });
+  }
+  // League leaders, one category: sort is ESPN's "<category>.<stat>" ("offensive.avgPoints").
+  const LEADERS = [
+    { key: 'pts', label: 'Points', short: 'PTS', sort: 'offensive.avgPoints', stat: 'avgPoints' },
+    { key: 'reb', label: 'Rebounds', short: 'REB', sort: 'general.avgRebounds', stat: 'avgRebounds' },
+    { key: 'ast', label: 'Assists', short: 'AST', sort: 'offensive.avgAssists', stat: 'avgAssists' },
+    { key: 'stl', label: 'Steals', short: 'STL', sort: 'defensive.avgSteals', stat: 'avgSteals' },
+    { key: 'blk', label: 'Blocks', short: 'BLK', sort: 'defensive.avgBlocks', stat: 'avgBlocks' },
+    { key: '3pm', label: '3-pointers made', short: '3PM', sort: 'offensive.avgThreePointFieldGoalsMade', stat: 'avgThreePointFieldGoalsMade' },
+    { key: 'fg', label: 'Field goal %', short: 'FG%', sort: 'offensive.fieldGoalPct', stat: 'fieldGoalPct', pct: true },
+  ];
+  const fmt = (v, pct) => (v == null ? '' : pct ? (+v).toFixed(1) : (+v).toFixed(1));
+  const player = ({ r, s }) => {
+    const a = r.athlete || {};
+    return {
+      id: String(a.id || ''), name: a.displayName || '', short: a.shortName || a.displayName || '', abbr: a.teamShortName || abbrOfId(a.teamId),
+      pos: a.position?.abbreviation || '', age: a.age || 0, headshot: a.headshot?.href || '',
+      gp: s.gamesPlayed || 0, min: s.avgMinutes, pts: s.avgPoints, reb: s.avgRebounds, ast: s.avgAssists, stl: s.avgSteals, blk: s.avgBlocks,
+      fg: s.fieldGoalPct, tp: s.threePointFieldGoalPct, ft: s.freeThrowPct, tpm: s.avgThreePointFieldGoalsMade, s,
+    };
+  };
+  async function leaders(key, limit = 5) {
+    const c = LEADERS.find((x) => x.key === key) || LEADERS[0];
+    const d = await getJSON(`${web()}/common/v3/sports/basketball/nba/statistics/byathlete?limit=${limit}&sort=${c.sort}:desc`);
+    return statRows(d, 'athletes').map(player).map((p) => ({ ...p, value: fmt(p.s[c.stat], c.pct) }));
+  }
+  // A team's players with their averages, best scorer first, and the team's own line ("1st in Southwest Division").
+  // (The league stats table above ignores a team filter; this one is per team.)
+  async function teamPlayers(abbr) {
+    const d = await getJSON(`${base()}/teams/${idOf(abbr)}/athletes/statistics`);
+    const named = (cats) => { const o = {}; for (const c of cats || []) for (const x of c.stats || []) if (o[x.name] == null) o[x.name] = x.value; return o; };
+    const players = (d.results?.[0]?.leaders || []).map((l) => {
+      const a = l.athlete || {}, st = named(l.statistics);
+      return {
+        id: String(a.id || ''), name: a.displayName || '', short: a.shortName || a.displayName || '', abbr, pos: a.position?.abbreviation || '',
+        headshot: a.headshot?.href || '', gp: st.gamesPlayed || 0, gs: st.gamesStarted || 0, min: st.avgMinutes, pts: st.avgPoints,
+        reb: st.avgRebounds, ast: st.avgAssists, stl: st.avgSteals, blk: st.avgBlocks, fg: st.fieldGoalPct, tp: st.threePointFieldGoalPct ?? st.threePointPct,
+        ft: st.freeThrowPct, tpm: st.avgThreePointFieldGoalsMade, s: st,
+      };
+    }).sort((x, y) => (y.pts || 0) - (x.pts || 0));
+    return { players, record: d.team?.recordSummary || '', standing: d.team?.standingSummary || '', totals: named(d.teamTotals) };
+  }
+  // Every team's per-game numbers, ranked across the league here (ESPN ranks only some): { MEM: { s, rank } }.
+  // Lower is better for points allowed and turnovers.
+  const LOWER = new Set(['avgTurnovers', 'avgFouls']);
+  async function teamStats() {
+    const d = await getJSON(`${web()}/common/v3/sports/basketball/nba/statistics/byteam?limit=30`);
+    const out = {};
+    for (const x of statRows(d, 'teams')) { const t = teamBits(x.r.team); if (t.abbr) out[t.abbr] = { ...t, s: x.s, rank: {} }; }
+    const all = Object.values(out), keys = new Set(all.flatMap((t) => Object.keys(t.s)));
+    for (const k of keys) {
+      const sorted = all.filter((t) => typeof t.s[k] === 'number').sort((a, b) => (LOWER.has(k) ? a.s[k] - b.s[k] : b.s[k] - a.s[k]));
+      sorted.forEach((t, i) => { t.rank[k] = i > 0 && sorted[i - 1].s[k] === t.s[k] ? sorted[i - 1].rank[k] : i + 1; });
+    }
+    return out;
+  }
+  // A team's season: every game with its result or tip-off and TV.
+  async function schedule(abbr) {
+    const d = await getJSON(`${base()}/teams/${idOf(abbr)}/schedule`, 20000);
+    return { season: d.season?.displayName || '', games: (d.events || []).map(game).sort((a, b) => a.date - b.date) };
+  }
+  async function roster(abbr) {
+    const d = await getJSON(`${base()}/teams/${idOf(abbr)}/roster`);
+    return (d.athletes || []).map((a) => ({
+      id: String(a.id || ''), name: a.displayName || '', short: a.shortName || '', jersey: a.jersey || '', pos: a.position?.abbreviation || '',
+      age: a.age || 0, height: a.displayHeight || '', exp: a.experience?.years ?? null, college: a.college?.name || '',
+      injury: a.injuries?.[0] ? (a.injuries[0].status || a.injuries[0].type?.description || 'Injured') : '', headshot: a.headshot?.href || '',
+    }));
+  }
+  // News: the league's, or one team's (abbr). An article's own text isn't in the feed: the headline and its summary are.
+  async function news(abbr) {
+    const d = await getJSON(`${base()}/news?limit=25${abbr ? '&team=' + idOf(abbr) : ''}`);
+    return (d.articles || []).filter((a) => a.headline).map((a) => ({
+      id: String(a.id || a.dataSourceIdentifier || a.headline), headline: a.headline, description: a.description || '', type: a.type || '',
+      published: Date.parse(a.published) || 0, byline: a.byline || '', premium: !!a.premium,
+      image: (a.images || []).find((i) => i.url && (i.type === 'header' || i.width >= 400))?.url || a.images?.[0]?.url || '',
+      teams: (a.categories || []).filter((c) => c.type === 'team').map((c) => abbrOfId(c.teamId || c.team?.id)).filter(Boolean),
+    }));
+  }
+
+  global.NBA = { TEAMS, team, scoreboard, summary, matchGame, logoFor, ESPN_ID, LEADERS, standings, leaders, teamPlayers, teamStats, schedule, roster, news };
 })(window);

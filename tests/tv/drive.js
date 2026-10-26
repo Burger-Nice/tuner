@@ -12,7 +12,7 @@ require('fs').mkdirSync(out, { recursive: true });
   const errs = [];
   p.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
   p.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
-  await p.addInitScript(() => { localStorage.setItem('tuner.nbaBase', JSON.stringify('http://127.0.0.1:8899/espn')); window.TUNER_TEST = 1; });
+  await p.addInitScript(() => { localStorage.setItem('tuner.nbaBase', JSON.stringify('http://127.0.0.1:8899/espn')); localStorage.setItem('tuner.nbaWebBase', JSON.stringify('http://127.0.0.1:8899/espnweb')); window.TUNER_TEST = 1; });
   await p.goto('http://127.0.0.1:8777/tv.html');
   await p.waitForTimeout(1200);
   let n = 0;

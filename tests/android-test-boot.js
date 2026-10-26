@@ -24,7 +24,7 @@ window.TUNER_TEST = true;
 
   window.addEventListener('load', async () => {
     try {
-      localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`));
+      localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`)); localStorage.setItem('tuner.nbaWebBase', JSON.stringify(`${API}/espnweb`));
       await until(() => $('[data-act="type"]'), 30000);
       await until(() => !$('#app').classList.contains('l-on'), 15000);   // the launch animation has finished
       await wait(800);

@@ -79,6 +79,13 @@ http.createServer((req, res) => {
   if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams))); }
   if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');
   if (u.pathname === '/espn/summary') return sendFile(req, res, path.join(ESPN, `summary-${u.searchParams.get('event')}.json`), 'application/json');
+  // The team and league pages (real ESPN answers from Oct 2026, trimmed; one team's set, served for any team)
+  const tm = u.pathname.match(/^\/espn\/teams\/\d+\/(schedule|roster|athletes\/statistics)$/);
+  if (tm) return sendFile(req, res, path.join(ESPN, `${{ schedule: 'schedule', roster: 'roster', 'athletes/statistics': 'athletes' }[tm[1]]}-29.json`), 'application/json');
+  if (u.pathname === '/espn/news') return sendFile(req, res, path.join(ESPN, u.searchParams.get('team') ? 'news-29.json' : 'news.json'), 'application/json');
+  if (u.pathname === '/espnweb/v2/sports/basketball/nba/standings') return sendFile(req, res, path.join(ESPN, 'standings.json'), 'application/json');
+  if (u.pathname === '/espnweb/common/v3/sports/basketball/nba/statistics/byathlete') return sendFile(req, res, path.join(ESPN, 'byathlete.json'), 'application/json');
+  if (u.pathname === '/espnweb/common/v3/sports/basketball/nba/statistics/byteam') return sendFile(req, res, path.join(ESPN, 'byteam.json'), 'application/json');
   if (u.pathname.startsWith('/img/')) return sendFile(req, res, path.join(MEDIA, 'img', path.basename(u.pathname)), u.pathname.endsWith('png') ? 'image/png' : 'image/jpeg');
   let m;
   if ((m = /^\/live\/demo\/demo\/(\d+)\.m3u8$/.exec(u.pathname))) {
