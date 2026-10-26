@@ -91,10 +91,9 @@
   const Kit_NOW = () => Mock.NOW.mins / 60;
   /* Team mark: the app puts the ESPN logo (500-dark) in the neutral disc. The stand-in is a crest in the team's own two colours inside the same disc. */
   const lumOf = (hex) => { const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
-  const team = (abbr, size = '') => { const T = Mock.TEAMS[abbr]; const dark = lumOf(T.c1) < 0.3; return `<span class="team ${size}"><i style="background:${T.c1};box-shadow:inset 0 0 0 2px ${T.c2};color:${dark ? '#F3EFE6' : '#14101F'}">${abbr}</i></span>`; };
-  /* Plate colours for a matchup: when both primaries sit in the same hue family (MEM navy and GS blue) the home team falls back to a neutral plate and keeps its accent bar, so the two sides never read as one block. Gold is never a plate (BRAND.md: gold only as a bar of 4 px or inside a crest). */
-  const hueOf = (hex) => { const [r, gg, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255), mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), d = mx - mn; if (!d) return -1; const h = mx === r ? ((gg - b) / d) % 6 : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4; return (h * 60 + 360) % 360; };
-  const plates = (away, home) => { const a = Mock.TEAMS[away].p, h = Mock.TEAMS[home].p, dh = Math.abs(hueOf(a) - hueOf(h)); return [a, dh < 15 || dh > 345 ? '#35333F' : h]; };
+  const team = (abbr, size = '') => { const T = Mock.TEAMS[abbr]; return `<span class="team ${size}"><i style="background:${T.c1};box-shadow:inset 0 0 0 2px ${T.c2};color:${textOn(T.c1)}">${abbr}</i></span>`; };
+  /* Text on a team plate: chalk or ink, whichever has the higher contrast (WCAG ratio from relative luminance). */
+  const textOn = (hex) => { const L = lumOf(hex), c = (L1, L2) => (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05); return c(0.86, L) >= c(0.006, L) ? '#F3EFE6' : '#14101F'; };
   const edge = (abbr) => `<span class="tedge" style="background:${Mock.TEAMS[abbr].a}"></span>`;
 
   /* Game card: upright Soft card, Sharp skewed score plate inside. state: in | post | pre. */
@@ -130,5 +129,5 @@
     if (px < 56) return `<div class="g-cell sliver${focus ? ' f-in' : ''}" style="left:${pct(s)}%;width:calc(${pct(e) - pct(s)}% - 4px)"></div>`;   // too narrow for text: a silhouette, the full title is in the Now panel
     return `<div class="g-cell${now ? ' now' : ''}${focus ? ' f-in' : ''}${empty ? ' empty' : ''}" style="left:${pct(s)}%;width:calc(${pct(e) - pct(s)}% - 4px)"><b>${c.t}</b><div class="sb">${sub}</div>${pg}</div>`;
   }
-  g.Kit = { plates, hueOf, contCard, edge, lumOf, P, TABS, ic, img, BR, topbar, tag, liveP, dot, star, initials, poster, wcard, liveCard, team, gameCard, cell, hm, pct, WIN, NOWH, f };
+  g.Kit = { textOn, contCard, edge, lumOf, P, TABS, ic, img, BR, topbar, tag, liveP, dot, star, initials, poster, wcard, liveCard, team, gameCard, cell, hm, pct, WIN, NOWH, f };
 })(window);

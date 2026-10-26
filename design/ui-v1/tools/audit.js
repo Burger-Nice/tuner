@@ -94,7 +94,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         polys.push([[q.left + sk, q.top], [q.right, q.top], [q.right, q.bottom], [q.left - sk, q.bottom]]);
       }
       if (polys.length) for (const t of texts) {
-        if (t.e.closest('.slab,.slabline,.slabcontent,.slabpv,.l-slab')) continue;
+        if (t.e.closest('.slab,.slabline,.slabcontent,.slabbox,.l-slab')) continue;
         const pts = [[t.x0, t.y0], [t.x1, t.y0], [t.x0, t.y1], [t.x1, t.y1], [(t.x0 + t.x1) / 2, (t.y0 + t.y1) / 2]];
         if (polys.some((poly) => pts.some((pt) => inPoly(pt, poly)))) issues.overlap.push(`"${t.txt}" on slab`);
       }
@@ -135,8 +135,55 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       // ---- contrast on flat backgrounds
       const parse = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return { r: v[0], g: v[1], b: v[2], a: v[3] == null || isNaN(v[3]) ? 1 : v[3] }; };
       const lum = ({ r, g, b }) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+      // ---- v1.2: edge of the screen. Text in a peeking rail must be whole and end by y 520 (inside the fade), never sliced by the bottom edge
       for (const t of texts) {
-        if (t.e.closest('.noart,.tag,.vid,.nv-sub,.art')) continue;
+        if (!t.e.closest('.rail.peek')) { if (t.e.closest('.rail') && (t.y1 > 540.5 || (t.y0 < 540 && t.y1 > 540))) issues.safe.push(`rail text "${t.txt}" sliced by the bottom edge`); continue; }
+        if (t.y1 > 540.5 || (t.y0 < 540 && t.y1 > 521)) issues.safe.push(`peek text "${t.txt}" sliced or in the edge margin (y ${t.y0.toFixed(0)}-${t.y1.toFixed(0)})`);
+        if (t.x0 < 0 && t.x1 > 0 || t.x0 < 960 && t.x1 > 960.5 && !t.e.closest('.rail')) issues.safe.push(`text "${t.txt}" sliced by the side edge`);
+      }
+      // ---- v1.2: a focus ring must clear its neighbours (ring = 5 px outside the scaled box, plus 2 px of air)
+      const NEIGH = '.btn,.btn2,.chip,.pillbtn,.pc .box,.hc,.gc,.wc,.ep .th,.lr,.arow,.srow,.rrow,.key,.vb,.field,.sfield,.cnt,.tag';
+      for (const fe of focusEls) {
+        if (fe.classList.contains('f-in') || fe.matches('.tab,.thumbf,.nv-row,.avatar')) continue;
+        const q = fe.getBoundingClientRect(); const ring = { l: q.left - 7, r: q.right + 7, t: q.top - 7, b: q.bottom + 7 };
+        const host = fe.closest('.pc,.ep') || fe;
+        for (const n of document.querySelectorAll(NEIGH)) {
+          if (n === fe || fe.contains(n) || n.contains(fe) || host.contains(n)) continue;
+          const FLOAT = '.ctxmenu,.menu,.sheet,.nv-panel,.nv-card'; const fc = fe.closest(FLOAT); if (fc && !fc.contains(n)) continue;
+          if (fe.matches('.lr,.arow,.srow,.rrow') && n.matches('.lr,.arow,.srow,.rrow')) continue;   // stacked list rows share edges by design
+          if (document.querySelector('.scrim') && !n.closest(MODAL) && fe.closest(MODAL)) continue;
+          if (n.closest('.nv-panel,.vid') && !fe.closest('.nv-panel')) continue;
+          const o = n.getBoundingClientRect();
+          if (o.width < 8 || o.height < 8) continue;
+          const ox = Math.min(ring.r, o.right) - Math.max(ring.l, o.left), oy = Math.min(ring.b, o.bottom) - Math.max(ring.t, o.top);
+          if (ox > 0 && oy > 0) issues.overlap.push(`focus ring of ${short(fe)} touches ${short(n)} (${Math.min(ox, oy).toFixed(1)} px)`);
+        }
+      }
+      // ---- v1.2: team colour. 8 px from any LIVE pill, never touching a focus ring; text on a plate passes 4.5:1; crest text clears its disc
+      const plateEls = [...document.querySelectorAll('.mt .side,.tedge')].filter((e) => !document.querySelector('.scrim') || e.closest(MODAL));
+      for (const pe of plateEls) {
+        const q = pe.getBoundingClientRect();
+        for (const lv of document.querySelectorAll('.a-live')) {
+          const o = lv.getBoundingClientRect(); if (o.width < 4) continue;
+          const dx = Math.max(o.left - q.right, q.left - o.right, 0), dy = Math.max(o.top - q.bottom, q.top - o.bottom, 0);
+          if (Math.hypot(dx, dy) < 8) issues.overlap.push(`team colour ${short(pe)} is ${Math.hypot(dx, dy).toFixed(1)} px from a LIVE pill (min 8)`);
+        }
+        for (const fe of focusEls) {
+          if (fe.contains(pe)) continue; const o = fe.getBoundingClientRect();
+          if (Math.min(q.right, o.right + 5) - Math.max(q.left, o.left - 5) > 0 && Math.min(q.bottom, o.bottom + 5) - Math.max(q.top, o.top - 5) > 0) issues.overlap.push(`team colour ${short(pe)} touches the focus ring of ${short(fe)}`);
+        }
+      }
+      for (const sd of document.querySelectorAll('.mt .side')) {
+        const cs = getComputedStyle(sd), P = parse('rgb(' + cs.getPropertyValue('--tp').trim().match(/[0-9a-f]{2}/gi).map((h) => parseInt(h, 16)).join(',') + ')'), C = parse('rgb(' + cs.getPropertyValue('--tc').trim().match(/[0-9a-f]{2}/gi).map((h) => parseInt(h, 16)).join(',') + ')');
+        const L1 = lum(P), L2 = lum(C), cr = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+        if (cr < 4.5) issues.contrast.push(`team plate text ${cr.toFixed(2)}:1`);
+      }
+      for (const ci of document.querySelectorAll('.team i')) {
+        const rg = document.createRange(); rg.selectNodeContents(ci); const tr = rg.getBoundingClientRect(), cr = ci.getBoundingClientRect();
+        if (tr.width > cr.width - 6) issues.clip.push(`crest text "${ci.textContent}" has ${((cr.width - tr.width) / 2).toFixed(1)} px of clearance (min 3)`);
+      }
+      for (const t of texts) {
+        if (t.e.closest('.noart,.tag,.vid,.nv-sub,.art,.mt .side,.slabbox')) continue;
         const fg0 = parse(t.cs.color); if (!fg0) continue;
         let stack = [], skip = false;
         for (let a = t.e; a; a = a.parentElement) { const s = getComputedStyle(a); if (s.backgroundImage !== 'none') { skip = true; break; } const c = parse(s.backgroundColor); if (c && c.a > 0) { stack.push(c); if (c.a >= 0.999) break; } }

@@ -113,9 +113,9 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .logo.sm{width:32px;height:32px;border-radius:var(--a-radius-sm);font-size:12px}
 .logo.lg{width:56px;height:56px;border-radius:12px;font-size:18px}
 .team{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--a-surface-3);flex:none;border:1px solid var(--a-border-strong)}
-.team i{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;font:700 12px/1 var(--a-font-text);font-style:normal}
-.team.md{width:44px;height:44px}.team.md i{width:37px;height:37px}
-.team.lg{width:56px;height:56px}.team.lg i{width:48px;height:48px;font-size:14px}
+.team i{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;font:700 12px/1 var(--a-font-text);letter-spacing:-.05em;font-style:normal}
+.team.md{width:44px;height:44px}.team.md i{width:40px;height:40px}
+.team.lg{width:56px;height:56px}.team.lg i{width:50px;height:50px;font-size:14px}
 .team.xl{width:64px;height:64px}.team.xl i{width:54px;height:54px;font-size:16px}
 .tedge{position:absolute;left:-12px;top:6px;width:4px;height:26px;border-radius:0 var(--a-radius-pill) var(--a-radius-pill) 0}
 
@@ -309,9 +309,9 @@ table.box tr.tot td{font-weight:700;border-top:2px solid var(--a-border-strong)}
 .sfield{display:flex;align-items:center;gap:12px;height:48px;padding:0 6px 0 6px;border-radius:12px;background:var(--a-surface-1);border:2px solid var(--a-border-strong);font:650 20px/24px var(--a-font-text);letter-spacing:.08em;margin-bottom:12px}
 .sfield b{font-weight:650}.caret{display:inline-block;width:2px;height:24px;background:var(--a-pink);vertical-align:middle;margin-left:3px}
 .micbtn{width:36px;height:36px;border-radius:50%;background:var(--a-surface-3);display:grid;place-items:center;flex:none}
-.kb{display:grid;grid-template-columns:repeat(6,52px);gap:6px 6px;width:342px}
-.key{height:40px;border-radius:var(--a-radius-poster);background:var(--a-surface-2);display:grid;place-items:center;font:650 17px/1 var(--a-font-text)}
-.kbrow{display:flex;gap:6px;margin-top:8px}.key.wide{width:110px;font-size:15px}
+.kb{display:grid;grid-template-columns:repeat(6,50px);gap:8px 8px;width:340px}
+.key{height:38px;border-radius:var(--a-radius-poster);background:var(--a-surface-2);display:grid;place-items:center;font:650 17px/1 var(--a-font-text)}
+.kbrow{display:flex;gap:8px;margin-top:8px}.key.wide{width:110px;font-size:15px}
 .rrow{display:flex;align-items:center;gap:12px;padding:6px 10px;height:56px;border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border)}
 .rrow.f-ring{background:var(--a-surface-2)}
 .mini2{position:relative;width:48px;height:72px;border-radius:8px;overflow:hidden;flex:none}
@@ -386,8 +386,8 @@ table.nv-box td{text-align:right;padding:3px 6px;border-top:1px solid var(--a-bo
 .mt .side::before{content:"";position:absolute;inset:0 -4px 0 -40px;background:var(--tp);border-bottom:4px solid var(--ta);transform:skewX(var(--a-skew));border-radius:var(--a-radius-sm) 0 0 var(--a-radius-sm)}
 .mt .side.r{padding:0 24px 0 20px}.mt .side.r::before{inset:0 -14px 0 -4px;border-radius:0 var(--a-radius-sm) var(--a-radius-sm) 0}
 .mt .side>*{position:relative}
-.mt .nm{font:700 22px/24px var(--a-font-display);color:var(--a-text-1)}
-.mt .rc{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.mt .nm{font:700 22px/24px var(--a-font-display);color:var(--tc,var(--a-text-1))}
+.mt .rc{font:500 14px/18px var(--a-font-text);color:var(--tc,var(--a-text-2));opacity:.88}
 .mt .sc{display:flex;align-items:center;gap:8px;padding:0 16px}
 .slabbox{position:absolute;top:0;bottom:0;--sk:21px}      /* box left = the slant's bottom-left corner; top-left of the slant is at +2 x --sk */
 .slabfill{position:absolute;inset:0;background:var(--a-grad);clip-path:polygon(calc(2 * var(--sk)) 0,100% 0,100% 100%,0 100%)}   /* static shape: clock plate */
@@ -456,7 +456,7 @@ table.nv-box td{text-align:right;padding:3px 6px;border-top:1px solid var(--a-bo
 .g-now .grow{overflow:hidden}.g-now .grow>div{white-space:nowrap}
 
 /* focus lift never pushes a ring past the safe area: first-column items grow to the right, last-column items to the left */
-.rail>:first-child.f,.rail>:first-child .f,.lib-grid>.pc:nth-child(6n+1) .box.f,.nba-grid>.gc:nth-child(3n+1).f,.d-col .btn.f,.srow.lift,.hero-plate .btn.f{transform-origin:0 50%}
+.rail>:first-child.f,.rail>:first-child .f,.lib-grid>.pc:nth-child(6n+1) .box.f,.nba-grid>.gc:nth-child(3n+1).f,.d-col .btn.f,.srow.lift{transform-origin:0 50%}
 .lib-grid>.pc:nth-child(6n) .box.f,.nba-grid>.gc:nth-child(3n).f{transform-origin:100% 50%}
 .noart{justify-content:center;gap:10px}
 .nv-vtop{top:30px}
@@ -466,3 +466,9 @@ table.nv-box td{text-align:right;padding:3px 6px;border-top:1px solid var(--a-bo
 
 .notice{position:absolute;left:48px;right:48px;bottom:27px;height:48px;display:flex;align-items:center;gap:12px;padding:0 6px 0 18px;border-radius:var(--a-radius-pill);background:var(--a-bg-1);border:1px solid var(--a-border);font:500 16px/24px var(--a-font-text);color:var(--a-text-1);z-index:8}
 .sfield .ph{font:500 16px/24px var(--a-font-text);letter-spacing:0;white-space:nowrap}
+
+/* v1.2: the peeking second row is art plus one line (tile, LIVE, number, title); no meta, and the last 34 px fade to the canvas so nothing is sliced */
+.rail.peek .hc .bt{top:38px}.rail.peek .hc .bt span{display:none}
+.edgefade{position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(180deg,rgba(21,19,29,0),var(--a-bg-0));z-index:4;pointer-events:none}
+.pvtile .cap{display:none}
+.key.wide{width:108px}.sugg{display:flex;gap:8px;overflow:hidden;margin:0 -6px 4px;padding:6px 6px 6px;height:44px}

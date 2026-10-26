@@ -73,8 +73,7 @@
     if (empty) res = `<div class="t-label" style="margin-bottom:10px">Recent</div><div class="chips">${['grizzlies', 'harbor', 'nba tv', 'night circuit'].map((r) => `<span class="chip lg">${ic('clock')}${r}</span>`).join('')}</div>
       <div class="t-label" style="margin:24px 0 10px">Trending in English</div><div class="rail" style="padding:0;gap:16px;margin:0">${['m1', 'm6', 'm3', 'm13'].map((id) => poster(by(id)).replace('class="pc"', 'class="pc sm"')).join('')}</div>`;
     else if (none) res = `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b>No results for "xqzv"</b><p>Check the spelling, or try fewer letters. Search covers channels, programmes, movies, series and teams.</p><span class="btn2 sm">Clear</span></div>`;
-    else res = `<div class="chips" style="margin-bottom:14px">${['Harbor Lights', 'Harbour Rescue', 'Cold Harbour'].map((r) => `<span class="chip">${ic('search')}${r}</span>`).join('')}</div>
-      <div class="t-label" style="margin-bottom:8px">Top result</div>
+    else res = `<div class="t-label" style="margin-bottom:8px">Top result</div>
       <div class="rrow" style="height:84px"><div class="mini2"><div class="art">${Art.art('m1', { style: 'lighthouse', hue: 205 })}</div></div><div class="grow"><div class="t-sub" style="font-size:18px;line-height:24px">Harbor Lights</div><div class="t-cap">Movie${dot}2024${dot}2h 06m${dot}4K +3 versions</div></div><span class="btn sm">${ic('play', 'fill')}Play</span></div>
       <div class="t-label" style="margin:14px 0 8px">On TV</div>
       <div class="rrow"><span class="logo sm">BO</span><div class="grow"><div class="t-sub">Harbour Rescue</div><div class="t-cap">BBC One${dot}21:00 to 22:00</div></div></div>
@@ -83,6 +82,7 @@
     return `${topbar({ sel: 'search' })}
       <div class="abs" style="left:48px;top:90px;width:352px">
         <div class="sfield"><span class="micbtn">${ic('mic')}</span><span class="grow" style="white-space:nowrap">${q ? `<b>${q.toUpperCase()}</b><i class="caret"></i>` : '<span class="ph">Search everything</span>'}</span></div>
+        ${q.length >= 2 && !empty && !none ? `<div class="sugg bleed">${['Harbor Lights', 'Harbour Rescue'].map((r) => `<span class="chip">${ic('search')}${r}</span>`).join('')}</div>` : '<div style="height:44px"></div>'}
         <div class="kb">${kb}</div>
         <div class="kbrow"><span class="key wide">Space</span><span class="key wide">Delete</span><span class="key wide">Clear</span></div></div>
       <div class="abs" style="left:432px;top:90px;width:480px">${res}</div>`;
@@ -109,7 +109,7 @@
       ${r('Score on picture', '<span class="onoff">Off</span><span class="tg"><i></i></span>')}
       ${r('Score delay', 'Per channel ' + ic('chevR', 'sm'), '', 'NBA League Pass 4: 42 s behind live')}`;
     else if (group === 'playback') body = `<div class="t-title" style="margin-bottom:10px">Playback</div>${r('Up arrow in the player', 'Next channel ' + ic('chevR', 'sm'), ' f-ring', 'Down goes the other way. Applies to the zap ring and the mini guide')}
-      ${r('Stream format', 'Transport stream ' + ic('chevR', 'sm'), '', 'Try HLS if a channel stutters')}${r('Default picture size', 'Fit ' + ic('chevR', 'sm'), '', 'Each channel can override it')}
+      ${r('Stream format', 'Transport stream ' + ic('chevR', 'sm'), '', 'Try HLS if a channel stutters')}${r('Live previews', '<span class="onoff">Off</span><span class="tg"><i></i></span>', '', 'Muted video in Home and the guide. Off by default; unavailable on a 1-connection account')}
       ${r('Match frame rate', '<span class="onoff">Off</span><span class="tg"><i></i></span>', '', 'Switches the TV to 23.976 or 25 Hz for films')}${r('User agent', 'airglow/1.5 ' + ic('chevR', 'sm'), '', 'Some providers only answer known players')}`;
     else if (group === 'updates') body = `<div class="t-title" style="margin-bottom:10px">Updates</div>${r('Version', '1.5.2')}${r('airglow 1.6 is ready', 'Update now ' + ic('chevR', 'sm'), ' f-ring', 'Downloaded in the background. Installs at a quiet moment.')}${r('Check for updates', 'Last checked 20:12')}${r('Download automatically', '<span class="onoff">On</span><span class="tg on"><i></i></span>')}`;
     else body = `<div class="t-title" style="margin-bottom:10px">Provider</div>${r('line.provider.tv', '<span class="pill-ok">' + ic('check', 'sm') + 'Active</span>', ' f-ring', 'Expires 19 Nov · 24 days left')}${r('Connections', '1 of 2 in use')}${r('Switch account', 'Home · Holiday ' + ic('chevR', 'sm'))}${r('Add account', ic('plus', 'sm'))}${r('Refresh channels and guide', 'Updated 20:12')}${r('Sign out', ic('chevR', 'sm'))}`;

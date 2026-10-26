@@ -51,9 +51,9 @@
     const G = M.GAMES.filter((x) => x.state === 'in');
     const rows = [G[0], G[1], M.GAMES[5]].map((gm, i) => {
       const A = M.TEAMS[gm.away], H = M.TEAMS[gm.home];
-      return `<div class="nv-row${i === 0 ? ' f' : ''}" style="height:64px"><div class="grow"><div class="a">${A.n} at ${H.n}</div><div class="b">${gm.state === 'in' ? `Q${gm.q} ${gm.clock}` : 'In 49 min'}${dot}${gm.tv[0]}</div></div>${gm.state === 'in' ? '<span class="a-live compact">Live</span>' : ''}</div>`;
+      return `<div class="nv-row${i === 0 ? ' f' : ''}" style="height:64px"><div class="grow"><div class="a">${A.n} at ${H.n}</div><div class="b">${gm.state === 'in' ? `Q${gm.q} ${gm.clock}` : 'In 49 min'}${gm.mine || gm.state !== 'in' ? '' : dot + gm.aw + '–' + gm.hw}${dot}${gm.tv[0]}</div></div>${gm.state === 'in' ? '<span class="a-live compact">Live</span>' : ''}</div>`;
     }).join('');
-    return `<div class="nv-panel right" style="width:264px"><div class="nv-h">Live games<span class="n">OK switches</span></div>${rows}<div class="t-cap" style="padding:8px 10px">Your team is first. Scores are hidden here by the spoiler shield.</div></div>`;
+    return `<div class="nv-panel right" style="width:264px"><div class="nv-h">Live games<span class="n">OK switches</span></div>${rows}<div class="t-cap" style="padding:8px 10px">Your team is first and its score is hidden by the spoiler shield (My team). Other games show scores, as on the NBA hub.</div></div>`;
   }
   /* left sheets: options, radio lists, picture size, sync */
   function sheet(title, rows, { width = 320, focus = 0, foot = '' } = {}) {

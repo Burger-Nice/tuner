@@ -13,7 +13,7 @@
   }
   function header(shield) {
     const T = g.Mock.TEAMS;
-    const side = (abbr, right) => `<div class="side${right ? ' r' : ''}" style="--tp:${T[abbr].p};--ta:${T[abbr].a}">${right ? '' : team(abbr, 'md')}<div class="nm">${T[abbr].n}</div>${right ? team(abbr, 'md') : ''}</div>`;
+    const side = (abbr, right) => `<div class="side${right ? ' r' : ''}" style="--tp:${T[abbr].p};--ta:${T[abbr].a};--tc:${g.Kit.textOn(T[abbr].p)}">${right ? '' : team(abbr, 'md')}<div class="nm">${T[abbr].n}</div>${right ? team(abbr, 'md') : ''}</div>`;
     const mid = shield ? `<span class="shield">${ic('eyeOff')}<span>Score hidden</span></span>` : `<span class="score md">77</span><span class="t-3" style="font:700 20px var(--a-font-display)">–</span><span class="score md">70</span>`;
     return `<div class="gd-head">
       <div class="abs row-flex" style="left:20px;top:8px;gap:10px;height:24px">${liveP()}<span class="t-label t-2">Q3${dot}7:29</span>${shield ? '' : '<span class="synced">' + ic('clock') + 'Synced · 42 s behind live</span>'}</div>

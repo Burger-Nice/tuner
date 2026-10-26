@@ -18,11 +18,11 @@
   <div class="metaline" style="margin-top:10px">${star(m.r)}${dot}<span>${m.y}</span>${dot}<span>${m.rt}</span>${dot}${tag('4K', 'q')}${tag('HDR', 'q')}${tag('EN')}</div>
   <div class="t-body clamp2" style="margin-top:12px;width:460px">${m.plot}</div>
   <div class="t-cap ellipsis" style="margin-top:8px;width:500px">Directed by <span class="t-2">${m.dir}</span>${dot}<span class="t-2">${m.cast}</span></div>
-  <div class="row-flex" style="gap:12px;margin-top:20px;height:44px;padding-left:2px">${play}<span class="btn2${f('save')}">${ic('saved')}Save</span></div>
+  <div class="row-flex" style="gap:20px;margin-top:20px;height:44px;padding-left:2px">${play}<span class="btn2${f('save')}">${ic('saved')}Save</span></div>
   <div class="row-flex" style="gap:10px;margin-top:12px;height:36px">${versions ? `<span class="pillbtn${f('version')}">${ic('film')}English · 4K HDR ${ic('chevD')}</span>` : ''}<span class="pillbtn${f('subs')}">${ic('cc')}Subtitles: English</span>${resume ? '<span class="t-cap">54 min left</span>' : ''}</div>
 </div>
-<div class="abs rowtitle" style="left:48px;top:392px;font-size:20px">More like this</div>
-<div class="rail abs" style="top:428px;left:0">${more}</div>`;
+<div class="abs rowtitle" style="left:48px;top:366px;font-size:20px">More like this</div>
+<div class="rail abs" style="top:400px;left:0">${more}</div>`;
   }
   function versionSheet() {
     const rows = [['English', '4K HDR', 'EN, FR, ES subs', '18.4 GB', 1], ['English', '4K', 'EN subs', '14.1 GB'], ['English', 'Full HD', 'Multi-sub', '6.2 GB'], ['French', 'Full HD', 'FR audio, EN subs', '5.8 GB']];
@@ -42,7 +42,7 @@
   <div class="t-display" style="margin-top:6px">${s.t}</div>
   <div class="metaline" style="margin-top:8px">${star(s.r)}${dot}<span>${s.y}</span>${dot}<span>${s.seasons} seasons</span>${dot}${tag(s.rating)}${tag('4K', 'q')}${tag('EN')}</div>
   <div class="t-body clamp2" style="margin-top:10px;width:470px">${s.plot}</div>
-  <div class="row-flex" style="gap:12px;margin-top:16px;height:44px"><span class="btn">${ic('play', 'fill')}Resume S1 · E3</span><span class="btn2">${ic('saved')}Save</span><span class="pillbtn">${ic('cc')}Subtitles: English</span></div>
+  <div class="row-flex" style="gap:20px;margin-top:16px;height:44px"><span class="btn">${ic('play', 'fill')}Resume S1 · E3</span><span class="btn2">${ic('saved')}Save</span><span class="pillbtn">${ic('cc')}Subtitles: English</span></div>
 </div>
 <div class="abs seas" style="left:48px;top:272px"><span class="chip lg sel">Season 1</span><span class="chip lg">Season 2</span><span class="t-cap" style="align-self:center;margin-left:8px">8 episodes</span></div>
 <div class="rail abs" style="top:318px;left:0">${eps}</div>
