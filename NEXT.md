@@ -39,11 +39,6 @@ says "No guide information" on some channels: Account > Provider > Check the gui
 3. Handy: `adb install -r Tuner-TV.apk` (from the latest release or a CI run), `adb logcat | grep -i tuner`,
    `adb exec-out screencap -p > tv.png`, and Chrome's `chrome://inspect` to debug the app's WebView on the TV.
 
-## House rules (from the owner)
+## House rules
 
-- Commit as `git -c user.name="Tuner" -c user.email="birgirsveinn@gmail.com"`. Never commit the Android signing key or
-  its password (it lives only in the TUNER_KEY_PASSWORD secret; don't ask for it). Don't make the repo private.
-- Wait for an explicit "release" before pushing to `main`.
-- Brand and design work: a brand/UX agent designs, an independent reviewer scores it, and it goes back for another
-  round below 7.5 (don't tell the reviewer the bar). Team colours are the teams' real colours.
-- Sounds: the design stays as it is; they just have to be instant.
+In `CLAUDE.md` (read automatically by Claude Code).

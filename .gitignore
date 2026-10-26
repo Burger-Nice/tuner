@@ -3,3 +3,4 @@ dist/
 vendor/
 www/
 tests/media/
+.tmp/
