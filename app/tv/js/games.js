@@ -157,10 +157,15 @@ export const teamChannel = (abbr) => store.get(teamChKey(), {})[abbr] || null;
 export function setTeamChannel(abbr, chId) { const m = store.get(teamChKey(), {}); m[abbr] = chId; store.set(teamChKey(), m); emit('nba'); }
 const feedCache = new Map();   // gameId -> { at, list }
 export function feedsNow(g) { return feedCache.get(g?.id)?.list || []; }
-export async function findFeeds(g) {
-  if (!g) return [];
+const feedJobs = new Map();   // gameId -> the scan in progress, so callers that poll don't start another
+export function findFeeds(g) {
+  if (!g) return Promise.resolve([]);
   const hit = feedCache.get(g.id);
-  if (hit && Date.now() - hit.at < 5 * 60000) return hit.list;
+  if (hit && Date.now() - hit.at < 5 * 60000) return Promise.resolve(hit.list);
+  if (!feedJobs.has(g.id)) feedJobs.set(g.id, scanFeeds(g).finally(() => feedJobs.delete(g.id)));
+  return feedJobs.get(g.id);
+}
+async function scanFeeds(g) {
   const live = await ensure('live').catch(() => null);
   if (!live) return [];
   const named = [], sporty = [];

@@ -475,9 +475,9 @@ public class PlayerActivity extends AppCompatActivity {
         hint = new LinearLayout(this);
         hint.setGravity(Gravity.BOTTOM | Gravity.START);
         hint.setPadding(Ui.dp(48), 0, Ui.dp(48), Ui.dp(30));
-        hint.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { 0x0015131D, Ui.SCRIM, Ui.SCRIM }));
+        hint.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { 0x0015131D, Ui.SCRIM, 0xF015131D }));
         hint.setVisibility(View.GONE);
-        root.addView(hint, new FrameLayout.LayoutParams(-1, Ui.dp(56), Gravity.BOTTOM));
+        root.addView(hint, new FrameLayout.LayoutParams(-1, Ui.dp(64), Gravity.BOTTOM));
     }
     private static LinearLayout.LayoutParams gapped(LinearLayout.LayoutParams lp) { return gapped(lp, 12); }
     private static LinearLayout.LayoutParams gapped(LinearLayout.LayoutParams lp, int dp) { lp.setMarginEnd(Ui.dp(dp)); return lp; }

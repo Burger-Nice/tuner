@@ -65,8 +65,8 @@ final class VodControls {
         Ui.tabular(ends);
         top.addView(ends);
         FrameLayout.LayoutParams tl = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
-        tl.setMargins(Ui.dp(48), Ui.dp(30), Ui.dp(48), 0);
-        top.setBackground(null);
+        top.setPadding(Ui.dp(48), Ui.dp(30), Ui.dp(48), Ui.dp(36));
+        top.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { Ui.SCRIM, 0x0015131D }));
         root.addView(top, tl);
 
         bar = new LinearLayout(c);
@@ -185,7 +185,7 @@ final class VodControls {
         boolean was = visible();
         top.setVisibility(View.VISIBLE);
         bar.setVisibility(View.VISIBLE);
-        if (!was) { row = 0; a.handler.post(tick); }
+        if (!was) a.handler.post(tick);
         draw();
         update();
         a.handler.removeCallbacks(hide);
@@ -197,6 +197,7 @@ final class VodControls {
         top.setVisibility(View.GONE);
         bar.setVisibility(View.GONE);
         bubble.setVisibility(View.GONE);
+        row = 0;   // the next time they come up, focus is back on the seek thumb
         a.handler.removeCallbacks(hide);
         a.hintsChanged();
     }

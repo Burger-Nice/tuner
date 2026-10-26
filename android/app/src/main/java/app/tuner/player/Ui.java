@@ -41,7 +41,7 @@ final class Ui {
     static final int LIVE = 0xFFFF4B4B, LIVE_TEXT = 0xFFFF8F8F, LIVE_TEXT_ON_S3 = 0xFFFFBABA;
     static final int FOCUS = 0xFFFFFFFF;
     /** Panels sit on the picture at 92 to 94%. */
-    static final int PANEL = 0xF01E1B28, BANNER = 0xEB1E1B28, SCRIM = 0xB815131D;
+    static final int PANEL = 0xF01E1B28, BANNER = 0xEB1E1B28, SCRIM = 0xD915131D;
 
     // ---- fonts ----
     static Typeface inter500, inter600, inter650, inter700, outfit700, barlow;
