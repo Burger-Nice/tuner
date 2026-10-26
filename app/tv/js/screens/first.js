@@ -5,12 +5,14 @@ import { $, esc, ic, brandImg, host } from '../util.js';
 import { S, settings, saveSettings } from '../state.js';
 import { ensure, catalog } from '../catalog.js';
 import { signIn, switchTo } from '../session.js';
-import { setShield } from '../games.js';
+import { setShield, favTeam } from '../games.js';
+import { teamSheet } from './account.js';
 import { go, current } from '../router.js';
 import { focus } from '../focus.js';
 import { toast } from '../ui.js';
 
-let el, step = 'welcome', err = '', add = false;
+let el, step = 'welcome', err = '', errAt = '', add = false;
+let seq = 0, tried = null, connected = false;   // the sign-in in flight (Back while connecting cancels it)
 const TEAMS = window.NBA.TEAMS;
 const lockup = (h) => `<img src="tv/brand/assets/lockup.svg" height="${h}" alt="airglow">`;
 
@@ -24,41 +26,42 @@ function welcome() {
     ${saved.length ? `<div class="t-label" style="margin-top:28px">Saved accounts</div><div class="row-flex" data-row style="gap:12px;margin-top:10px">${saved.slice(0, 4).map((a, i) => `<span class="btn2 fx" tabindex="-1" data-acc="${i}">${esc(a.name)}</span>`).join('')}</div>` : ''}
   </div>`;
 }
+// An error sits under the field it's about (errAt 'server' or 'pass').
+const errLine = (at) => (err && errAt === at ? `<div class="t-cap" style="margin:-8px 0 12px;color:var(--a-text-1);display:flex;align-items:center;gap:6px">${ic('info', 'sm')}<span>${esc(err)}</span></div>` : '');
 const fld = (id, label, ph, type = 'text', val = '') => `<div class="fld" data-row><div class="fl">${label}</div><input class="field fx" tabindex="-1" id="${id}" type="${type}" placeholder="${esc(ph)}" value="${esc(val)}" readonly spellcheck="false" autocomplete="off" style="width:100%"></div>`;
 function typeIt() {
   return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
     <div class="abs t-head" style="left:48px;top:96px">Type it here</div>
     <div class="abs" data-col style="left:48px;top:150px;width:520px">
-      ${fld('fServer', 'Provider link or server', 'http://line.provider.tv:8080')}
-      <div class="t-cap" style="margin:-2px 0 12px">Paste a full get.php link and the rest fills in. OK opens the keyboard.</div>
-      ${fld('fUser', 'Username', 'Username')}${fld('fPass', 'Password', 'Password', 'password')}
+      ${fld('fServer', 'Provider link or server', 'http://line.provider.tv:8080')}${errLine('server') || '<div class="t-cap" style="margin:-2px 0 12px">Paste a full get.php link and the rest fills in. OK opens the keyboard.</div>'}
+      ${fld('fUser', 'Username', 'Username')}${fld('fPass', 'Password', 'Password', 'password')}${errLine('pass')}
     </div>
-    <div class="abs row-flex" data-row style="left:48px;top:440px;gap:14px"><span class="btn fx" tabindex="-1" data-act="signin">Sign in</span><span class="t-cap">${err ? esc(err) : 'Back returns to the choices'}</span></div>`;
+    <div class="abs row-flex" data-row style="left:48px;top:${err && errAt === 'pass' ? 466 : 440}px;gap:14px"><span class="btn fx" tabindex="-1" data-act="signin">Sign in</span><span class="t-cap">Back returns to the choices</span></div>`;
 }
 function m3u() {
   return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
     <div class="abs t-head" style="left:48px;top:96px">Load an M3U link</div>
     <div class="abs" data-col style="left:48px;top:150px;width:620px">${fld('fUrl', 'Playlist link', 'https://example.com/playlist.m3u')}<div class="t-cap" style="margin:-2px 0 12px">An Xtream get.php link signs in as a full Xtream account, with movies and series.</div></div>
-    <div class="abs row-flex" data-row style="left:48px;top:300px;gap:14px"><span class="btn fx" tabindex="-1" data-act="loadm3u">Load</span><span class="t-cap">${err ? esc(err) : 'Back returns to the choices'}</span></div>`;
+    <div class="abs row-flex" data-row style="left:48px;top:300px;gap:14px"><span class="btn fx" tabindex="-1" data-act="loadm3u">Load</span><span class="t-cap"${err ? ' style="color:var(--a-text-1)"' : ''}>${err ? `${ic('info', 'sm')} ${esc(err)}` : 'Back returns to the choices'}</span></div>`;
 }
 function verifying(state) {
   const spin = '<svg class="ic" viewBox="0 0 24 24" style="width:28px;height:28px;color:var(--a-pink)"><path d="M12 3a9 9 0 1 0 9 9"/></svg>';
   const r = (done, t, v) => `<div class="vrow">${done ? `<span class="okdot">${ic('check')}</span>` : spin}<span class="grow">${t}</span><span class="t-cap">${esc(v)}</span></div>`;
   return `<div class="center-col" style="top:96px"><div class="t-head">Getting your provider ready</div>
-    <div class="card" style="width:520px;margin-top:24px;padding:12px 20px">${r(state.ok, 'Connected', state.host || '')}${r(state.ch, 'Channels', state.ch ? state.ch.toLocaleString() : 'loading')}${r(false, 'Movies and series', 'in the background')}</div>
-    <div class="t-body" style="margin-top:18px">Home opens as soon as channels are in. The rest loads in the background.</div></div>`;
+    <div class="card" style="width:520px;margin-top:24px;padding:12px 20px">${r(state.ok, state.ok ? 'Connected' : 'Connecting', state.host || '')}${r(state.ch, 'Channels', state.ch ? state.ch.toLocaleString() : state.ok ? 'loading' : '')}${r(false, 'Movies and series', 'in the background')}</div>
+    <div class="t-body" style="margin-top:18px">${state.ok ? 'Home opens as soon as channels are in. The rest loads in the background.' : 'Back cancels'}</div></div>`;
 }
 function choices() {
   const s = settings();
   const t = (grp, v, l, on) => `<span class="chip lg fx${on ? ' sel' : ''}" tabindex="-1" data-c="${grp}" data-v="${esc(v)}">${esc(l)}</span>`;
   const popular = ['MEM', 'BOS', 'GS', 'LAL', 'NY', 'MIA', 'DAL', 'DEN'];
-  const team = s.nbaTeam || 'MEM';
+  const team = favTeam();   // '' = None
   const teams = [...new Set([team, ...popular])].map((a) => TEAMS.find((x) => x.abbr === a)).filter(Boolean);
   const langs = s.langs || ['English'];
   return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
     <div class="abs t-head" style="left:48px;top:82px">Three quick choices</div><div class="abs t-body" style="left:48px;top:120px">You can change all three in Account. Back keeps these and skips ahead.</div>
     <div class="abs" style="left:48px;top:160px;width:864px"><div class="t-label" style="margin-bottom:8px">Your team</div>
-      <div class="chips" data-row>${teams.map((x) => t('team', x.abbr, `${x.city} ${x.name}`, x.abbr === team)).join('')}${t('team', '', 'None', !s.nbaTeam && false)}</div>
+      <div class="chips" data-row>${teams.map((x) => t('team', x.abbr, `${x.city} ${x.name}`, x.abbr === team)).join('')}${t('team', 'none', 'None', !team)}${t('more', '', 'More teams…', false)}</div>
       <div class="t-label" style="margin:16px 0 8px">Spoilers</div>
       <div class="chips" data-row>${[['off', 'Off'], ['mine', 'My team'], ['all', 'All games']].map(([v, l]) => t('shield', v, l, (s.shield || 'off') === v)).join('')}</div>
       <div class="t-cap" style="margin-top:8px">My team hides your team's score everywhere until you reveal it. Other games stay visible.</div>
@@ -77,27 +80,46 @@ function draw(state) {
 }
 const val = (id) => el.querySelector('#' + id)?.value.trim() || '';
 
+const formOf = (a) => (a.saved ? 'welcome' : a.type === 'm3u' && a.url ? 'm3u' : a.server ? 'type' : 'welcome');
+// Back to the form it came from, the values kept. A wrong password lands on Password (cleared, to retype); a timeout or an
+// unreachable server keeps everything and lands on Sign in, so trying again is one OK.
+function backToForm(a, e) {
+  err = e?.message || ''; errAt = e && /password|username|account|credential|auth/i.test(err) ? 'pass' : 'server';
+  step = formOf(a);
+  draw();
+  if (step === 'type') {
+    el.querySelector('#fServer').value = a.server || ''; el.querySelector('#fUser').value = a.username || '';
+    if (errAt !== 'pass') el.querySelector('#fPass').value = a.password || '';
+    if (e) focus(el.querySelector(errAt === 'pass' ? '#fPass' : '[data-act="signin"]'));
+  }
+  if (step === 'm3u') { el.querySelector('#fUrl').value = a.url || ''; if (e) focus(el.querySelector('[data-act="loadm3u"]')); }
+}
 async function run(a) {
+  const my = ++seq, h = a.server ? host(a.server) : a.name || '';
+  const gone = () => my !== seq;
+  tried = a; connected = false;
   step = 'verify'; err = '';
-  draw({ host: a.server ? host(a.server) : '' });
+  draw({ host: h });
   try {
-    await signIn(a);
-    draw({ ok: true, host: a.server ? host(a.server) : a.name });
+    await (a.saved ? switchTo(a.saved, gone) : signIn(a, gone));
+    if (gone()) return;
+    connected = true;
+    draw({ ok: true, host: h });
+    if (a.saved) return go('home');
     const c = await ensure('live');
-    draw({ ok: true, host: a.server ? host(a.server) : a.name, ch: c.items.length });
+    draw({ ok: true, host: h, ch: c.items.length });
     if (!settings().setupDone) { step = 'choices'; draw(); }
     else go('home');
   } catch (e) {
-    err = e.message;
-    step = a.type === 'm3u' && a.url ? 'm3u' : a.server ? 'type' : 'welcome';
-    draw();
-    if (step === 'type') { el.querySelector('#fServer').value = a.server || ''; el.querySelector('#fUser').value = a.username || ''; }
+    if (gone()) return;
+    backToForm(a, e);
   }
 }
 function signInTyped() {
   let p;
-  try { p = window.Core.parseLogin(val('fServer'), val('fUser'), val('fPass')); } catch (e) { err = e.message; return toast(e.message, 4000); }
-  if (!p.username || !p.password) return toast('Enter your username and password, or paste the full link.', 4000);
+  const typed = { type: 'xtream', server: val('fServer'), username: val('fUser'), password: val('fPass') };
+  try { p = window.Core.parseLogin(typed.server, typed.username, typed.password); } catch (e) { return backToForm(typed, e); }
+  if (!p.username || !p.password) return backToForm(typed, new Error('Enter your username and password, or paste the full link.'));
   run({ type: 'xtream', ...p, name: host(p.server) });
 }
 function loadM3u() {
@@ -137,7 +159,8 @@ export default {
       const ch = e.target.closest('[data-c]');
       if (ch) {
         const { c, v } = ch.dataset, s = settings();
-        if (c === 'team') saveSettings({ nbaTeam: v || null });
+        if (c === 'more') return teamSheet(() => { draw(); focus(el.querySelector('[data-c="team"].sel') || el.querySelector('[data-c="more"]')); });
+        if (c === 'team') saveSettings({ nbaTeam: v || 'none' });
         if (c === 'shield') setShield(v);
         if (c === 'lang') { let l = s.langs || ['English']; l = l.includes(v) ? l.filter((x) => x !== v) : [...l, v]; saveSettings({ langs: l.length ? l : ['English'] }); }
         const keep = `[data-c="${c}"][data-v="${CSS.escape(v)}"]`;
@@ -146,7 +169,7 @@ export default {
       }
       const b = e.target.closest('[data-act],[data-acc]');
       if (!b) return;
-      if (b.dataset.acc != null) { const a = S.accounts[+b.dataset.acc]; step = 'verify'; draw({ host: a.name }); switchTo(a).then(() => go('home')).catch((x) => { err = x.message; step = 'welcome'; draw(); }); return; }
+      if (b.dataset.acc != null) { const a = S.accounts[+b.dataset.acc]; run({ name: a.name, saved: a }); return; }
       const a = b.dataset.act;
       if (a === 'type') { step = 'type'; err = ''; draw(); }
       else if (a === 'm3u') { step = 'm3u'; err = ''; draw(); }
@@ -172,6 +195,8 @@ export default {
     if (step === 'type' || step === 'm3u') { step = 'welcome'; err = ''; draw(); return true; }
     if (step === 'choices') { saveSettings({ setupDone: true }); go('home'); return true; }
     if (step === 'welcome' && add && S.acc) { go('account'); return true; }
+    // While connecting, Back cancels (the answer, if it still comes, is ignored); once connected Home is seconds away.
+    if (step === 'verify' && !connected && tried) { seq++; backToForm(tried); return true; }
     return step === 'verify';
   },
 };

@@ -2,7 +2,7 @@
 import { esc, ic, tag, dot, liveP, logo, crest, teamVars, initials, hm, leftText, sized } from './util.js';
 import { progressOf } from './state.js';
 import { LANG_SHORT, prefLangs } from './catalog.js';
-import { show, clockText, isMine, mySide, ordinal } from './games.js';
+import { nba, show, clockText, isMine, mySide, ordinal } from './games.js';
 
 const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" decoding="async" loading="lazy">` : '');
 const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
@@ -19,7 +19,7 @@ export function poster(t, i, { sm = false } = {}) {
     <div class="cap">${esc(t.name)}</div><div class="cm">${esc(meta)}</div></div>`;
 }
 
-// Home rail card (198 x 100): text at the top so a peeking row still reads.
+// Game card (272 x 124, the NBA hub's grid and Home's Tonight row): text at the top so a peeking row still reads.
 export function liveCard(ch, prog, { i, live } = {}) {
   const pg = prog ? Math.max(0, Math.min(100, ((Date.now() - prog.start) / (prog.end - prog.start)) * 100)) : 0;
   return `<div class="hc fx" tabindex="-1" data-i="${i}" data-hold><div class="art noimg-bg"></div><div class="hs"></div>
@@ -85,9 +85,9 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
     : channel ? `On ${esc(channel.name)}${feeds > 1 ? `<br>Hold OK for ${feeds - 1} more channel${feeds > 2 ? 's' : ''}` : ''}` : '';
   let slab;
   const d = Math.round((g.date - Date.now()) / 60000);
-  if (pre) slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${d > 0 && d < 600 ? `${d} MIN` : hm(g.date)}</span><span class="cap">Tip-off ${hm(g.date)}</span></div>`;
-  else if (post) slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${shield ? 'END' : 'FINAL'}</span><span class="cap">${shield ? 'Score hidden' : g.period > 4 ? 'After overtime' : 'Full time'}</span></div>`;
-  else { const c = /half/i.test(g.detail) ? ['HALF', ''] : [ordinal(g.period), g.clock]; slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${esc(c[0])}</span>${c[1] ? `<span class="big">${esc(c[1])}</span>` : ''}<span class="cap">${shield ? 'Score hidden' : choose ? 'Game clock' : v.synced != null ? 'Live · synced' : 'Live'}</span></div>`; }
+  if (pre) slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${d > 0 && d < 600 ? `${d} MIN` : hm(g.date)}</span><span class="cap">${nba.stale ? 'Scores unavailable' : `Tip-off ${hm(g.date)}`}</span></div>`;
+  else if (post) slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${shield ? 'END' : 'FINAL'}</span><span class="cap">${shield ? 'Score hidden' : nba.stale ? 'Scores unavailable' : g.period > 4 ? 'After overtime' : 'Full time'}</span></div>`;
+  else { const c = /half/i.test(g.detail) ? ['HALF', ''] : [ordinal(g.period), g.clock]; slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${esc(c[0])}</span>${c[1] ? `<span class="big">${esc(c[1])}</span>` : ''}<span class="cap">${shield ? 'Score hidden' : nba.stale ? 'Scores unavailable' : choose ? 'Game clock' : v.synced != null ? 'Live · synced' : 'Live'}</span></div>`; }
   return `<div class="hero-plate"${top ? ` style="top:${top}px"` : ''}>
   <div class="abs row-flex" style="left:24px;top:12px;gap:12px;height:24px">${hub ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${status}</div>
   <div class="mt">${side(g.away)}<div class="sc">${score}</div>${side(g.home, 1)}</div>

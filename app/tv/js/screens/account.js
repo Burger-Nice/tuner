@@ -38,7 +38,7 @@ function body() {
   if (group === 'playback') {
     const maxC = accountFacts().maxCons;
     return `<div class="t-title" style="margin-bottom:10px">Playback</div>
-      ${row('zap', 'Up arrow in the player', more(s.zapUp === 'prev' ? 'Previous channel' : 'Next channel'), 'Down goes the other way. Applies to the zap ring and the channel list')}
+      ${row('zap', 'Up arrow in the player', more(s.zapUp === 'prev' ? 'Previous channel' : 'Next channel'), 'Down goes the other way. Also in the channel list')}
       ${row('format', 'Stream format', more(s.liveFormat === 'ts' ? 'Transport stream' : 'HLS'), 'Try the other one if a channel stutters')}
       ${row('ua', 'User agent', more(s.ua || 'Default'), 'Some providers only answer known players')}
       <div class="t-cap" style="margin-top:4px">Subtitles, audio, picture size and Match frame rate are in the player: press ▼ in a movie.</div>`;
@@ -114,13 +114,8 @@ function act(a) {
     saveSettings({ sounds: v }); sfx.mode(v); if (v !== 'off') setTimeout(() => sfx.play('select', { cd: 0 }), 60); draw();
   } });
   else if (a === 'ua') radioMenu({ title: 'User agent', value: s.ua || '', rows: [{ v: '', l: 'Default' }, { v: 'VLC/3.0.20 LibVLC/3.0.20', l: 'VLC' }, { v: 'IPTVSmartersPlayer', l: 'IPTV Smarters' }, { v: 'TiviMate/4.7.0', l: 'TiviMate' }], onPick: (v) => { saveSettings({ ua: v }); draw(); } });
-  else if (a === 'team') {
-    const ov = openOverlay(`<div class="sheet"><h3>Your team</h3><div class="sheet-body"><div class="inner" data-col>${TEAMS.map((t) => `<div class="lr fx" tabindex="-1" data-act="${t.abbr}"><span class="rd${t.abbr === favTeam() ? ' on' : ''}"></span><span class="grow">${esc(t.city)} ${esc(t.name)}</span></div>`).join('')}</div></div></div>`, {
-      focusSel: `[data-act="${favTeam()}"]`,
-      onClick: (abbr) => { ov.close(); saveSettings({ nbaTeam: abbr }); emit('nba'); draw(); },
-    });
-    scrollList(ov.el);
-  } else if (a === 'shield') radioMenu({ title: 'Spoiler shield', value: shieldMode(), rows: [{ v: 'off', l: 'Off', sub: 'Scores everywhere' }, { v: 'mine', l: 'My team', sub: 'Your team\'s games hidden' }, { v: 'all', l: 'All games', sub: 'Every game hidden' }], extra: '<div class="t-cap" style="padding:8px 8px 2px">Reveal a game with its Reveal score button. Watching it counts as revealing it.</div>', onPick: (v) => { setShield(v); draw(); } });
+  else if (a === 'team') teamSheet(draw);
+  else if (a === 'shield') radioMenu({ title: 'Spoiler shield', value: shieldMode(), rows: [{ v: 'off', l: 'Off', sub: 'Scores everywhere' }, { v: 'mine', l: 'My team', sub: 'Your team\'s games hidden' }, { v: 'all', l: 'All games', sub: 'Every game hidden' }], extra: '<div class="t-cap" style="padding:8px 8px 2px">Reveal a game with its Reveal score button. Watching it counts as revealing it.</div>', onPick: (v) => { setShield(v); draw(); } });
   else if (a === 'bug') { saveSettings({ scoreBug: !s.scoreBug }); flip(!s.scoreBug); draw(); }
   else if (a === 'delays') {
     const ds = store.get(`a:${S.acc?.id}:delays`, {});
@@ -163,3 +158,14 @@ export default {
   enter() { draw(); },
   entry: (root) => root.querySelector('.arow') || root.querySelector('.gl.sel'),
 };
+
+// All 30 teams, and None (no hero game, no alert). Also opened from the first-run choices.
+export function teamSheet(done) {
+  const cur = favTeam() || 'none';
+  const row = (v, l) => `<div class="lr fx" tabindex="-1" data-act="${v}"><span class="rd${v === cur ? ' on' : ''}"></span><span class="grow">${esc(l)}</span></div>`;
+  const ov = openOverlay(`<div class="sheet"><h3>Your team</h3><div class="sheet-body"><div class="inner" data-col>${row('none', 'None')}${TEAMS.map((t) => row(t.abbr, `${t.city} ${t.name}`)).join('')}</div></div></div>`, {
+    focusSel: `[data-act="${cur}"]`,
+    onClick: (abbr) => { ov.close(); saveSettings({ nbaTeam: abbr }); emit('nba'); done?.(abbr); },
+  });
+  scrollList(ov.el);
+}

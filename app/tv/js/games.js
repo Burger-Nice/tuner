@@ -6,14 +6,15 @@ import { catalog, ensure } from './catalog.js';
 import { guideFor, onNow, warm } from './guide.js';
 
 const { NBA } = window;
-export const nba = { today: [], todayDay: '', err: '', other: new Map(), sums: new Map(), started: false };
+export const nba = { today: [], todayDay: '', err: '', stale: false, other: new Map(), sums: new Map(), started: false };
 const hist = new Map();        // gameId -> [{ t, g, s }] snapshots, for showing a game as it looked `delay` seconds ago
 export const revealed = new Set();   // this session's revealed games
 let timer = 0, sumTimer = 0;
 const want = new Set();        // games whose box score is wanted right now (watched, open page, hero)
 
-export const favTeam = () => settings().nbaTeam || 'MEM';
-export const isMine = (g) => g && (g.home.abbr === favTeam() || g.away.abbr === favTeam());
+// 'none' is a real choice (no team: no hero game, no alert); unset still means the Grizzlies.
+export const favTeam = () => { const t = settings().nbaTeam || 'MEM'; return t === 'none' ? '' : t; };
+export const isMine = (g) => !!g && !!favTeam() && (g.home.abbr === favTeam() || g.away.abbr === favTeam());
 export const mySide = (g) => (g.home.abbr === favTeam() ? g.home : g.away);
 export const gameById = (id) => nba.today.find((g) => g.id === id) || [...nba.other.values()].flat().find((g) => g.id === id) || null;
 export const myGame = () => nba.today.find(isMine) || null;
@@ -27,9 +28,21 @@ function sortGames(list) {
 }
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+// Today's scoreboard is kept, so a game night still opens on your game when ESPN is slow or down (scores then read as
+// unavailable until it answers). Kept for 18 h: ESPN's day follows US time, so last night's can still be "today".
+const SAVED = 'nba:today';
+function fromSaved() {
+  const x = store.get(SAVED, null);
+  if (!x || Date.now() - x.at > 18 * 3600e3 || nba.today.length) return;
+  nba.today = sortGames(x.games);
+  nba.todayDay = x.day;
+  nba.stale = true;
+}
 export function startNba() {
   if (nba.started) return;
   nba.started = true;
+  fromSaved();
+  if (nba.today.length) emit('nba');
   refreshToday();
   sumTick();
 }
@@ -44,11 +57,12 @@ async function refreshToday() {
     }
     nba.today = sortGames(r.games.map((g) => merge(g)));
     nba.todayDay = r.day;
-    nba.err = '';
+    nba.err = ''; nba.stale = false;
     for (const g of nba.today) remember(g);
+    store.set(SAVED, { at: Date.now(), day: r.day, games: r.games });
   } catch (e) { nba.err = e.message; }
   emit('nba');
-  timer = setTimeout(refreshToday, nba.today.some((g) => g.state === 'in') ? 15000 : 120000);
+  timer = setTimeout(refreshToday, nba.stale ? 30000 : nba.today.some((g) => g.state === 'in') ? 15000 : 120000);
 }
 // Keep a summary's fresher score on the scoreboard entry.
 function merge(g) {
@@ -194,7 +208,7 @@ async function scanFeeds(g) {
     const now = onNow(list, Date.now()) || onNow(list, g.date + 60000);
     if (now && NBA.matchGame(now.title, [g])) guided.push(ch);
   }
-  const picked = teamChannel(mySide(g)?.abbr);
+  const picked = isMine(g) ? teamChannel(mySide(g).abbr) : null;
   const seen = new Set(), list = [];
   const add = (ch, why) => { if (ch && !seen.has(ch.id)) { seen.add(ch.id); list.push({ ch, why }); } };
   if (picked) add(live.byId.get(picked), 'Your pick');

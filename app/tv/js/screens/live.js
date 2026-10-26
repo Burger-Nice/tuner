@@ -31,7 +31,7 @@ function countGroups(c) {
   for (const it of c.items) counts.set(it.cat, (counts.get(it.cat) || 0) + 1);
   const fav = favList('live').length;
   const out = [];
-  if (fav) out.push(['fav', 'Favourites first', fav, 'star']);
+  if (fav) out.push(['fav', 'Favourites, then all', `${fav} saved`, 'star']);
   const lg = liveGames().length;
   if (lg) out.push(['games', 'Live games', lg, 'live']);
   out.push(['all', 'All channels', c.items.length, 'tv']);
@@ -210,7 +210,7 @@ function favHold(cell) {
 }
 function groupSheet() {
   const gs = groups();
-  const ov = openOverlay(`<div class="sheet left" style="width:340px"><h3>Channel group</h3><div class="t-cap" style="margin-top:-6px">This is also the zap ring in the player</div>
+  const ov = openOverlay(`<div class="sheet left" style="width:340px"><h3>Channel group</h3><div class="t-cap" style="margin-top:-6px">Up and Down in the player stay in this group</div>
     <div class="sheet-body"><div class="inner" data-col>${gs.map(([id, name, n]) => `<div class="lr fx" tabindex="-1" data-act="${esc(id)}"><span class="rd${id === group ? ' on' : ''}"></span><span class="grow ellipsis">${esc(name)}</span><small>${n.toLocaleString()}</small></div>`).join('')}</div></div></div>`, {
     focusSel: `[data-act="${CSS.escape(group)}"]`,
     onClick: (act) => { ov.close(false); group = act; store.set(scoped('liveCat'), act); r = 0; top = 0; rebuild(); draw(() => focusCell(0, Date.now())); },

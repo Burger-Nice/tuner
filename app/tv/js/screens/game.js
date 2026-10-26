@@ -14,9 +14,11 @@ let el, id = null, tab = 'away', scroll = 0;
 const STATS = [['fieldGoalPct', 'Field goal %'], ['threePointFieldGoalPct', '3-point %'], ['freeThrowPct', 'Free throw %'], ['totalRebounds', 'Rebounds'], ['assists', 'Assists'], ['totalTurnovers', 'Turnovers'], ['steals', 'Steals'], ['blocks', 'Blocks'], ['pointsInPaint', 'Points in the paint'], ['fastBreakPoints', 'Fast-break points'], ['largestLead', 'Largest lead']];
 const COLS = ['MIN', 'PTS', 'REB', 'AST', 'FG', '3PT', '+/-'];
 
-function table(s, abbr) {
+// Empty states that say what's actually going on: before tip-off, still loading, or ESPN has nothing for it.
+const none = (g, s, what) => `<div class="t-body" style="padding:24px 0">${g.state === 'pre' ? `${what} ${what === 'Box score' ? 'appears' : 'appear'} at tip-off.` : !s ? `Loading the ${what.toLowerCase()}…` : g.state === 'in' ? `ESPN hasn't sent the ${what.toLowerCase()} yet. It fills in as the game goes.` : `No ${what.toLowerCase()} from ESPN for this game.`}</div>`;
+function table(s, abbr, g) {
   const team = s?.box.find((b) => b.abbr === abbr);
-  if (!team || !team.players.length) return '<div class="t-body" style="padding:24px 0">The box score appears at tip-off.</div>';
+  if (!team || !team.players.length) return none(g, s, 'Box score');
   const idx = COLS.map((c) => team.labels.indexOf(c));
   const played = team.players.filter((p) => !p.dnp);
   const rows = played.map((p) => `<tr class="${p.starter ? 'st' : ''}"><td>${esc(p.short || p.name)}<span class="pos">${esc(p.pos)}</span></td>${idx.map((i, k) => `<td${COLS[k] === 'PTS' ? ' class="b"' : ''}>${i >= 0 ? esc(p.stats[i] ?? '') : ''}</td>`).join('')}</tr>`).join('');
@@ -29,7 +31,7 @@ function plays(s, g) {
 }
 function teamStats(s, g) {
   const a = s?.teams.find((t) => t.abbr === g.away.abbr)?.stats, h = s?.teams.find((t) => t.abbr === g.home.abbr)?.stats;
-  if (!a || !h) return '<div class="t-body" style="padding:24px 0">Team stats appear at tip-off.</div>';
+  if (!a || !h) return none(g, s, 'Team stats');
   const mineAway = g.away.abbr === favTeam();
   return `<div class="tstats">${STATS.filter(([k]) => a[k] != null).map(([k, n]) => {
     const av = parseFloat(a[k]) || 0, hv = parseFloat(h[k]) || 0, sum = av + hv || 1;
@@ -55,7 +57,7 @@ function draw() {
   if (v.hidden) body = `<div class="state" style="margin:28px auto 0;width:520px"><div class="ico">${ic('eyeOff')}</div><b>Box score is hidden</b><p>The spoiler shield covers this game. Reveal it for this game, this session.</p><span class="btn fx" tabindex="-1" data-act="reveal">Reveal score</span></div>`;
   else if (tab === 'plays') body = plays(s, g);
   else if (tab === 'team') body = teamStats(s, g);
-  else body = table(s, tab === 'home' ? g.home.abbr : g.away.abbr);
+  else body = table(s, tab === 'home' ? g.home.abbr : g.away.abbr, g);
   setHtml(el, `<div class="gd-head">
       <div class="abs row-flex" style="left:20px;top:8px;gap:10px;height:24px">${status}</div>
       <div class="mt">${side(g.away)}<div class="sc">${mid}</div>${side(g.home, 1)}</div>

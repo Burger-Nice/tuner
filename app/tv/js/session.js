@@ -44,9 +44,11 @@ export function resume() {
 }
 
 // Signs in with a new or saved account; throws a readable error.
-export async function signIn(a) {
+// `gone()` true means the person cancelled while it was connecting: nothing is saved or started.
+export async function signIn(a, gone) {
   const s = a.type === 'xtream' ? Core.xtream(a) : Core.m3u(a);
   const d = await s.login();
+  if (gone?.()) return null;
   a.tz = d?.server_info?.timezone || null;
   const same = S.accounts.find((x) => x.type === a.type && x.server === a.server && x.username === a.username && x.url === a.url && (a.url || x.name === a.name));
   a.id = a.id || same?.id || Math.random().toString(36).slice(2, 10);
@@ -59,7 +61,7 @@ export async function signIn(a) {
   begin(a, s, d);
   return d;
 }
-export const switchTo = (a) => signIn(withText(a));
+export const switchTo = (a, gone) => signIn(withText(a), gone);
 
 export function signOut(keepAccount = true) {
   store.del('active');

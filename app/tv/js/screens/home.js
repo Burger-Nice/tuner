@@ -1,12 +1,12 @@
 // Home: one hero for the thing you came for (your team's game, else resume, else the last channel), then two rails.
-// On a game day Continue watching sits above On now (resume = Down, OK). The hero is chosen before first paint and
+// On a game day Continue watching sits above On now (resume = Down, OK); Tonight's games fills a free second row. The hero is chosen before first paint and
 // kept for 3 s so the focused button never changes under your thumb.
 import { $, esc, setHtml, ic } from '../util.js';
 import { S, on, store, scoped, favList, continueRows, toggleFav, isFav, markWatched, settings } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
 import { nba, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
-import { gameHero, resumeHero, channelHero, liveCard, contCard } from '../cards.js';
+import { gameHero, resumeHero, channelHero, liveCard, contCard, gameCard } from '../cards.js';
 import { playLive, playVod, watching } from '../player.js';
 import { push, go, current, barHidden } from '../router.js';
 import { focus } from '../focus.js';
@@ -34,10 +34,10 @@ function channelFor(g) {
 }
 const lastChannel = () => catalog.live?.byId.get(store.get(scoped('lastLive'), '')) || null;
 
-function onNowList() {
+function onNowList(skip) {
   const live = catalog.live;
   if (!live) return [];
-  const out = [], seen = new Set();
+  const out = [], seen = new Set(skip ? [skip.id] : []);   // the hero's own channel isn't repeated under it
   const add = (ch) => { if (ch && !seen.has(ch.id)) { seen.add(ch.id); out.push(ch); } };
   // Other live games lead the row, then your favourites, then what you watched lately.
   for (const g of liveGames()) if (!isMine(g)) add(feedsNow(g)[0]?.ch);
@@ -70,15 +70,20 @@ function draw() {
   }
   else if (kind === 'resume' && cont[0]) hero = resumeHero(cont[0]);
   else if (kind === 'channel' && lastChannel()) { const ch = lastChannel(); hero = channelHero(ch, onNow(guideNow(ch))); }
-  else hero = `<div class="hero-plate"><div class="abs" style="left:24px;top:24px"><div class="t-head">Welcome to airglow</div><div class="t-body" style="margin-top:8px;width:560px">Your channels, films and series are loading. Pick a channel from Live to start.</div></div><div class="abs row-flex hero-btns" data-row style="left:24px;top:132px"><span class="btn fx" tabindex="-1" data-act="guide">${ic('live')}Open the guide</span></div></div>`;
-  const nowList = onNowList();
-  railItems = { cont: kind === 'resume' ? cont.slice(1) : cont, now: nowList };
+  else hero = `<div class="hero-plate"><div class="abs" style="left:24px;top:24px"><div class="t-head">Welcome to airglow</div><div class="t-body" style="margin-top:8px;width:560px">${catalog.live ? 'Pick a channel in the guide to start. What you watch shows up here.' : 'Your channels, films and series are loading. Pick a channel from Live to start.'}</div></div><div class="abs row-flex hero-btns" data-row style="left:24px;top:132px"><span class="btn fx" tabindex="-1" data-act="guide">${ic('live')}Open the guide</span></div></div>`;
+  const heroCh = kind === 'game' && g ? channelFor(g) : kind === 'channel' ? lastChannel() : null;
+  const nowList = onNowList(heroCh);
+  const tonight = nba.today.filter((x) => x !== g).slice(0, 15);
+  railItems = { cont: kind === 'resume' ? cont.slice(1) : cont, now: nowList, games: tonight };
   const nowCards = nowList.map((ch, i) => { const p = onNow(guideNow(ch)); return liveCard(ch, p, { i, live: !!(p && gameOn(ch, [p])?.state === 'in') }); }).join('');
   const contCards = railItems.cont.map((p, i) => contCard(p, i)).join('');
+  const gameCards = tonight.map((x, i) => gameCard(x, i)).join('');
+  const gamesTitle = tonight.some((x) => x.state !== 'post') ? "Tonight's games" : "Today's results";
   const order = kind === 'game' ? [['cont', 'Continue watching', contCards], ['now', 'On now', nowCards]] : [['now', 'On now', nowCards], ['cont', 'Continue watching', contCards]];
-  rows = order.filter(([, , h]) => h);
+  order.push(['games', gamesTitle, gameCards]);
+  rows = order.filter(([, , h]) => h).slice(0, 2);
   const rail = ([id, title, html], k) => `<div class="abs rowtitle" style="left:48px;top:${ROW_TOP[k]}px">${title}</div><div class="rail abs${k ? ' peek' : ''}" data-rail="${id}" style="top:${ROW_TOP[k] + 36}px;left:0;right:0"><div class="track" data-row data-mem>${html}</div></div>`;
-  setHtml(page, `<div data-hero>${hero}</div>${rows.slice(0, 2).map(rail).join('')}`);
+  setHtml(page, `<div data-hero>${hero}</div>${rows.map(rail).join('')}`);
   el.querySelector('.edgefade').hidden = rows.length < 2;
   placeRails();
 }
@@ -88,7 +93,8 @@ function placeRails() {
   page.querySelectorAll('.track').forEach((tr) => {
     const f = tr.contains(a) ? a : tr._mem?.isConnected ? tr._mem : null;
     const i = f ? [...tr.children].indexOf(f) : 0;
-    tr.style.transform = i > 0 ? `translateX(${-i * 222}px)` : '';
+    const step = (tr.firstElementChild?.offsetWidth || 198) + 24;   // channel cards 198, game cards 272, gap 24
+    tr.style.transform = i > 0 ? `translateX(${-i * step}px)` : '';
   });
   const second = page.querySelectorAll('.rail')[1];
   const lift = second && second.contains(a);
@@ -151,6 +157,7 @@ async function otherFeeds(g) {
 function railClick(id, i, card) {
   if (id === 'now') { const ch = railItems.now[i]; if (ch) playLive(ch, ringFor(ch), ringName(ch)); }
   if (id === 'cont') { const p = railItems.cont[i]; if (p) resumeItem(p.item); }
+  if (id === 'games') { const x = railItems.games[i]; if (x) push('game', { id: x.id }); }
 }
 function railHold(id, i, card) {
   if (id === 'now') {
@@ -179,7 +186,7 @@ export default {
     root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (b && b.closest('[data-hero]')) return heroAction(b.dataset.act, b);
-      const card = e.target.closest('.hc');
+      const card = e.target.closest('.hc, .gc');
       if (card) railClick(card.closest('[data-rail]').dataset.rail, +card.dataset.i, card);
     });
     root.addEventListener('tvhold', (e) => {

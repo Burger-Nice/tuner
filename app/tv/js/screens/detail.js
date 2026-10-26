@@ -15,6 +15,16 @@ const SUBS = [['auto', 'Auto'], ['off', 'Off'], ['English', 'English'], ['Spanis
 const subLabel = () => SUBS.find(([v]) => v === (settings().subLang || 'auto'))?.[1] || 'Auto';
 
 function episodes() { return (info?.seasons || []).flatMap((s) => s.eps); }
+// Providers name episodes "Episode 1: Arrival", "Show - S01E01 - Arrival" or just "Episode 1": the title part only ('' if none).
+const epName = (e) => { const n = String(e.name || '').replace(/^.*?\bS\d+\s*E\d+\b\s*[-:–.]?\s*/i, '').replace(/^(episode|ep\.?)\s*\d+\s*[-:–.]?\s*/i, '').trim(); return /^(episode|ep\.?)?\s*\d*$/i.test(n) ? '' : n; };
+const epLine = (e) => `E${e.ep}${epName(e) ? ` · ${esc(epName(e))}` : ''}`;
+// "00:52:10" or "3130" seconds as "52 min" / "1 h 5 min".
+function epLen(d) {
+  const m = String(d || '').match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+  const min = m ? (m[3] != null ? +m[1] * 60 + +m[2] : +m[1]) + (m[3] != null && +m[3] >= 30 ? 1 : 0) : /^\d+$/.test(String(d)) ? Math.round(+d / 60) : 0;
+  if (!min) return String(d || '');
+  return min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `${min} min`;
+}
 function seriesResume() {
   const eps = episodes();
   if (!eps.length) return null;
@@ -70,11 +80,11 @@ function draw() {
     const fe = epFocus && s.eps.includes(epFocus) ? epFocus : r?.ep && s.eps.includes(r.ep) ? r.ep : s.eps[0];
     const eps = s.eps.map((e, i) => {
       const ep = progressOf(e), done = ep && (ep.done || ep.t >= ep.d * 0.94), part = inProgress(ep);
-      return `<div class="ep fx${done ? ' done' : ''}" tabindex="-1" data-ep="${i}"><div class="th"><div class="art">${img(e.still || t.poster)}</div><span class="num">${e.ep}</span>${done ? `<span class="chk">${ic('check')}</span>` : ''}${part ? `<div class="prog flush"><i style="width:${Math.min(100, (ep.t / ep.d) * 100)}%"></i></div>` : ''}</div><div class="eb"><b>${esc(e.name)}</b><span>${part ? leftText(ep.d - ep.t) : esc(e.duration || '')}</span></div></div>`;
+      return `<div class="ep fx${done ? ' done' : ''}" tabindex="-1" data-ep="${i}"><div class="th"><div class="art">${img(e.still || t.poster)}</div><span class="num">${e.ep}</span>${done ? `<span class="chk">${ic('check')}</span>` : ''}${part ? `<div class="prog flush"><i style="width:${Math.min(100, (ep.t / ep.d) * 100)}%"></i></div>` : ''}</div><div class="eb"><b>${esc(epName(e) || `Episode ${e.ep}`)}</b><span>${part ? leftText(ep.d - ep.t) : esc(epLen(e.duration))}</span></div></div>`;
     }).join('');
     below = `<div class="abs seas" data-row style="left:48px;top:272px">${info.seasons.map((x) => `<span class="chip lg fx${x.n === season ? ' sel' : ''}" tabindex="-1" data-season="${esc(x.n)}">Season ${esc(x.n)}</span>`).join('')}<span class="t-cap" style="align-self:center;margin-left:8px">${s.eps.length} episode${s.eps.length > 1 ? 's' : ''}</span></div>
-      <div class="rail abs" style="top:318px;left:0;right:0"><div class="track" data-row data-eps style="gap:24px">${eps}</div></div>
-      <div class="abs epsyn" data-syn style="left:48px;top:486px;width:864px"><b>E${fe.ep} · ${esc(fe.name)}</b>${fe.plot ? `${dot}${esc(fe.plot)}` : ''}</div>`;
+      <div class="rail abs" style="top:318px;left:0;right:0"><div class="track" data-row data-eps data-entry='[data-ep="${s.eps.indexOf(fe)}"]' style="gap:24px">${eps}</div></div>
+      <div class="abs epsyn" data-syn style="left:48px;top:486px;width:864px"><b>${epLine(fe)}</b>${fe.plot ? `${dot}${esc(fe.plot)}` : ''}</div>`;
   } else if (info?.error) below = `<div class="abs t-body" style="left:48px;top:300px">${esc(info.error)}</div>`;
   else if (!movie) below = `<div class="abs t-cap" style="left:48px;top:300px">Loading episodes…</div>`;
   setHtml(el, `<div class="d-back"><div class="art">${img(backdrop, 1280)}</div><div class="d-scrim"></div></div><div class="d-scrim2"${movie ? '' : ' style="height:300px"'}></div>
@@ -92,7 +102,8 @@ function draw() {
 function placeTracks() {
   const a = document.activeElement;
   el.querySelectorAll('.track').forEach((tr) => {
-    const f = tr.contains(a) ? a : tr._mem?.isConnected ? tr._mem : null;
+    // (the episode row starts scrolled to its entry: the episode you're on)
+    const f = tr.contains(a) ? a : tr._mem?.isConnected ? tr._mem : tr.dataset.entry ? tr.querySelector(tr.dataset.entry) : null;
     const i = f ? [...tr.children].indexOf(f) : 0;
     const w = tr.hasAttribute('data-eps') ? 224 : 222;
     tr.style.transform = i > 2 ? `translateX(${-(i - 2) * w}px)` : '';
@@ -147,7 +158,7 @@ export default {
         const s = info.seasons.find((x) => x.n === season);
         epFocus = s.eps[+ep.dataset.ep];
         const syn = el.querySelector('[data-syn]');
-        if (syn) syn.innerHTML = `<b>E${epFocus.ep} · ${esc(epFocus.name)}</b>${epFocus.plot ? `${dot}${esc(epFocus.plot)}` : ''}`;
+        if (syn) syn.innerHTML = `<b>${epLine(epFocus)}</b>${epFocus.plot ? `${dot}${esc(epFocus.plot)}` : ''}`;
       }
     });
     on('progress', () => { if (!el.hidden) draw(); });

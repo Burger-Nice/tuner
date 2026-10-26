@@ -827,7 +827,7 @@ public class PlayerActivity extends AppCompatActivity {
     private void openGroups() {
         if (groups == null) { wantGroups = true; emitNeed("groups"); return; }
         ListPanel p = new ListPanel(this, "Groups", true, 352);
-        p.setCount("sets the zap ring");
+        p.setCount("Up and Down stay here");
         List<ListPanel.Item> items = new ArrayList<>();
         int sel = 0;
         for (int i = 0; i < groups.length(); i++) {
