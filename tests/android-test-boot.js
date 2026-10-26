@@ -26,7 +26,8 @@ window.TUNER_TEST = true;
     try {
       localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`));
       await until(() => $('[data-act="type"]'), 30000);
-      await wait(1500);
+      await until(() => !$('#app').classList.contains('l-on'), 15000);   // the launch animation has finished
+      await wait(800);
       const t0 = performance.now();
       report('boot', { bridge: !!window.Capacitor?.isNativePlatform?.(), ua: navigator.userAgent, size: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, modules: typeof window.__tunerTest, state: state() });
       await shot('welcome');
