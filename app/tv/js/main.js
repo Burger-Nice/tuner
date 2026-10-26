@@ -123,9 +123,13 @@ window.addEventListener('popstate', () => {});
 // A refreshed catalog is swapped in at once unless its section is on screen.
 busy.showing = (k) => { const c = current(); return c === k || (k !== 'live' && c === 'detail'); };
 // No big catalog refresh while your team is playing (seconds of work and a lot of memory, mid-game).
-busy.gameOn = () => myGame()?.state === 'in';
+busy.gameOn = () => !nba.stale && myGame()?.state === 'in';
 on('nba', () => setBar({ live: myGame()?.state === 'in' }));
+let offlineT = 0;   // the Offline bar's retry
 on('session', () => {
+  // a new session starts online: an Offline bar from the last one (or from before signing out) goes
+  S.offline = false; clearTimeout(offlineT);
+  const bar = $('#offline'); if (bar) bar.hidden = true;
   if (!S.acc) return;
   const n = S.acc.name || '';
   setBar({ avatar: (n.match(/\p{L}/u)?.[0] || '').toUpperCase() });
@@ -134,7 +138,6 @@ on('session', () => {
 on('signed-out', (msg) => go('first', { error: msg }));
 // Offline: a slim bar that stays while the provider can't be reached (a toast went by unseen under the launch),
 // and a quiet retry every 30 s; when it answers again the bar goes and the guide is asked again.
-let offlineT = 0;
 on('offline', () => {
   let bar = $('#offline');
   if (!bar) { bar = document.createElement('div'); bar.id = 'offline'; bar.className = 'offline-bar'; app.appendChild(bar); }
@@ -142,7 +145,7 @@ on('offline', () => {
   bar.hidden = false;
   clearTimeout(offlineT);
   const retry = () => {
-    if (!S.src || !S.offline) return;
+    if (!S.src || !S.offline) { bar.hidden = true; return; }
     S.src.login().then((d) => {
       S.offline = false; S.info = d; bar.hidden = true;
       resetGuides(); emit('online'); refresh();

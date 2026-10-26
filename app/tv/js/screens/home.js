@@ -50,6 +50,7 @@ function onNowList(skip) {
 
 let behind = false;
 on('player-closed', () => { if (behind) { behind = false; draw(); } });
+const kindNow = (g = heroGame(), cont = continueRows()) => (g ? 'game' : cont.length ? 'resume' : lastChannel() ? 'channel' : 'none');
 function draw() {
   if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
@@ -57,7 +58,7 @@ function draw() {
   const cont = continueRows().slice(0, 16);
   // The kind of hero is decided once and locked for 3 s; its content (the score) still updates. Under the launch nobody
   // can see it yet, so it stays free until the launch has gone, and the 3 s count from there.
-  let kind = g ? 'game' : cont.length ? 'resume' : lastChannel() ? 'channel' : 'none';
+  let kind = kindNow(g, cont);
   // ('none' is never locked: it only means the channel list hasn't loaded yet)
   if (heroKind && heroKind !== 'none' && launchOpen() && Date.now() < heroLockUntil) kind = heroKind;
   if (!heroKind || heroKind === 'none' || !launchOpen()) heroLockUntil = Date.now() + 3000;
@@ -204,7 +205,7 @@ export default {
     launchDone.then(() => { if (later) { later = false; redraw(); } });
     const redraw = () => {
       if (current() !== 'home') return;
-      if (!launchOpen() && (heroGame() ? 'game' : '') === (heroKind === 'game' ? 'game' : '')) { later = true; return; }
+      if (!launchOpen() && kindNow() === heroKind) { later = true; return; }   // same hero: wait for the launch to go
       draw();
     };
     on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('progress', redraw); on('favs', redraw);

@@ -84,13 +84,17 @@ const formOf = (a) => (a.saved ? 'welcome' : a.type === 'm3u' && a.url ? 'm3u' :
 // Back to the form it came from, the values kept. A wrong password lands on Password (cleared, to retype); a timeout or an
 // unreachable server keeps everything and lands on Sign in, so trying again is one OK.
 function backToForm(a, e) {
-  err = e?.message || ''; errAt = e && /password|username|account|credential|auth/i.test(err) ? 'pass' : 'server';
+  err = e?.message || '';
+  const wrong = /wrong username or password/i.test(err);                       // retype the password
+  const missing = /enter (your|the)/i.test(err);                               // a field left empty: go to it
+  errAt = e && (wrong || missing || /account is/i.test(err)) ? 'pass' : 'server';
   step = formOf(a);
   draw();
   if (step === 'type') {
     el.querySelector('#fServer').value = a.server || ''; el.querySelector('#fUser').value = a.username || '';
-    if (errAt !== 'pass') el.querySelector('#fPass').value = a.password || '';
-    if (e) focus(el.querySelector(errAt === 'pass' ? '#fPass' : '[data-act="signin"]'));
+    if (!wrong) el.querySelector('#fPass').value = a.password || '';
+    const empty = ['#fServer', '#fUser', '#fPass'].find((s) => !el.querySelector(s).value);
+    if (e) focus(el.querySelector(missing && empty ? empty : wrong ? '#fPass' : '[data-act="signin"]'));
   }
   if (step === 'm3u') { el.querySelector('#fUrl').value = a.url || ''; if (e) focus(el.querySelector('[data-act="loadm3u"]')); }
 }

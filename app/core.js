@@ -199,43 +199,40 @@
           backdrop: arr(i.backdrop_path)[0] || i.cover || s.poster, seasons,
         };
       },
-      // The short guide first; when it has nothing for now, the full table (some panels only fill that one). A panel
-      // whose clock is off by whole hours (or half hours) still gets the right programme: the short guide's first entry is
-      // what the server thinks is on now, so the gap to our clock is the offset, kept for the account.
+      // The short guide first; when it has nothing for now, the full table (some panels only fill that one). Returned as
+      // the provider sends it: guide.js applies the account's clock offset (acc.epgShift) in one place.
+      // The offset: some panels' guide times are off by whole (or half) hours. Only the panel's own "on now" mark
+      // (the table's now_playing) counts as evidence: each channel that has one gives the range of shifts that would put
+      // it on now. A shift is used once 3 channels agree on it and they outnumber the channels that fit as they are, so
+      // a channel that's off the air or a schedule with a gap can't move every guide.
       async epg(ch, why) {
         const tz = acc.tz || null;
         const when = (ts, str) => (+ts ? +ts * 1000 : panelTime(str, tz));
         const parse = (d) => arr(d?.epg_listings)
           .map((e) => ({ title: b64(e.title), desc: b64(e.description), start: when(e.start_timestamp, e.start), end: when(e.stop_timestamp, e.end || e.stop), np: +e.now_playing === 1 }))
           .filter((p) => p.end > p.start).sort((a, b) => a.start - b.start);
-        const now = Date.now(), covers = (l, k = 0) => l.some((p) => p.start + k <= now && p.end + k > now);
-        const shift = (l, k) => (k ? l.map((p) => ({ ...p, start: p.start + k, end: p.end + k })) : l);
+        const now = Date.now(), k0 = acc.epgShift || 0;
+        const covers = (l, k) => l.some((p) => p.start + k <= now && p.end + k > now);
         let list = parse(await api('get_short_epg', `&stream_id=${ch.id}&limit=8`));
         if (why) why.short = list.length;
-        if (!covers(list)) {
+        if (!covers(list, k0)) {
           const full = parse(await api('get_simple_data_table', `&stream_id=${ch.id}`).catch(() => null));
           if (why) why.table = full.length;
           if (full.length) list = full;
         }
-        // Each channel votes: 0 when its guide fits our clock, else the offset that puts its first entry on now. A shift is
-        // used once 3 channels agree on it and they outnumber the ones that fit as they are (one channel with a gap in
-        // its schedule can't move every guide).
-        if (list.length) {
-          const votes = (acc.epgVotes ||= {});   // channel id -> its vote (one per channel, however often it's asked)
-          let k = 0;
-          if (!covers(list)) {
-            const first = list.find((p) => p.np) || list[0];
-            k = Math.round((now - (first.start + first.end) / 2) / 1800e3) * 1800e3;   // to the nearest half hour
-            if (!(Math.abs(k) <= 14 * 3600e3 && covers([first], k))) k = null;
-          }
-          if (k != null) votes[ch.id] = k; else delete votes[ch.id];
-          const v = {};
-          for (const x of Object.values(votes)) v[x] = (v[x] || 0) + 1;
-          const best = Object.entries(v).filter(([x]) => +x).sort((a, b) => b[1] - a[1])[0];
-          acc.epgShift = best && best[1] >= 3 && best[1] > (v[0] || 0) ? +best[0] : 0;
+        const np = list.find((p) => p.np);
+        const votes = (acc.epgVotes ||= {});   // channel id -> [lowest, highest] shift that puts its "on now" on now
+        if (np) votes[ch.id] = [now - np.end + 1, now - np.start];
+        const HALF = 1800e3, count = new Map();
+        for (const [lo, hi] of Object.values(votes)) {
+          for (let k = Math.ceil(Math.max(lo, -14 * 3600e3) / HALF) * HALF; k <= Math.min(hi, 14 * 3600e3); k += HALF) count.set(k, (count.get(k) || 0) + 1);
         }
-        if (why) why.shift = acc.epgShift || 0;
-        return shift(list, acc.epgShift || 0);
+        const zero = count.get(0) || 0;
+        let best = 0, bn = 0;
+        for (const [k, n] of count) if (k && (n > bn || (n === bn && Math.abs(k) < Math.abs(best)))) { best = k; bn = n; }
+        acc.epgShift = bn >= 3 && bn > zero ? best : 0;
+        if (why) why.shift = acc.epgShift;
+        return list;
       },
     };
   }

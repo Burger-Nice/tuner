@@ -20,7 +20,7 @@ const KEY_WINDOW = 300;                         // ms after a key in which reque
 let ctx = null, level = 'on', zone = 'ui';
 // On the TV the key sounds go through Android's SoundPool (native.sfx): the WebView's audio path sits a buffer behind it,
 // and that delay is what made the sounds trail the remote. The launch stays on Web Audio, which can start part-way in.
-let nat = false;
+let nat = new Set();   // the sounds SoundPool has; any other plays through Web Audio
 const bufs = {}, loading = {}, last = {};
 let pend = null, pendOpts = null, flushing = false;
 let dirAt = -1e9, dirRepeat = false, dirKey = '', lastRepeatTick = -1e9;
@@ -42,13 +42,13 @@ export const sfx = {
     // the launch first; the reduced-motion one only when that's what will play
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const order = [reduce ? 'launch-brief' : 'launch-full', ...Object.keys(DEF).filter((n) => !n.startsWith('launch'))];
-    if (native?.sfx) native.sfx.load(order.filter((n) => !n.startsWith('launch'))).then((r) => { nat = r?.loaded > 0; }).catch(() => {});
+    if (native?.sfx) native.sfx.load(order.filter((n) => !n.startsWith('launch'))).then((r) => { nat = new Set(Array.isArray(r?.loaded) ? r.loaded : []); }).catch(() => {});
     for (const n of order) loading[n] = fetch(`${BASE}${n}.wav`).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)).then((buf) => { bufs[n] = buf; }).catch(() => {});
   },
   mode(m) { if (m in LEVEL) level = m; },
   level: () => level,
   // For Account > Sound: whether the TV's audio is up and how many sounds loaded.
-  status: () => ({ audio: ctx ? ctx.state : 'none', loaded: Object.keys(bufs).length, total: Object.keys(DEF).length - 1, native: nat }),
+  status: () => ({ audio: ctx ? ctx.state : 'none', loaded: Object.keys(bufs).length, total: Object.keys(DEF).length - 1, native: nat.size > 0 }),
   // The WebView stays awake under the native player: suspend so nothing can chime over the programme.
   zone(z) {
     zone = z;
@@ -59,7 +59,7 @@ export const sfx = {
   play(name, { rate = 1, gain = 1, cd, offset = 0 } = {}) {
     const d = DEF[name], b = bufs[name];
     if (!d || !LEVEL[level] || document.hidden || zone === 'player') return false;
-    const viaNative = nat && !NO_KEY_NEEDED.has(name);
+    const viaNative = nat.has(name);
     if (!viaNative && (!ctx || !b || ctx.state !== 'running')) return false;
     const now = performance.now();
     if (now - (last[name] ?? -1e9) < (cd ?? d.cd ?? 0)) return false;

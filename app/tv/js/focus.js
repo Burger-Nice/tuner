@@ -63,7 +63,9 @@ function pickIn(box, from, dir) {
   // Coming into a row that wraps onto more lines: its nearest line first (the first going down, the last going up).
   if (vert && box.hasAttribute('data-row')) {
     const edge = dir === 'down' ? Math.min(...items.map((el) => rectOf(el).top)) : Math.max(...items.map((el) => rectOf(el).bottom));
-    items = items.filter((el) => Math.abs((dir === 'down' ? rectOf(el).top : rectOf(el).bottom) - edge) < 4);
+    // (one line = items within half the smallest item's height of that edge: a pill a few px inside the buttons counts)
+    const tol = Math.max(4, Math.min(...items.map((el) => rectOf(el).height)) / 2);
+    items = items.filter((el) => Math.abs((dir === 'down' ? rectOf(el).top : rectOf(el).bottom) - edge) < tol);
   }
   let best = null, bd = Infinity;
   for (const el of items) {

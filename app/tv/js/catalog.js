@@ -18,9 +18,11 @@ export function resetCatalogs() { for (const k in catalog) { catalog[k] = null; 
 const cacheable = () => S.acc && (S.acc.type === 'xtream' || !!S.acc.url);
 // The saved copy keeps what prepare() and the ratings worked out, so the next start skips that work (bump PREP when
 // prepare() changes what it computes).
-// One version per kind, so changing how one kind is prepared doesn't redo the others (3 is what every kind has had
-// since separator channel names were cleaned up).
-const PREP = { live: 3, movie: 3, series: 3 };
+// One version per kind, so changing how one kind is prepared doesn't redo the others. live 4: separator channels are
+// marked (_sep); a channel list saved before that is asked for again (its names were already cleaned, so the separators
+// can't be found in it any more).
+const PREP = { live: 4, movie: 3, series: 3 };
+const MIN_PV = { live: 4 };
 const KEEP = new Set(['_s', '_sep', '_lang', '_q', '_hdr', '_sub', '_genres', '_hot', '_title', '_key', '_ck', '_cy', '_ir', '_iv', '_pop', '_top']);
 // Saved in parts of 5,000 with a breath between, read the same way: one record of 60,000 films froze the remote for
 // seconds each time it was written or read. (kind is the same on every item and is put back on reading.)
@@ -30,15 +32,18 @@ const saving = {};
 function save(kind, c) {
   if (!cacheable()) return;
   const key = cacheKey(kind), my = S.epoch;
+  // Each save writes its parts under a new generation, then the head that names it, then drops the last generation's
+  // parts: a save cut off half-way (the TV slept) leaves the old list whole instead of a mix of old and new parts.
   const run = async () => {
-    const n = Math.ceil(c.items.length / PART);
+    const n = Math.ceil(c.items.length / PART), gen = Date.now().toString(36);
+    const old = await window.Core.cache.get(key);
     for (let i = 0; i < n; i++) {
       if (my !== S.epoch) return;
-      await window.Core.cache.set(`${key}:p${i}`, c.items.slice(i * PART, (i + 1) * PART).map(leanItem));
+      await window.Core.cache.set(`${key}:${gen}:p${i}`, c.items.slice(i * PART, (i + 1) * PART).map(leanItem));
       await breathe();
     }
-    // the head last: a list is only read back once every part of it is there
-    await window.Core.cache.set(key, { at: c.at || Date.now(), pv: c.pv, rated: !!c._rated, cats: c.cats, kind, parts: n, count: c.items.length });
+    await window.Core.cache.set(key, { at: c.at || Date.now(), pv: c.pv, rated: !!c._rated, cats: c.cats, kind, parts: n, count: c.items.length, gen });
+    for (let i = 0; old && !old.items && old.gen !== gen && i < (old.parts || 0); i++) await window.Core.cache.set(old.gen ? `${key}:${old.gen}:p${i}` : `${key}:p${i}`, null);
   };
   saving[kind] = (saving[kind] || Promise.resolve()).then(run, run);
 }
@@ -46,10 +51,11 @@ async function readSaved(kind) {
   const key = cacheKey(kind);
   const head = await window.Core.cache.get(key);
   if (!head) return null;
+  if ((head.pv || 0) < (MIN_PV[kind] || 0)) return null;
   if (head.items) return head;   // saved before lists were split into parts
   const items = [];
   for (let i = 0; i < head.parts; i++) {
-    const part = await window.Core.cache.get(`${key}:p${i}`);
+    const part = await window.Core.cache.get(head.gen ? `${key}:${head.gen}:p${i}` : `${key}:p${i}`);
     if (!part) return null;
     for (const x of part) { x.kind = head.kind; items.push(x); }
     await breathe();

@@ -43,12 +43,13 @@ public class TunerPlayerPlugin extends Plugin {
 
     // ---------- UI sounds ----------
     // The app's tv/sounds/*.wav, played by SoundPool on the low-latency (game) path: a loaded clip starts within a few ms,
-    // where the WebView's audio adds a buffer of its own on top of the TV's. sfxLoad answers once they're all loaded.
+    // where the WebView's audio adds a buffer of its own on top of the TV's. sfxLoad answers once they're all loaded,
+    // with the names that loaded (the app plays any other one itself).
     private android.media.SoundPool ui;
     private final java.util.Map<String, Integer> uiIds = new java.util.HashMap<>();
     private final java.util.Set<Integer> uiReady = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
     private int uiPending = 0;
-    private PluginCall uiLoadCall;
+    private final List<PluginCall> uiLoadCalls = new java.util.ArrayList<>();
 
     @PluginMethod
     public void sfxLoad(PluginCall call) {
@@ -59,29 +60,40 @@ public class TunerPlayerPlugin extends Plugin {
                         .setUsage(android.media.AudioAttributes.USAGE_GAME).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build();
                 ui.setOnLoadCompleteListener((pool, id, status) -> {
                     if (status == 0) uiReady.add(id);
-                    synchronized (uiIds) { if (--uiPending <= 0 && uiLoadCall != null) { uiLoadCall.resolve(uiResult()); uiLoadCall = null; } }
+                    synchronized (uiIds) { if (--uiPending <= 0) { for (PluginCall c : uiLoadCalls) c.resolve(uiResult()); uiLoadCalls.clear(); } }
                 });
             }
             try {
                 for (int i = 0; names != null && i < names.length(); i++) {
                     String n = names.getString(i);
                     if (uiIds.containsKey(n)) continue;
-                    try {
-                        // (not closed here: SoundPool reads it after load() returns)
-                        android.content.res.AssetFileDescriptor fd = getContext().getAssets().openFd("public/tv/sounds/" + n + ".wav");
-                        uiIds.put(n, ui.load(fd, 1));
+                    try (android.content.res.AssetFileDescriptor fd = getContext().getAssets().openFd("public/tv/sounds/" + n + ".wav")) {
+                        uiIds.put(n, ui.load(fd, 1));   // (SoundPool keeps its own copy of the descriptor)
                         uiPending++;
                     } catch (Exception ignored) {}
                 }
             } catch (Exception ignored) {}
-            if (uiPending <= 0) call.resolve(uiResult()); else uiLoadCall = call;
+            if (uiPending <= 0) call.resolve(uiResult()); else uiLoadCalls.add(call);
         }
     }
-    private JSObject uiResult() { JSObject r = new JSObject(); r.put("loaded", uiReady.size()); return r; }
+    private JSObject uiResult() {
+        JSArray loaded = new JSArray();
+        for (java.util.Map.Entry<String, Integer> e : uiIds.entrySet()) if (uiReady.contains(e.getValue())) loaded.put(e.getKey());
+        JSObject r = new JSObject();
+        r.put("loaded", loaded);
+        return r;
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        synchronized (uiIds) { if (ui != null) { ui.release(); ui = null; uiIds.clear(); uiReady.clear(); } }
+        super.handleOnDestroy();
+    }
 
     @PluginMethod
     public void sfxPlay(PluginCall call) {
-        Integer id = uiIds.get(call.getString("name", ""));
+        Integer id;
+        synchronized (uiIds) { id = uiIds.get(call.getString("name", "")); }
         boolean ok = ui != null && id != null && uiReady.contains(id);
         if (ok) {
             float v = Math.max(0f, Math.min(1f, call.getFloat("gain", 1f)));

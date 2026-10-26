@@ -212,7 +212,9 @@ setInterval(push, 1000);
 // Subtitles: Account / the title page keep a language name; the player works in ISO codes.
 const SUB_CODE = { English: 'en', Spanish: 'es', French: 'fr', German: 'de', Italian: 'it', Portuguese: 'pt', Dutch: 'nl', Swedish: 'sv', Norwegian: 'no', Danish: 'da', Icelandic: 'is', Polish: 'pl', Turkish: 'tr', Arabic: 'ar', Hindi: 'hi' };
 const subCode = (v) => (!v || v === 'auto' ? 'auto' : v === 'off' ? 'off' : SUB_CODE[v] || v);
-const subName = (c) => (c === 'off' ? 'off' : Object.keys(SUB_CODE).find((k) => SUB_CODE[k] === c) || c);
+// The player reports a track's language as the stream has it: 2 letters, 3 letters ("eng", "ger"), or "und".
+const ISO3 = { eng: 'en', spa: 'es', fra: 'fr', fre: 'fr', deu: 'de', ger: 'de', ita: 'it', por: 'pt', nld: 'nl', dut: 'nl', swe: 'sv', nor: 'no', nob: 'no', dan: 'da', isl: 'is', ice: 'is', pol: 'pl', tur: 'tr', ara: 'ar', hin: 'hi' };
+const subName = (c) => { if (c === 'off') return 'off'; const two = ISO3[String(c).toLowerCase()] || String(c).toLowerCase().slice(0, 2); return Object.keys(SUB_CODE).find((k) => SUB_CODE[k] === two) || null; };
 const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug, sub: subCode(settings().subLang) });
 
 // ---------- movies and episodes ----------
@@ -339,7 +341,7 @@ native?.player.onEvent((e) => {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {
     if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
-    if (e.key === 'sub') saveSettings({ subLang: subName(String(e.value)) });   // picked in the player: the same choice everywhere
+    if (e.key === 'sub') { const n = subName(String(e.value)); if (n) saveSettings({ subLang: n }); }   // picked in the player: the same choice everywhere (a language the app doesn't list stays the player's own)
   } else if (e.type === 'exit') {
     ctx.cur = null;
     sfx.zone('ui');

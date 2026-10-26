@@ -34,6 +34,8 @@ const SAVED = 'nba:today';
 function fromSaved() {
   const x = store.get(SAVED, null);
   if (!x || Date.now() - x.at > 18 * 3600e3 || nba.today.length) return;
+  // a game saved mid-game whose tip-off was over 4 h ago is over by now (its score is the last one seen)
+  for (const g of x.games) if (g.state === 'in' && Date.now() - g.date > 4 * 3600e3) g.state = 'post';
   nba.today = sortGames(x.games);
   nba.todayDay = x.day;
   nba.stale = true;

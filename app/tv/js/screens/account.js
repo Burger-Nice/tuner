@@ -114,7 +114,7 @@ async function guideCheck() {
   const ov = openOverlay(`<div class="sheet"><h3>Guide check</h3><div class="sheet-body"><div class="inner" data-col><div class="lr fx" tabindex="-1"><span class="grow">Asking your provider about ${esc(ch.name)}…</span></div></div></div></div>`);
   const why = {}, now = Date.now(), t = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
   let list = [], err = '';
-  try { list = await S.src.epg(ch, why); } catch (e) { err = e.message; }
+  try { const k = S.acc?.epgShift || 0; list = (await S.src.epg(ch, why)).map((p) => ({ ...p, start: p.start + k, end: p.end + k })); } catch (e) { err = e.message; }
   const on = list.find((p) => p.start <= now && p.end > now);
   const lines = [
     ['Channel', `${ch.name} · id ${ch.id}`],
