@@ -28,6 +28,7 @@ export function resume() {
   }
   const known = store.get('info:' + a.id, null);
   if (!known) return false;
+  acc.tz = known.server_info?.timezone || null;   // for guides that send times as text
   const src = Core.xtream(acc);
   begin(acc, src, known);
   src.login().then((d) => {
@@ -46,6 +47,7 @@ export function resume() {
 export async function signIn(a) {
   const s = a.type === 'xtream' ? Core.xtream(a) : Core.m3u(a);
   const d = await s.login();
+  a.tz = d?.server_info?.timezone || null;
   const same = S.accounts.find((x) => x.type === a.type && x.server === a.server && x.username === a.username && x.url === a.url && (a.url || x.name === a.name));
   a.id = a.id || same?.id || Math.random().toString(36).slice(2, 10);
   const { text, ...slim } = a;

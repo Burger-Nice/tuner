@@ -98,6 +98,20 @@
   }
 
   // ---------- Xtream Codes ----------
+  // "2026-10-26 14:30:00" as a time in the given IANA zone (the panel's), or the device's own when none is known.
+  function panelTime(str, tz) {
+    const m = /^(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)(?::(\d\d))?/.exec(String(str || ''));
+    if (!m) return 0;
+    const [, y, mo, d, h, mi, se] = m.map(Number);
+    if (!tz) return new Date(y, mo - 1, d, h, mi, se || 0).getTime();
+    const guess = Date.UTC(y, mo - 1, d, h, mi, se || 0);
+    try {
+      const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(guess).map((x) => [x.type, x.value]));
+      const asZone = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+      return guess - (asZone - guess);
+    } catch { return new Date(y, mo - 1, d, h, mi, se || 0).getTime(); }
+  }
+
   function xtream(acc) {
     const base = acc.server;
     const cred = `username=${encodeURIComponent(acc.username)}&password=${encodeURIComponent(acc.password)}`;
@@ -185,8 +199,11 @@
       },
       async epg(ch) {
         const d = await api('get_short_epg', `&stream_id=${ch.id}&limit=8`);
+        // Most panels send Unix timestamps; some only "2026-10-26 14:30:00" in the server's own time zone.
+        const tz = acc.tz || null;
+        const when = (ts, str) => (+ts ? +ts * 1000 : panelTime(str, tz));
         return arr(d.epg_listings)
-          .map((e) => ({ title: b64(e.title), desc: b64(e.description), start: +e.start_timestamp * 1000, end: +e.stop_timestamp * 1000 }))
+          .map((e) => ({ title: b64(e.title), desc: b64(e.description), start: when(e.start_timestamp, e.start), end: when(e.stop_timestamp, e.end || e.stop) }))
           .filter((p) => p.end > p.start);
       },
     };
