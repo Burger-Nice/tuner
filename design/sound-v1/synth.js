@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// airglow sound set v1.2: a small deterministic synthesizer. No dependencies, no samples, no randomness except a seeded PRNG.
+// airglow sound set v1.2 (+ wipe candidates): a small deterministic synthesizer. No dependencies, no samples, no randomness except a seeded PRNG.
 //   node design/sound-v1/synth.js            renders every sound to design/sound-v1/out/*.wav (48 kHz, 16-bit, mono)
 //   node design/sound-v1/synth.js focus      renders only the named sounds
 // It also writes out/manifest.json (timing, gain, rate limits for the engineer), out/report.txt (the measured numbers)
@@ -188,6 +188,39 @@ const RECIPES = {
       // v1.2: one repeat only (three steps and their echo: a six-note figure, not a doorbell)
       ...STAIR(0, 0.095, ['D6', 'F#6', 'A6'], [0.8, 0.9, 1.0], { att: 0.003, tau: 0.10, dur: 0.6, partials: BRIGHT, lp: 6500, echo: [{ d: 0.285, g: 0.28, lp: 4800 }] }),
       { type: 'tone', t: 0.19, f: NOTE.E7, gain: 0.22, att: 0.003, tau: 0.10, dur: 0.3, partials: SOFT, lp: 6000 },
+    ],
+  },
+
+  // ---- wipe candidates (v1.3; kept at the end of the table so the seeds of the existing sounds do not move): tonal alternatives to the noise wipe, for the owner to choose. Time 0 = the moment l-wiping is added: the slab sweeps 0-480 ms
+  // (cubic-bezier(.7,0,.2,1): slow, fast in the middle, slow), Home starts to fade in at 220 ms, the chord's echoes are over. All start silent and quieter than launch-wipe.
+  // a: ARRIVAL. The settled fifth (D5 + A5, the "select" interval struck together) lands as Home appears, with one darker echo. It resolves the chord, it adds no new idea.
+  'launch-wipe-a': {
+    dur: 0.60, tail: 0.20, hp: 200, lp: 7000, m: -36, ceil: -17,
+    meta: { cls: 'hero', prio: 4, note: 'candidate wipe sound A (arrival); replaces launch-wipe if chosen' },
+    layers: [
+      { type: 'tone', t: 0.235, f: NOTE.D5, gain: 0.9, att: 0.012, tau: 0.15, dur: 0.36, partials: GLASS, lp: 6000, choke: true, echo: [{ d: 0.20, g: 0.28, lp: 3000 }] },
+      { type: 'tone', t: 0.245, f: NOTE.A5, gain: 1.0, att: 0.012, tau: 0.15, dur: 0.35, partials: GLASS, lp: 6000, choke: true, echo: [{ d: 0.20, g: 0.28, lp: 3000 }] },
+    ],
+  },
+  // b: THE GLIDE. One soft tone rises D5 to A5 (the select interval, slowly) on the slab's own slow-fast-slow curve (a smoothstep glide from 40 to 440 ms) under a bell of loudness
+  // that peaks as the slab crosses the middle (about 240 ms), and lands in the key with one struck A5 as the slab leaves. No echo: the slab is the afterimage.
+  'launch-wipe-b': {
+    dur: 0.60, tail: 0.20, hp: 200, lp: 7000, m: -36, ceil: -17,
+    meta: { cls: 'hero', prio: 4, note: 'candidate wipe sound B (glide); replaces launch-wipe if chosen' },
+    layers: [
+      { type: 'tone', t: 0.04, f: NOTE.D5, gain: 0.8, att: 0.18, rel: 0.30, dur: 0.52, glide: { to: NOTE.A5, time: 0.40 }, partials: [[1, 1, 1], [2, 0.14, 1], [3, 0.04, 1]], lp: 5000 },
+      { type: 'tone', t: 0.42, f: NOTE.A5, gain: 0.55, att: 0.010, tau: 0.10, dur: 0.18, partials: GLASS, lp: 5500 },
+    ],
+  },
+  // c: THE ANSWER. The launch chord ends on an open ninth (E6 on top of D F# A). As Home appears that E6 steps down to D6 and an octave-lower D5 settles under it: tension to rest,
+  // two notes and a ghost of the chord. The slab's mid-point is at about 240 ms, which is where the D lands.
+  'launch-wipe-c': {
+    dur: 0.60, tail: 0.20, hp: 200, lp: 7000, m: -36, ceil: -17,
+    meta: { cls: 'hero', prio: 4, note: 'candidate wipe sound C (resolution E6 to D6); replaces launch-wipe if chosen' },
+    layers: [
+      { type: 'tone', t: 0.100, f: NOTE.E6, gain: 0.55, att: 0.010, tau: 0.07, dur: 0.15, partials: GLASS, lp: 6000 },
+      { type: 'tone', t: 0.235, f: NOTE.D6, gain: 0.85, att: 0.012, tau: 0.12, dur: 0.36, partials: GLASS, lp: 6000, choke: true, echo: [{ d: 0.20, g: 0.25, lp: 3000 }] },
+      { type: 'tone', t: 0.240, f: NOTE.D5, gain: 1.0, att: 0.014, tau: 0.16, dur: 0.36, partials: GLASS, lp: 5000, choke: true, echo: [{ d: 0.20, g: 0.25, lp: 3000 }] },
     ],
   },
 };
@@ -416,11 +449,14 @@ function main() {
   fs.mkdirSync(OUT, { recursive: true });
   const names = Object.keys(RECIPES).filter((n) => !only.length || only.includes(n));
   const rows = [], manifest = {}, b64 = {};
-  let seed = 1;
+  // Every recipe has its own noise seed, so adding or reordering recipes never changes another sound. The first thirteen keep the seeds they had in
+  // v1 to v1.2 (their position in the table then), so those files stay byte-identical; every newer recipe is seeded from its name.
+  const SEED_ORDER = ['launch', 'launch-full', 'launch-wipe', 'launch-brief', 'focus', 'select', 'back', 'open', 'close', 'toggle-on', 'toggle-off', 'bump', 'alert'];
+  const seedOf = (n) => SEED_ORDER.includes(n) ? 1000 + (SEED_ORDER.indexOf(n) + 2) * 7919 : 1000 + [...n].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   for (const name of Object.keys(RECIPES)) {
-    const R = RECIPES[name]; seed++;
+    const R = RECIPES[name];
     if (!names.includes(name)) continue;
-    const { y, limited, gainDb } = render(name, R, 1000 + seed * 7919);
+    const { y, limited, gainDb } = render(name, R, seedOf(name));
     const buf = wav16(y);
     fs.writeFileSync(path.join(OUT, name + '.wav'), buf);
     const a = analyse(name, R, readBack(buf)); a.limited = limited; a.gainDb = gainDb; a.target = R.m; a.ceil = R.ceil;

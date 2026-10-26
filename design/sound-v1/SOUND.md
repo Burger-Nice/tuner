@@ -1,4 +1,8 @@
-# airglow sound set v1.2
+# airglow sound set v1.2 (+ wipe candidates)
+
+## v1.3 (wipe candidates only)
+
+The owner approved v1.2 and asked for a different wipe sound: three tonal candidates were added (`launch-wipe-a`, `-b`, `-c`, section 2.3b). Nothing else changed: every v1.2 file renders byte for byte as before (each recipe now has its own seed, so adding recipes can no longer move another sound), and `launch-wipe.wav` is untouched until one is chosen.
 
 ## v1.2 changes (second review: 8/10, a pass; recipe tweaks)
 
@@ -134,6 +138,20 @@ Why the resolve is at 1520 ms and not 1720 ms: the cubic-bezier(.2,.7,.2,1) ease
 ### 2.2 launch-wipe (560 ms)
 
 Band-passed noise sweeping 650 Hz to 3.8 kHz with a bell envelope that peaks at 55 % (the wipe easing is slow-fast-slow), plus a very quiet sine climbing A4 to D6. Air, not a swoosh: it tops out around 4 kHz, so there is no sibilance. Plays when `l-wiping` is added (about 2000 ms normally, later on a held launch). Not played in reduced motion.
+
+### 2.3b Wipe candidates (v1.3): tonal alternatives to the noise wipe
+
+The owner liked everything except the air in `launch-wipe`. Three tonal candidates are rendered next to it (`launch-wipe-a/-b/-c.wav`; `launch-wipe.wav` itself is untouched, and so is every other file: all ten shipped files are byte-identical to `app/tv/sounds/`, because every recipe now has its own noise seed). Time 0 is the moment `l-wiping` is added: the slab sweeps 0 to 480 ms (slow, fast, slow), Home starts to fade in at 220 ms, the chord's echoes are over. All three contain no noise, all are 600 ms, all are 2 LU quieter than the current wipe (M-max -36 against -34), and all are silent for the first 50 to 240 ms. Audition them in `preview.html` section 3 (the "Wipe sound" buttons play the chosen one with the real animation).
+
+| File | Idea | Notes and timing | Peak | M-max | Centroid |
+|---|---|---|---|---|---|
+| `launch-wipe-a.wav` | **Arrival.** The settled fifth lands as Home appears. | D5 and A5 struck together at 235 / 245 ms (the "select" interval, here as a chord), 12 ms attack, 150 ms decay, one darker echo at +200 ms (28 %, lowpassed at 3 kHz) that replaces the dry note. Silent until 235 ms, so the logo is still alone on the slab's way across. Resolves the launch; adds no new idea. | -23.7 | -36.0 | 768 Hz |
+| `launch-wipe-b.wav` | **The glide.** One soft tone follows the slab. | A sine with a few weak partials rises D5 to A5 on a smoothstep over 40 to 440 ms (the same slow-fast-slow as the slab), under a loudness bell that peaks at the slab's middle (about 240 ms), then one struck A5 at 420 ms as the slab leaves. No echo (the slab is the afterimage). The most "motion" of the three, but it is a glide through notes outside the key while it moves (a glissando, not a melody). | -29.7 | -36.0 | 785 Hz |
+| `launch-wipe-c.wav` | **The answer.** The chord's open ninth resolves. | The launch chord ends on E6 over D F# A, a ninth that wants to go home. A ghost of E6 at 100 ms (quiet, 70 ms decay) steps down to D6 at 235 ms as Home appears, with D5 an octave under it at 240 ms; one darker echo at +200 ms (25 %). Tension, then rest, in three notes. | -22.3 | -36.0 | 889 Hz |
+
+Measured: first and last samples 0, no clicks (attacks 10 to 180 ms), nothing below 150 Hz, 99 to 100 % of the energy between 500 Hz and 2 kHz, nothing above 6 kHz (the current wipe has 45 % between 2 and 6 kHz).
+
+**Recommendation: A.** It is the smallest idea that works: the launch ends, Home arrives, and the sound is the same fifth that means "forward" everywhere else in the app, so the wipe teaches nothing new and cannot be misheard. C is the better music (a real resolution) but its two notes in 135 ms read as a small motif that will be noticed on the fiftieth launch; B follows the animation most literally but a glide is the most "effect-like" of the three and the one most likely to read as a whoosh with a pitch. Pick one, then replace `launch-wipe.wav` with it (rename, or point `sfx.play('launch-wipe')` at it); `sfx.js` does not know the candidates, the preview plays them directly.
 
 ### 2.3 launch-brief (1000 ms)
 

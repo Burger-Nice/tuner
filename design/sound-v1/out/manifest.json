@@ -170,6 +170,42 @@
       "prio": 6,
       "cooldownMs": 3000,
       "note": "with the action chip, from native code; never in the first 10 s after a tune; once per chip; only if Sounds is not Off"
+    },
+    "launch-wipe-a": {
+      "file": "launch-wipe-a.wav",
+      "durationMs": 600,
+      "sampleRate": 48000,
+      "bits": 16,
+      "channels": 1,
+      "peakDbfs": -23.7,
+      "momentaryLufs": -36,
+      "cls": "hero",
+      "prio": 4,
+      "note": "candidate wipe sound A (arrival); replaces launch-wipe if chosen"
+    },
+    "launch-wipe-b": {
+      "file": "launch-wipe-b.wav",
+      "durationMs": 600,
+      "sampleRate": 48000,
+      "bits": 16,
+      "channels": 1,
+      "peakDbfs": -29.7,
+      "momentaryLufs": -36,
+      "cls": "hero",
+      "prio": 4,
+      "note": "candidate wipe sound B (glide); replaces launch-wipe if chosen"
+    },
+    "launch-wipe-c": {
+      "file": "launch-wipe-c.wav",
+      "durationMs": 600,
+      "sampleRate": 48000,
+      "bits": 16,
+      "channels": 1,
+      "peakDbfs": -22.3,
+      "momentaryLufs": -36,
+      "cls": "hero",
+      "prio": 4,
+      "note": "candidate wipe sound C (resolution E6 to D6); replaces launch-wipe if chosen"
     }
   }
 }

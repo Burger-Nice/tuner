@@ -134,7 +134,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;p
 <body>
 <div class="wrap">
   <h1>airglow sounds</h1>
-  <p class="lead">Thirteen procedurally generated sounds (v1.1) (<code>node synth.js</code>), 48 kHz, 16-bit, mono. Nothing here is a sample. Audition them against a programme bed, because their whole job is to sit <em>under</em> it.</p>
+  <p class="lead">Sixteen procedurally generated sounds (v1.2, plus three candidate wipe sounds) (<code>node synth.js</code>), 48 kHz, 16-bit, mono. Nothing here is a sample. Audition them against a programme bed, because their whole job is to sit <em>under</em> it.</p>
 
   <h2>1. Set up the room</h2>
   <div class="panel">
@@ -168,6 +168,8 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;p
     <button id="runS">Without sound</button>
     <button id="runHold">Held: Home not ready until 4.5 s</button>
     <button id="runRM">Reduced motion</button>
+  </div>
+  <div class="row" style="margin-top:8px"><span class="cap">Wipe sound:</span><button class="wp" data-w="launch-wipe" aria-pressed="true">Current (air)</button><button class="wp" data-w="launch-wipe-a" aria-pressed="false">A arrival</button><button class="wp" data-w="launch-wipe-b" aria-pressed="false">B glide</button><button class="wp" data-w="launch-wipe-c" aria-pressed="false">C answer</button>
   </div>
   <p class="cap" style="margin-top:12px">Reading the timeline: pink ticks are sound events. The default launch is two gestures plus a quiet bridge: the staircase D5 F#5 A5 with the bands (then two quieter echoes of it, each a group of three, to 0.92 s), a soft swell under the wedge (0.6 to 1.45 s), and the resolve chord when the lockup is whole at about 1.5 s; the wipe is a separate sound at 2.0 s. The long version has the swell at full level and adds a breath under the letters (0.86 to 1.66 s). Reduced motion plays only the chord, together with the 120 ms fade. The held case plays the same launch sound, which simply ends in silence, and the wipe sound only when the wipe actually starts.</p>
 
@@ -324,6 +326,9 @@ const WHEN = {
   launch: ['Launch', 'The signature: three stepped notes with the three bands (then two quieter echoes of them), a soft swell under the wedge, and one resolving chord when the lockup is whole. Cold start only.'],
   'launch-full': ['Launch, long (option)', 'The swell at full level plus a breath under the letters.'],
   'launch-wipe': ['Launch wipe', 'Soft air that follows the 8 degree slab. Plays when the wipe starts (even if the launch was held).'],
+  'launch-wipe-a': ['Wipe candidate A: arrival', 'No air: the settled fifth D5 + A5 lands as Home appears (about 240 ms), one darker echo. Resolves the launch chord; adds no new idea.'],
+  'launch-wipe-b': ['Wipe candidate B: glide', 'One soft tone rises D5 to A5 on the slab\'s own slow-fast-slow curve, loudest as the slab crosses the middle, lands with one A5 pluck as it leaves.'],
+  'launch-wipe-c': ['Wipe candidate C: the answer', 'The launch chord ends on an open ninth (E6). It steps down to D6 as Home appears, with D5 under it: tension to rest.'],
   'launch-brief': ['Launch, reduced motion', 'Only the resolving chord, for the reduced-motion launch. Plays together with the 120 ms fade.'],
   focus: ['Focus move', 'A fingertip on glass. The most frequent sound: nearly subliminal. Only on a key press that moved focus. Played at 1.1225 (B5) for up and 0.8409 (F#5) for down: both stay in the key.'],
   select: ['Select (OK)', 'A rising fifth, D to A. Forward. Not for keyboard letters, toggles or things that open a layer.'],
@@ -335,11 +340,18 @@ const WHEN = {
   bump: ['Edge bump (optional)', 'Soft dull knock: "can\'t go further". Off by default. Never on a held key.'],
   alert: ['Your team is live', 'The launch staircase an octave up (D6 F#6 A6, E7 on top) in the Sharp dialect: tighter and brighter, so it clears commentary and crowd. The only sound allowed over programme audio.'],
 };
-const ORDER = ['launch','launch-full','launch-wipe','launch-brief','focus','select','back','open','close','toggle-on','toggle-off','bump','alert'];
+const ORDER = ['launch','launch-full','launch-wipe','launch-wipe-a','launch-wipe-b','launch-wipe-c','launch-brief','focus','select','back','open','close','toggle-on','toggle-off','bump','alert'];
 
 // ---- waveforms from the embedded WAVs
 function pcm(name){const bin=atob(B[name]),n=(bin.length-44)>>1,x=new Float32Array(n);for(let i=0;i<n;i++){let v=bin.charCodeAt(44+2*i)|(bin.charCodeAt(45+2*i)<<8);if(v>32767)v-=65536;x[i]=v/32768;}return x;}
 function draw(cv,x){const dpr=devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=w*dpr;cv.height=h*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);c.fillStyle='#F95BAC';const step=x.length/w;for(let i=0;i<w;i++){let mx=0;for(let j=Math.floor(i*step);j<Math.floor((i+1)*step)&&j<x.length;j++)mx=Math.max(mx,Math.abs(x[j]));const a=Math.min(1,Math.sqrt(mx)*1.15)*h/2;c.fillRect(i,h/2-a,1,Math.max(1,2*a));}}
+// the candidate wipe sounds are not in sfx.js's table (that file ships the current set): play them straight through a small context of their own
+let xctx=null;const xbuf={};
+async function extraPlay(n){xctx=xctx||new (window.AudioContext||window.webkitAudioContext)();if(xctx.state!=='running')await xctx.resume();
+ xbuf[n]=xbuf[n]||await xctx.decodeAudioData(Uint8Array.from(atob(B[n]),c=>c.charCodeAt(0)).buffer);
+ const s=xctx.createBufferSource(),g=xctx.createGain();s.buffer=xbuf[n];g.gain.value=lvl();s.connect(g);g.connect(xctx.destination);s.start();}
+const lvl=()=>({on:1,quiet:.5,off:0})[curLevel];let curLevel='on';
+const playAny=(n,o)=>/^launch-wipe-[abc]$/.test(n)?extraPlay(n):sfx.play(n,o);
 const cards=$('#cards');
 for(const n of ORDER){const m=M[n],[t,d]=WHEN[n];const el=document.createElement('div');el.className='card';
  el.innerHTML=`<div class="top"><h3>${t}</h3><span class="tag">${m.cls}</span></div><canvas></canvas><p>${d}</p><div class="num">${n}.wav &middot; ${m.durationMs} ms &middot; peak ${m.peakDbfs} dBFS &middot; M ${m.momentaryLufs} LUFS</div><div class="row"><button class="pri" data-p="${n}">Play</button>${n==='focus'?'<button data-p="focus" data-r="1.059">Up</button><button data-p="focus" data-r="0.944">Down</button><button data-p="focus" data-x="8">x8 (mashing)</button>':''}</div>`;
@@ -347,7 +359,7 @@ for(const n of ORDER){const m=M[n],[t,d]=WHEN[n];const el=document.createElement
 requestAnimationFrame(()=>{cards.querySelectorAll('.card').forEach((el,i)=>draw($('canvas',el),pcm(ORDER[i])));});
 cards.addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;const n=b.dataset.p,r=+b.dataset.r||1;
  if(b.dataset.x){let k=0;const t=setInterval(()=>{sfx.play('focus',{rate:1,cd:0});if(++k>=+b.dataset.x)clearInterval(t);},70);return;}
- sfx.play(n,{rate:r,cd:0});});
+ playAny(n,{rate:r,cd:0});});
 
 // ---- the programme bed: speech-shaped noise with a syllable rhythm, normalised to a target LUFS (BS.1770 K-weighting)
 let bedNode=null,bedGain=null,bedBuf=null;
@@ -364,7 +376,7 @@ function bedOn(on){ if(on&&!bedNode){const c=new (window.AudioContext||window.we
  $('#bed').setAttribute('aria-pressed',on);$('#bed').textContent='Programme bed: '+(on?'on':'off');}
 $('#bed').onclick=()=>bedOn(!bedNode);
 $('#bedlvl').oninput=e=>{$('#bedv').textContent=e.target.value+' LUFS';if(bedGain)bedGain.gain.value=Math.pow(10,(+e.target.value+23)/20);};
-const lv=(m)=>{sfx.mode(m);[['on','#lvlon'],['quiet','#lvlq'],['off','#lvloff']].forEach(([k,s])=>$(s).setAttribute('aria-pressed',k===m));};
+const lv=(m)=>{curLevel=m;sfx.mode(m);[['on','#lvlon'],['quiet','#lvlq'],['off','#lvloff']].forEach(([k,s])=>$(s).setAttribute('aria-pressed',k===m));};
 $('#lvlon').onclick=()=>lv('on');$('#lvlq').onclick=()=>lv('quiet');$('#lvloff').onclick=()=>lv('off');
 
 // ---- the launch demo
@@ -372,7 +384,8 @@ const app=$('#app'),demo=$('#demo');
 function fit(){app.style.transform='scale('+demo.clientWidth/960+')';}fit();addEventListener('resize',fit);
 const TL=[[100,'bands 100 / 190 / 280',1],[700,'wedge settles',0],[1520,'chord',1],[1720,'lockup whole',0],[2500,'end',0],[420,'two echoes of it',1,'b'],[880,'letters begin',0,'b'],[2000,'wipe',1,'b']];
 const tl=$('#tl');tl.innerHTML='<div class="bar"></div><div class="ph" id="ph"></div>'+TL.map(([t,l,s,b])=>`<div class="m ${s?'snd':''} ${b?'b':''}" style="left:${t/2600*100}%">${l}</div>`).join('');
-let timers=[],raf=0;
+let timers=[],raf=0,wipeSel='launch-wipe';
+document.querySelectorAll('.wp').forEach(b=>b.onclick=()=>{wipeSel=b.dataset.w;document.querySelectorAll('.wp').forEach(x=>x.setAttribute('aria-pressed',x===b));});
 function stop(){timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);app.className='';}
 function playhead(t0,len){const ph=$('#ph');const f=()=>{const t=performance.now()-t0;ph.style.left=Math.min(100,t/len*100)+'%';if(t<len)raf=requestAnimationFrame(f);};raf=requestAnimationFrame(f);}
 function runLaunch({sound=true,readyAt=0,rm=false,full=false}={}){
@@ -382,7 +395,7 @@ function runLaunch({sound=true,readyAt=0,rm=false,full=false}={}){
     const t0=performance.now();playhead(t0,2700);
     if(rm){app.classList.add('l-rm');timers.push(setTimeout(()=>{if(sound)sfx.play('launch-brief',{cd:0});app.classList.add('l-fading');timers.push(setTimeout(()=>{app.className='';},120));},T_HOLD));return;}
     app.classList.add('l-run');if(sound)sfx.launch(t0,full?'launch-full':'launch');
-    const finish=()=>{app.classList.remove('l-loading','l-slow');app.classList.add('l-wiping');if(sound)sfx.play('launch-wipe',{cd:0});timers.push(setTimeout(()=>{app.className='';},600));};
+    const finish=()=>{app.classList.remove('l-loading','l-slow');app.classList.add('l-wiping');if(sound)playAny(wipeSel,{cd:0});timers.push(setTimeout(()=>{app.className='';},600));};
     timers.push(setTimeout(()=>{if(readyAt<=T_HOLD){finish();return;}app.classList.add('l-loading');timers.push(setTimeout(finish,readyAt-T_HOLD));},T_HOLD));
   }));
 }
