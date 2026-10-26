@@ -72,10 +72,11 @@ Hard colour rules, with reasons:
 | Title | Outfit 700 or Inter 650 | 22 / 28 |
 | Body | Inter Variable 500 | 16 / 24 |
 | Label (caps, +0.08em) | Inter 650 | 14 / 18 |
-| **Caption: the floor, nothing smaller** | Inter 500, tabular | 13 / 16 |
+| **Caption: the floor for informational text** (v5.4: 14) | Inter 500, tabular | 14 / 18 |
+| Badge (LIVE, 4K, HD, language tag: caps, 4 letters or fewer) | Inter 700, +0.12em | 12 / 12 |
 | Score (Sharp only) | Barlow Condensed 800 italic, tabular | 56 / 52 |
 
-Numerals in the guide, clocks, scores and durations are tabular. Fonts are bundled (99 KB, OFL, `fonts.css`). Do not add a font. Reasons: reading distance is ~3 m; 13 px at 960 wide is 26 px on the 1080p panel, which is the practical floor; one text face keeps tables aligned.
+Numerals in the guide, clocks, scores and durations are tabular. Fonts are bundled (99 KB, OFL, `fonts.css`). Do not add a font. Reasons: reading distance is ~3 m; 14 px at 960 wide is 28 px on the 1080p panel, which is the practical floor; one text face keeps tables aligned.
 
 ### 2.4 Surfaces, shape, spacing, safe area
 
@@ -122,7 +123,8 @@ All specimens are in `components.png` (source `components.html`, built by `tools
 | **Chip** | 32 px, pill, surface-2 fill, `text-2`, Inter 650 14. Selected: surface-3, pink dot, `pink-text`, bold. |
 | **Tab** | 40 px, text-3; selected chalk + 3 px gradient underline inset 16 px. |
 | **LIVE badge** | `.a-live`: 22 px, 2 px red outline pill, 7 px red dot, word LIVE in `live-text`, 16% red tint fill. One per row or card. |
-| **Poster card (16:9)** | radius 16, 1 px border, art fills, title Inter 650 15 over a bottom scrim, meta 13 `text-2`, 4 px progress bar flush to the bottom edge (gradient on surface-2 track). Focus: ring + scale 1.05. |
+| **Poster card, portrait 2:3** | 132 × 198 (or 129 × 194 in a six-column grid), radius 12 (`--a-radius-poster`), 1 px border, badge chip top-left on a 78% scrim, resume bar flush at the bottom, title Inter 650 15 + meta 14 **below** the art. Focus: ring + scale 1.05. |
+| **Poster card (16:9)** | radius 16, 1 px border, art fills, title Inter 650 15 over a bottom scrim, meta 14 `text-2`, 4 px progress bar flush to the bottom edge (gradient on surface-2 track). Focus: ring + scale 1.05. |
 | **Progress bar** | 4 to 6 px, radius 2, gradient fill, `surface-2` track. Pink to orchid only; violet never. |
 | **Channel row** | 56 px, surface-1, 1 px border, radius 8; number (tabular, `text-3`) · logo tile 40 · title Inter 650 15 + sub 13 `text-3` · now-playing bar 90 px. Selected = surface-2, border off. Never skewed, even when LIVE. |
 | **Input field** | 48 px, radius 12, surface-1, 2 px `border-strong`, placeholder `text-3`, value `text-1`. Focus = ring. Error as in 2.5. |
@@ -144,11 +146,11 @@ Values are dp = CSS px at 2× on a 960 × 540 dp screen. Sheet in `components.pn
 | Part | Spec |
 |---|---|
 | Window / background | bg-0 `#15131D` |
-| OSD banner | top, 24 dp from the safe edge, 64 dp high, bg-1 at 92%, radius 14; channel tile 44; title Inter 650 16/20; meta 13/16 `text-2`; LIVE pill at the right; 4 dp gradient progress; auto-hide 4 s |
-| Hint bar | bottom, 34 dp, scrim 72%; key caps surface-2 + chalk 13/16; labels 13/16 `text-2` (OK Pause · ◀ ▶ Seek · ▲ ▼ Channels · MENU Options) |
-| Options dialog and lists (Android / Media3) | bg-1, radius 24 dp, title Outfit 700 22/28, rows 48 dp Inter 16/24, secondary 13 `text-3`; focused row = surface-3 + 3 dp white ring (2 dp canvas gap); radio, check and seek tint = pink `#F95BAC` |
+| OSD banner | top, 24 dp from the safe edge, 64 dp high, bg-1 at 92%, radius 14; channel tile 44; title Inter 650 16/20; meta 14/18 `text-2`; LIVE pill at the right; 4 dp gradient progress; auto-hide 4 s |
+| Hint bar | bottom, 34 dp, scrim 72%; key caps surface-2 + chalk 14/16; labels 14/18 `text-2` (OK Pause · ◀ ▶ Seek · ▲ ▼ Channels · MENU Options) |
+| Options dialog and lists (Android / Media3) | bg-1, radius 24 dp, title Outfit 700 22/28, rows 48 dp Inter 16/24, secondary 14 `text-3`; focused row = surface-3 + 3 dp white ring (2 dp canvas gap); radio, check and seek tint = pink `#F95BAC` |
 | Subtitles | chalk `#F3EFE6`, Inter 600, 5.3% of screen height (about 28 dp), black 1.5 dp edge, no box, bottom inset 10% |
-| Stats side panel | right, 250 dp, bg-1 at 94%, 13/18 tabular; labels `text-2`, values chalk; opened from Options, never over the OSD |
+| Stats side panel | right, 260 dp, bg-1 at 94%, 14/18 tabular; labels `text-2`, values chalk; opened from Options, never over the OSD |
 | Seek bar / spinner | pink (gradient where the view allows), thumb chalk; spinner is a pink arc |
 
 The WebView UI and the native player must feel like one app: same surfaces, same focus ring, same pink selection tint.
@@ -173,7 +175,7 @@ Do
 - Put exactly one primary action on a screen. (Focus and decisions stay obvious.)
 - Make focus unmistakable at 3 m: ring first, scale second. (The ring is 18.9:1; scale alone gets lost.)
 - Show state with shape + text, never colour alone. (Colour-blind safety and weak panels.)
-- Keep text at 13 px or above and body at 16. (Distance reading.)
+- Keep informational text at 14 px or above and body at 16 (badges 12). (Distance reading.)
 - Give LIVE a consistent anatomy everywhere (outline pill, dot, word). (One meaning for red.)
 - Use real content in mocks: long titles, missing artwork, 20-channel lists. (The brand holds up on bad data, not just on hero art.)
 - Test every screen at 960 × 540 first, then check at 1920 × 1080 for fidelity.
@@ -232,4 +234,4 @@ If the best design needs something the brand forbids, say so and argue it: the c
 - **Brand checks:** send work in progress mid-way and before final. A check returns: a verdict (on brand / needs changes), the specific rule each issue breaks (with a token or section), and a fix. It does not judge layout choices or navigation.
 - **Deliver for a check:** PNGs at 1920 × 1080 (and the HTML if built from the tokens), the screen list, and any component you invented with its states (default, focused, selected, disabled, error).
 - **Requesting a new token or an exception:** state the need, the screen, the alternative you tried inside the rules, and the contrast numbers if it is a colour. Do not ship a one-off hex.
-- **Checklist before you send:** one primary per screen · exactly one focus ring · selected differs from focused · red only on LIVE · no amber, yellow or violet UI · no glow, blur or soft shadow · only 12° / 8° angles, never on text · text >= 13 px, body 16 · chalk text on surfaces, ink text on the gradient · lockup file matches the surface and size · mark and lockup not on the same screen · every screen works with the d-pad only.
+- **Checklist before you send:** one primary per screen · exactly one focus ring · selected differs from focused · red only on LIVE · no amber, yellow or violet UI · no glow, blur or soft shadow · only 12° / 8° angles, never on text · text >= 14 px (badges 12), body 16 · chalk text on surfaces, ink text on the gradient · lockup file matches the surface and size · mark and lockup not on the same screen · every screen works with the d-pad only.

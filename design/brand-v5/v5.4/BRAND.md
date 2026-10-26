@@ -6,6 +6,15 @@ Scope: branding and component language. Screen layout is not designed here (UI p
 
 Everything is generated from `tools/palette.js` and checked by `tools/contrast.js` (**0 failures**). `tokens.css` is the source of truth for code. Nothing is trademark-cleared (personal app); known overlaps are in section 13.
 
+## v5.4 sign-offs (UI phase)
+
+1. **Informational text floor: 14 px (yes).** At 960 × 540 CSS px, 14 px is 28 px on the panel, which reads from 3 m on a weak panel and matches the platform guidance (tvOS default 29 pt). The `--a-size-caption` token is now 14/18. The only exception is a **badge** (LIVE, 4K, HD, TV-MA, a language tag: caps, 650/700, five characters or fewer), which is 12 px (`--a-size-badge`). Native text follows: hint bar 14, stats panel 14/18 at 260 dp.
+2. **Portrait 2:3 poster card (yes, with a modification).** 132 × 198 CSS px (six across with 18 px gutters at 864 wide is 129 × 194; both are fine), radius **12** (`--a-radius-poster`; 16 is for 16:9 cards, a 16 px corner on a 129 px card eats too much of the art), 1 px border, the provider's art fills it, a badge chip top-left on a 78% scrim, resume bar flush at the bottom, title Inter 650 15 and meta 14 **below** the art (never over a poster, since portrait art carries its own title). Focus is the ring + scale 1.05, the same as the 16:9 card. Specimen in `components.png`.
+3. **Inset focus ring in dense grids (yes, as an allowed variant).** `--a-focus-ring-inset`: a 3 px white line drawn inside the cell over `surface-3`, no scale. Only where neighbours are 8 px apart or less (guide cells). It is still one white solid line, 8.4:1 against surface-3, and an outer ring would sit on the neighbours. Everywhere else the outer ring applies.
+4. **Compact LIVE pill (yes, restricted).** 19 px high, 12 px text, 1.5 px outline (`--a-live-compact-h`), only inside guide cells and the top-bar NBA tab. Everywhere else the pill is 22 px / 2 px.
+5. **Poster radius 12 (yes)** is `--a-radius-poster`, used for 2:3 cards. 16:9 and game cards stay 16.
+6. **Team colours (modified).** Real team logos are third-party marks (like channel logos): allowed in colour, on a neutral `surface-2` tile or disc. **Placeholder discs are neutral** (`surface-3` + chalk abbreviation), never a team colour: red and orange team colours collide with LIVE (PHX orange is dE 7 from the LIVE red, HOU/MIA/CLE are crimson) and white text on several of them is under 4.5:1 (PHX 3.5, MEM 4.5).
+
 ## v5.4 final fixes (reviewer-approved 7.5/10; UI phase starts)
 
 - **i-dot:** the wedge i-dot is used only at 40 px high and up (`lockup.svg`, `lockup-chalk.svg`). Below 40 px, and on the banner, use the round-dot files (`lockup-compact.svg`, `lockup-chalk-compact.svg`).
@@ -134,7 +143,8 @@ Full pair-by-pair table: `node tools/contrast.js` (text on all five surfaces, no
 | Title | Outfit 700 or Inter 650 | 22 / 28 |
 | Body | Inter Variable 500 | 16 / 24 |
 | Label (caps, +0.08em) | Inter 650 | 14 / 18 |
-| Caption — the floor on TV | Inter 500 | 13 / 16 |
+| Caption — the floor for informational text on TV (v5.4: 14, was 13) | Inter 500 | 14 / 18 |
+| Badge (LIVE, 4K, HD, language tag: caps, five characters or fewer) | Inter 700, +0.12em | 12 / 12 |
 | Score (Sharp only) | Barlow Condensed 800 italic | 56 / 52 |
 
 Numerals in guides and rows are tabular. Fonts are Latin-subset woff2, 99 KB in total, bundled locally (OFL licences in `fonts/`). Desktop override: `:root.desktop` in `tokens.css`.
@@ -186,11 +196,11 @@ The owner watches in the native Android/Media3 player, which was unbranded. Valu
 | Part | Spec |
 |---|---|
 | Window / background | bg-0 `#15131D`, same as splash |
-| OSD banner | top, 24 dp from the safe edge, 64 dp high, bg-1 at 92%, radius 14; channel tile 44; title Inter 650 16/20; meta 13/16 text-2; LIVE pill right; gradient progress 4 dp; auto-hide 4 s |
-| Hint bar | bottom, 34 dp, scrim 72%; key caps surface-2 + chalk 13/16; labels 13/16 text-2 |
-| Options dialog and lists | bg-1, radius 24 dp, title Outfit 700 22/28, rows 48 dp Inter 16/24, secondary 13 text-3; focused row = surface-3 + 3 dp white ring (2 dp canvas gap); radio, check and seek tint = pink `#F95BAC`. (22 is the title size, not the row size.) |
+| OSD banner | top, 24 dp from the safe edge, 64 dp high, bg-1 at 92%, radius 14; channel tile 44; title Inter 650 16/20; meta 14/18 text-2; LIVE pill right; gradient progress 4 dp; auto-hide 4 s |
+| Hint bar | bottom, 34 dp, scrim 72%; key caps surface-2 + chalk 14/16; labels 14/18 text-2 |
+| Options dialog and lists | bg-1, radius 24 dp, title Outfit 700 22/28, rows 48 dp Inter 16/24, secondary 14 text-3; focused row = surface-3 + 3 dp white ring (2 dp canvas gap); radio, check and seek tint = pink `#F95BAC`. (22 is the title size, not the row size.) |
 | Subtitles | chalk `#F3EFE6`, Inter 600 at 5.3% of screen height (about 28 dp), black 1.5 dp edge, no box, bottom inset 10% |
-| Stats side panel | right, 250 dp, bg-1 at 94%, 13/18 tabular; labels text-2, values chalk; opened from Options, not over the OSD |
+| Stats side panel | right, 260 dp, bg-1 at 94%, 14/18 tabular; labels text-2, values chalk; opened from Options, not over the OSD |
 | Seek bar / spinner | pink (gradient where the view allows), thumb chalk; spinner is a pink arc |
 
 ## 11. Rules at a glance
@@ -201,7 +211,7 @@ The owner watches in the native Android/Media3 player, which was unbranded. Valu
 4. Mark and lockup never on one screen.
 5. Plates slant 12° (live) and edges 8° (soft); never words, except scores and short live titles.
 6. Selected is not focused. Exactly one ring per screen.
-7. Nothing under 13 px on TV; no blur in CSS; text-4 is for disabled only.
+7. Nothing under 14 px on TV (only badges may be 12); no blur in CSS; text-4 is for disabled only.
 
 ## 12. v5.1 history (kept for reference)
 

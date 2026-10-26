@@ -37,17 +37,20 @@
     mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
     film: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M3 15h18"/>',
     tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    eyeOff: '<path d="M3 3l18 18M10.6 5.2A9.8 9.8 0 0 1 12 5c5 0 8.5 4.2 9.5 7a13 13 0 0 1-2.4 3.7M6.4 6.6A13 13 0 0 0 2.5 12c1 2.8 4.5 7 9.5 7a9.6 9.6 0 0 0 4-.9M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+    pin: '<path d="M9 3h6l-1 6 3.5 3.5h-11L10 9zM12 16v5"/>',
     refresh: '<path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5"/>',
   };
   const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
   const img = (f, cls = '', h) => `<img src="${BR}assets/${f}" class="${cls}"${h ? ` height="${h}"` : ''} alt="">`;
   const f = (on, kind = 'f') => (on ? ` ${kind}` : '');
 
-  const TABS = [['home', 'Home'], ['live', 'Live'], ['nba', 'NBA'], ['movies', 'Movies'], ['series', 'Series'], ['saved', 'Saved']];
+  const TABS = [['home', 'Home'], ['live', 'Live'], ['nba', 'NBA'], ['movies', 'Movies'], ['series', 'Series']];
   function topbar({ sel = 'home', focus = '', live = true } = {}) {
+    const srch = `<span class="tab srch${sel === 'search' ? ' sel' : ''}${focus === 'tab:search' ? ' f-ring' : ''}">${ic('search')}Search</span>`;
     const tabs = TABS.map(([k, l]) => `<span class="tab${k === sel ? ' sel' : ''}${focus === 'tab:' + k ? ' f-ring' : ''}">${l}${k === 'nba' && live ? '<span class="a-live">Live</span>' : ''}</span>`).join('');
-    return `<div class="topbar">${img('mark.svg', 'mk')}<div class="tabs">${tabs}</div>
-      <div class="tb-r"><span class="ibtn${f(focus === 'search', 'f-ring')}">${ic('search')}</span><span class="avatar${f(focus === 'account', 'f-ring')}" style="box-sizing:content-box">B</span></div></div>`;
+    return `<div class="topbar">${img('mark.svg', 'mk')}<div class="tabs">${srch}${tabs}</div>
+      <div class="tb-r"><span class="avatar${f(focus === 'account', 'f-ring')}" style="box-sizing:content-box">B</span></div></div>`;
   }
 
   const tag = (t, c = '') => `<span class="tag ${c}">${t}</span>`;
@@ -74,22 +77,23 @@
   function liveCard(ch, { focus = false } = {}) {
     const n = ch.now, pg = Math.max(0, Math.min(100, ((Kit_NOW() - n.s) / (n.e - n.s)) * 100));
     return `<div class="lc${focus ? ' f' : ''}"><div class="tp"><span class="logo sm">${ch.ini}</span>${n.live ? liveP() : ''}<span class="n">${ch.n}</span></div>
-      <div class="bt"><b>${n.t}</b><span>${ch.name}${dot}${ch.q}</span></div><div class="prog flush"><i style="width:${pg}%"></i></div></div>`;
+      <div class="bt"><b>${n.t}</b><div class="sb">${ch.name}${dot}${ch.q}</div></div><div class="prog flush"><i style="width:${pg}%"></i></div></div>`;
   }
   const Kit_NOW = () => Mock.NOW.mins / 60;
   const team = (abbr, size = '') => { const t = Mock.TEAMS[abbr]; return `<span class="team ${size}" style="background:${t.c}">${abbr}</span>`; };
 
   /* Game card: upright Soft card, Sharp skewed score plate inside. state: in | post | pre. */
-  function gameCard(gm, { focus = false } = {}) {
+  function gameCard(gm, { focus = false, shield = false } = {}) {
     const A = Mock.TEAMS[gm.away], H = Mock.TEAMS[gm.home];
     let st = '', plate = '';
     if (gm.state === 'in') { st = `${liveP()}<span>Q${gm.q} ${gm.clock}</span>`; }
     else if (gm.state === 'post') { st = `<span>Final${gm.ot ? ' / OT' : ''}</span>`; }
     else { const [hh, mm] = gm.tip.split(':').map(Number); const d = hh * 60 + mm - Mock.NOW.mins; st = `<span>In ${d >= 60 ? Math.floor(d / 60) + 'h ' + String(d % 60).padStart(2, '0') + 'm' : d + ' min'}</span>`; }
     const tv = `<span class="tvn">${gm.tv[0]}</span>`;
-    const awWin = gm.state === 'post' && gm.aw > gm.hw, hwWin = gm.state === 'post' && gm.hw > gm.aw;
+    const awWin = !shield && gm.state === 'post' && gm.aw > gm.hw, hwWin = !shield && gm.state === 'post' && gm.hw > gm.aw;
     if (gm.state === 'pre') plate = `<span class="plate"><span class="x"><span class="score sm">${gm.tip}</span><span class="t-cap">tip-off</span></span></span>`;
     else plate = `<span class="plate"><span class="x"><span class="score md">${gm.aw}</span><span class="score md" style="opacity:${gm.state === 'post' && !awWin ? .7 : 1}">${gm.hw}</span></span></span>`;
+    if (shield && gm.state !== 'pre') { st = gm.state === 'in' ? `${liveP()}<span>Q${gm.q} ${gm.clock}</span>` : '<span>Ended</span>'; plate = `<span class="plate"><span class="x">${ic('eyeOff')}<span class="t-cap">hidden</span></span></span>`; }
     const lose = (w) => (gm.state === 'post' && !w ? ' lose' : '');
     return `<div class="gc${focus ? ' f' : ''}"><div class="st">${st}${tv}</div>
       <div class="tr${lose(awWin)}">${team(gm.away)}<span class="nm">${A.n}</span><span class="rc">${gm.ar}</span></div>
@@ -97,17 +101,17 @@
   }
 
   /* Guide */
-  const WIN = { start: 20.5, hours: 3 };
+  const WIN = { start: 20 + 40 / 60, hours: 2.5 };   // window starts at "now" (floored to 10 min): the left edge of the axis is now
   const pct = (h) => ((h - WIN.start) / WIN.hours) * 100;
   const hm = (h) => { const m = Math.round(h * 60); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
   const NOWH = Mock.NOW.mins / 60;
-  function cell(c, { focus = false, now = false, live = false } = {}) {
+  function cell(c, { focus = false, now = false, live = false, empty = false } = {}) {
     const s = Math.max(c.s, WIN.start), e = Math.min(c.e, WIN.start + WIN.hours);
     const clipL = c.s < WIN.start;
-    const wide = (e - s) >= 0.75;
-    const sub = live ? liveP() : `${clipL ? '◂ ' : ''}${hm(c.s)}${wide ? dot + hm(c.e) : ''}`;
+    const wide = (e - s) >= 0.6;
+    const sub = empty ? '' : live ? liveP() : `${clipL ? '◂ ' : ''}${hm(c.s)}${wide ? dot + hm(c.e) : ''}`;
     const pg = now ? `<div class="prog"><i style="width:${Math.min(100, ((NOWH - c.s) / (c.e - c.s)) * 100)}%"></i></div>` : '';
-    return `<div class="g-cell${now ? ' now' : ''}${focus ? ' f-in' : ''}" style="left:${pct(s)}%;width:calc(${pct(e) - pct(s)}% - 4px)"><b>${c.t}</b><div class="sb">${sub}</div>${pg}</div>`;
+    return `<div class="g-cell${now ? ' now' : ''}${focus ? ' f-in' : ''}${empty ? ' empty' : ''}" style="left:${pct(s)}%;width:calc(${pct(e) - pct(s)}% - 4px)"><b>${c.t}</b><div class="sb">${sub}</div>${pg}</div>`;
   }
   g.Kit = { P, ic, img, BR, topbar, tag, liveP, dot, star, initials, poster, wcard, liveCard, team, gameCard, cell, hm, pct, WIN, NOWH, f };
 })(window);

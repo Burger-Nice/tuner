@@ -40,6 +40,7 @@
   /* ---- focus (d-pad): white ring + 2 px canvas gap, 3 px; plus lift. Never colour alone. ---- */
   --a-focus:       #FFFFFF;
   --a-focus-ring:  0 0 0 2px var(--a-bg-0), 0 0 0 5px var(--a-focus);
+  --a-focus-ring-inset: inset 0 0 0 3px var(--a-focus);   /* dense grids only (guide cells, gaps <= 8 px): 3 px white line INSIDE the cell over surface-3, no scale */
 
   /* ---- grain sprite only (no glow sprites since v5.4: the 3 px focus ring does the work) ---- */
   --a-grain:         url("sprites/grain.png");   /* repeat over large fills at its own 7/255 alpha: kills banding */
@@ -53,11 +54,12 @@
   --a-size-title:   22px; --a-lh-title:   28px;
   --a-size-body:    16px; --a-lh-body:    24px;
   --a-size-label:   14px; --a-lh-label:   18px;   /* caps, +0.08em */
-  --a-size-caption: 13px; --a-lh-caption: 16px;   /* floor: nothing smaller on TV */
+  --a-size-caption: 14px; --a-lh-caption: 18px;   /* floor for informational text on TV (v5.4: was 13). Only badges (LIVE, 4K, HD, TV-MA; caps, 650/700, five characters or fewer) may be 12 */
+  --a-size-badge: 12px; --a-live-compact-h: 19px;   /* compact LIVE pill (19 px high, 1.5 px outline): guide cells and the top-bar NBA tab only */
   --a-size-score:   56px; --a-lh-score:   52px;   /* Sharp: scores only */
 
   /* ---- shape: Soft is round; Sharp skews the PLATE, never the text ---- */
-  --a-radius-sm: 8px; --a-radius: 16px; --a-radius-lg: 24px; --a-radius-pill: 999px;
+  --a-radius-sm: 8px; --a-radius-poster: 12px; --a-radius: 16px; --a-radius-lg: 24px; --a-radius-pill: 999px;
   --a-angle-live: 12deg;   /* ONE live angle: plates, slab, wipes (Sharp dialect) */
   --a-angle-soft: 8deg;    /* ONE soft angle: hero edge, launch wipe */
   --a-skew: calc(-1 * var(--a-angle-live));   /* alias: skewX() value for plates */

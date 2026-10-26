@@ -1,6 +1,6 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="mock-size" content="960x540@2"><title>airglow TV: Live guide</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="mock-size" content="960x540@2"><title>airglow TV</title>
 <link rel="stylesheet" href="../../brand-v5/v5.4/fonts.css"><link rel="stylesheet" href="../../brand-v5/v5.4/tokens.css"><link rel="stylesheet" href="../ui.css">
-<script src="../kit/art.js"></script><script src="../kit/data.js"></script><script src="../kit/kit.js"></script></head>
+<script src="../kit/art.js"></script><script src="../kit/data.js"></script><script src="../kit/kit.js"></script><script src="../kit/movies.js"></script><script src="../kit/home.js"></script></head>
 <body><div class="screen" id="s"></div><script>
 const {ic,liveP,dot,topbar,cell,hm,pct,WIN,NOWH}=Kit, C=Mock.CHANNELS;
 const prog={
@@ -8,32 +8,32 @@ const prog={
  12:[['SportsCenter',20,21],['NFL Live',21,22],['Monday Night Countdown',22,23],['First Take',23,24]],
  33:[['Game Time',20,21],['Press Pass',21,21.5],['Hardwood Classics: Finals G6',21.5,23.5]],
  31:[['Lakers at Suns',20.5,23,1],['Inside the NBA',23,24]],
- 101:[['Panorama',20.5,21],['Silent Witness',21,22],['Newsnight',22,23],['Question Time',23,24]],
- 118:[['Premier League: Live',20,22.25,1],['Final Score',22.25,23],['Match of the Day',23,24]],
+ 204:null,
+ 101:[['Panorama',20.5,21],['Silent Witness',21,22],['Newsnight',22,23]],
 };
-const rows=[C[0],C[1],C[3],C[2],C[4],C[5]];
-function row(ch,i,focusIdx){
-  const cells=prog[ch.n].map(([t,s,e,l],j)=>cell({t,s,e},{focus:i===0&&j===0,now:s<=NOWH&&e>NOWH,live:!!l&&s<=NOWH&&e>NOWH})).join('');
-  return `<div class="g-row"><div class="g-ch${i===0?' sel':''}"><span class="num">${ch.n}</span><span class="logo sm">${ch.ini}</span><div class="nm">${ch.name}</div>${ch.fav?`<span class="fv">${ic('star')}</span>`:''}</div><div class="g-cells">${cells}</div></div>`;
+const rows=[C[0],C[1],C[3],C[2],C[6],C[4]];
+const AX=656, CW=208;
+function row(ch,i){
+  let cells;
+  if(!prog[ch.n]) cells=cell({t:'No guide information',s:WIN.start,e:WIN.start+WIN.hours},{empty:true});
+  else cells=prog[ch.n].map(([t,s,e,l],j)=>cell({t,s,e},{focus:i===0&&j===0,now:s<=NOWH&&e>NOWH,live:!!l&&s<=NOWH&&e>NOWH})).join('');
+  const mark = i===0 ? `<span class="fv" title="Pinned: your team">${ic('pin')}</span>` : (ch.fav?`<span class="fv">${ic('star')}</span>`:'');
+  return `<div class="g-row"><div class="g-ch${i===0?' sel':''}"><span class="num">${ch.n}</span><span class="logo sm">${ch.ini}</span><div class="nm">${ch.name}</div>${mark}</div><div class="g-cells">${cells}</div></div>`;
 }
-const TW=660, CW=204;
-const nowx=CW+TW*pct(NOWH)/100;
-const ticks=[21,21.5,22,22.5,23].map(h=>`<span style="left:${pct(h)}%">${hm(h)}</span>`).join('');
+const ticks=[21,21.5,22].map(h=>`<span style="left:${(h-WIN.start)/WIN.hours*100}%">${hm(h)}</span>`).join('');
 document.getElementById('s').innerHTML=`
 ${topbar({sel:'live',live:true})}
 <div class="g-now">
-  <span class="logo lg">NBA</span>
+  <span class="logo lg" style="width:64px;height:64px;font-size:20px">NBA</span>
   <div class="grow">
-    <div class="row-flex" style="gap:12px"><span class="t-title" style="font-size:22px;line-height:26px">Grizzlies at Warriors</span>${liveP()}</div>
-    <div class="row-flex t-cap" style="gap:0;margin-top:2px;color:var(--a-text-2);font-size:14px;line-height:20px">NBA League Pass 4${dot}19:30${dot}22:00${dot}1h 19m left<span class="prog" style="width:120px;margin-left:14px"><i style="width:63%"></i></span></div>
-    <div class="clamp2" style="font:500 14px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Western Conference opener. Memphis lead by seven after two quarters; Golden State are 0-1.</div>
+    <div class="row-flex" style="gap:12px"><span class="t-title">Grizzlies at Warriors</span>${liveP()}</div>
+    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text)">NBA League Pass 4${dot}US${dot}HD${dot}19:30${dot}22:00${dot}1h 19m left<span class="prog" style="width:110px;margin-left:14px"><i style="width:63%"></i></span></div>
+    <div class="ellipsis" style="font:500 15px/22px var(--a-font-text);color:var(--a-text-2)">Western Conference opener. Pinned because it is your team's game; hold OK for other channels showing it.</div>
   </div>
   <span class="btn">${ic('play','fill')}Watch</span><span class="btn2 icon">${ic('starO')}</span>
 </div>
 <div class="g-grid">
-  <div class="g-ruler"><div class="g-corner"><span class="chip lg">${ic('list')}All channels<span class="t-3" style="font-weight:500">10</span></span></div><div class="g-time" style="margin-left:0">${ticks}</div></div>
-  <div class="g-nowflag" style="left:${nowx-27}px">${hm(NOWH)}</div>
+  <div class="g-ruler"><div class="g-corner"><span class="chip lg">${ic('list')}Favourites first<span class="t-3" style="font-weight:500">10</span></span></div><div class="g-time"><span class="g-nowflag" style="left:0;top:2px">Now</span>${ticks}</div></div>
   ${rows.map(row).join('')}
-  <div class="g-nowline" style="left:${nowx-1}px;height:338px"></div>
 </div>`;
 </script></body></html>
