@@ -1,4 +1,5 @@
-// Search: a 6 x 6 keyboard on the left, results on the right, updated after every letter. After two letters a row of
+// Search: a 6 x 6 keyboard on the left, results on the right, updated after every letter (▶ from the keyboard's right
+// edge goes into them, ◀ from them comes back). After two letters a row of
 // completed titles sits between the field and the keyboard (▲ from the top key row), so most searches end there.
 // Matching is word-prefix only and ignores accents and punctuation ("spiderman" finds Spider-Man).
 import { esc, ic, dot, logo, setHtml, hm, sized } from '../util.js';
@@ -50,7 +51,7 @@ function suggestions() {
   if (q.length < 2 || !res) return '<div style="height:44px"></div>';
   const names = [...new Set([...res.movie, ...res.series].slice(0, 6).map((t) => t.name))].slice(0, 3);
   if (!names.length) return '<div style="height:44px"></div>';
-  return `<div class="sugg" data-row>${names.map((n) => `<span class="chip fx" tabindex="-1" data-sugg="${esc(n)}">${ic('search')}<span class="ellipsis" style="max-width:150px">${esc(n)}</span></span>`).join('')}</div>`;
+  return `<div class="sugg" data-row data-exit>${names.map((n) => `<span class="chip fx" tabindex="-1" data-sugg="${esc(n)}">${ic('search')}<span class="ellipsis" style="max-width:150px">${esc(n)}</span></span>`).join('')}</div>`;
 }
 let behind = false;
 on('player-closed', () => { if (behind) { behind = false; draw(); } });
@@ -61,8 +62,8 @@ function draw() {
   setHtml(el.querySelector('[data-left]'), `
     <div class="sfield"><span class="grow" style="white-space:nowrap;overflow:hidden;padding-left:8px">${q ? `<b>${esc(q.toUpperCase())}</b><i class="caret"></i>` : '<span class="ph">Search everything</span>'}</span></div>
     ${suggestions()}
-    <div class="kb" data-grid data-cols="6">${KEYS.map((k) => `<span class="key fx" tabindex="-1" data-key="${k}">${k}</span>`).join('')}</div>
-    <div class="kbrow" data-row><span class="key wide fx" tabindex="-1" data-key=" ">Space</span><span class="key wide fx" tabindex="-1" data-key="del">Delete</span><span class="key wide fx" tabindex="-1" data-key="clr">Clear</span></div>`);
+    <div class="kb" data-grid data-cols="6" data-exit>${KEYS.map((k) => `<span class="key fx" tabindex="-1" data-key="${k}">${k}</span>`).join('')}</div>
+    <div class="kbrow" data-row data-exit><span class="key wide fx" tabindex="-1" data-key=" ">Space</span><span class="key wide fx" tabindex="-1" data-key="del">Delete</span><span class="key wide fx" tabindex="-1" data-key="clr">Clear</span></div>`);
   setHtml(el.querySelector('[data-right]'), right);
 }
 function type(k) {

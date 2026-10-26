@@ -129,12 +129,12 @@ export function move(dir, { repeat = false } = {}) {
     else if (dir === 'right') next = i % cols < cols - 1 ? items[i + 1] || null : null;
     else if (dir === 'up') { if (i - cols >= 0) next = items[i - cols]; else leave = true; }
     else { if (i + cols < n) next = items[i + cols]; else if (Math.floor(i / cols) < Math.floor((n - 1) / cols)) next = items[n - 1]; else leave = true; }
-    if (!next && !leave) return false;   // sideways edges stop
+    if (!next && !leave) { if (!box.hasAttribute('data-exit')) return false; leave = true; }   // sideways edges stop, unless the grid opts out (data-exit: something sits beside it)
   } else if (box.hasAttribute('data-col')) {
     if (dir === 'up' || dir === 'down') { next = items[i + (dir === 'down' ? 1 : -1)] || null; if (!next) leave = true; }
     else leave = true;
   } else {
-    if (dir === 'left' || dir === 'right') { next = items[i + (dir === 'right' ? 1 : -1)] || null; if (!next) return false; }
+    if (dir === 'left' || dir === 'right') { next = items[i + (dir === 'right' ? 1 : -1)] || null; if (!next) { if (!box.hasAttribute('data-exit')) return false; leave = true; } }
     else { next = box.dataset.row === 'topbar' ? null : otherLine(items, cur, dir); if (!next) leave = true; }
   }
   if (next) return focus(next, { repeat });
