@@ -86,6 +86,27 @@ function neighbour(box, from, dir, root) {
   return best;
 }
 
+// A row whose items wrap onto more lines (the Filters sheet's genres): up/down go to the nearest item on the line
+// above or below before leaving the row.
+function otherLine(items, cur, dir) {
+  const a = rectOf(cur);
+  let best = null, bl = Infinity, bx = Infinity;
+  for (const el of items) {
+    if (el === cur) continue;
+    const b = rectOf(el);
+    const line = dir === 'down' ? b.top - a.bottom : a.top - b.bottom;
+    if (line < -2) continue;   // same line, or the wrong way
+    const dx = Math.abs(cx(b) - cx(a));
+    if (line < bl - 4 || (Math.abs(line - bl) <= 4 && dx < bx)) { bl = line; bx = dx; best = el; }
+  }
+  return best;
+}
+// Slides still running (a grid or rail moving into place) would be measured halfway: finish them first.
+function settle() {
+  if (!document.getAnimations || typeof CSSTransition === 'undefined') return;
+  for (const an of document.getAnimations()) if (an instanceof CSSTransition && an.playState === 'running') an.finish();
+}
+
 // Returns true when focus moved.
 export function move(dir, { repeat = false } = {}) {
   const root = topLayer();
@@ -109,7 +130,7 @@ export function move(dir, { repeat = false } = {}) {
     else leave = true;
   } else {
     if (dir === 'left' || dir === 'right') { next = items[i + (dir === 'right' ? 1 : -1)] || null; if (!next) return false; }
-    else leave = true;
+    else { next = box.dataset.row === 'topbar' ? null : otherLine(items, cur, dir); if (!next) leave = true; }
   }
   if (next) return focus(next, { repeat });
   // Leaving the container. The top bar is special: down from it returns to the screen, up into it only from the screen's top.
@@ -118,6 +139,7 @@ export function move(dir, { repeat = false } = {}) {
     const scr = root.querySelector('[data-screen]:not([hidden])');
     return focus(entryOf(scr));
   }
+  settle();
   const to = neighbour(box, cur, dir, root);
   if (!to) return false;
   if (to.dataset.row === 'topbar' && repeat) return false;

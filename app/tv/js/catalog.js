@@ -18,7 +18,7 @@ export function resetCatalogs() { for (const k in catalog) { catalog[k] = null; 
 const cacheable = () => S.acc && (S.acc.type === 'xtream' || !!S.acc.url);
 // The saved copy keeps what prepare() and the ratings worked out, so the next start skips that work (bump PREP when
 // prepare() changes what it computes).
-const PREP = 2;
+const PREP = 3;
 const KEEP = new Set(['_s', '_ts', '_lang', '_q', '_hdr', '_sub', '_genres', '_hot', '_title', '_key', '_ck', '_cy', '_ir', '_iv', '_pop', '_top']);
 const lean = (c) => ({ at: c.at || Date.now(), pv: c.pv, rated: !!c._rated, cats: c.cats, items: c.items.map((x) => { const o = {}; for (const k in x) if (k[0] !== '_' || KEEP.has(k)) o[k] = x[k]; return o; }) });
 const save = (kind, c) => { if (cacheable()) window.Core.cache.set(cacheKey(kind), lean(c)); };
@@ -203,7 +203,13 @@ async function prepare(kind, c) {
   c._unprepared = !done;
   c.pv = PREP;
   await breathe();   // the saved copy was just read in one go: let the remote through before the next step
-  if (!done) for (let i = 0; i < c.items.length; i++) { const x = c.items[i]; x._s = Titles.norm(x.name); if (i % 5000 === 4999) await breathe(); }
+  if (!done) for (let i = 0; i < c.items.length; i++) {
+    const x = c.items[i];
+    // "##### AT&T RAW #####", "==== SPORTS ====": providers' section separators; keep the words, drop the decoration
+    if (kind === 'live' && /^[#=*~_\-\s]{3,}|[#=*~_\-\s]{3,}$/.test(x.name)) x.name = x.name.replace(/^[#=*~_\-\s]{3,}|[#=*~_\-\s]{3,}$/g, '').trim() || x.name;
+    x._s = Titles.norm(x.name);
+    if (i % 5000 === 4999) await breathe();
+  }
   c.byId = new Map();
   for (let i = 0; i < c.items.length; i++) { c.byId.set(c.items[i].id, c.items[i]); if (i % 20000 === 19999) await breathe(); }
   c.catName = new Map(c.cats.map((x) => [x.id, x.name]));

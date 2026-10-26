@@ -84,7 +84,15 @@ export default function lib(kind) {
     let t = null;
     if (dir === 'left') { if (i % COLS === 0) return false; t = i - 1; }
     else if (dir === 'right') { if (i % COLS === COLS - 1 || i + 1 >= n) return false; t = i + 1; }
-    else if (dir === 'up') { if (i < COLS) { row = 0; drawGrid(); return undefined; } t = i - COLS; }
+    else if (dir === 'up') {
+      if (i < COLS) {
+        // Up from the first row: the view chips (the one in use), then Sort / Filters / Jump above them.
+        row = 0; drawGrid();
+        const chip = el.querySelector('.lib-chips .chip.sel') || el.querySelector('.lib-chips .chip');
+        return chip ? focus(chip) : undefined;
+      }
+      t = i - COLS;
+    }
     else { if (i + COLS < n) t = i + COLS; else if (Math.floor(i / COLS) < Math.floor((n - 1) / COLS)) t = n - 1; else return false; }
     row = Math.floor(t / COLS);
     drawGrid(t);
@@ -216,7 +224,16 @@ export default function lib(kind) {
           { icon: 'info', label: 'Details', run: () => push('detail', { title: t }) },
         ]);
       });
-      root.addEventListener('tvfocus', (e) => { if (!e.target.closest('.lib-grid') && row !== 0) { row = 0; drawGrid(); } });
+      root.addEventListener('tvfocus', (e) => {
+        if (!e.target.closest('.lib-grid') && row !== 0) { row = 0; drawGrid(); }
+        // A long chip row scrolls sideways so the focused chip is always on screen.
+        const strip = e.target.closest('.lib-chips');
+        if (strip) {
+          const c = e.target, l = c.offsetLeft, r = l + c.offsetWidth;
+          if (l < strip.scrollLeft + 8) strip.scrollLeft = Math.max(0, l - 8);
+          else if (r > strip.scrollLeft + strip.clientWidth - 8) strip.scrollLeft = r - strip.clientWidth + 8;
+        }
+      });
       on('session', () => { view = null; list = []; });
       on('catalog', (k) => {
         if (k !== kind) return;
