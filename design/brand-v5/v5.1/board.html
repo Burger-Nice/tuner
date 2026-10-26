@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="tokens.css"><style>
+*{box-sizing:border-box;margin:0}body{background:var(--a-bg-0);color:var(--a-text-1);font:500 13px/18px var(--a-font-text);width:900px;padding:28px 28px 32px}
+h1{font:700 30px/34px var(--a-font-display)}h1 span{font-weight:500;color:var(--a-text-2)}.lead{color:var(--a-text-2);margin:4px 0 18px;max-width:700px}
+h2{font:650 11px/16px var(--a-font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--a-text-3);margin:0 0 8px}
+.row{display:grid;gap:14px;margin-bottom:18px}.card{background:var(--a-bg-1);border:1px solid var(--a-border);border-radius:14px;padding:14px}
+.cap{color:var(--a-text-3);font-size:12px;line-height:16px;margin-top:8px}.fl{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.sw{width:98px}.sw i{display:grid;place-items:center;height:50px;border-radius:10px;border:1px solid rgba(255,255,255,.08);font:700 15px var(--a-font-display);font-style:normal}.sw b{display:block;font:650 12px/16px var(--a-font-text);margin-top:5px}.sw span{display:block;font-size:11px;line-height:14px;color:var(--a-text-3)}
+.crop{overflow:hidden;border-radius:10px;border:1px solid var(--a-border)}.crop img{display:block}
+.thumb{width:84px;height:84px;border-radius:12px;background:var(--a-bg-0);display:grid;place-items:center;border:1px solid var(--a-border)}.thumb img{width:68px;height:68px;object-fit:contain}
+.v{font-size:11px;line-height:14px;color:var(--a-text-3);margin-top:4px;width:84px}.v b{color:var(--a-text-1)}
+.tile{width:84px;height:84px;border-radius:19px;display:grid;place-items:center;font:700 13px var(--a-font-display);color:#fff}
+.mask{width:84px;height:84px;border-radius:50%;overflow:hidden;position:relative}.mask img{position:absolute;inset:0;width:100%;height:100%}
+.rule{display:grid;grid-template-columns:1fr 1fr;gap:14px}.rule li{margin:0 0 4px 16px;color:var(--a-text-2)}.rule b{color:var(--a-text-1)}
+</style></head><body>
+<h1>airglow <span>· Soft · brand v5.1</span></h1>
+<div class="lead">One identity, one dialect. A play triangle that gives off light, in pink to orchid on a violet-ink canvas. Soft is the whole app; Sharp survives only as a dialect for live and NBA (skewed plates, italic condensed scores). Every colour is contrast-checked (0 failures), glows are pre-rendered sprites, no blur filters.</div>
+
+<div class="row" style="grid-template-columns:300px 1fr">
+ <div class="card"><h2>Final mark (N4)</h2><div style="display:grid;place-items:center;background:var(--a-bg-0);border-radius:10px;height:230px"><img src="tests/mark-N4-1024.png" style="width:230px;height:230px;border-radius:10px"></div><div class="cap">Triangle + ONE hard echo + radial glow disc (vector gradient). Not a stock play button, not a screen.</div></div>
+ <div class="card"><h2>Does it survive size and blur? (rendered, not claimed)</h2>
+  <div class="fl" style="gap:22px;align-items:flex-end">
+   <div><img src="assets/mark.svg" style="width:96px"><div class="cap">96</div></div>
+   <div><img src="assets/mark.svg" style="width:48px"><div class="cap">48</div></div>
+   <div><img src="assets/mark-small.svg" style="width:24px;height:24px"><div class="cap">24 (small mark: no glow, echo as one plain triangle)</div></div>
+   <div><img src="assets/mark.svg" style="width:64px;filter:blur(6px)"><div class="cap">64 + blur (across the room)</div></div>
+   <div><img src="assets/lockup.svg" style="width:210px"><div class="cap">lockup: air 500 at 78% + glow 700</div></div>
+  </div>
+  <h2 style="margin-top:14px">Candidates tried, 1024 px renders in tests/</h2>
+  <div class="fl" style="gap:10px">
+   <div><div class="thumb"><img src="tests/mark-M1-1024.png"></div><div class="v"><b>M1</b> v5 baseline<br>blur filters, mush at 24</div></div><div><div class="thumb"><img src="tests/mark-M2-1024.png"></div><div class="v"><b>M2</b> screen + play<br>YouTube silhouette</div></div><div><div class="thumb"><img src="tests/mark-M5-1024.png"></div><div class="v"><b>M5</b> screen + echo<br>same, plus smudge</div></div><div><div class="thumb"><img src="tests/mark-M4-1024.png"></div><div class="v"><b>M4</b> glow triangle<br>edges read as bars</div></div><div><div class="thumb"><img src="tests/mark-N2-1024.png"></div><div class="v"><b>N2</b> spill plate<br>bar again at 48</div></div><div><div class="thumb"><img src="tests/mark-N3-1024.png"></div><div class="v"><b>N3</b> radial glow<br>best glow, no echo</div></div><div><div class="thumb"><img src="tests/mark-N4-1024.png"></div><div class="v"><b>N4 chosen</b> N3 + 1 echo<br>clean at 24, one hard cue</div></div>
+  </div></div>
+</div>
+
+<div class="row" style="grid-template-columns:330px 1fr">
+ <div class="card"><h2>App icon</h2><div class="fl" style="gap:12px"><img src="assets/icon-1024.png" style="width:120px;height:120px;border-radius:27px"><div class="mask" style="background:#171323"><img src="assets/icon-background-432.png"><img src="assets/icon-foreground-432.png"></div></div>
+  <div class="cap">Ink triangle on a pink to orchid tile: 5.2 to 6.3:1 (was chalk on violet at 2.1 to 2.8). Android adaptive foreground and background layers, circle mask shown.</div>
+  <div class="fl" style="gap:8px;margin-top:10px"><div class="tile" style="background:linear-gradient(135deg,#F95BAC,#D540F5);width:56px;height:56px;border-radius:13px"><svg width="26" height="26" viewBox="30 14 68 72"><path d="M38 22L88 50L38 78Z" fill="#14101F" stroke="#14101F" stroke-width="10" stroke-linejoin="round"/></svg></div><div class="tile" style="background:#9146FF;width:56px;height:56px;border-radius:13px">tw</div><div class="tile" style="background:#E50914;width:56px;height:56px;border-radius:13px">N</div><div class="tile" style="background:#1F80E0;width:56px;height:56px;border-radius:13px">P+</div><div class="tile" style="background:#FFFFFF;color:#111;width:56px;height:56px;border-radius:13px">yt</div></div><div class="cap">Launcher row: warm pink to orchid is the only tile in that range; violet-only tiles (Twitch-like) were rejected.</div></div>
+ <div class="card"><h2>Google TV banner 320 × 180</h2><img src="assets/banner.png" style="width:100%;border-radius:10px;display:block"><div class="cap">Lockup on bg-0, three full-bleed radial gradients (violet, orchid, pink). Vector source banner.svg, PNG at 1x and 2x.</div></div>
+</div>
+
+<div class="row" style="grid-template-columns:1fr"><div class="card"><h2>Colour roles (ratios on canvas bg-0 unless noted)</h2><div class="fl" style="gap:10px">
+ <div class="sw"><i style="background:#171323;"></i><b>bg-0</b><span>#171323 · canvas</span></div><div class="sw"><i style="background:#201D2A;"></i><b>bg-1</b><span>#201D2A · raised</span></div><div class="sw"><i style="background:#2C2839;"></i><b>surface-1</b><span>#2C2839 · cards</span></div><div class="sw"><i style="background:#373442;"></i><b>surface-2</b><span>#373442 · selected</span></div><div class="sw"><i style="background:#44414F;"></i><b>surface-3</b><span>#44414F · pressed</span></div>
+ <div class="sw"><i style="background:#F3EFE6;color:#171323">Aa</i><b>text-1</b><span>#F3EFE6 · 15.9</span></div><div class="sw"><i style="background:#D2CEE2;color:#171323">Aa</i><b>text-2</b><span>#D2CEE2 · 11.8</span></div><div class="sw"><i style="background:#BBB7CB;color:#171323">Aa</i><b>text-3</b><span>#BBB7CB · 9.3</span></div>
+ <div class="sw"><i style="background:#F95BAC;color:#14101F"></i><b>pink</b><span>#F95BAC · 6.2 non-text</span></div><div class="sw"><i style="background:#D540F5;color:#14101F"></i><b>orchid</b><span>#D540F5 · 5.1 non-text</span></div><div class="sw"><i style="background:#FDA0C9;color:#14101F">Aa</i><b>pink-text</b><span>#FDA0C9 · 9.6</span></div><div class="sw"><i style="background:#E29EEC;color:#14101F">Aa</i><b>orchid-text</b><span>#E29EEC · 9.0</span></div>
+ <div class="sw"><i style="background:#9D7DFF;"></i><b>violet-ui</b><span>#9D7DFF · 5.9 stroke</span></div><div class="sw"><i style="background:#5B2BD9;color:#fff"></i><b>violet</b><span>#5B2BD9 · glow anchor only</span></div><div class="sw"><i style="background:#FF4B4B;"></i><b>live</b><span>#FF4B4B · LIVE only 5.5</span></div><div class="sw"><i style="background:#FFFFFF;color:#000"></i><b>focus</b><span>#FFFFFF · 18.2</span></div>
+ <div class="sw" style="width:200px"><i style="background:linear-gradient(100deg,#F95BAC,#D540F5);color:#14101F">Watch live</i><b>gradient</b><span>two stops · ink label 5.2 to 6.3:1</span></div>
+</div><div class="cap">Surfaces step ~0.045 L at one hue (295) so cards separate from the canvas; the blue-grey of v5 is gone. Nothing amber or yellow. Errors and warnings are neutral (icon + text).</div></div></div>
+
+<div class="row" style="grid-template-columns:1fr 1fr">
+ <div class="card"><h2>Type</h2><div style="font:700 36px/40px var(--a-font-display)">Tonight on air</div><div style="font:500 28px/32px var(--a-font-display);color:var(--a-text-2)">Outfit 500 / 700 — titles, wordmark</div><div style="font:500 16px/24px var(--a-font-text);margin-top:6px">Inter Variable — all reading text, guide, tables. 1h 48m · 21:30 · S2 E4</div><div class="a-score" style="margin-top:6px;font-size:44px;line-height:44px">77 – 70 Grizzlies at Warriors</div><div class="cap">Barlow Condensed 800 italic: scores and short live titles only. Floor 13 px on TV. 99 KB of woff2 in total.</div></div>
+
+ <div class="card"><h2>Soft vs Sharp: one identity</h2><div class="rule"><div><b>Soft (everything)</b><ul><li>radius 16, pill buttons</li><li>pink to orchid gradient, ink labels</li><li>8° hero edge at most</li><li>upright Outfit and Inter</li></ul></div><div><b>Sharp (live and NBA only)</b><ul><li>plates skew −12°, wipes 14°</li><li>italic condensed: scores, 3-word titles</li><li>never: text, tables, box scores, channel rows</li><li>one slab per hero, under 25%</li></ul></div></div></div>
+</div>
+
+<div class="card" style="margin-bottom:18px"><h2>Components (full sheet: components.png)</h2><div class="crop" style="width:814px;height:470px"><img src="components.png" style="width:814px;margin:0px 0 0 0px"></div></div>
+
+<div class="row" style="grid-template-columns:1fr 1fr"><div class="card"><h2>In context (context.png)</h2><img src="context.png" style="width:100%;border-radius:10px;display:block"><div class="cap">Soft surface beside a Sharp NBA plate: same mark, palette, type, focus.</div></div>
+<div class="card"><h2>Launch, 1100 ms (launch.png)</h2><img src="launch.png" style="width:100%;border-radius:10px;display:block"></div></div>
+</body></html>
