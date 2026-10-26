@@ -5,7 +5,7 @@ const H = 295;                                    // ink hue (violet-black), chr
 const N = (L, C = 0.02) => c.neutral(L, H, C, 0.004, 0.012, 0.03);
 const P = {
   // surfaces: canvas lifted so no channel is below 18/255; ~.045 lightness steps so cards actually separate (v5: 1.04-1.5:1)
-  'bg-0': N(.180, .018), 'bg-1': N(.232, .02), 'surface-1': N(.295), 'surface-2': N(.358), 'surface-3': N(.425),
+  'bg-0': '#15131D',   /* R21 G19 B29: no channel near video black (16); L.19 C.02 h295 */ 'bg-1': N(.232, .02), 'surface-1': N(.295), 'surface-2': N(.358), 'surface-3': N(.425),
   'border': '#3C3452',                              // 1 px outline on cards and tiles (decorative, ~1.5:1)
   'border-strong': c.neutral(.65, H, .04, .004, .025, .06),
   // text

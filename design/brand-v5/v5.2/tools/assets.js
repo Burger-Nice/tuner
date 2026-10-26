@@ -27,17 +27,20 @@ function wordmark(opt = {}) {
 }
 const baseline = () => ({ w: g('all7').bbox.x2 - g('all7').bbox.x1, x1: g('all7').bbox.x1, body: `<g fill="${P['text-1']}">${g('all7').glyphs.map(gl => `<path d="${gl.d}"/>`).join('')}</g>` });
 // lockup: mark box (x 4..130) + wordmark scaled to cap 62, baseline y 71. opt.ink: flat ink mark + ink wordmark (for the gradient banner), no glow.
-function lockup(id, wm = wordmark(), opt = {}) { const s = 0.62, start = 121, x0 = start - wm.x1 * s; return { w: start - 4 + wm.w * s + 10, vbx: 4, vby: -8, h: 116, body: (opt.ink ? `<defs>${rad(id + 'w', 0.2, CX, 50, 58, '#FFFFFF')}</defs><circle cx="${CX}" cy="50" r="58" fill="url(#${id}wr)"/>${shape(P['ink-on-brand'])}` : markBody(id)) + `<g transform="translate(${r(x0)} 71) scale(${s})">${wm.body}</g>` }; }
+function lockup(id, wm = wordmark(), opt = {}) { const s = 0.62, start = 121, x0 = start - wm.x1 * s; return { w: start - 4 + wm.w * s + 10, vbx: 4, vby: -8, h: 116, body: (opt.ink ? `${bloom(id, 45, 50, 56)}${shape(P['ink-on-brand'])}` : markBody(id)) + `<g transform="translate(${r(x0)} 71) scale(${s})">${wm.body}</g>` }; }
 const lockupSvg = (id = 'lk', wm, opt) => { const l = lockup(id, wm, opt); return svg(`${l.vbx} ${l.vby} ${r(l.w)} ${l.h}`, l.body, `width="${r(l.w)}" height="${l.h}"`); };
 
 // ---- icon: ink triangle on the pink to orchid tile (chalk on a pink/orchid tile fails contrast; ink is 5.2-6.3:1) ----
 const tileGrad = (id, sz) => `<linearGradient id="${id}" x1="0" y1="${sz}" x2="${sz}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${P.pink}"/><stop offset="1" stop-color="${P.orchid}"/></linearGradient>`;
-const iconGlyph = (id, o = {}) => `${o.glow ? `<defs>${rad(id, 0.16, CX, 50, 56, '#FFFFFF')}</defs><circle cx="${CX}" cy="50" r="56" fill="url(#${id}r)"/>` : ''}${shape(P['ink-on-brand'])}`;
-const icon = () => svg('0 0 512 512', `<defs>${tileGrad('ti', 512)}</defs><rect width="512" height="512" fill="url(#ti)"/><g transform="translate(256 256) scale(3.8) translate(-67.5 -50)">${iconGlyph('tg', { glow: true })}</g>`, 'width="1024" height="1024"');
-const iconFg = () => svg('0 0 108 108', `<g transform="translate(55 54) scale(0.5) translate(-67.5 -50)">${iconGlyph('fg')}</g>`, 'width="108" height="108"');
+const BLOOM = '#FFC2E1';
+// bloom: radial #FFC2E1 at 55% centred on the wedge base, fading to 0, painted under the ink wedge (a vector gradient, no filter)
+const bloom = (id, cx, cy, rr) => `<defs><radialGradient id="${id}b" cx="${cx}" cy="${cy}" r="${rr}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${BLOOM}" stop-opacity=".55"/><stop offset="1" stop-color="${BLOOM}" stop-opacity="0"/></radialGradient></defs><circle cx="${cx}" cy="${cy}" r="${rr}" fill="url(#${id}b)"/>`;
+const iconGlyph = (id, o = {}) => `${o.glow ? bloom(id, 45, 50, 56) : ''}${shape(P['ink-on-brand'])}`;
+const icon = () => svg('0 0 512 512', `<defs>${tileGrad('ti', 512)}</defs><rect width="512" height="512" fill="url(#ti)"/><g transform="translate(271 256) scale(3.8) translate(-67.5 -50)">${iconGlyph('tg', { glow: true })}</g>`, 'width="1024" height="1024"');
+const iconFg = () => svg('0 0 108 108', `<g transform="translate(58 54) scale(0.5) translate(-67.5 -50)">${iconGlyph('fg', { glow: true })}</g>`, 'width="108" height="108"');
 const iconBg = () => svg('0 0 108 108', `<defs>${tileGrad('bg', 108)}</defs><rect width="108" height="108" fill="url(#bg)"/>`, 'width="108" height="108"');
 // ---- small mark (<= 32 px): plain gradient triangle, nothing that can smudge ----
-const markSmall = () => svg('28 12 80 76', `<defs>${lin('sm')}</defs>${shape('url(#smg)')}`, 'width="80" height="76"');
+const markSmall = () => svg('28 12 80 76', `<defs>${coreG('sm')}</defs>${shape('url(#smc)')}`, 'width="80" height="76"');
 const mark = () => svg(MARK_VB, markBody('mk'), 'width="126" height="116"');
 // ---- banner 320x180: the icon's sibling. Pink to orchid field (no violet), ink lockup. ----
 const banner = () => { const l = lockup('bn', wordmark({ ink: true }), { ink: true }), s = 0.5, bw = l.w * s;

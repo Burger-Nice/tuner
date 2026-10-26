@@ -5,14 +5,14 @@
 
 :root {
   /* ---- surfaces: one hue (295), chroma .02 (v5.1 .032: tinted artwork); steps vs canvas 1.35 / 1.71 / 2.26:1; no channel below 18/255; native splash and window background = bg-0 ---- */
-  --a-bg-0:        #121019;   /* L.18 C.019 h295  canvas, rail, letterbox */
+  --a-bg-0:        #15131D;   /* L.19 C.020 h294  canvas, rail, letterbox */
   --a-bg-1:        #1E1B28;   /* L.23 C.025 h295  raised regions, sheets, top bars */
   --a-surface-1:   #2D2B35;   /* L.30 C.018 h294  cards, rows, tiles */
   --a-surface-2:   #3D3B45;   /* L.36 C.017 h295  hover / selected / progress track */
   --a-surface-3:   #4F4C5A;   /* L.42 C.023 h295  pressed, chips (no status text on it) */
   --a-border:      #3C3452;   /* 1 px outline on cards and tiles: decorative (never the only cue) */
   --a-border-strong: #918BA7; /* input outlines, unselected chips, toggle track: >= 3:1 on surface-1 and surface-2 */
-  --a-scrim:       rgba(18, 16, 25, 0.72);
+  --a-scrim:       rgba(21, 19, 29, 0.72);
 
   /* ---- text (every text token >= 4.5:1 on all five surfaces; text-4 is disabled only) ---- */
   --a-text-1:      #F3EFE6;   /* chalk, warm off-white (pure #FFF blooms on LCD) */
