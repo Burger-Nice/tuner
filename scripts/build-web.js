@@ -20,6 +20,8 @@ for (const dep of [
 const target = process.argv[2];
 if (!['tv', 'phone'].includes(target)) throw new Error('Say which build: node scripts/build-web.js tv|phone');
 const index = path.join(out, 'index.html');
+// The TV has its own interface (app/tv.html + app/tv/): it becomes the TV app's start page.
+if (target === 'tv') fs.copyFileSync(path.join(out, 'tv.html'), index);
 // The TV app talks to its native player and updater through Capacitor's plugin bridge, which needs @capacitor/core.
 const head = [`<script>window.TUNER_TARGET = ${JSON.stringify(target)};</script>`];
 if (target === 'tv') {

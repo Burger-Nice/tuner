@@ -1,0 +1,64 @@
+/* airglow TV: what the app adds on top of ui.css. Focus is real :focus here (the mocks used classes), screens are layers
+   that cross-fade, and nothing animates while a direction key repeats (html.rep). */
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;text-align:inherit;cursor:pointer}
+:focus{outline:none}
+#app{position:relative;width:960px;height:540px;overflow:hidden;background:var(--a-bg-0);transform-origin:0 0}
+[data-screen]{position:absolute;inset:0;overflow:hidden}
+[data-screen][hidden]{display:none}
+.screen-in{animation:scr-in 200ms var(--a-ease) both}
+@keyframes scr-in{from{opacity:0}to{opacity:1}}
+.topbar{transition:transform 200ms var(--a-ease),opacity 200ms var(--a-ease)}
+.topbar.away{transform:translateY(-110%);opacity:0}
+.page{position:absolute;left:0;right:0;top:0;transition:transform 320ms var(--a-ease);will-change:transform}
+.track{display:flex;gap:24px;transition:transform 200ms var(--a-ease)}
+html.rep .page,html.rep .track,html.rep .fx{transition:none!important}
+
+/* ---------- focus: lift (ring + 1.05) on cards and primary buttons, ring only on chips, tabs, rows and fields, inset in dense grids ---------- */
+.btn.fx,.btn2.fx,.wc.fx,.hc.fx,.gc.fx,.pc.fx .box,.ep.fx .th{transition:transform 200ms var(--a-ease)}
+.btn.fx:focus,.btn2.fx:focus,.wc.fx:focus,.hc.fx:focus,.gc.fx:focus,.pc.fx:focus .box,.ep.fx:focus .th,.state .btn.fx:focus{box-shadow:var(--a-focus-ring);transform:scale(var(--a-focus-scale));position:relative;z-index:3}
+.pc.fx:focus{z-index:3}.pc.fx:focus .cap{color:var(--a-text-1)}
+.tab.fx:focus,.chip.fx:focus,.pillbtn.fx:focus,.lr.fx:focus,.arow.fx:focus,.rrow.fx:focus,.gl.fx:focus,.key.fx:focus,.avatar.fx:focus,.field.fx:focus,.micbtn.fx:focus,.srow.fx:focus,.vrow.fx:focus{box-shadow:var(--a-focus-ring);position:relative;z-index:3}
+.tab.fx:focus{background:var(--a-bg-1)}
+.lr.fx:focus{background:var(--a-surface-3)}
+.rrow.fx:focus,.arow.fx:focus,.srow.fx:focus{background:var(--a-surface-2)}
+.g-cell.fx:focus,.g-ch.fx:focus{box-shadow:var(--a-focus-ring-inset);background:var(--a-surface-3)!important;z-index:3}
+.fx:focus .a-live{color:#FFBABA}
+.srow.lift{background:var(--a-surface-3)!important;border-color:transparent;box-shadow:var(--a-focus-ring);transform:scale(1.02);position:relative;z-index:3;transform-origin:0 50%}
+/* the lift never pushes a ring past the safe area: first-column items grow to the right, last-column items to the left */
+.track>.fx:first-child:focus,.lib-grid>.pc[data-c="0"]:focus .box,.nba-grid>.gc:nth-child(3n+1):focus,.d-col .btn.fx:focus,.d-col .btn2.fx:focus,.hero-btns>.fx:first-child:focus{transform-origin:0 50%}
+.lib-grid>.pc[data-c="5"]:focus .box,.nba-grid>.gc:nth-child(3n):focus{transform-origin:100% 50%}
+.dis{pointer-events:none}
+
+/* ---------- overlays ---------- */
+#overlays{position:absolute;inset:0;z-index:30;pointer-events:none}
+#overlays .ov{position:absolute;inset:0;pointer-events:auto}
+#overlays .ov .sheet,#overlays .ov .menu{transform:translateX(24px);opacity:0;transition:transform 320ms var(--a-ease),opacity 320ms var(--a-ease)}
+#overlays .ov.in .sheet,#overlays .ov.in .menu{transform:none;opacity:1}
+#overlays .ov .menu[style*="translate(-50%"]{transform:translate(-50%,-50%) scale(.98)}
+#overlays .ov.in .menu[style*="translate(-50%"]{transform:translate(-50%,-50%)}
+#toast{position:absolute;left:0;right:0;bottom:40px;display:flex;justify-content:center;z-index:40;pointer-events:none}
+.sheet-body{flex:1;overflow:hidden;position:relative;margin:-8px;padding:8px}
+.sheet-body>.inner{transition:transform 200ms var(--a-ease)}
+
+/* images in the kit's art boxes */
+.art>img,.box>img,.th>img,.mini2>img,.pvtile>img,.hero-art>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.logo img{width:100%;height:100%;object-fit:contain;border-radius:inherit;padding:3px}
+.team img{width:80%;height:80%;object-fit:contain}
+.team{font:700 12px/1 var(--a-font-text);color:var(--a-text-1);letter-spacing:-.05em}
+.noimg-bg{background:var(--a-surface-2)}
+
+/* loading skeletons are flat (no shimmer) */
+.skb{display:inline-block;background:var(--a-surface-2)}
+
+/* text fields: the TV keyboard opens only when OK is pressed (they stay read-only until then) */
+input.field{outline:none;appearance:none;-webkit-appearance:none;caret-color:var(--a-pink)}
+input.field::placeholder{color:var(--a-text-3)}
+input.field[readonly]{caret-color:transparent}
+
+/* game cards: the status row never wraps; a long broadcaster name ellipsizes */
+.gc .st{white-space:nowrap}.gc .st>span{white-space:nowrap}.gc .st .tvn{overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:120px}
+
+/* scrolled library: a band of canvas above the first visible row, under the context line and the bubble */
+.lib-cover{position:absolute;left:0;right:0;top:0;height:84px;background:linear-gradient(180deg,var(--a-bg-0) 86%,rgba(21,19,29,0));z-index:2;pointer-events:none}
+.ctxline,.bubble{z-index:4}

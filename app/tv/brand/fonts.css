@@ -1,0 +1,5 @@
+/* airglow fonts v5.1: SIL OFL, Latin subsets from @fontsource, ~99 KB of woff2 in total (Outfit 500 13.5 KB, Outfit 700 14 KB, Inter variable 48 KB, Barlow Condensed 800 italic 24 KB). Preload only Outfit 700 and Inter. */
+@font-face { font-family: "Outfit"; font-weight: 500; font-display: swap; src: url(fonts/outfit-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Outfit"; font-weight: 700; font-display: swap; src: url(fonts/outfit-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Inter Variable"; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 800; font-style: italic; font-display: swap; src: url(fonts/barlow-condensed-latin-800-italic.woff2) format("woff2"); }
