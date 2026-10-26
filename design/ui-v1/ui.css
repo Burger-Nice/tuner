@@ -112,12 +112,12 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .logo{width:40px;height:40px;border-radius:8px;background:var(--a-surface-2);display:grid;place-items:center;font:700 14px/1 var(--a-font-display);color:var(--a-text-2);flex:none;letter-spacing:.02em}
 .logo.sm{width:32px;height:32px;border-radius:var(--a-radius-sm);font-size:12px}
 .logo.lg{width:56px;height:56px;border-radius:12px;font-size:18px}
-.team{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--a-surface-3);flex:none;border:1px solid var(--a-border-strong)}
-.team i{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font:700 12px/1 var(--a-font-text);font-style:normal}
-.team.md{width:40px;height:40px}.team.md i{width:33px;height:33px}
-.team.lg{width:52px;height:52px}.team.lg i{width:44px;height:44px;font-size:14px}
+.team{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--a-surface-3);flex:none;border:1px solid var(--a-border-strong)}
+.team i{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;font:700 12px/1 var(--a-font-text);font-style:normal}
+.team.md{width:44px;height:44px}.team.md i{width:37px;height:37px}
+.team.lg{width:56px;height:56px}.team.lg i{width:48px;height:48px;font-size:14px}
 .team.xl{width:64px;height:64px}.team.xl i{width:54px;height:54px;font-size:16px}
-.tedge{position:absolute;left:-12px;top:4px;width:4px;height:28px;border-radius:0 var(--a-radius-pill) var(--a-radius-pill) 0}
+.tedge{position:absolute;left:-12px;top:6px;width:4px;height:26px;border-radius:0 var(--a-radius-pill) var(--a-radius-pill) 0}
 
 /* ---------- Sharp dialect (live + NBA only): plates skew, text never ---------- */
 .plate{position:relative;display:inline-block}
@@ -216,7 +216,8 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .gc .tr .nm{font:650 16px/20px var(--a-font-text);color:var(--a-text-1)}
 .gc .tr .rc{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-left:4px}
 .gc .tr.lose .nm{color:var(--a-text-2);font-weight:500}
-.gc .plate{position:absolute;right:12px;top:30px;width:88px;height:80px}
+.gc .st+.tr{margin-top:2px}
+.gc .plate{position:absolute;right:12px;top:32px;width:88px;height:80px}
 .gc .plate .sc{position:absolute;left:0;right:0;text-align:center}
 .gc .plate::before{background:var(--a-surface-2)}
 .gc .plate .x{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
@@ -388,15 +389,20 @@ table.nv-box td{text-align:right;padding:3px 6px;border-top:1px solid var(--a-bo
 .mt .nm{font:700 22px/24px var(--a-font-display);color:var(--a-text-1)}
 .mt .rc{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
 .mt .sc{display:flex;align-items:center;gap:8px;padding:0 16px}
-.slabbox{position:absolute;top:0;bottom:0;--sk:21px;clip-path:polygon(var(--sk) 0,100% 0,100% 100%,calc(-1 * var(--sk)) 100%);background:var(--a-grad)}
-.slabpv{position:absolute;top:0;bottom:0;left:8px;right:0;clip-path:polygon(var(--sk) 0,100% 0,100% 100%,calc(-1 * var(--sk)) 100%);overflow:hidden;background:var(--a-bg-0)}
-.slabpv .scrimb{position:absolute;left:0;right:0;bottom:0;height:64px;background:linear-gradient(180deg,var(--scrim-0),rgba(21,19,29,.82))}
-.slabcontent{position:absolute;left:0;right:0;bottom:0;top:0;color:var(--a-ink)}
+.slabbox{position:absolute;top:0;bottom:0;--sk:21px}      /* box left = the slant's bottom-left corner; top-left of the slant is at +2 x --sk */
+.slabfill{position:absolute;inset:0;background:var(--a-grad);clip-path:polygon(calc(2 * var(--sk)) 0,100% 0,100% 100%,0 100%)}   /* static shape: clock plate */
+/* preview = a plain rectangle of video (no mask, no clip on moving pixels); the slant is drawn ON TOP by two static shapes (BRAND.md UI-phase rule 2) */
+.slabvid{position:absolute;inset:0;overflow:hidden;background:var(--a-bg-0)}
+.slabvid::after{content:"";position:absolute;inset:0;background:rgba(21,19,29,.25)}                    /* caps the picture at 75% luminance */
+.slabvid .scrimb{position:absolute;left:0;right:0;bottom:0;height:64px;background:linear-gradient(180deg,var(--scrim-0),rgba(21,19,29,.82));z-index:1}
+.slabwedge{position:absolute;inset:0;background:var(--a-surface-1);clip-path:polygon(0 0,calc(2 * var(--sk)) 0,0 100%);z-index:2}
+.slabedge{position:absolute;inset:0;background:var(--a-grad);clip-path:polygon(calc(2 * var(--sk)) 0,calc(2 * var(--sk) + 8px) 0,8px 100%,0 100%);z-index:3}
+.slabcontent{position:absolute;left:0;right:0;bottom:0;top:0;color:var(--a-ink);z-index:1}
 .slabcontent.ink{display:flex;flex-direction:column;justify-content:center;padding:0 24px 0 48px;gap:0}
 .slabcontent.ink .big{font:italic 800 56px/52px var(--a-font-live)}
 .slabcontent.ink .cap{font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase}
 .slabcontent.pv{color:var(--a-text-1)}
-.pvlabel{position:absolute;left:48px;bottom:12px;display:flex;align-items:center;gap:8px;font:650 14px/18px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
+.pvlabel{position:absolute;left:60px;bottom:12px;z-index:4;display:flex;align-items:center;gap:8px;font:650 14px/18px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
 .hero-art{position:absolute;right:0;top:0;bottom:0;width:560px}
 
 /* Home rail cards: text at the top, art under a top-heavy scrim */
@@ -434,7 +440,7 @@ table.nv-box td{text-align:right;padding:3px 6px;border-top:1px solid var(--a-bo
 .epsyn b{color:var(--a-text-1);font-weight:650}
 .epsyn .dot-sep{display:inline-block}
 
-.gd-head .mt{position:absolute;left:0;top:38px;height:44px;display:flex;align-items:center}
+.gd-head .mt{position:absolute;left:0;top:40px;height:44px;display:flex;align-items:center}
 .gd-head .mt .side{height:44px;gap:10px}
 .gd-head .mt .nm{font-size:20px;line-height:22px}
 .gd-head .mt .sc{padding:0 12px}
