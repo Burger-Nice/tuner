@@ -10,8 +10,8 @@ Everything is generated from `tools/palette.js` and checked by `tools/contrast.j
 
 **Story, one line:** *airglow: a signal travels through the air (the wedge) and leaves a lit afterimage behind it (the stepped bands); the play wedge even dots the "i".*
 
-1. **Icon tile off Twitch.** v5.3's violet tile measured ΔE 9.6 from Twitch purple `#9146FF` (OKLab ×100; lowest 10% of the tile 6.0). Five tiles beside a Twitch-like tile (`tests/tile-refine.png`): T1 reviewer's warm magenta (16.8), **T2 plum to magenta to pink (16.8, lowest 10% 15.4, chalk ring 4.1:1) chosen**, T3 owner look with a small plum corner (15.2, but a bright magenta streak that reads as a glow), T4 magenta to rose (17.6). T2 keeps the owner's dark-to-pink diagonal sweep; the violet hue is gone from the tile (`#820C82` → `#BC1BB3` → `#E2449E`). Violet remains only as the back band of the mark.
-2. **One family.** The primary banner is now the icon's sibling: the same ramp, chalk wedge, solid chalk-tint bands and a chalk wordmark. The dark canvas banner with the full-colour lockup is the alternative (`banner-dark.svg`). Test both on the TV (the gradient is the loud one).
+1. **Icon tile: kept, by owner decision.** The review measured the tile's violet corners at ΔE 7 to 9 from Twitch purple `#9146FF` and suggested a warm magenta ramp. A plum-to-magenta alternative was drawn and cleared Twitch (ΔE 16.8), but the owner overrode it: "its fine to have the corners close to it since it still looks nothing like it, just similar colors in the corners". The Twitch proximity is therefore a deliberate decision: the overall tile, the mark and the shape do not resemble Twitch's glyph, and only the corner hue is near. The tile ramp stays `#4F24C4` / `#B83BEA` / `#E2449E` (chalk wedge at least 3.66:1 around it). The tile-options exercise was dropped.
+2. **One family.** The primary banner is now the icon's sibling: the same violet-orchid-pink ramp as the tile, chalk wedge, solid chalk-tint bands and a chalk wordmark (chalk is at least 3.5:1 against the field behind the lockup). The dark canvas banner with the full-colour lockup is the alternative (`banner-dark.svg`). Test both on the TV (the gradient is the loud one).
 3. **Wordmark** (`tests/word-refine.png`, large / 32 / 19 px / blur): W0 stock all chalk; W1 "glow" in the pink to orchid gradient; W2 W1 with tracking −2% (the i stands apart); **W3 = W2 + the i-dot is the mark's wedge, chosen**. "air" stays chalk, so "ai" no longer reads as one gradient unit; the wedge dot is the one custom touch and ties the name to the mark. On the gradient banner the wordmark is all chalk (a gradient cannot sit on a gradient).
 4. **Glow removed everywhere.** `sprites/glow-*.png` deleted, `--a-sprite-*` glow tokens removed, focus glow removed from components (the 3 px ring does the work, 18:1), the violet atmosphere blob in `context.png` replaced by a flat 2-stop `bg-1` to `bg-0` vertical gradient. Only `grain.png` remains. The story line above is the name-to-mark link the review asked for.
 5. **`mark-micro.svg`:** plain gradient wedge for under 24 px. Tiers: 3 bands at 48 px and up, 2 bands (`mark-small`, `icon-small`) at 24 to 48 px, plain wedge under 24 px.
@@ -39,7 +39,7 @@ The owner chose the **original v5 Soft echo mark** over the v5.2 lit-core mark: 
 
 **Lockup A** (`tests/lockup-refine.png`): mark height = ascender height, standing on the baseline, gap 26 units from apex to the "a"; single-weight Outfit 700 (the v5.2 two-weight "air glow" split is gone, which also removes the "air glow" reading). B (mark 1.2 × x-height) reads as a bullet; C (cap-height, gap 34) floats.
 
-**Icon (v5.3 I2, superseded in v5.4 by the plum tile above).** Reviewer concern: chalk on the tile was 2.1 to 2.8:1. Fix inside the owner's concept: keep the chalk wedge and the pink-to-violet tile, but deepen the pink end to `#E2449E` and the violet to `#4F24C4` with an orchid middle (`#B83BEA`). The wedge is now at least 3.66:1 against the tile in a 14 px ring around it (computed in `tests/icon-refine.js`). The echo bands are **solid** chalk tints (30 / 50 / 70% mixed into the tile colour under each band), computed per band, not alpha strips: they stay legible at 1024 and in the adaptive foreground layer. The ink-on-warm-tile versions (I3, I4) stay as tested alternatives and as the gradient banner. `icon-small.svg` is a two-band version for 48 px and below.
+**Icon (v5.3 I2, unchanged in v5.4).** Reviewer concern: chalk on the tile was 2.1 to 2.8:1. Fix inside the owner's concept: keep the chalk wedge and the pink-to-violet tile, but deepen the pink end to `#E2449E` and the violet to `#4F24C4` with an orchid middle (`#B83BEA`). The wedge is now at least 3.66:1 against the tile in a 14 px ring around it (computed in `tests/icon-refine.js`). The echo bands are **solid** chalk tints (30 / 50 / 70% mixed into the tile colour under each band), computed per band, not alpha strips: they stay legible at 1024 and in the adaptive foreground layer. The ink-on-warm-tile versions (I3, I4) stay as tested alternatives and as the gradient banner. `icon-small.svg` is a two-band version for 48 px and below.
 
 **Banner (v5.4: swapped).** Primary `assets/banner.svg` is the gradient banner on the icon's ramp; `assets/banner-dark.svg` is the quiet alternative. The v5.2 bloom banners are gone.
 
@@ -136,7 +136,7 @@ Numerals in guides and rows are tabular. Fonts are Latin-subset woff2, 99 KB in 
 
 - Cards: surface-1, radius 16, 1 px `border`. Rows radius 8 to 12, height 48 to 56. Pills 999. Dialog radius 24.
 - Safe margin 48 × 27 CSS px. Spacing steps 4/8/12/16/24/32.
-- **Focus (d-pad):** 3 px white ring, 2 px canvas gap (`--a-focus-ring`), plus scale 1.05 on cards and primary buttons (ring only on text-heavy rows and fields, to keep text sharp) and the glow sprite behind primary buttons. One focused element per screen.
+- **Focus (d-pad):** 3 px white ring, 2 px canvas gap (`--a-focus-ring`), plus scale 1.05 on cards and primary buttons (ring only on text-heavy rows and fields, to keep text sharp). One focused element per screen.
 - **Selected is not focused.** Selected is a persistent fill plus a shape: chip = surface-3 with a pink dot, `pink-text`, bold; tab = chalk text with a 3 px gradient underline; radio = pink dot; toggle = gradient track, ink knob and the word On. Focused is the white ring only.
 - **Fields:** 48 px, radius 12, 2 px `border-strong`, placeholder text-3, value text-1; focused = ring; error = **dashed** 2 px text-2 outline + surface-2 fill + outline-icon disc at the right + one sentence in chalk below (the focus ring stays the only white solid line). No red, no amber, no exclamation mark.
 - **Error and empty states:** neutral surface-1 card, 48 px icon disc (outline icon), title Outfit 18, one sentence, one button (secondary for retry, primary for the empty-state action).
@@ -166,8 +166,8 @@ Never: body text, labels, captions, anything over three words; box scores, stand
 
 ## 9. Performance (Chrome 113 TV WebView, 960 × 540 CSS px at 2×)
 
-- **No `filter: blur`, no `backdrop-filter`, no big `box-shadow` spreads.** Glows are the 256 × 256 alpha PNG sprites in `sprites/` (about 10 KB each), scaled with `background-size`. Compose with `opacity` and `transform` only.
-- Gradients: two stops, small elements. The large atmosphere on Home is a sprite, not a CSS gradient. Over large flat fills (hero, banner) add `sprites/grain.png` at its own 7/255 alpha to break banding on 8-bit panels.
+- **No `filter: blur`, no `backdrop-filter`, no big `box-shadow` spreads.** There are no glows (v5.4): no sprites, no blur, no radial glow in any asset.
+- Gradients: two stops, small elements. The Home backdrop is a flat 2-stop gradient (bg-1 to bg-0). Over large flat fills (hero, banner) add `sprites/grain.png` at its own 7/255 alpha to break banding on 8-bit panels.
 - Mark, lockup, icon and banner use vector radial gradients (no `feGaussianBlur`), so the same SVG is a legal Android VectorDrawable source.
 - Fonts: 99 KB, `font-display: swap`; the launch frame uses only outlined SVG, so it does not wait for fonts.
 - Native splash is the static mark: no WebView work before first paint.
@@ -203,7 +203,7 @@ v5.1 answered review #1 (6.5/10): stock play with blurred echoes replaced by a h
 ## 13. Housekeeping and open items
 
 - Name overlaps: LumenRadio "AirGlow" and a DoPchoice filing. Confusion risk only; nothing is trademark-cleared. The banner is no longer violet-led. Lowercase "ai" remains an unresolved name risk, mitigated by the weight split and gap.
-- Not tested: real posters (only synthetic art), glow-sprite frame rate on the weakest TV, surface steps on the Philips panel, the launch animation itself (stills only).
+- Not tested: real posters (only synthetic art), surface steps on the Philips panel, the launch animation itself (stills only).
 - Final name decision and a real clearance search if the app leaves personal use.
 
 ## 14. v5.2 history (superseded where noted)

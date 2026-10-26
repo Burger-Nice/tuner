@@ -9,7 +9,7 @@ const TILES = {
   owner: [[0, '#5B2BD9'], [.5, '#E04BFF'], [1, '#FF5CB8']],            // the v5 tile (pink to violet)
   deep: [[0, '#4F24C4'], [.55, '#B83BEA'], [1, '#E2449E']],             // chalk-safe: no light pink anywhere near the wedge
   warm: [[0, '#F95BAC'], [1, '#D540F5']],
-  family: [[0, '#820C82'], [.5, '#BC1BB3'], [1, '#E2449E']],        // v5.4 icon + banner ramp (T2): plum to magenta to pink, 15+ dE from Twitch purple                               // v5.2 tile
+  family: [[0, '#4F24C4'], [.55, '#B83BEA'], [1, '#E2449E']],        // the owner's pink-to-violet tile (v5.3 ramp, kept by owner decision); icon and banner share it
 };
 const V = {
   I1: { name: 'owner tile (pink to violet), chalk wedge, chalk-tint bands', tile: 'owner', wedge: '#F3EFE6', band: [.26, .46, .66], bandMix: '#F3EFE6' },
