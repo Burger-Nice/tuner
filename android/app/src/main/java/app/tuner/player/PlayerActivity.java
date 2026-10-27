@@ -352,6 +352,7 @@ public class PlayerActivity extends AppCompatActivity {
         // movies and episodes: his subtitle languages in order, and airglow's own view for downloaded subtitles
         if (!live && !replayMode && subSettings != null) {
             subs = new Subs(this, player, root, root.indexOfChild(view) + 1, subSettings);
+            subs.itemChanged(index);
             player.setTrackSelectionParameters(subs.prefer(player.getTrackSelectionParameters().buildUpon()).build());
         }
         player.setVideoChangeFrameRateStrategy(C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS);
@@ -425,7 +426,7 @@ public class PlayerActivity extends AppCompatActivity {
                 cur = ring.get(index);
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && cur.start > 30) player.seekTo(cur.start * 1000);
                 if (chipUp && chipIsUpNext) hideChip();
-                if (subs != null) subs.reset();   // (the app sends the next episode's subtitles)
+                if (subs != null) subs.itemChanged(index);   // (the app sends the next episode's subtitles)
                 vod.setItem(cur, index < ring.size() - 1);
                 view.setResizeMode(resizeMode(pictureFor(cur)));
                 vod.show();

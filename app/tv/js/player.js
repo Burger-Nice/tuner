@@ -406,7 +406,7 @@ native?.player.onEvent((e) => {
   // a replay's own events (position, need, sync, golive…) are replay.js's: only the session's end and settings are here
   if (c.kind === 'replay' && !['exit', 'diag', 'setting', 'goto-account', 'reveal'].includes(e.type)) return;
   if (e.type === 'track') {
-    if (c.kind === 'vod') { c.index = e.index; sentSubs = ''; sendSubs(); return; }   // (an episode: its own subtitles)
+    if (c.kind === 'vod') { const moved = c.index !== e.index; c.index = e.index; if (moved) { sentSubs = ''; sendSubs(); } return; }   // (an episode: its own subtitles)
     const i = c.items.findIndex((x) => String(x.id) === String(e.id));
     const it = i >= 0 ? c.items[i] : chOf(e.id);
     if (i >= 0) c.index = i;

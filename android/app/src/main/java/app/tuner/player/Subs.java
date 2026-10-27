@@ -105,6 +105,8 @@ final class Subs {
     // ---------- 2.2: the subs command ----------
     void command(String json) {
         int g = ++gen;
+        Map<String, Double> mines = new java.util.HashMap<>();   // (his steps so far, kept across a list sent again)
+        for (SrtTrack t : files.values()) mines.put(t.id, t.mine);
         // (about 240 KB: read off the UI thread, put in place on it)
         new Thread(() -> {
             try {
@@ -114,9 +116,9 @@ final class Subs {
                 for (int i = 0; fs != null && i < fs.length(); i++) {
                     JSONObject f = fs.getJSONObject(i);
                     String id = f.optString("id");
-                    SrtTrack old = files.get(id);
+                    Double was = mines.get(id);
                     SrtTrack t = new SrtTrack(id, f.optString("lang"), f.optString("text"), f.optDouble("speed", 1), f.optDouble("autoOffset", 0),
-                            old != null ? old.mine : f.optDouble("mine", 0), f.optString("verdict", "unchecked"), f.optString("words", ""),
+                            was != null ? was : f.optDouble("mine", 0), f.optString("verdict", "unchecked"), f.optString("words", ""),
                             f.optBoolean("anchored"), f.optBoolean("sounds"), f.optString("release", ""));
                     if (!t.lines.isEmpty()) parsed.put(id, t);
                 }
@@ -183,7 +185,14 @@ final class Subs {
     private void restoreText() {
         p.setTrackSelectionParameters(prefer(p.getTrackSelectionParameters().buildUpon()).build());
     }
-    /** A new episode: the app sends that episode's subtitles. */
+    private int item = -1;
+    /** A new episode: the app sends that episode's subtitles (the first item playing keeps what came for it). */
+    void itemChanged(int index) {
+        if (item < 0) { item = index; return; }
+        if (index == item) return;
+        item = index;
+        reset();
+    }
     void reset() {
         gen++;
         data = null; files.clear(); drop();
