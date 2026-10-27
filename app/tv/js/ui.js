@@ -68,11 +68,17 @@ export function radioMenu({ title, rows, value, onPick, extra = '', style = 'rig
 // Context menu for hold OK on a card: Save to Saved first and focused, so hold then OK saves.
 export function contextMenu(anchor, rows) {
   const r = anchor.getBoundingClientRect();
-  const x = Math.min(Math.max(48, r.left + 12), 912 - 236), y = Math.min(Math.max(27, r.top + 24), 513 - (rows.length * 48 + 16));
-  const ov = openOverlay(`<div class="ctxmenu" style="left:${x}px;top:${y}px" data-col>${rows.map((row, i) => `<div class="lr fx" tabindex="-1" data-act="${i}">${ic(row.icon, 'sm')}${esc(row.label)}</div>`).join('')}</div>`, {
+  const x = Math.min(Math.max(48, r.left + 12), 912 - 236);
+  const ov = openOverlay(`<div class="ctxmenu" style="left:${x}px;top:${Math.max(27, r.top + 24)}px" data-col>${rows.map((row, i) => `<div class="lr fx${row.dis ? ' dis' : ''}" tabindex="-1" data-act="${i}">${ic(row.icon || 'chevR', 'sm')}${esc(row.label)}</div>`).join('')}</div>`, {
     scrim: false,
+    focusSel: rows.focus != null ? `[data-act="${rows.focus}"]` : null,
     onClick: (act) => { ov.close(); rows[+act]?.run(); },
   });
+  // clamped by its measured height to the safe line (y 513); when that pushes it up over the card, it opens above it
+  const m = ov.el.querySelector('.ctxmenu'), h = m.offsetHeight;
+  let y = Math.min(Math.max(27, r.top + 24), 513 - h);
+  if (y < r.top + 24 && r.top - 8 - h >= 27) y = r.top - 8 - h;
+  m.style.top = `${y}px`;
   return ov;
 }
 

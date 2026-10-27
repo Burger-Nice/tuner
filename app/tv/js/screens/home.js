@@ -13,6 +13,7 @@ import { focus } from '../focus.js';
 import { openOverlay, contextMenu, toast, scrollList } from '../ui.js';
 import { resumeItem, openTitle } from '../actions.js';
 import { launchOpen, launchDone } from '../launch.js';
+import { gameMenu } from '../nba/hub.js';
 
 let el, page, heroKind = null, heroLockUntil = 0, rows = [], railItems = {};
 const ROW_TOP = [278, 422];
@@ -192,6 +193,8 @@ export default {
       if (card) railClick(card.closest('[data-rail]').dataset.rail, +card.dataset.i, card);
     });
     root.addEventListener('tvhold', (e) => {
+      const gc = e.target.closest('.gc');
+      if (gc) return gameMenu(gc, railItems.games[+gc.dataset.i]);
       const card = e.target.closest('.hc');
       if (card) return railHold(card.closest('[data-rail]').dataset.rail, +card.dataset.i, card);
       if (e.target.dataset.act === 'primary') { const g = heroGame(); if (g) otherFeeds(g); }

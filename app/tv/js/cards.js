@@ -2,7 +2,8 @@
 import { esc, ic, tag, dot, liveP, logo, crest, teamVars, initials, hm, leftText, sized } from './util.js';
 import { progressOf } from './state.js';
 import { LANG_SHORT, prefLangs } from './catalog.js';
-import { nba, show, clockText, isMine, mySide, ordinal } from './games.js';
+import { nba, show, clockText, isMine, mySide, ordinal, recordFor } from './games.js';
+import { tipsIn } from './nba/common.js';
 
 const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" decoding="async" loading="lazy">` : '');
 const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
@@ -41,6 +42,11 @@ export function wideCard(t, i) {
 }
 
 // ---------- NBA ----------
+// A team's record as you may see it (the shield counts only the finals you've seen, and says so with the eye-off).
+export function recText(t) {
+  const r = recordFor(t);
+  return r.partial ? `<span class="nb-rp">${esc(r.text)}${ic('eyeOff', 'xs')}</span>` : esc(r.text);
+}
 const edge = (t) => `<span class="tedge" style="background:${teamVarsColor(t)}"></span>`;
 const teamVarsColor = (t) => (teamVars(t).match(/--ta:([^;]+)/) || [])[1];
 // Game card: upright Soft card, Sharp skewed score plate inside; under the shield the plate shows "hidden".
@@ -57,8 +63,8 @@ export function gameCard(g0, i) {
   else if (v.hidden) plate = `<span class="plate"><span class="x">${ic('eyeOff')}<span class="t-cap">hidden</span></span></span>`;
   else plate = `<span class="plate"><span class="x"><span class="score md"${g.state === 'post' && !awWin ? ' style="opacity:.7"' : ''}>${esc(g.away.score)}</span><span class="score md"${g.state === 'post' && !hwWin ? ' style="opacity:.7"' : ''}>${esc(g.home.score)}</span></span></span>`;
   const lose = (w) => (g.state === 'post' && !v.hidden && !w ? ' lose' : '');
-  const rec = (t) => (v.hidden ? '' : esc(t.record));
-  return `<div class="gc fx" tabindex="-1" data-i="${i}" data-g="${esc(g0.id)}" data-key="g:${esc(g0.id)}"><div class="st">${st}${tv}</div>
+  const rec = (t) => recText(t);
+  return `<div class="gc fx" tabindex="-1" data-i="${i}" data-g="${esc(g0.id)}" data-key="g:${esc(g0.id)}" data-hold><div class="st">${st}${tv}</div>
     <div class="tr${lose(awWin)}${g.away.name.length > 10 ? ' long' : ''}">${edge(g.away)}${crest(g.away)}<span class="nm">${esc(g.away.name)}</span><span class="rc">${rec(g.away)}</span></div>
     <div class="tr${lose(hwWin)}${g.home.name.length > 10 ? ' long' : ''}">${edge(g.home)}${crest(g.home)}<span class="nm">${esc(g.home.name)}</span><span class="rc">${rec(g.home)}</span></div>${plate}
     <div class="pk ellipsis">${esc(g.away.name)} ${g.state === 'pre' || v.hidden ? 'at' : `${esc(g.away.score)} – ${esc(g.home.score)}`} ${esc(g.home.name)}</div></div>`;
@@ -69,8 +75,10 @@ export function gameCard(g0, i) {
 export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimary = true, searching = false } = {}) {
   const v = show(g0), g = v.g;
   const pre = g.state === 'pre', shield = v.hidden, choose = !channel && !pre && g.state !== 'post';
+  // more than 3 h before tip-off, or no channel yet: the hub's hero opens the game page (Remind me comes with Reminders)
+  const far = hub && pre && (g.date - Date.now() > 3 * 3600e3 || !channel);
   const post = g.state === 'post';
-  const side = (t, right) => `<div class="side${right ? ' r' : ''}" style="${teamVars(t)}">${right ? '' : crest(t, 'lg')}<div${right ? ' style="text-align:right"' : ''}><div class="nm">${esc(t.name)}</div><div class="rc">${shield ? '' : esc(t.record)}</div></div>${right ? crest(t, 'lg') : ''}</div>`;
+  const side = (t, right) => `<div class="side${right ? ' r' : ''}" style="${teamVars(t)}">${right ? '' : crest(t, 'lg')}<div${right ? ' style="text-align:right"' : ''}><div class="nm">${esc(t.name)}</div><div class="rc">${recText(t)}</div></div>${right ? crest(t, 'lg') : ''}</div>`;
   const status = pre
     ? `${hub ? '' : '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>'}<span class="t-label t-2">NBA${dot}Tip-off</span>`
     : post ? `<span class="t-label t-2">NBA${dot}${shield ? 'Ended' : 'Final'}</span>`
@@ -78,11 +86,12 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   const score = pre ? '<span class="score md">VS</span>'
     : shield ? `<span class="shield" style="height:44px;padding:0 12px;font-size:16px;gap:8px">${ic('eyeOff')}<span>Score hidden</span></span>`
     : `<span class="score">${esc(g.away.score)}</span><span class="t-3" style="font:700 22px var(--a-font-display)">–</span><span class="score">${esc(g.home.score)}</span>`;
-  const primary = choose ? `${ic('search')}Choose channel` : pre ? `${ic('play')}Watch pre-game` : post ? `${ic('score')}Box score` : `${ic('play')}Watch live`;
-  const secondary = shield ? ['reveal', 'Reveal score'] : choose ? ['guide', 'Open guide'] : post ? null : ['box', 'Box score'];
+  const primary = far ? 'Game page' : choose ? `${ic('search')}Choose channel` : pre ? `${ic('play')}Watch pre-game` : post ? `${ic('score')}Box score` : `${ic('play')}Watch live`;
+  const secondary = far ? null : shield ? ['reveal', 'Reveal score'] : choose ? ['guide', 'Open guide'] : post ? null : pre ? ['box', 'Game page'] : ['box', 'Box score'];
   const leaders = () => { const l = (t) => t.leaders?.find((x) => x.stat === 'PTS'); const a = l(g.away), h = l(g.home); return [a, h].filter(Boolean).map((x) => `<b style="color:var(--a-text-1);font-weight:650">${esc(x.who)}</b> ${esc(x.value)} pts`).join('<br>'); };
   const cap = choose ? (searching ? 'Looking for the channel…' : 'No channel found yet<br>Your pick is remembered')
-    : hub && !shield && !pre ? leaders()
+    : pre ? `${esc(tipsIn(g.date))}${channel || g.tv[0] ? `<br>${esc(channel?.name || g.tv[0])}` : ''}`
+    : hub && !shield ? leaders()
     : channel ? `On ${esc(channel.name)}${feeds > 1 ? `<br>Hold OK for ${feeds - 1} more channel${feeds > 2 ? 's' : ''}` : ''}` : '';
   let slab;
   const d = Math.round((g.date - Date.now()) / 60000);
@@ -92,7 +101,7 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   return `<div class="hero-plate"${top ? ` style="top:${top}px"` : ''}>
   <div class="abs row-flex" style="left:24px;top:12px;gap:12px;height:24px">${hub ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${status}</div>
   <div class="mt">${side(g.away)}<div class="sc">${score}</div>${side(g.home, 1)}</div>
-  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:16px;width:572px"><span class="btn fx" tabindex="-1" data-act="primary"${channel && !pre ? ' data-hold' : ''}>${primary}</span>${secondary ? `<span class="btn2 fx" tabindex="-1" data-act="${secondary[0]}">${secondary[1]}</span>` : ''}${hub && !shield && !pre ? '<span class="btn2 fx" tabindex="-1" data-act="plays">Plays</span>' : ''}<span class="t-cap clamp2" style="margin-left:4px;line-height:18px;flex:1;min-width:0">${cap}</span></div>
+  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px;width:572px"><span class="btn fx" tabindex="-1" data-act="${far ? 'box' : 'primary'}"${channel && !pre ? ' data-hold' : ''}>${primary}</span>${secondary ? `<span class="btn2 fx" tabindex="-1" data-act="${secondary[0]}">${secondary[1]}</span>` : ''}${hub && !shield && !pre ? '<span class="btn2 fx" tabindex="-1" data-act="plays">Plays</span>' : ''}<span class="t-cap clamp2" style="margin-left:4px;line-height:18px;flex:1;min-width:0">${cap}</span></div>
   <div class="slabbox" style="left:619px;width:243px">${slab}</div>
 </div>`;
 }
@@ -107,7 +116,7 @@ export function resumeHero(p) {
   <div class="abs" style="left:24px;top:40px;width:460px"><div class="t-head ellipsis" style="font-size:30px;line-height:34px">${esc(title)}</div>
    <div class="metaline" style="margin-top:4px;font-size:16px">${esc(meta)}${dot}${leftText(p.d - p.t)}</div>
    <div class="prog" style="width:300px;margin-top:10px"><i style="width:${pct(p)}%"></i></div></div>
-  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:16px"><span class="btn fx" tabindex="-1" data-act="resume">${ic('play')}Resume</span><span class="btn2 fx" tabindex="-1" data-act="restart">Start over</span><span class="btn2 fx" tabindex="-1" data-act="details">Details</span></div>
+  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px"><span class="btn fx" tabindex="-1" data-act="resume">${ic('play')}Resume</span><span class="btn2 fx" tabindex="-1" data-act="restart">Start over</span><span class="btn2 fx" tabindex="-1" data-act="details">Details</span></div>
 </div>`;
 }
 // The last-channel hero (no game, nothing to resume).
@@ -115,7 +124,7 @@ export function channelHero(ch, prog) {
   return `<div class="hero-plate">
   <div class="abs t-label" style="left:24px;top:18px">Last channel</div>
   <div class="abs row-flex" style="left:24px;top:44px;gap:16px">${logo(ch.logo, ch.name, 'lg')}<div><div class="t-head ellipsis" style="width:560px">${esc(prog?.title || ch.name)}</div><div class="metaline" style="margin-top:4px;width:560px;white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span>${prog ? `${dot}<span style="flex:none">${hm(prog.start)} to ${hm(prog.end)}</span>` : ''}</div></div></div>
-  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:16px"><span class="btn fx" tabindex="-1" data-act="tune">${ic('play')}Watch</span><span class="btn2 fx" tabindex="-1" data-act="guide">Open guide</span></div>
+  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px"><span class="btn fx" tabindex="-1" data-act="tune">${ic('play')}Watch</span><span class="btn2 fx" tabindex="-1" data-act="guide">Open guide</span></div>
 </div>`;
 }
 export { isMine, mySide };

@@ -4,6 +4,7 @@ import { launchDone } from './launch.js';
 import { S, store, settings, saveSettings, scoped, emit } from './state.js';
 import { catalog, ensure } from './catalog.js';
 import { guideFor, onNow, warm } from './guide.js';
+import { peek, peekAll, want as wantData } from './league.js';
 
 const { NBA } = window;
 export const nba = { today: [], todayDay: '', err: '', stale: false, other: new Map(), sums: new Map(), sumFail: new Map(), started: false };
@@ -16,7 +17,8 @@ const want = new Set();        // games whose box score is wanted right now (wat
 export const favTeam = () => { const t = settings().nbaTeam || 'MEM'; return t === 'none' ? '' : t; };
 export const isMine = (g) => !!g && !!favTeam() && (g.home.abbr === favTeam() || g.away.abbr === favTeam());
 export const mySide = (g) => (g.home.abbr === favTeam() ? g.home : g.away);
-export const gameById = (id) => nba.today.find((g) => g.id === id) || [...nba.other.values()].flat().find((g) => g.id === id) || null;
+export const gameById = (id) => nba.today.find((g) => g.id === id) || [...nba.other.values()].flat().find((g) => g.id === id)
+  || peekAll('schedule:').map(([, d]) => (d.games || []).find((g) => g.id === id)).find(Boolean) || null;   // (a team page's schedule)
 export const myGame = () => nba.today.find(isMine) || null;
 export const liveGames = () => nba.today.filter((g) => g.state === 'in');
 export const ordinal = (n) => (n <= 4 ? `Q${n}` : n === 5 ? 'OT' : `${n - 4}OT`);
@@ -45,8 +47,12 @@ export function startNba() {
   nba.started = true;
   fromSaved();
   if (nba.today.length) emit('nba');
+  prunePins();
+  if (favTeam()) wantData(`schedule:${favTeam()}`);
   refreshToday();
   sumTick();
+  // in All games mode the last two nights' finals can be unseen too: their scoreboards are needed to know them
+  if (shieldMode() === 'all') setTimeout(() => { dayGames(-1).catch(() => {}); dayGames(-2).catch(() => {}); }, 4000);
 }
 async function refreshToday() {
   clearTimeout(timer);
@@ -57,8 +63,10 @@ async function refreshToday() {
     if (r.day && r.day < local && r.games.every((g) => g.state === 'post')) {
       try { const next = await NBA.scoreboard(local.replace(/-/g, '')); r = { day: next.day || local, games: next.games }; } catch {}
     }
+    const before = new Map(nba.today.map((g) => [g.id, g.state]));
     nba.today = sortGames(r.games.map((g) => merge(g)));
     nba.todayDay = r.day;
+    tipOffs(before);
     nba.err = ''; nba.stale = false;
     for (const g of nba.today) remember(g);
     store.set(SAVED, { at: Date.now(), day: r.day, games: r.games });
@@ -66,6 +74,16 @@ async function refreshToday() {
   emit('nba');
   timer = setTimeout(refreshToday, nba.stale ? 30000 : nba.today.some((g) => g.state === 'in') ? 15000 : 120000);
 }
+// A shielded game tipping off: keep the league as it stood before it (SPEC 8.1). A game you're watching whose final buzzer
+// just sounded: seen for good.
+function tipOffs(before) {
+  for (const g of nba.today) {
+    const was = before.get(g.id);
+    if (shieldMode() !== 'off' && shielded(g) && g.state !== 'pre' && (was === 'pre' || (!was && g.state === 'in')) && !isSeen(g)) pinAt(g);
+    if (g.state === 'post' && was && was !== 'post') buzzer(g);
+  }
+}
+function buzzer(g) { if (watch.gameId === g.id) markSeen(g.id); }
 // Keep a summary's fresher score on the scoreboard entry.
 function merge(g) {
   const s = nba.sums.get(g.id);
@@ -104,8 +122,8 @@ async function sumTick() {
       const s = await NBA.summary(id);
       s.at = Date.now();
       nba.sums.set(id, s);
-      const g = gameById(id);
-      if (g) { merge(g); remember(g); }
+      const g = gameById(id), was = g?.state;
+      if (g) { merge(g); remember(g); if (was && was !== 'post' && g.state === 'post') buzzer(g); }
       nba.sumFail.delete(id);
       emit('summary', id);
     } catch { if (!nba.sumFail.has(id)) { nba.sumFail.set(id, Date.now()); emit('summary', id); } }
@@ -158,15 +176,155 @@ export function delayed(g) {
 
 // ---------- the spoiler shield ----------
 export const shieldMode = () => settings().shield || 'off';   // off | mine | all
-// Turning the shield on hides games you revealed earlier too (the one on your screen stays: you're watching it).
+// ---------- seen games (design/ui-v1/nba-pages/SPEC.md 8.1) ----------
+// Seen is kept across launches as { upTo, ids }: every game that tipped off before upTo is seen, and ids ([id, tip-off])
+// are the seen games after it. A game becomes seen when you reveal it (a button that names it) or when its final buzzer
+// sounds while you watch it; tuning in for a moment only reveals it for this session (`revealed`). A game nobody
+// watched counts as seen after a while: 3 days in All games mode (most games are never watched), 7 days for your team.
+const SEEN = 'nbaSeen';
+const seenStore = () => store.get(SEEN, null) || { upTo: Date.now() - 12 * 3600e3, ids: [] };
+export function isSeen(g) {
+  if (!g) return true;
+  const s = seenStore();
+  if (g.date < s.upTo || revealed.has(g.id) || s.ids.some(([id]) => id === g.id)) return true;
+  return Date.now() - g.date > (shieldMode() === 'all' ? 3 : 7) * 864e5;
+}
+// Seen for good (Reveal, or the final buzzer while watching).
+export function markSeen(id) {
+  const s = seenStore(), g = gameById(id) || knownGames().find((x) => x.id === id);
+  revealed.add(id);
+  if (!s.ids.some(([x]) => x === id)) s.ids.push([id, g?.date || Date.now()]);
+  // ids older than the auto-seen window aren't needed any more
+  const cut = Date.now() - 8 * 864e5;
+  s.ids = s.ids.filter(([, t]) => t > cut && t >= s.upTo);
+  store.set(SEEN, s);
+  unpin(g);
+  emit('nba');
+}
+// "Reveal n results": everything up to now is seen.
+export function revealAll() { store.set(SEEN, { upTo: Date.now(), ids: [] }); for (const g of knownGames()) revealed.add(g.id); emit('nba'); }
+// Every game airglow knows of: today's, the other days looked at, and the team schedules on hand.
+export function knownGames() {
+  const seen = new Set(), out = [];
+  const add = (g) => { if (g && !seen.has(g.id)) { seen.add(g.id); out.push(g); } };
+  nba.today.forEach(add);
+  for (const list of nba.other.values()) list.forEach(add);
+  for (const [, d] of peekAll('schedule:')) (d.games || []).forEach(add);
+  return out;
+}
+// The finished (or live) games in the shield's scope you haven't seen, optionally only those with this team, newest first.
+export function unseenFor(abbr) {
+  if (shieldMode() === 'off') return [];
+  return knownGames().filter((g) => g.state !== 'pre' && shielded(g) && !isSeen(g) && (!abbr || g.home.abbr === abbr || g.away.abbr === abbr)).sort((a, b) => b.date - a.date);
+}
+// A team's record as you may see it: ESPN's, or, when it played a game you haven't seen, counted from the finals you have
+// (with partial: true, so the surface adds the eye-off and drops streak, seed and the like). Needs the team's schedule;
+// until it's on hand the record is left out ('').
+export function recordFor(t) {
+  const un = unseenFor(t?.abbr);
+  if (!un.length) return { text: t?.record || '', partial: false, hidden: 0 };
+  const d = peek(`schedule:${t.abbr}`)?.data;
+  if (!d) { wantData(`schedule:${t.abbr}`); return { text: '', partial: true, hidden: un.length }; }
+  let w = 0, l = 0;
+  for (const g of d.games) {
+    if (g.state !== 'post' || !isSeen(g)) continue;
+    const me = g.home.abbr === t.abbr ? g.home : g.away, op = me === g.home ? g.away : g.home;
+    if (+me.score > +op.score) w++; else l++;
+  }
+  return { text: `${w}-${l}`, partial: true, hidden: un.length };
+}
+
+// ---------- copies kept at tip-off (SPEC 8.1): standings, leaders and team stats as they were before a game ----------
+// One copy per tip-off time (games that tip off together share it), kept while any game at that time is unseen.
+const PINS = 'nbaPins';
+const pinKey = (t) => `nba:pin:${t}`;
+async function pinAt(g) {
+  const pins = store.get(PINS, []);
+  if (pins.includes(g.date)) return;
+  try {
+    const [standings, teamStats, ...ld] = await Promise.all([NBA.standings(), NBA.teamStats(), ...NBA.LEADERS.map((c) => NBA.leaders(c.key, 10))]);
+    await window.Core.cache.set(pinKey(g.date), { at: Date.now(), standings, teamStats, leaders: Object.fromEntries(NBA.LEADERS.map((c, i) => [c.key, ld[i]])) });
+    store.set(PINS, [...store.get(PINS, []), g.date]);
+  } catch {}
+}
+// The copy from before this game, or null.
+export const pinFor = (g) => (g && store.get(PINS, []).includes(g.date) ? window.Core.cache.get(pinKey(g.date)) : Promise.resolve(null));
+function unpin(g) {
+  if (!g) return;
+  const left = knownGames().filter((x) => x.date === g.date && x.id !== g.id && shielded(x) && !isSeen(x));
+  if (left.length) return;
+  store.set(PINS, store.get(PINS, []).filter((t) => t !== g.date));
+  window.Core.cache.set(pinKey(g.date), null);
+}
+function prunePins() {
+  const cut = Date.now() - 8 * 864e5, keep = [];
+  for (const t of store.get(PINS, [])) { if (t > cut) keep.push(t); else window.Core.cache.set(pinKey(t), null); }
+  store.set(PINS, keep);
+}
+
+// ---------- news under the shield (SPEC 8.3) ----------
+const RESULT = /\b(win|wins|won|winning|loss|losses|lost|beat|beats|fell|falls|straight|streak|swept|sweep|clinch\w*|rout\w*|upset)\b/i;
+const SCORE = /\b\d{1,3}\s?[-–]\s?\d{1,3}\b/;
+function namesOf(g) {
+  const out = [];
+  for (const s of [g.home, g.away]) {
+    const t = NBA.team(s.abbr);
+    if (t) { out.push(t.nameRe); if (t.cityRe) out.push(t.cityRe); }
+    for (const p of peek(`roster:${s.abbr}`)?.data || []) if (p.name) out.push(new RegExp(`\\b${p.name.split(' ').pop().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
+  }
+  return out;
+}
+// A result word within 8 words of a name, or a score: the text gives a result away.
+function telling(text, names) {
+  if (!text) return false;
+  if (SCORE.test(text) && names.some((re) => re.test(text))) return true;
+  const words = text.split(/\s+/);
+  for (let i = 0; i < words.length; i++) {
+    if (!RESULT.test(words[i])) continue;
+    const near = words.slice(Math.max(0, i - 8), i + 9).join(' ');
+    if (names.some((re) => re.test(near))) return true;
+  }
+  return false;
+}
+// The unseen game a story would give away, or null: it's tagged with that game; or tagged with one of its teams or players
+// and published after its tip-off; or its headline or summary tells a result about them. (Round-ups of many teams are only
+// covered when their headline or summary does.)
+export function storyCover(story) {
+  for (const g of unseenFor()) {
+    if (story.events?.includes(g.id)) return g;
+    const teams = [g.home.abbr, g.away.abbr];
+    const names = namesOf(g);
+    const roster = new Set(teams.flatMap((a) => (peek(`roster:${a}`)?.data || []).map((p) => p.id)));
+    const tagged = story.teams?.some((a) => teams.includes(a)) || story.players?.some((p) => roster.has(p.id));
+    const roundup = (story.teams?.length || 0) >= 6;
+    if (tagged && !roundup && story.published >= g.date) return g;
+    if (telling(`${story.headline} ${story.description}`, names)) return g;
+    if (!roundup && !tagged && SCORE.test(`${story.headline} ${story.description}`) && shieldMode() === 'all') return g;
+  }
+  return null;
+}
+// A story's paragraphs with the ones that would tell an unseen result replaced by null (the reader says what's hidden).
+export function shieldParagraphs(paras) {
+  const un = unseenFor();
+  if (!un.length) return paras;
+  const names = un.flatMap(namesOf);
+  return paras.map((p) => (telling(p, names) || (shieldMode() === 'all' && SCORE.test(p)) ? null : p));
+}
+
+// Turning the shield on hides games you revealed earlier too (the one on your screen stays: you're watching it), and
+// starts "seen" 12 h back: last night's games start unseen, older ones count as seen.
 export const setShield = (m) => {
-  if (m !== 'off' && m !== shieldMode()) for (const id of [...revealed]) if (id !== watch.gameId) revealed.delete(id);
+  if (m !== 'off' && m !== shieldMode()) {
+    for (const id of [...revealed]) if (id !== watch.gameId) revealed.delete(id);
+    store.set(SEEN, { upTo: Date.now() - 12 * 3600e3, ids: watch.gameId ? [[watch.gameId, gameById(watch.gameId)?.date || Date.now()]] : [] });
+  }
   saveSettings({ shield: m }); emit('nba');
 };
 export const shielded = (g) => { const m = shieldMode(); return m === 'all' || (m === 'mine' && isMine(g)); };
 // Hidden: no score, no leaders, no records changing, no winner, no "OT".
-export const hidden = (g) => !!g && g.state !== 'pre' && shielded(g) && !revealed.has(g.id);
-export function reveal(id) { revealed.add(id); emit('nba'); }
+export const hidden = (g) => !!g && g.state !== 'pre' && shielded(g) && !isSeen(g);
+// A Reveal button: seen for good.
+export function reveal(id) { markSeen(id); }
 // What a surface may show for a game: the synced view, or nothing when it is hidden.
 export function show(g) {
   if (!g) return null;

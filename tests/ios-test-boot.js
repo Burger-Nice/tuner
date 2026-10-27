@@ -9,7 +9,7 @@ window.TUNER_TEST = true;
   // Ask CI for a screenshot, then give it time to take it.
   const shot = async (name) => { report('shot', { name, state: window.__tunerTest?.state() }); await wait(3500); };
   window.addEventListener('error', (e) => report('error', String(e.message)));
-  try { localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`)); localStorage.setItem('tuner.nbaWebBase', JSON.stringify(`${API}/espnweb`)); } catch {}
+  try { localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`)); localStorage.setItem('tuner.nbaWebBase', JSON.stringify(`${API}/espnweb`)); localStorage.setItem('tuner.nbaContentBase', JSON.stringify(`${API}/espncontent`)); } catch {}
 
   window.addEventListener('load', async () => {
     try {

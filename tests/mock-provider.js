@@ -82,6 +82,7 @@ http.createServer((req, res) => {
   // The team and league pages (real ESPN answers from Oct 2026, trimmed; one team's set, served for any team)
   const tm = u.pathname.match(/^\/espn\/teams\/\d+\/(schedule|roster|athletes\/statistics)$/);
   if (tm) return sendFile(req, res, path.join(ESPN, `${{ schedule: 'schedule', roster: 'roster', 'athletes/statistics': 'athletes' }[tm[1]]}-29.json`), 'application/json');
+  if (u.pathname.startsWith('/espncontent/')) return sendFile(req, res, path.join(ESPN, 'story.json'), 'application/json');
   if (u.pathname === '/espn/news') return sendFile(req, res, path.join(ESPN, u.searchParams.get('team') ? 'news-29.json' : 'news.json'), 'application/json');
   if (u.pathname === '/espnweb/v2/sports/basketball/nba/standings') return sendFile(req, res, path.join(ESPN, 'standings.json'), 'application/json');
   if (u.pathname === '/espnweb/common/v3/sports/basketball/nba/statistics/byathlete') return sendFile(req, res, path.join(ESPN, 'byathlete.json'), 'application/json');

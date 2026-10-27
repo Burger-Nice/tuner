@@ -16,6 +16,7 @@ import lib from './screens/lib.js';
 import detail from './screens/detail.js';
 import nbaHub from './screens/nba.js';
 import game from './screens/game.js';
+import team from './screens/team.js';
 import search from './screens/search.js';
 import saved from './screens/saved.js';
 import account from './screens/account.js';
@@ -37,7 +38,7 @@ function fit() { const z = window.innerWidth / 960; document.body.style.zoom = M
 fit();
 window.addEventListener('resize', fit);
 
-[home, live, lib('movie'), lib('series'), detail, nbaHub, game, search, saved, account, first].forEach(register);
+[home, live, lib('movie'), lib('series'), detail, nbaHub, game, team, search, saved, account, first].forEach(register);
 
 // ---------- keys ----------
 const KEYS = {

@@ -1,117 +1,129 @@
-// NBA hub: day chips (◀▶ change day), your team's game as the broadcast-graphic hero, then the night's games as a 3-up
-// grid ordered live, upcoming, final. Under the shield nothing on this page gives a score away (counts included).
-import { $, esc, ic, dot, setHtml } from '../util.js';
+// The NBA tab: a section row, `Games · [crest] Grizzlies · Standings · Leaders · Team stats · News` (y 80-120), over one
+// section at a time (design/ui-v1/nba-pages/SPEC.md 1-2). Chips switch on focus after 250 ms (OK switches at once and
+// goes in); Down from the row lands on the section's entry; Back in a section goes to its chip, then to the NBA tab.
+// The last section is remembered while the app runs. Each section is a module (app/tv/js/nba/) with:
+//   id, label() (html)   mount(root, ctx)   enter(root, ctx)   leave(root)   entry(root)   toTop(root)
+//   key?(k, e) -> true when handled   back?(root) -> true when handled   meta?() -> the row's right-hand text (html)
+// ctx: visible() (this section is on screen), scrolled(on) (its scrolled layout: the bar and the row step away),
+//      meta() (redraw the row's right-hand text), chip() (focus this section's chip).
+import { esc, ic, setHtml } from '../util.js';
 import { on } from '../state.js';
-import { catalog, ensure } from '../catalog.js';
-import { nba, bestChannel, dayGames, dayLabel, isMine, mySide, show, shieldMode, findFeeds, feedsNow, teamChannel, reveal, startNba } from '../games.js';
-import { gameCard, gameHero } from '../cards.js';
-import { playLive, watching } from '../player.js';
-import { push, current, mayFocus, barHidden } from '../router.js';
+import { startNba, shieldMode, favTeam } from '../games.js';
+import { current, barHidden } from '../router.js';
 import { focus } from '../focus.js';
-import { toast } from '../ui.js';
-import { ringFor, ringName } from './home.js';
+import hub from '../nba/hub.js';
+import standings from '../nba/standings.js';
+import leaders from '../nba/leaders.js';
+import teamstats from '../nba/teamstats.js';
+import news from '../nba/news.js';
+import { teamSection } from '../nba/team.js';
 
-let el, offset = 0, games = [], loading = false, err = '', rowShift = 0;
+const SECTIONS = [hub, teamSection, standings, leaders, teamstats, news];
+const byKey = new Map(SECTIONS.map((s) => [s.id, s]));
+let el, row, sec = 'games', dwell = 0;
+const roots = new Map();   // key -> the section's own box
+const ctxs = new Map();
 
-const counts = (list) => {
-  const n = (s) => list.filter((g) => g.state === s).length;
-  return [n('in') && `${n('in')} live`, n('pre') && `${n('pre')} later`, n('post') && `${n('post')} final`].filter(Boolean).join(dot) || (err ? '' : 'No games');
-};
-const channelFor = (g) => bestChannel(g);
-
-let behind = false;
-on('player-closed', () => { if (behind) { behind = false; draw(); } });
-function draw() {
-  if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
-  if (!el || el.hidden) return;
-  const mine = games.find(isMine);
-  const rest = games.filter((g) => g !== mine);
-  const day = (o) => dayLabel(o).split(' · ')[0];
-  const shieldNote = shieldMode() !== 'off' ? `<span class="t-cap row-flex" style="gap:6px;margin-right:14px;color:var(--a-text-2)">${ic('eyeOff', 'sm')}Shield: ${shieldMode() === 'all' ? 'All games' : 'My team'}</span>` : '';
-  const head = `<div class="dayrow"><span class="t-head">NBA</span>
-    <span class="row-flex" data-row data-days style="gap:8px;margin-left:12px"><span class="chip lg" data-day="-1">${ic('chevL')}${esc(day(offset - 1))}</span><span class="chip lg fx sel" tabindex="-1" data-day="0">${esc(dayLabel(offset))}</span><span class="chip lg" data-day="1">${esc(day(offset + 1))}${ic('chevR')}</span></span>
-    <span class="grow"></span>${shieldNote}<span class="t-cap">${loading ? 'Loading…' : counts(games)}</span></div>`;
-  const hero = mine ? gameHero(mine, { channel: channelFor(mine), feeds: feedsNow(mine).length, top: 128, hub: true }) : '';
-  const gridTop = mine ? 368 : 180;
-  const body = err && !games.length ? `<div class="center-col" style="top:200px"><div class="state big"><div class="ico">${ic('wifiOff')}</div><b>Scores aren't reachable</b><p>${esc(err)}</p></div></div>`
-    : !games.length && !loading ? `<div class="center-col" style="top:220px"><div class="state big"><div class="ico">${ic('clock')}</div><b>No games ${offset ? 'that day' : 'today'}</b><p>Use the arrows on the day chips to look at another day.</p></div></div>`
-    : `${hero}${rest.length ? `<div class="abs rowtitle" style="left:48px;top:${gridTop - 36}px;font-size:20px">${offset ? 'Games' : 'Tonight'}<small>${rest.length} ${rest.length === 1 ? 'game' : 'games'}${dot}live first</small></div>` : ''}
-      <div class="nba-grid" data-grid data-cols="3" style="top:${gridTop}px">${rest.map((g, i) => gameCard(g, i)).join('')}</div>`;
-  setHtml(el.querySelector('.page'), head + body);
-  el._rest = rest; el._mine = mine;
-  place();
+const def = () => byKey.get(sec);
+const rootOf = (k = sec) => roots.get(k);
+function ctxFor(k) {
+  if (!ctxs.has(k)) ctxs.set(k, {
+    visible: () => current() === 'nba' && !!el && !el.hidden && sec === k,
+    scrolled: (on) => { if (sec !== k) return; row.classList.toggle('away', !!on); if (current() === 'nba') barHidden(!!on); },
+    meta: () => drawRow(),
+    chip: () => focus(row.querySelector(`[data-sec="${k}"]`)),
+  });
+  return ctxs.get(k);
 }
-// Rows past the second slide up into view, but never past the last row: it stops at the bottom of the screen, so there's
-// no empty space under it. Scrolled, the top bar steps away (as in Movies) and the rows above fade under the top edge.
-const ROW = 140, CARD = 124, BOTTOM = 540 - 24;
-function place() {
-  const a = document.activeElement, grid = el.querySelector('.nba-grid');
-  let shift = 0;
-  if (grid?.contains(a)) {
-    const i = [...grid.children].indexOf(a.closest('.gc')), rowI = Math.floor(i / 3);
-    const top = parseFloat(grid.style.top), rows = Math.ceil(grid.children.length / 3);
-    if (rowI >= 1) shift = (rowI - (el._mine ? 0 : 1)) * ROW + (el._mine ? 240 : 0);
-    shift = Math.min(shift, Math.max(0, top + rows * ROW - (ROW - CARD) - BOTTOM));   // the last row's bottom on the edge
-    shift = Math.max(shift, top + rowI * ROW + CARD - BOTTOM, 0);                     // the focused row always whole
-  }
-  el.querySelector('.page').style.transform = shift > 0 ? `translateY(${-shift}px)` : '';
-  el.querySelector('.hub-cover').hidden = !(shift > 0);
-  if (current() === 'nba') barHidden(shift > 0);
-}
-async function load(o) {
-  offset = o; loading = true; err = ''; draw();
-  let got, bad = '';
-  try { got = await dayGames(o); } catch (e) { bad = e.message; got = []; }
-  if (o !== offset) return;   // you've moved to another day since: this answer is for a day that's no longer shown
-  games = got; err = bad;
-  loading = false;
-  if (current() === 'nba') { draw(); if ((!el.contains(document.activeElement) && mayFocus()) || document.activeElement.dataset.day) focus(el.querySelector('[data-day="0"]')); }
+// The section's box, mounted the first time it's shown.
+function ensureRoot(k) {
+  if (roots.has(k)) return roots.get(k);
+  const r = document.createElement('div');
+  r.className = 'nb-s';
+  r.dataset.s = k;
+  r.hidden = true;
+  el.appendChild(r);
+  roots.set(k, r);
+  byKey.get(k).mount?.(r, ctxFor(k));
+  return r;
 }
 
-function heroAct(act) {
-  const g = el._mine;
-  if (!g) return;
-  if (act === 'primary') {
-    if (g.state === 'post') return push('game', { id: g.id });
-    const ch = channelFor(g);
-    if (!ch) { toast('No channel found for this game yet. Pick it from Home or the guide and it will be remembered.', 5000); return; }
-    return playLive(ch, ringFor(ch), ringName(ch));
-  }
-  if (act === 'reveal') return reveal(g.id);
-  if (act === 'box') return push('game', { id: g.id });
-  if (act === 'plays') return push('game', { id: g.id, tab: 'plays' });
+function drawRow() {
+  if (!row) return;
+  const meta = shieldMode() !== 'off' ? `${ic('eyeOff')}<span>Shield: ${shieldMode() === 'all' ? 'All games' : 'My team'}</span>` : def().meta?.() || '';
+  setHtml(row, `${SECTIONS.map((s) => `<span class="chip lg fx${s.id === sec ? ' sel' : ''}" tabindex="-1" data-sec="${s.id}">${s.label()}</span>`).join('')}<span class="meta">${meta}</span>`);
+}
+
+function select(k, { enter = true } = {}) {
+  if (!byKey.has(k)) k = 'games';
+  if (k === sec && rootOf(k) && !rootOf(k).hidden) return;
+  const old = rootOf();
+  if (old && !old.hidden) { def().toTop?.(old); def().leave?.(old); old.hidden = true; }
+  sec = k;
+  row.classList.remove('away'); barHidden(false);
+  const r = ensureRoot(k);
+  r.hidden = false;
+  drawRow();
+  if (enter) def().enter?.(r, ctxFor(k));
 }
 
 export default {
   name: 'nba',
   mount(root) {
     el = root;
-    root.innerHTML = '<div class="page"></div><div class="lib-cover hub-cover" hidden></div>';
-    root.addEventListener('click', (e) => {
-      const d = e.target.closest('[data-day]');
-      if (d) { const v = +d.dataset.day; if (v) load(offset + v); return; }
-      const b = e.target.closest('[data-act]');
-      if (b && b.closest('.hero-plate')) return heroAct(b.dataset.act);
-      const c = e.target.closest('.gc');
-      if (c) push('game', { id: c.dataset.g });
+    root.innerHTML = '<div class="nb-sec" data-row></div>';
+    row = root.querySelector('.nb-sec');
+    // Down from the row goes to the section's entry (neighbour() would pick whatever overlaps the chip: SPEC 2.2).
+    row.navHook = (dir, cur, repeat) => {
+      if (dir !== 'down' || repeat) return undefined;
+      const to = def().entry?.(rootOf());
+      return to ? focus(to) : undefined;
+    };
+    row.addEventListener('tvfocus', (e) => {
+      const k = e.target.dataset.sec;
+      clearTimeout(dwell);
+      if (!k || k === sec) return;
+      dwell = setTimeout(() => { if (document.activeElement === e.target) select(k); }, 250);
     });
-    // ◀▶ on the day chips change the day (the selected chip stays the centre one).
-    root.addEventListener('tvfocus', place);
-    const redraw = () => { if (current() === 'nba') { if (!offset) games = nba.today; draw(); } };
-    on('nba', redraw); on('summary', redraw); on('feeds', redraw);
+    root.addEventListener('click', (e) => {
+      const c = e.target.closest('[data-sec]');
+      if (!c) return;
+      clearTimeout(dwell);
+      select(c.dataset.sec);
+      requestAnimationFrame(() => { const to = def().entry?.(rootOf()); if (to) focus(to); });
+    });
+    on('nba', () => { if (current() === 'nba') drawRow(); });
   },
   enter(root) {
     startNba();
-    ensure('live').catch(() => {});
-    if (offset === 0) { games = nba.today; loading = !nba.today.length && !nba.err; err = nba.err; draw(); const m = games.find(isMine); if (m) findFeeds(m); }
-    else load(offset);
+    if (!rootOf() || rootOf().hidden) select(sec, { enter: false });
+    drawRow();
+    def().enter?.(rootOf(), ctxFor(sec));
   },
-  entry: (root) => root.querySelector('.hero-plate .btn') || root.querySelector('.gc') || root.querySelector('[data-day="0"]'),
-  key(k) {
+  entry: () => def().entry?.(rootOf()) || row.querySelector('.chip.sel'),
+  key(k, e) {
     const a = document.activeElement;
-    if (a?.dataset?.day === '0' && (k === 'left' || k === 'right')) { load(offset + (k === 'right' ? 1 : -1)); return true; }
+    if (rootOf()?.contains(a)) return !!def().key?.(k, e);
     return false;
   },
-  leave() { barHidden(false); },
-  toTop(root) { root.querySelector('.page').style.transform = ''; root.querySelector('.hub-cover').hidden = true; },
+  // Back in a section's content: its top, and its chip. (On the row, the app's rule: the NBA tab.)
+  back() {
+    const r = rootOf(), a = document.activeElement;
+    if (!r?.contains(a)) return false;
+    if (def().back?.(r)) return true;
+    def().toTop?.(r);
+    r._last = null; el._last = null;
+    r.querySelectorAll('[data-row],[data-col],[data-grid]').forEach((b) => (b._mem = null));
+    row.classList.remove('away'); barHidden(false);
+    focus(row.querySelector(`[data-sec="${sec}"]`));
+    return true;
+  },
+  leave() { const r = rootOf(); if (r && !r.hidden) def().leave?.(r); barHidden(false); },
+  toTop() { const r = rootOf(); if (r) def().toTop?.(r); row?.classList.remove('away'); },
 };
+// The NBA tab's section showing now, and a way to open one from elsewhere (Season ranks -> Team stats on a category).
+export const nbaSection = () => sec;
+export function openSection(k, params) {
+  select(k, { enter: false });
+  def().enter?.(rootOf(), ctxFor(k), params);
+}

@@ -253,16 +253,33 @@
       injury: a.injuries?.[0] ? (a.injuries[0].status || a.injuries[0].type?.description || 'Injured') : '', headshot: a.headshot?.href || '',
     }));
   }
-  // News: the league's, or one team's (abbr). An article's own text isn't in the feed: the headline and its summary are.
+  // News: the league's, or one team's (abbr), newest first. Videos, the WNBA and fantasy and betting stories are left out
+  // (owner decision). Each story carries its tags (teams, players, games), which the spoiler shield reads.
+  const NOT_NBA = new Set([59, 3090, 22000]);   // WNBA, fantasy, betting
   async function news(abbr) {
     const d = await getJSON(`${base()}/news?limit=25${abbr ? '&team=' + idOf(abbr) : ''}`);
-    return (d.articles || []).filter((a) => a.headline).map((a) => ({
-      id: String(a.id || a.dataSourceIdentifier || a.headline), headline: a.headline, description: a.description || '', type: a.type || '',
-      published: Date.parse(a.published) || 0, byline: a.byline || '', premium: !!a.premium,
-      image: (a.images || []).find((i) => i.url && (i.type === 'header' || i.width >= 400))?.url || a.images?.[0]?.url || '',
-      teams: (a.categories || []).filter((c) => c.type === 'team').map((c) => abbrOfId(c.teamId || c.team?.id)).filter(Boolean),
-    }));
+    return (d.articles || []).filter((a) => a.headline && a.type !== 'Media' && !(a.categories || []).some((c) => c.type === 'league' && NOT_NBA.has(+(c.leagueId ?? c.league?.id))))
+      .map((a) => {
+        const cats = a.categories || [];
+        return {
+          id: String(a.id || a.dataSourceIdentifier || a.headline), headline: a.headline, description: a.description || '', type: a.type || '',
+          published: Date.parse(a.published) || 0, byline: a.byline || '', premium: !!a.premium,
+          image: (a.images || []).find((i) => i.url && (i.type === 'header' || i.width >= 400) && !/stitcher|combiner\/i\?img=.*score/i.test(i.url))?.url || '',
+          teams: cats.filter((c) => c.type === 'team').map((c) => abbrOfId(c.teamId ?? c.team?.id)).filter(Boolean),
+          players: cats.filter((c) => c.type === 'athlete').map((c) => ({ id: String(c.athleteId ?? c.athlete?.id ?? ''), name: c.athlete?.description || c.description || '' })),
+          events: cats.filter((c) => c.type === 'event').map((c) => String(c.eventId ?? c.event?.id ?? '')).filter(Boolean),
+        };
+      }).sort((x, y) => y.published - x.published);
+  }
+  // A story's own text, as paragraphs (ESPN's content API; embeds, captions and short bits dropped).
+  const content = () => global.Core?.store.get('nbaContentBase', null) || 'https://content.core.api.espn.com/v1/sports/news';
+  async function story(id) {
+    const d = await getJSON(`${content()}/${encodeURIComponent(id)}`);
+    const h = d.headlines?.[0] || {};
+    const html = String(h.story || '').replace(/<(script|iframe|figure|aside|style)[\s\S]*?<\/\1>/gi, '');
+    const paras = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map((m) => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&rsquo;/g, "'").replace(/&ldquo;|&rdquo;/g, '"').replace(/&mdash;/g, '—').replace(/&ndash;/g, '–').replace(/\s+/g, ' ').trim()).filter((t) => t.length >= 30);
+    return { headline: h.headline || '', byline: h.byline || '', published: Date.parse(h.published) || 0, paragraphs: paras, premium: !!h.premium };
   }
 
-  global.NBA = { TEAMS, team, scoreboard, summary, matchGame, logoFor, ESPN_ID, LEADERS, standings, leaders, teamPlayers, teamStats, schedule, roster, news };
+  global.NBA = { TEAMS, team, scoreboard, summary, matchGame, logoFor, ESPN_ID, idOf, abbrOfId, LEADERS, standings, leaders, teamPlayers, teamStats, schedule, roster, news, story };
 })(window);
