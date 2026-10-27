@@ -148,6 +148,9 @@ http.createServer((req, res) => {
   // 60 s; the film with no partial reads (200 to everything) and refused (458); and how often a path was asked for
   // (/_hits?prefix=/movie/: Options > Quality must open no connection).
   if (u.pathname === '/_hits') { const pre = u.searchParams.get('prefix') || '/'; res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); return res.end(JSON.stringify({ n: log.filter((l) => l.split(' ')[1]?.startsWith(pre)).length - (pre === '/' ? 1 : 0) })); }
+  // The add-ons' emulator steps (design/ui-v1/addons/PORT-NATIVE.md 7): the requests for a path, with their User-Agent
+  // (an add-on copy's proxy headers must reach the add-on's server)
+  if (u.pathname === '/_seen') { const pre = u.searchParams.get('prefix') || '/'; res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); return res.end(JSON.stringify(log.filter((l) => l.split(' ')[1]?.startsWith(pre)).slice(-40))); }
   if ((m0 = /^\/subs-addon\/subtitles\/(movie|series)\/(tt\d+)(?:[:\d]*)(?:\/[^/]*)?\.json$/.exec(u.pathname))) {
     const host = `http://${req.headers.host || `127.0.0.1:${PORT}`}`;   // (the emulator reaches this machine as 10.0.2.2)
     const rows = m0[2] === 'tt9000101' ? [

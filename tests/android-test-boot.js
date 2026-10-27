@@ -286,6 +286,91 @@ window.TUNER_TEST = true;
       } catch (e) { report('error', `subtitles: ${(e && e.stack) || e}`); }
       for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-subs-closed-${k + 1}`, 1500);
 
+      // Add-ons (design/ui-v1/addons/PORT-NATIVE.md 7): the fake add-ons on the fake provider's port (their links follow
+      // the request's Host, so 10.0.2.2 here). The Long Night (film 5000) plays Northlight's 4K remux with its proxy
+      // header (User-Agent: Northlight/1.0, checked at the fake server); the torrent, magnet and Stremio-server copies
+      // never reach the player; the 4K web copy is a 30 s "still downloading" clip (Cinemeta's runtime is 2 min), so it
+      // hands over to the next copy with no progress saved; the phone page answers on the TV's own address; the safe
+      // launcher refuses a missing app and unsafe links.
+      try {
+        const TP = window.Capacitor?.Plugins?.TunerPlayer;
+        const info = await TP.info();
+        check('add-ons: the player says addons, phonePage and openApp', info.addons === true && info.phonePage === true && info.openApp === true, { info: JSON.stringify(info) });
+        for (const [k, v] of [['cinemetaBase', '/addon/cinemeta'], ['stremioApi', '/stremio-api'], ['stremioLink', '/stremio-link'], ['ratingsUrl', '/ratings.json']]) localStorage.setItem(`tuner.${k}`, JSON.stringify(API + v));
+        const mod = (m) => import(`./tv/js/${m}.js`);
+        const [AD, TC, IM, CA, PL, ST] = await Promise.all(['addons', 'titlecopies', 'imdb', 'catalog', 'player', 'state'].map(mod));
+        const col = await (await fetch(`${API}/stremio-api/api/addonCollectionGet`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ authKey: 'AK-test-1' }) })).json();
+        for (const x of (col.result?.addons || []).filter((x) => /\/addon\/(cinemeta|northlight)\//.test(x.transportUrl))) AD.addAddon({ url: x.transportUrl, manifest: x.manifest }, 'stremio');
+        const ev = [];
+        const off = await TP.addListener('event', (e) => { if (['addon-state', 'copy-notready', 'copy-failed', 'track', 'need'].includes(e.type)) ev.push({ ...e, at: Date.now() }); });
+        const addonState = async (name) => { const n = ev.length; await step({ keys: [], adb: ['am', 'broadcast', '-a', 'app.tuner.player.DIAG', '-p', 'app.tuner.player', '--es', 'addon', '1'], name }, 300); await until(() => ev.slice(n).some((e) => e.type === 'addon-state'), 3000); return ev.slice(n).reverse().find((e) => e.type === 'addon-state')?.state || ''; };
+        await CA.ensure('movie');
+        const t = CA.catalog.movie.titleById.get('5000') || CA.catalog.movie.titleById.get(5000);
+        IM.pickMatch(t, 'tt9000001');
+        const tc = TC.titleCopies(t, () => {});
+        await tc.start({ tmdb: 4401 });
+        await until(() => tc.answered(), 15000);
+        const all = tc.copies(), ad = all.filter((c) => c.source !== 'provider');
+        check('add-ons: only direct links reach the copies (no torrent, magnet or Stremio server)', ad.length >= 3 && ad.every((c) => /^https?:\/\//.test(c.url || '') && !/11470|magnet:/.test(c.url || '')),
+          { copies: all.map((c) => `${c.source}: ${c.filename || c.v?.name || ''}`).join(' | ') });
+        const remux = ad.find((c) => /REMUX/i.test(c.filename || '')), web = ad.find((c) => /WEB-DL/i.test(c.filename || '') && /2160p/.test(c.filename || ''));
+        // Play: Northlight's 4K remux, with its proxy header on its own data source
+        tc.pick(remux.key);
+        tc.play({ now: true, restart: true });
+        await until(() => state()?.watching, 10000);
+        await wait(3500);
+        await shot('player-addon-remux');
+        const ent = PL.ctx.cur?.items?.[0]?._entry || {};
+        const seen = await (await fetch(`${API}/_seen?prefix=/addon-media/`)).json();
+        const st1 = await addonState('player-addon-state');
+        check('add-ons: the remux plays with Northlight\'s User-Agent', seen.some((l) => /remux\.mkv/.test(l) && /ua=Northlight\/1\.0/.test(l)) && /source=Northlight/.test(st1) && /headers=User-Agent/.test(st1),
+          { seen: seen.slice(-4).map((l) => l.replace(/\/addon-media\/[^/]+\//, '/addon-media/…/')).join(' | '), state: st1, copies: (ent.copies || []).length });
+        await press(['DPAD_DOWN'], 'player-addon-options', 800);
+        await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_CENTER'], 'player-addon-quality', 800);   // Quality: the copies, best first, at 384
+        await press(['BACK'], 'player-addon-quality-back');
+        await press(['BACK'], 'player-addon-options-closed');
+        for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-addon-closed-${k + 1}`, 1500);
+        // the 4K web copy: a 30 s placeholder, handed over to the next copy, nothing saved for it
+        delete ST.S.progress['movie:tt9000001'];
+        const n0 = ev.length;
+        tc.pick(web.key);
+        tc.play({ now: true, restart: true });
+        await until(() => ev.slice(n0).some((e) => e.type === 'copy-notready'), 20000);
+        const saved = ST.S.progress['movie:tt9000001'];
+        await shot('player-addon-not-ready');
+        const nr = ev.slice(n0).find((e) => e.type === 'copy-notready');
+        await until(() => nr && ev.slice(n0).some((e) => e.type === 'track' && e.at > nr.at), 15000);
+        await wait(3000);
+        const st2 = await addonState('player-addon-handed-over');
+        check('add-ons: a placeholder hands over to the next copy, with no progress saved', !!nr && nr.key === web.key && !saved && /notReady=false/.test(st2) && /auto=1/.test(st2) && !st2.includes(`key=${web.key} `),
+          { notready: nr?.key, web: web?.key, saved: JSON.stringify(saved || null), state: st2, need: ev.filter((e) => e.type === 'need').map((e) => `${e.what}:${e.key || ''}`).join(' ') });
+        for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-addon-closed-${k + 4}`, 1500);
+        off?.remove?.();
+        tc.pick(null);
+        // the phone page: on the TV's own address while it's open; a sent link comes back as an event; 5 wrong codes lock it
+        const PH = [];
+        const offP = await TP.addListener('phone', (e) => PH.push(e));
+        const r = await TP.startPhonePage({ token: 'Tst0phonepage1234', code: '482193', port: 8790 });
+        const base = `http://${r.address}`;
+        const page = await (await fetch(`${base}/`)).text();
+        const sent = await (await fetch(`${base}/Tst0phonepage1234/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'stremio://10.0.2.2:8899/addon/kestrel/manifest.json' }) })).json();
+        const bad = await fetch(`${base}/Tst0phonepage1234/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'https://example.com/page' }) });
+        await wait(500);
+        check('phone page: answers on the TV\'s address and passes a manifest link on', /^\d+\.\d+\.\d+\.\d+:\d+$/.test(r.address || '') && /Send to your TV/.test(page) && sent.ok === true && bad.status === 400 && PH.some((e) => e.type === 'sent' && e.url === 'https://10.0.2.2:8899/addon/kestrel/manifest.json'),
+          { address: r.address, sent: JSON.stringify(sent), bad: bad.status, events: JSON.stringify(PH) });
+        for (let k = 0; k < 5; k++) await fetch(`${base}/code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: '000000' }) });
+        const right = await fetch(`${base}/code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: '482193' }) });
+        check('phone page: 5 wrong codes lock it', PH.some((e) => e.type === 'locked') && right.status === 423, { status: right.status, events: JSON.stringify(PH) });
+        await TP.stopPhonePage();
+        offP?.remove?.();
+        // Watch in another app: a missing app, a file link and an app's own content link are all refused
+        const oa = await TP.openApp({ uri: 'intent://x.example/y#Intent;scheme=https;package=com.example.notinstalled;end' });
+        const of = await TP.openApp({ uri: 'file:///sdcard/x.html' });
+        const oc = await TP.openApp({ uri: 'intent://x#Intent;scheme=content;package=app.tuner.player;component=app.tuner.player/.MainActivity;end' });
+        check('another app: a missing app and unsafe links are refused', oa.ok === false && of.ok === false && oc.ok === false, { missing: JSON.stringify(oa), file: JSON.stringify(of), content: JSON.stringify(oc) });
+      } catch (e) { report('error', `add-ons: ${(e && e.stack) || e}`); }
+      for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-addon-closed-${k + 7}`, 1500);
+
       // Series detail with episodes
       await tab('series');
       await wait(1500);
@@ -314,7 +399,11 @@ window.TUNER_TEST = true;
       window.__tunerTest.go('account');
       await wait(1000);
       await shot('account');
-      await press(['DPAD_LEFT', 'DPAD_DOWN', 'DPAD_DOWN'], 'account-nba');
+      // (Account has the Add-ons group after Provider now: the NBA group is clicked rather than counted to)
+      document.querySelector('.gl[data-g="nba"]')?.click();
+      await wait(600);
+      document.querySelector('.gl[data-g="nba"]')?.focus();
+      await shot('account-nba');
       await press(['DPAD_RIGHT', 'DPAD_DOWN', 'DPAD_CENTER'], 'account-shield');
       await press(['DPAD_DOWN', 'DPAD_CENTER'], 'account-shield-on');
       window.__tunerTest.go('home');

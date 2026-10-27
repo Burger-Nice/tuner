@@ -89,10 +89,16 @@ final class Handover {
     private void copyStarted() { frames = false; decided = false; notReady = false; retried = false; }
 
     /** There are copies to hand over to, or the not-ready rule applies (an add-on copy). */
-    boolean active() { PlayerActivity.Entry e = a.entryNow(); return chain.size() > 1 || (e != null && e.addon()); }
+    boolean active() {
+        PlayerActivity.Entry e = a.entryNow();
+        if (e != null && e.addon()) return true;
+        // provider copies only: the subtitles design's own "Try the next copy" card and Quality list stay (SPEC 7.6, 7.7)
+        for (JSONObject o : chain) if (!isProvider(o)) return chain.size() > 1;
+        return false;
+    }
     boolean hasOthers() { return !left().isEmpty(); }
     /** Quality lists the copies (not the provider's versions) once there is more than one. */
-    boolean listsCopies() { return chain.size() > 1; }
+    boolean listsCopies() { return chain.size() > 1 && active(); }
     boolean notReady() { return notReady; }
     /** Progress is saved only for a copy that isn't a placeholder, once that's decided (PORT-NATIVE.md 2.2). */
     boolean progressAllowed() { PlayerActivity.Entry e = a.entryNow(); return e == null || !e.addon() || (decided && !notReady); }
