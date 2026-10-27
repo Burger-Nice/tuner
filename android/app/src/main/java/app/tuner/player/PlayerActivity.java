@@ -169,6 +169,9 @@ public class PlayerActivity extends AppCompatActivity {
     private Ui.Ring chipRing;
     private Ui.Spinner spinner;
     private VodControls vod;
+    // subtitles from OpenSubtitles and the copy's real quality (design/ui-v1/subtitles): the settings, the downloads
+    Subs subs;
+    private JSONObject subSettings;
     // catch-up (design/ui-v1/catchup): a replay session, its timeline, live TV paused or rewound
     Replay rp;
     Timeline tl;
@@ -283,6 +286,7 @@ public class PlayerActivity extends AppCompatActivity {
         String lv = x.getString("sounds", "on");
         soundLevel = "off".equals(lv) ? 0f : "quiet".equals(lv) ? 0.5f : 1f;
         if (x.containsKey("scoreBug")) prefs.edit().putBoolean("scorebug", x.getBoolean("scoreBug")).apply();   // the app's setting wins
+        try { String sj = x.getString("subs"); subSettings = sj == null || sj.isEmpty() ? null : new JSONObject(sj); } catch (Exception e) { subSettings = null; }
         String sub = x.getString("sub");
         if (sub != null && !sub.isEmpty()) prefs.edit().putString("sub", sub).apply();   // Account / the title page's subtitle choice
         if (live && soundLevel > 0) {
@@ -345,6 +349,11 @@ public class PlayerActivity extends AppCompatActivity {
                 .setForceHighestSupportedBitrate(true)
                 .build());
         player.setTrackSelectionParameters(subtitlePreference(player.getTrackSelectionParameters().buildUpon()).build());
+        // movies and episodes: his subtitle languages in order, and airglow's own view for downloaded subtitles
+        if (!live && !replayMode && subSettings != null) {
+            subs = new Subs(this, player, root, root.indexOfChild(view) + 1, subSettings);
+            player.setTrackSelectionParameters(subs.prefer(player.getTrackSelectionParameters().buildUpon()).build());
+        }
         player.setVideoChangeFrameRateStrategy(C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS);
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int s) {
@@ -356,6 +365,7 @@ public class PlayerActivity extends AppCompatActivity {
                     if (card.getVisibility() == View.VISIBLE) card.setVisibility(View.GONE);
                     if (open instanceof FailedCard) closeOverlay();
                     if (rp != null) rp.ready();
+                    if (!live && rp == null && !askedVersions) { askedVersions = true; if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions"); }   // (the title block's line and Quality)
                 }
                 if (s == Player.STATE_ENDED && rp != null) { rp.onEnded(); return; }
                 if (s == Player.STATE_ENDED && !live && !player.hasNextMediaItem()) finish();
@@ -412,6 +422,7 @@ public class PlayerActivity extends AppCompatActivity {
                 cur = ring.get(index);
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && cur.start > 30) player.seekTo(cur.start * 1000);
                 if (chipUp && chipIsUpNext) hideChip();
+                if (subs != null) subs.reset();   // (the app sends the next episode's subtitles)
                 vod.setItem(cur, index < ring.size() - 1);
                 view.setResizeMode(resizeMode(pictureFor(cur)));
                 vod.show();
@@ -1034,7 +1045,7 @@ public class PlayerActivity extends AppCompatActivity {
         p.hintKeys = new String[][] { { "OK", "Choose" }, { "▶", "Channels" }, { "▲ ▼", "Move" }, { "Back", "Channels" } };
         show(p);
     }
-    private void emitNeed(String what) { JSObject e = event("need"); e.put("what", what); TunerPlayerPlugin.emit(e); }
+    void emitNeed(String what) { JSObject e = event("need"); e.put("what", what); TunerPlayerPlugin.emit(e); }
 
     /** ▶: the game on this channel; else the live games; else what's on. */
     private void right() {
@@ -1105,7 +1116,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (player == null || isFinishing()) return;
         if (rp != null) { openReplayOptions(); return; }
         if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions");   // for Quality, ready when it's opened
-        ListPanel p = new ListPanel(this, "Options", true, 320);
+        ListPanel p = new ListPanel(this, "Options", true, live ? 320 : 384);   // (384 while a film plays: SPEC 2.1)
         List<ListPanel.Item> items = new ArrayList<>();
         int order = optOrder;
         optOrder = 0;
@@ -1137,7 +1148,9 @@ public class PlayerActivity extends AppCompatActivity {
                 items.add(row("Rewind and pause", keptLine(), null, "pause", () -> { closeOverlay(); pauseLive(); }));
             }
         }
-        items.add(textTracks > 0 ? row("Subtitles", null, subtitleValue(), "cc", () -> openSubtitles(true))
+        // (Subtitles when the file has tracks, or there are downloads, or a list is coming: SPEC 9.2)
+        boolean subsRow = textTracks > 0 || (subs != null && (subs.hasDownloads() || (subs.textWanted() && subs.anyComing())));
+        items.add(subsRow ? row("Subtitles", null, subs != null && subs.value() != null ? subs.value() : subtitleValue(), "cc", () -> openSubtitles(true))
                 : disabled(row("Subtitles", live ? "No subtitles on this channel" : "No subtitles in this file", null, "cc", null)));
         items.add(audioTracks > 1 ? row("Audio", null, audioValue(), "audio", () -> openAudio(true))
                 : disabled(row("Audio", audioTracks == 1 ? audioValue() : "One audio track", null, "audio", null)));
@@ -1456,13 +1469,18 @@ public class PlayerActivity extends AppCompatActivity {
         it.sub = sub; it.radio = true; it.radioOn = on; it.ok = ok;
         return it;
     }
+    private boolean qualityFromOptions, askedVersions;
     void openQuality(boolean fromOptions) {
         if (player == null || isFinishing()) return;
+        qualityFromOptions = fromOptions;
         Format f = player.getVideoFormat();
         List<ListPanel.Item> items = new ArrayList<>();
-        ListPanel.Item now = new ListPanel.Item(f == null || f.height <= 0 ? "Now: starting…" : "Now: " + f.width + " × " + f.height);
-        now.sub = qualityDetails(f);
+        JSONArray vs = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONArray("list") : null;
+        boolean film = !live && vs != null && versions.optBoolean("film");   // the copies with what their checks found (SPEC 7.7)
+        ListPanel.Item now = new ListPanel.Item(f == null || f.height <= 0 ? "Now: starting…" : "Now: " + f.width + " × " + f.height + (film && hdr ? " · " + (f.colorInfo != null && f.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG ? "HDR" : "HDR10") : ""));
+        now.sub = film ? null : qualityDetails(f);
         now.disabled = true;
+        if (film) now.height = 44;
         items.add(now);
         int sel = -1;
         // the stream's own levels
@@ -1495,9 +1513,29 @@ public class PlayerActivity extends AppCompatActivity {
                 items.add(radioRow(name, d.isEmpty() ? null : android.text.TextUtils.join(" · ", d), pinned && g.isTrackSelected(i), () -> { setLevel(g, i, false); after(fromOptions); showText("Quality: " + name, 1800); }));
             }
         }
-        // the provider's other copies
-        JSONArray vs = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONArray("list") : null;
-        if (vs != null && vs.length() > 1) {
+        // the copies of this film, ranked by the app (RANKING.md): Always the best copy, then each with its checked facts
+        if (film && vs.length() > 1) {
+            items.add(ListPanel.Item.heading("Copies of this film"));
+            boolean always = versions.optBoolean("always", true);
+            String bestId = versions.optString("bestId");
+            ListPanel.Item best = radioRow("Always the best copy", versions.optString("bestLine").isEmpty() ? null : "Now the " + versions.optString("bestLine") + " copy", always, () -> {
+                closeOverlay();
+                if (cur != null && bestId.equals(cur.id)) { JSObject e = event("version"); e.put("id", bestId); e.put("always", true); e.put("stay", true); TunerPlayerPlugin.emit(e); showText("Always the best copy", 1800); }
+                else { JSObject e = event("version"); e.put("id", bestId); e.put("always", true); e.put("t", Math.max(0, player.getCurrentPosition() / 1000.0)); e.put("d", Math.max(0, player.getDuration() / 1000.0)); TunerPlayerPlugin.emit(e); }
+            });
+            best.height = 50;
+            items.add(best);
+            for (int k = 0; k < vs.length(); k++) {
+                JSONObject o = vs.optJSONObject(k);
+                if (o == null) continue;
+                String id = o.optString("id");
+                boolean playing = cur != null && id.equals(cur.id);
+                ListPanel.Item it = radioRow(o.optString("line1", o.optString("name")), o.optString("line2", o.optString("label", null)), !always && o.optBoolean("pinned"), playing && !always ? () -> after(fromOptions) : () -> { closeOverlay(); pickVersion(id); });
+                it.tickA = o.optBoolean("checked");
+                it.height = 50;
+                items.add(it);
+            }
+        } else if (vs != null && vs.length() > 1) {   // the provider's other copies (a channel's twins; a film before its checks)
             ListPanel.Item head = new ListPanel.Item(live ? "This channel in other qualities" : "Other copies of this title");
             head.disabled = true;
             head.height = 40;
@@ -1511,7 +1549,7 @@ public class PlayerActivity extends AppCompatActivity {
             }
         }
         for (int k = 0; k < items.size(); k++) if (items.get(k).radioOn) { sel = k; break; }
-        ListPanel p = new ListPanel(this, "Quality", true, 352);
+        ListPanel p = new ListPanel(this, "Quality", true, live ? 352 : 384);
         p.source(ListPanel.of(items), Math.max(0, sel));
         while (p.sel < items.size() - 1 && items.get(p.sel).disabled) p.sel++;
         boolean one = lg.size() <= 1 && (vs == null || vs.length() <= 1);
@@ -1951,7 +1989,8 @@ public class PlayerActivity extends AppCompatActivity {
                     if (open == channels && channels != null) channels.render();
                     break;
                 }
-                case "versions": versions = new JSONObject(arg); break;
+                case "versions": versions = new JSONObject(arg); if (open instanceof ListPanel && "Quality".contentEquals(((ListPanel) open).title.getText())) openQuality(qualityFromOptions); break;
+                case "subs": if (subs != null) subs.command(arg); break;
                 case "pinned": pinned = arg == null || arg.isEmpty() ? null : new JSONObject(arg); break;
                 case "games": liveGames = new JSONArray(arg); if (banner.getVisibility() == View.VISIBLE) hintsChanged(); break;
                 case "groups": groups = new JSONArray(arg); if (wantGroups) { wantGroups = false; openGroups(); } break;
@@ -2070,6 +2109,11 @@ public class PlayerActivity extends AppCompatActivity {
     void openSubtitles() { openSubtitles(false); }
     private void openSubtitles(boolean fromOptions) {
         if (player == null || isFinishing()) return;
+        if (subs != null && rp == null) {   // Options > Subtitles, rebuilt (SPEC 7.2)
+            if (textTracks == 0 && !subs.hasDownloads() && ("none".equals(subs.status()) || !subs.textWanted() && !"".equals(subs.status()))) { showText("This video has no subtitles", 3000); return; }
+            subs.open(fromOptions);
+            return;
+        }
         Tracks tracks = player.getCurrentTracks();
         boolean off = player.getTrackSelectionParameters().disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
         List<ListPanel.Item> items = new ArrayList<>();
@@ -2135,7 +2179,7 @@ public class PlayerActivity extends AppCompatActivity {
         show(p);
     }
 
-    private void pickText(Tracks.Group g, int i) {
+    void pickText(Tracks.Group g, int i) {
         TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT);
         if (g == null) {
             b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
@@ -2160,7 +2204,7 @@ public class PlayerActivity extends AppCompatActivity {
         TunerPlayerPlugin.emit(ev);
     }
 
-    private static String trackName(Format f, int n) {
+    static String trackName(Format f, int n) {
         String lang = f.language == null || f.language.isEmpty() || "und".equals(f.language) ? null : new Locale(f.language).getDisplayLanguage(Locale.ENGLISH);
         boolean cc = MimeTypes.APPLICATION_CEA608.equals(f.sampleMimeType) || MimeTypes.APPLICATION_CEA708.equals(f.sampleMimeType);
         String name = f.label != null && !f.label.isEmpty() ? f.label : lang != null ? lang : cc ? "Closed captions" : "Track " + n;
@@ -2171,7 +2215,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     /** Chalk subtitles, Inter 600 at 28 dp with a 1.5 dp black edge and no box, 10% up from the bottom;
      * the TV's own caption style wins when one has been set up. */
-    private void styleSubtitles(SubtitleView sv) {
+    void styleSubtitles(SubtitleView sv) {
         if (sv == null) return;
         CaptioningManager cm = (CaptioningManager) getSystemService(CAPTIONING_SERVICE);
         sv.setBottomPaddingFraction(0.1f);
@@ -2197,6 +2241,7 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        if (subs != null) subs.drawer.stop();
         cancelChecks();
         try { if (netCb != null) ((ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(netCb); } catch (Exception ignored) {}
         try { if (debug != null) unregisterReceiver(debug); } catch (Exception ignored) {}
@@ -2941,7 +2986,12 @@ public class PlayerActivity extends AppCompatActivity {
     private void debugIntent() {
         if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
         debug = new BroadcastReceiver() {
-            @Override public void onReceive(Context c, Intent i) { String d = i.getStringExtra("diag"); if (d != null) handler.post(() -> forceDiag(d)); }
+            @Override public void onReceive(Context c, Intent i) {
+                String d = i.getStringExtra("diag");
+                if (d != null) handler.post(() -> forceDiag(d));
+                // (the emulator test: what the subtitles show now, as an event)
+                if (i.getStringExtra("subs") != null) handler.post(() -> { JSObject e = event("subs-state"); e.put("state", subs == null ? "none" : subs.describe()); e.put("strip", subs == null ? "" : subs.stripState()); e.put("text", subs == null ? "" : subs.lastText()); e.put("mine", subs == null ? 0 : subs.offsetNow()); TunerPlayerPlugin.emit(e); });
+            }
         };
         ContextCompat.registerReceiver(this, debug, new IntentFilter("app.tuner.player.DIAG"), ContextCompat.RECEIVER_EXPORTED);
     }
@@ -3017,6 +3067,46 @@ public class PlayerActivity extends AppCompatActivity {
             case "decoder": f.decoder = 1; f.height = 2160; break;
             case "broken": f.decoder = 2; break;
         }
+    }
+
+    FrameLayout rootView() { return root; }
+    /** The VOD title block's line (SPEC 7.1): "[tick] 4K · HDR10 · Dolby Digital Plus 5.1 • best of 4 copies • Icelandic subtitles". */
+    void fillWhat(VodControls v) {
+        List<String> parts = new ArrayList<>();
+        boolean tick = false;
+        JSONObject w = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONObject("what") : null;
+        if (w != null) {
+            if (!w.optString("line").isEmpty()) { parts.add(w.optString("line")); tick = w.optBoolean("checked"); }
+            if (!w.optString("of").isEmpty()) parts.add(w.optString("of"));
+        }
+        String st = null;
+        if (subs != null && subs.value() != null) st = subs.value() + " subtitles";
+        else if (player != null && !player.getTrackSelectionParameters().disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)) {
+            for (Tracks.Group g : player.getCurrentTracks().getGroups()) if (g.getType() == C.TRACK_TYPE_TEXT) for (int i = 0; i < g.length; i++) if (g.isTrackSelected(i)) { Format f = g.getTrackFormat(i); if (f.language != null && !"und".equals(f.language)) st = new Locale(f.language).getDisplayLanguage(Locale.ENGLISH) + " subtitles"; }
+        }
+        if (st != null) parts.add(st);
+        if (parts.isEmpty() || w == null && st == null) { v.setWhat(false, null); return; }
+        v.setWhat(tick && w != null && !w.optString("line").isEmpty(), android.text.TextUtils.join("  •  ", parts));
+    }
+    /** The other copies of the film the app sent (Options > Quality), for the Subtitles panel's "Other copies" row. */
+    int otherCopies() {
+        JSONArray vs = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONArray("list") : null;
+        return vs == null ? 0 : Math.max(0, vs.length() - 1);
+    }
+    /** "1 has English in its file": the other copies whose check found subtitles in one of his languages. */
+    String copiesWithSubs(List<String> langs) {
+        JSONArray vs = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONArray("list") : null;
+        if (vs == null) return null;
+        Map<String, Integer> n = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < vs.length(); i++) {
+            JSONObject o = vs.optJSONObject(i);
+            if (o == null || o.optString("id").equals(cur.id)) continue;
+            JSONArray in = o.optJSONArray("inFile");
+            for (int k = 0; in != null && k < in.length(); k++) { String l = in.optString(k); if (langs.contains(Subs.codeOf(l))) { n.merge(l, 1, Integer::sum); break; } }
+        }
+        if (n.isEmpty()) return null;
+        Map.Entry<String, Integer> e = n.entrySet().iterator().next();
+        return e.getValue() + (e.getValue() == 1 ? " has " : " have ") + e.getKey() + " in its file";
     }
 
     JSObject event(String type) {

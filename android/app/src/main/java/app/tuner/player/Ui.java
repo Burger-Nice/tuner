@@ -282,6 +282,7 @@ final class Ui {
                 case "wifiWeak": sw(2); faint(ARCS2); d("M8.7 15.8a5 5 0 0 1 6.6 0"); dot(12, 19.2f, 1.4f); break;
                 case "wifiOff": sw(2); faint(ARCS); d("M4 4l16 16"); break;
                 case "cable": sw(2); d("M9 3v4.5M15 3v4.5M6.5 7.5h11v3.5a5.5 5.5 0 0 1-11 0zM12 16.5V21"); break;
+                case "timing": sw(2); path.addCircle(12, 13, 7, Path.Direction.CW); d("M12 9.5V13l2.2 1.6M2.5 6.5L5 4M21.5 6.5L19 4"); break;
                 case "globe": sw(2); path.addCircle(12, 12, 9, Path.Direction.CW); d("M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z"); break;
                 case "server": sw(2); rect(4, 4, 16, 7, 2); rect(4, 13, 16, 7, 2); dot(8, 7.5f, 1.5f); dot(8, 16.5f, 1.5f); break;
                 case "stream": sw(2); dot(12, 12, 2); d("M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"); break;
@@ -318,6 +319,32 @@ final class Ui {
         @Override public void setColorFilter(ColorFilter f) { paint.setColorFilter(f); dotP.setColorFilter(f); }
         @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
         void color(int c) { if (paint.getColor() != c) { paint.setColor(c); dotP.setColor(c); invalidateSelf(); } }
+    }
+
+    /** The checked tick (design/ui-v1/subtitles SPEC 2.3): the diagnosis badge, a green disc with an ink check. */
+    static final class Tick extends Drawable {
+        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Icon check;
+        private final int size;
+        Tick(int sizeDp) {
+            size = dp(sizeDp);
+            fill.setColor(OK);
+            check = new Icon("check", INK, sizeDp);
+            setBounds(0, 0, size, size);
+        }
+        @Override public void draw(@NonNull Canvas c) {
+            android.graphics.Rect b = getBounds();
+            float r = Math.min(b.width(), b.height()) / 2f;
+            c.drawCircle(b.exactCenterX(), b.exactCenterY(), r, fill);
+            int in = Math.round(r * 0.32f);
+            check.setBounds(b.left + in, b.top + in, b.right - in, b.bottom - in);
+            check.draw(c);
+        }
+        @Override public int getIntrinsicWidth() { return size; }
+        @Override public int getIntrinsicHeight() { return size; }
+        @Override public void setAlpha(int a) { fill.setAlpha(a); check.setAlpha(a); }
+        @Override public void setColorFilter(ColorFilter f) { fill.setColorFilter(f); }
+        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
     }
 
     /** The Sharp dialect's plate: a parallelogram skewed 12 degrees (a real skew, not a rotated rectangle). */

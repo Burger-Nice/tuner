@@ -25,11 +25,16 @@ class ListPanel extends Overlay {
     static final class Item {
         String title = "", sub, value, badge, icon, num, logoName, logoUrl;
         boolean radio, radioOn, live, disabled, current, chevron, pin, clock;
+        // the subtitles design (design/ui-v1/subtitles SPEC 7.2, 7.7): a section head (30 high, caps, no focus), a row
+        // indented under the one it belongs to, and the checked tick before line 1 or line 2 (centred, 6 dp from its text)
+        boolean head, tickA, tickB;
+        int indent;
         float progress = -1;
         int height = 48;
         Runnable ok;
         Object data;
         Item(String title) { this.title = title; }
+        static Item heading(String title) { Item it = new Item(title); it.head = true; it.disabled = true; return it; }
     }
     interface Source { int count(); Item get(int i); }
 
@@ -123,6 +128,7 @@ class ListPanel extends Overlay {
         if (foot.getVisibility() == View.VISIBLE) h -= Ui.dp(30);
         h -= Ui.dp(extraDp);
         for (Item it : fixed) h -= Ui.dp(it.height + 10);
+        if (foot.getVisibility() == View.VISIBLE && foot.getLineCount() > 1) h -= Ui.dp(20 * (foot.getLineCount() - 1));
         return h;
     }
 
@@ -154,7 +160,7 @@ class ListPanel extends Overlay {
     }
     private int visibleFrom(int from, int n, int avail) {
         int used = 0, k = from;
-        while (k < n) { int h = Ui.dp(src.get(k).height + 4); if (used + h > avail) break; used += h; k++; }
+        while (k < n) { Item it = src.get(k); int h = Ui.dp(it.head ? 38 : it.height + 4); if (used + h > avail) break; used += h; k++; }
         return Math.max(1, k - from);
     }
 
@@ -202,7 +208,8 @@ class ListPanel extends Overlay {
     static final class Row extends FrameLayout {
         final LinearLayout in;
         final TextView num, a, b, badge, value;
-        final ImageView icon, chevron;
+        final ImageView icon, chevron, tickA, tickB;
+        final LinearLayout ra, rb;
         final Radio radio;
         final FrameLayout logo;
         final TextView live;
@@ -229,8 +236,24 @@ class ListPanel extends Overlay {
             col.setOrientation(LinearLayout.VERTICAL);
             a = Ui.line(c, "", 16, Ui.T1, Ui.inter650);
             b = Ui.line(c, "", 14, Ui.T3, Ui.inter500);
-            col.addView(a);
-            col.addView(b);
+            ra = new LinearLayout(c);
+            ra.setGravity(Gravity.CENTER_VERTICAL);
+            tickA = new ImageView(c);
+            tickA.setImageDrawable(new Ui.Tick(16));
+            LinearLayout.LayoutParams ta = new LinearLayout.LayoutParams(Ui.dp(16), Ui.dp(16));
+            ta.setMarginEnd(Ui.dp(6));
+            ra.addView(tickA, ta);
+            ra.addView(a, new LinearLayout.LayoutParams(0, -2, 1));
+            rb = new LinearLayout(c);
+            rb.setGravity(Gravity.CENTER_VERTICAL);
+            tickB = new ImageView(c);
+            tickB.setImageDrawable(new Ui.Tick(14));
+            LinearLayout.LayoutParams tb = new LinearLayout.LayoutParams(Ui.dp(14), Ui.dp(14));
+            tb.setMarginEnd(Ui.dp(6));
+            rb.addView(tickB, tb);
+            rb.addView(b, new LinearLayout.LayoutParams(0, -2, 1));
+            col.addView(ra);
+            col.addView(rb);
             in.addView(col, gap(new LinearLayout.LayoutParams(0, -2, 1)));
             badge = Ui.text(c, "", 14, Ui.T3, Ui.inter500);
             in.addView(badge, gap(new LinearLayout.LayoutParams(-2, -2)));
@@ -252,10 +275,22 @@ class ListPanel extends Overlay {
             bound = it;
             LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) getLayoutParams();
             if (lp == null) { lp = new LinearLayout.LayoutParams(-1, Ui.dp(it.height)); setLayoutParams(lp); }
-            lp.height = Ui.dp(it.height);
-            lp.topMargin = Ui.dp(it.pin ? 0 : 4);
+            lp.height = Ui.dp(it.head ? 30 : it.height);
+            lp.topMargin = Ui.dp(it.pin ? 0 : it.head ? 8 : 4);
             lp.bottomMargin = Ui.dp(it.pin ? 6 : 0);
             setLayoutParams(lp);
+            in.setPadding(Ui.dp(12 + it.indent), 0, Ui.dp(12), 0);
+            if (it.head) {   // a section head: caps, letter-spaced, no background and no focus
+                setBackground(null);
+                for (View v : new View[] { num, icon, radio, logo, rb, tickA, badge, value, live, chevron, bar }) show(v, false);
+                a.setText(it.title.toUpperCase(java.util.Locale.ROOT));
+                a.setTextColor(Ui.T3);
+                a.setTypeface(Ui.inter650);
+                a.setTextSize(13);
+                a.setLetterSpacing(0.08f);
+                return;
+            }
+            a.setLetterSpacing(0);
             if (focused) setBackground(Ui.rowBg(true, false));
             else if (it.pin) { android.graphics.drawable.GradientDrawable g = Ui.round(Ui.S1, 12); g.setStroke(Math.max(1, Ui.dp(1)), Ui.BORDER); setBackground(g); }
             else setBackground(Ui.rowBg(false, it.current));
@@ -273,7 +308,9 @@ class ListPanel extends Overlay {
             a.setTextColor(main);
             if (it.clock) { a.setTypeface(Ui.inter700); a.setTextSize(20); }
             else { a.setTypeface(it.radio || it.icon != null ? Ui.inter500 : Ui.inter650); a.setTextSize(16); }
-            show(b, it.sub != null && !it.sub.isEmpty());
+            show(tickA, it.tickA);
+            show(tickB, it.tickB);
+            show(rb, it.sub != null && !it.sub.isEmpty());
             b.setText(it.sub);
             b.setTextColor(it.disabled ? Ui.T4 : Ui.T3);
             show(badge, it.badge != null);

@@ -33,7 +33,9 @@ final class VodControls {
     private final PlayerActivity a;
     private final ExoPlayer p;
     final LinearLayout top, bar;
-    private final TextView title, sub, ends, elapsed, remaining, bubble;
+    private final TextView title, sub, ends, elapsed, remaining, bubble, what;
+    private final android.widget.ImageView whatTick;
+    private final LinearLayout whatRow;
     private final Seek seek;
     private final LinearLayout buttons;
     private final List<TextView> btns = new ArrayList<>();
@@ -60,6 +62,21 @@ final class VodControls {
         Ui.lineHeight(sub, 22);
         tcol.addView(title);
         tcol.addView(sub);
+        // the st-what line (design/ui-v1/subtitles SPEC 7.1): tick + the copy's checked quality and sound · best of N
+        // copies · the subtitles that are on
+        whatRow = new LinearLayout(c);
+        whatRow.setGravity(Gravity.CENTER_VERTICAL);
+        whatTick = new android.widget.ImageView(c);
+        whatTick.setImageDrawable(new Ui.Tick(16));
+        LinearLayout.LayoutParams wt = new LinearLayout.LayoutParams(Ui.dp(16), Ui.dp(16));
+        wt.setMarginEnd(Ui.dp(8));
+        whatRow.addView(whatTick, wt);
+        what = Ui.line(c, "", 15, Ui.T2, Ui.inter500);
+        whatRow.addView(what, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout.LayoutParams wl = new LinearLayout.LayoutParams(-1, -2);
+        wl.topMargin = Ui.dp(4);
+        whatRow.setVisibility(View.GONE);
+        tcol.addView(whatRow, wl);
         top.addView(tcol, new LinearLayout.LayoutParams(0, -2, 1));
         ends = Ui.text(c, "", 16, Ui.T2, Ui.inter500);
         Ui.tabular(ends);
@@ -99,7 +116,7 @@ final class VodControls {
         times.addView(elapsed, new LinearLayout.LayoutParams(0, -2, 1));
         times.addView(remaining);
         LinearLayout.LayoutParams tml = new LinearLayout.LayoutParams(-1, -2);
-        tml.topMargin = Ui.dp(4);
+        tml.topMargin = Ui.dp(8);   // (14 px under the bar, not 10: the thumb's focus ring at 0:00 touched the elapsed time)
         bar.addView(times, tml);
         FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
         bl.setMargins(Ui.dp(48), 0, Ui.dp(48), Ui.dp(64));
@@ -181,7 +198,15 @@ final class VodControls {
         seek.invalidate();
     }
 
+    /** The st-what line: [tick, text] from the player, or null for none. */
+    void setWhat(boolean tick, String text) {
+        boolean on = text != null && !text.isEmpty();
+        whatRow.setVisibility(on ? View.VISIBLE : View.GONE);
+        whatTick.setVisibility(tick ? View.VISIBLE : View.GONE);
+        what.setText(on ? text : "");
+    }
     void show() {
+        a.fillWhat(this);
         boolean was = visible();
         top.setVisibility(View.VISIBLE);
         bar.setVisibility(View.VISIBLE);
