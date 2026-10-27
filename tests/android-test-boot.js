@@ -94,6 +94,18 @@ window.TUNER_TEST = true;
       await press(['DPAD_RIGHT'], 'nba-game-other-team');
       await press(['DPAD_RIGHT'], 'nba-game-plays');
       await press(['BACK'], 'nba-game-closed');
+      // The NBA tab's sections: Down from a chip lands on its content, Back returns to the chip
+      const sec = async (k, name) => { document.querySelector(`[data-sec="${k}"]`)?.focus(); document.querySelector(`[data-sec="${k}"]`)?.click(); await wait(2500); await shot(name); };
+      await sec('standings', 'nba-standings');
+      await press(['DPAD_DOWN', 'DPAD_DOWN'], 'nba-standings-row');
+      check('standings row focused', !!document.activeElement?.closest('[data-s="standings"]') && document.activeElement?.dataset?.key?.startsWith('tm:'));
+      await press(['BACK'], 'nba-standings-back');
+      check('back to the Standings chip', document.activeElement?.dataset?.sec === 'standings');
+      await sec('team', 'nba-team');
+      await press(['DPAD_DOWN', 'DPAD_DOWN'], 'nba-team-schedule');
+      await press(['DPAD_DOWN'], 'nba-team-ranks');
+      check('team page scrolls to Season ranks', !!document.activeElement?.closest('[data-s="team"]'));
+      await press(['BACK'], 'nba-team-back');
 
       // Movies: grid, scroll, detail, play
       await tab('movie');
