@@ -7,7 +7,7 @@ import { register, go, pop, nav, current, screenDef, screenEl, focusTab, setBar,
 import { resetGuides } from './guide.js';
 import { native } from './native.js';
 import { resume } from './session.js';
-import { startNba, myGame, nba } from './games.js';
+import { startNba, myGame, nba, liveShown } from './games.js';
 import { watching } from './player.js';
 import { busy, ensure } from './catalog.js';
 import home from './screens/home.js';
@@ -132,7 +132,7 @@ window.addEventListener('popstate', () => {});
 busy.showing = (k) => { const c = current(); return c === k || (k !== 'live' && c === 'detail'); };
 // No big catalog refresh while your team is playing (seconds of work and a lot of memory, mid-game).
 busy.gameOn = () => !nba.stale && myGame()?.state === 'in';
-on('nba', () => setBar({ live: myGame()?.state === 'in' }));
+on('nba', () => setBar({ live: liveShown(myGame()) }));   // (behind in its replay: on the clock, catch-up 7.2)
 let offlineT = 0;   // the Offline bar's retry
 on('session', () => {
   // a new session starts online: an Offline bar from the last one (or from before signing out) goes

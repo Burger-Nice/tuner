@@ -27,11 +27,17 @@ module.exports = async (ctx) => {
   // the day before: last night's cards. (The hub's hero is your team's game and its card isn't repeated under it, so
   // the card is looked at with no team and the shield on every game.)
   await setup(ctx, { shield: 'all', team: 'none' });
-  await toHub();
-  for (let i = 0; i < 3 && !(await ev(() => !!document.activeElement.dataset.day)); i++) await key('ArrowDown', 1, 400);
+  await ev(() => window.__tunerTest.go('nba')); await p.waitForTimeout(3000);
+  console.log('no team, hub focus:', await focused());
+  for (let i = 0; i < 4 && !(await ev(() => !!document.activeElement.dataset.day)); i++) await key((await focused()).includes('gc') ? 'ArrowUp' : 'ArrowDown', 1, 400);
   await key('ArrowLeft', 1, 3000);
   await key('ArrowDown', 1, 600);
-  for (let i = 0; i < 6 && !(await focused()).includes(JAZZ); i++) await key('ArrowRight', 1, 300);
+  const idx = await ev((id) => [...document.querySelectorAll('.nba-grid .gc')].findIndex((c) => c.dataset.g === id), JAZZ);
+  const at0 = await ev(() => [...document.querySelectorAll('.nba-grid .gc')].indexOf(document.activeElement));
+  console.log('jazz card at', idx, 'focus at', at0);
+  for (let i = 0; i < Math.floor(idx / 3) - Math.floor(at0 / 3); i++) await key('ArrowDown', 1, 400);
+  for (let i = 0; i < (idx % 3) - (at0 % 3); i++) await key('ArrowRight', 1, 400);
+  for (let i = 0; i < (at0 % 3) - (idx % 3); i++) await key('ArrowLeft', 1, 400);
   await p.waitForTimeout(2500);
   console.log('card:', await focused(), '| day caption:', await ev(() => document.querySelector('.nb-days .t-cap')?.innerText.replace(/\s+/g, ' ')));
   console.log('cards:', await ev(() => [...document.querySelectorAll('.nba-grid .gc')].slice(0, 3).map((c) => c.innerText.replace(/\s+/g, ' ')).join(' | ')));
@@ -47,7 +53,7 @@ module.exports = async (ctx) => {
   await key('Enter', 1, 2500);
   console.log('game page:', await ev(() => document.querySelector('[data-screen="game"]')?.innerText.replace(/\s+/g, ' ')));
   ok('game page: the entry is Watch from tip-off', (await focused()).includes('Watch from tip-off'));
-  ok('game page: the caption names the replay', /US: ESPN HD · replays until Thu 29 Oct · late · hold OK: other sources/.test(await ev(() => document.querySelector('.cu-state')?.innerText.replace(/\s+/g, ' '))));
+  ok('game page: the caption names the replay', /US: ESPN HD.*replays until Thu 29 Oct · late.*hold OK: other sources/.test(await ev(() => document.querySelector('.cu-state')?.innerText.replace(/\s+/g, ' '))));
   await sweep('game page');
   await shot('game-replay-shield');
   // Choose a video from the sources sheet

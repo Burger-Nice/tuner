@@ -5,7 +5,7 @@
 import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
 import { busy, catalog, versionLabel, pickVersion, forget, ensure } from './catalog.js';
 import { native } from './native.js';
-import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
+import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress } from './games.js';
 import { guideFor, guideNow, onNow, nextUp, resetGuides } from './guide.js';
 import { go } from './router.js';
 import { teamPalette, hm } from './util.js';
@@ -183,9 +183,10 @@ function liveGamesData() {
   return list.map((g, i) => {
     const f = feedsNow(g)[0];
     const score = hidden(g) ? '' : ` · ${g.away.score ?? 0}–${g.home.score ?? 0}`;
+    const pos = shielded(g) && behindReplay(g) ? `You're in ${replayProgress(g.id)?.item?.pos?.chapter || 'the replay'}` : '';   // (catch-up 7.2: never the live clock)
     return {
       id: g.id, title: `${g.away.name} at ${g.home.name}`, live: true, chId: f ? String(f.ch.id) : '',
-      sub: `${clockText(g)}${score}${f ? ` · ${f.ch.name}` : ' · No channel found'}`,
+      sub: `${pos || clockText(g)}${score}${f ? ` · ${f.ch.name}` : ' · No channel found'}`,
       note: i === 0 && hidden(g) ? 'Your team is first and its score is hidden by the spoiler shield. Other games show scores, as on the NBA hub.' : '',
     };
   });
