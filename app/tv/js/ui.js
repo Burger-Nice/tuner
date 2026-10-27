@@ -66,16 +66,28 @@ export function radioMenu({ title, rows, value, onPick, extra = '', style = 'rig
 }
 
 // Context menu for hold OK on a card: Save to Saved first and focused, so hold then OK saves.
-export function contextMenu(anchor, rows) {
+// rows: [{ icon, lead (markup in place of the icon: a crest), label, run, dis }]; opts.cls: 'cu-w' (the 292 px menu of
+// catch-up 5.4, whose first row is Watch from tip-off), and with it the placement rule of 5.4.
+export function contextMenu(anchor, rows, { cls = '' } = {}) {
   const r = anchor.getBoundingClientRect();
-  const ov = openOverlay(`<div class="ctxmenu" style="left:${Math.max(48, r.left + 12)}px;top:${Math.max(27, r.top + 24)}px" data-col>${rows.map((row, i) => `<div class="lr fx${row.dis ? ' dis' : ''}" tabindex="-1" data-act="${i}">${ic(row.icon || 'chevR', 'sm')}${esc(row.label)}</div>`).join('')}</div>`, {
+  const ov = openOverlay(`<div class="ctxmenu${cls ? ' ' + cls : ''}" style="left:${Math.max(48, r.left + 12)}px;top:${Math.max(27, r.top + 24)}px" data-col>${rows.map((row, i) => `<div class="lr fx${row.dis ? ' dis' : ''}" tabindex="-1" data-act="${i}">${row.lead || ic(row.icon || 'chevR', 'sm')}${esc(row.label)}</div>`).join('')}</div>`, {
     scrim: false,
     focusSel: rows.focus != null ? `[data-act="${rows.focus}"]` : null,
     onClick: (act) => { ov.close(); rows[+act]?.run(); },
   });
+  const m = ov.el.querySelector('.ctxmenu'), h = m.offsetHeight, w = m.offsetWidth;
+  if (cls.includes('cu-w')) {
+    // below the card if it fits by y 513; else above if that clears the card; else beside the card (its right + 16, or
+    // its left − 16 − the menu), y clamped to the safe area (the cards under it aren't focusable while it's open)
+    const left = Math.min(Math.max(48, r.left + 12), 912 - w);
+    if (r.bottom + 8 + h <= 513) { m.style.left = `${left}px`; m.style.top = `${r.bottom + 8}px`; return ov; }
+    if (r.top - 8 - h >= 27) { m.style.left = `${left}px`; m.style.top = `${r.top - 8 - h}px`; return ov; }
+    const x = r.right + 16 + w <= 912 ? r.right + 16 : Math.max(48, r.left - 16 - w);
+    m.style.left = `${x}px`; m.style.top = `${Math.min(Math.max(27, r.top + r.height / 2 - h / 2), 513 - h)}px`;
+    return ov;
+  }
   // clamped by its measured height to the safe line (y 513); when that pushes it up over the card, it opens above it
-  const m = ov.el.querySelector('.ctxmenu'), h = m.offsetHeight;
-  m.style.left = `${Math.min(Math.max(48, r.left + 12), 912 - m.offsetWidth)}px`;   // (it grows to fit a long row, up to 340)
+  m.style.left = `${Math.min(Math.max(48, r.left + 12), 912 - w)}px`;   // (it grows to fit a long row, up to 340)
   let y = Math.min(Math.max(27, r.top + 24), 513 - h);
   if (y < r.top + 24 && r.top - 8 - h >= 27) y = r.top - 8 - h;
   m.style.top = `${y}px`;

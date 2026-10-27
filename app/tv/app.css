@@ -125,3 +125,61 @@ input.field[readonly]{caret-color:transparent}
 .dg-sheet .sheet-foot{flex-direction:row;align-items:center;gap:16px;margin-top:auto}
 .dg-sheet .sheet-foot .t-cap{margin-left:auto}
 .dg-wait{font:500 15px/20px var(--a-font-text);color:var(--a-text-3)}
+
+/* ---------- catch-up (design/ui-v1/catchup/catchup.css, the web part; the player's is native) ---------- */
+
+.ic.xs{width:16px;height:16px}
+
+/* ---------- a neutral badge (never red: red is LIVE only) ---------- */
+.cu-badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:var(--a-surface-2);color:var(--a-text-1);font:650 14px/1 var(--a-font-text);white-space:nowrap;flex:none}
+.cu-badge .ic{width:16px;height:16px}
+
+/* ---------- the guide (SPEC 4) ---------- */
+.cu-day{position:absolute;left:0;top:2px;height:24px;padding:0 10px;border-radius:999px;background:var(--a-surface-2);color:var(--a-text-1);font:650 14px/24px var(--a-font-text);white-space:nowrap;z-index:3}
+.cu-nowr{position:absolute;right:4px;top:2px;height:24px;padding:0 6px 0 10px;border-radius:999px;background:var(--a-grad);color:var(--a-ink);font:700 14px/24px var(--a-font-text);display:inline-flex;align-items:center;gap:2px;white-space:nowrap;z-index:3}
+.cu-nowr .ic{width:16px;height:16px;stroke-width:2.6}
+.g-cell.cu-rp .sb .ic{width:16px;height:16px;margin-right:5px;color:var(--a-text-2);stroke-width:2.2}
+.g-cell.cu-gone{background:transparent;border-color:var(--a-border)}
+.g-cell.cu-gone b{color:var(--a-text-3);font-weight:500}
+.g-cell.cu-load{background:var(--a-bg-1)}
+.g-cell.cu-load b{color:var(--a-text-3);font-weight:500}
+.g-cell .cu-wp{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(21,19,29,.55)}
+.g-cell .cu-wp i{display:block;height:100%;background:var(--a-grad)}
+.g-ch .num.cu-n{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:3px;line-height:1}
+.g-ch .cu-arc{display:flex;color:var(--a-text-1)}
+.g-ch .cu-arc svg{width:16px;height:16px;stroke-width:2.2}
+.g-nowline{position:absolute;top:-34px;bottom:-4px;width:2px;margin-left:-1px;background:var(--a-pink);z-index:0}
+.pvtile .cu-cor{position:absolute;right:6px;bottom:6px;width:26px;height:26px;border-radius:50%;background:rgba(21,19,29,.86);display:grid;place-items:center;color:var(--a-text-1)}
+.pvtile .cu-cor svg{width:16px;height:16px}
+.cu-hint{text-align:right;line-height:20px;white-space:nowrap}
+
+/* ---------- NBA surfaces (SPEC 5) ---------- */
+.gc .st .cu-rpl{margin-left:auto;display:inline-flex;align-items:center;gap:5px;color:var(--a-text-1);letter-spacing:.02em;text-transform:none;font-weight:650;white-space:nowrap}
+.gc .st .cu-rpl .ic{width:16px;height:16px}
+.nb-gt .r .cu-g{margin-left:auto;display:flex;color:var(--a-text-1)}
+.nb-gt .r .cu-g svg{width:18px;height:18px}
+.cu-srcs .lr{height:64px;align-items:center}
+.cu-srcs .lr .grow{min-width:0}
+.cu-srcs .lr .a{display:block;font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cu-srcs .lr .b{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cu-srcs .lr .ico{display:flex;color:var(--a-text-2);flex:none}
+.cu-srcs .lr .ico svg{width:22px;height:22px}
+.cu-srcs .lr small{font:650 14px/18px var(--a-font-text);color:var(--a-pink-text);flex:none}
+.cu-match{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:100%;background:var(--a-surface-2)}
+.state.big.cu-state{width:680px}   /* v1.1: .state.big (ui.css) won over .cu-state at 560 */
+.cu-state .row-flex{justify-content:center;gap:20px}
+.cu-state .t-cap{margin-top:14px}
+
+.ctxmenu.cu-w{width:292px}
+.ctxmenu .lr .team.s24{flex:none}
+/* the app's focus (SPEC 2.4): the watched bar inside the inset ring; an outlined past cell reads chalk when focused */
+.g-cell.fx:focus .cu-wp{left:3px;right:3px;bottom:3px}
+.g-cell.cu-gone.fx:focus b{color:var(--a-text-1)}
+.g-cell.cu-gone.fx:focus{background:var(--a-surface-3)!important}
+.g-cell.cu-gone .sb{color:var(--a-text-3)}
+.g-cell.cu-clip .sb{color:var(--a-text-3)}
+.cu-srcs .lr.fx:focus{background:var(--a-surface-3)}
+.state.big.cu-state .row-flex{display:flex}
+.hc .tp .cu-crs{display:flex;gap:4px;margin-left:auto}.hc .tp .cu-crs .team{width:24px;height:24px}
+.hc .bt .cu-may{display:flex;align-items:center;gap:6px}.hc .bt .cu-may .ic{width:16px;height:16px;flex:none}
+.cu-noart{display:grid;place-items:center;background:var(--a-surface-2);color:var(--a-text-2)}
