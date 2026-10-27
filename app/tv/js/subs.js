@@ -103,6 +103,17 @@ export const leaveCopies = (versions) => probeQueue()?.leave(versions.map(probeK
 export const checkFor = (v) => (v ? probeQueue()?.peek(probeKey(v)) || null : null);
 export const checkedFor = (v) => checkedOf(checkFor(v));
 export const probeStatus = () => probeQueue()?.status() || null;
+// "Plays on this TV", decided now from the stored formats and the audio route (PORT-NATIVE.md 1.5): -> Map(version id ->
+// { video, audio, reason }) for the checked copies; unchecked ones (and every copy before the native check exists) are
+// left out, and copies.js counts them as playing. Kept 60 s (the soundbar can go off).
+let playCache = { at: 0, m: new Map() };
+export async function playable(versions) {
+  if (!nativeProbe()) return new Map();
+  if (Date.now() - playCache.at > 60e3) playCache = { at: Date.now(), m: new Map() };
+  const ask = versions.filter((v) => !playCache.m.has(probeKey(v)) && checkFor(v)?.formats).map((v) => ({ id: probeKey(v), formats: checkFor(v).formats }));
+  if (ask.length) { try { const r = await TP().playable({ copies: ask }); for (const [k, x] of Object.entries(r || {})) playCache.m.set(k, x); } catch { /* not there yet */ } }
+  return new Map(versions.filter((v) => playCache.m.has(probeKey(v))).map((v) => [v.id, playCache.m.get(probeKey(v))]));
+}
 export const noteStart = (v, facts) => probeQueue()?.noteStart(probeKey(v), facts);
 // Play cancels a check in flight; the player closing lets the queue go on
 export const cancelChecks = () => probeQueue()?.cancel();
@@ -168,9 +179,19 @@ function put(st) {
   return st;
 }
 function refresh(key) { const r = reqs.get(key); if (r) prepare(r, { again: true }); }
+// The add-on down or slow: asked again at the retry time (60 s, then every 5 min) while the title is the last one asked
+// for (the open title page, or the film playing). forget(key) stops it.
+const retries = new Map();
+function retryLater(st) {
+  clearTimeout(retries.get(st.key)); retries.delete(st.key);
+  if (!st.retryAt || [...reqs.keys()].pop() !== st.key) return;
+  retries.set(st.key, setTimeout(() => { retries.delete(st.key); refresh(st.key); }, Math.max(1000, st.retryAt - Date.now() + 200)));
+}
+export function forgetSubs(key) { clearTimeout(retries.get(key)); retries.delete(key); reqs.delete(key); }
 
 export async function prepare(req, { again = false } = {}) {
-  reqs.set(req.key, req);
+  reqs.delete(req.key); reqs.set(req.key, req);   // (the last one asked for is last)
+  if (reqs.size > 30) reqs.delete(reqs.keys().next().value);
   const prefs = subSettings();
   const v = req.version || null;
   const entry = v ? checkFor(v) : null;
@@ -188,7 +209,7 @@ export async function prepare(req, { again = false } = {}) {
   if (!again && !states.has(req.key)) put(finish({ ...base, status: 'looking', choice: choose(prefs, copy, []) }));
   const q = { imdb: req.imdb, season: req.season, episode: req.episode, hash: entry?.hash || '', size: entry?.size || 0, base: store.get('subsBase', undefined) };   // (tuner.subsBase: a fake add-on in tests)
   const list = await getList(q);
-  if (!list.ok && !list.stale) return put(finish({ ...base, status: 'down', retryAt: list.retryAt || 0, choice: choose(prefs, copy, []) }));
+  if (!list.ok && !list.stale) { const st = put(finish({ ...base, status: 'down', retryAt: list.retryAt || 0, choice: choose(prefs, copy, []) })); retryLater(st); return st; }
   const files = list.ok ? list.files : list.stale;
   const ctx = { copyFps: checked?.fps || 0, copyLen: checked?.len || 0, pairCache: new Map() };
   const got = new Map(), tried = new Set();   // id -> a downloaded file with its cues
@@ -219,7 +240,9 @@ export async function prepare(req, { again = false } = {}) {
   const choice = choose(prefs, copy, files.filter((f) => !f.dropped), ctx);
   const others = [...new Set(files.filter((f) => !f.dropped && f.lang && !prefs.langs.includes(f.lang)).map((f) => f.lang))];
   const anyMine = choice.perLang.some((p) => p.source);
-  return put(finish({ ...base, files: [...got.values()], others, choice, status: anyMine ? 'ready' : 'none', retryAt: list.ok ? 0 : list.retryAt || 0, down: !list.ok }));
+  const st = put(finish({ ...base, files: [...got.values()], others, choice, status: anyMine ? 'ready' : 'none', retryAt: list.ok ? 0 : list.retryAt || 0, down: !list.ok }));
+  retryLater(st);
+  return st;
 }
 
 // The words the title page and the player show (SPEC 4.2, 7.2, 8). One text for the slot; the UI decides priority.
@@ -270,7 +293,7 @@ export function forPlayer(key, opts = {}) {
     id: f.id, lang: f.lang, text: toSrt(f.cues), speed: f.timing?.speed || 1, autoOffset: f.timing?.offset || 0,
     mine: mem?.offsetFor(key, copyId, f.id, { series: opts.series, release: f.release }) || 0, release: f.release, verdict: f.timing?.verdict || 'unchecked', words: f.timing?.words || WORDS.unchecked, anchored: !!f.timing?.anchored, sounds: !!f.sounds,
   }));
-  return { list: st.langs, pick, files, others: st.others };
+  return { title: key, copy: copyId, list: st.langs, pick, files, others: st.others };
 }
 // ---------- start ----------
 let started = false;

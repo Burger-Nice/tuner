@@ -22,7 +22,7 @@ const list = JSON.parse(gun('oppenheimer-list.json.gz'));
 module.exports = async ({ p, log }) => {
   const ev = (f, a) => p.evaluate(f, a);
   let lists = 0, files = 0;
-  await p.route('https://opensubtitles-v3.strem.io/**', (r) => { lists++; const u = r.request().url(); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(/tt15398776/.test(u) ? list : { subtitles: [], cacheMaxAge: 600 }) }); });
+  await p.route('https://opensubtitles-v3.strem.io/**', (r) => { lists++; const u = r.request().url(); if (/tt0000002/.test(u)) return r.fulfill({ status: 503, headers: { 'Access-Control-Allow-Origin': '*' }, body: '' }); r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(/tt15398776/.test(u) ? list : { subtitles: [], cacheMaxAge: 600 }) }); });
   await p.route('https://subs5.strem.io/**', (r) => {
     files++;
     const n = r.request().url().split('/').pop();
@@ -50,6 +50,8 @@ module.exports = async ({ p, log }) => {
   console.log('again (cached):', r.ms, 'ms, requests so far', lists, 'lists,', files, 'files');
   r = await run({ key: 'movie:x', name: 'Unknown', imdb: 'tt0000001', level: 'sure' });
   console.log('nothing on the add-on:', r.status, '·', r.pill, '·', r.side);
+  r = await run({ key: 'movie:down', name: 'Down', imdb: 'tt0000002', level: 'sure' });
+  console.log('the add-on down:', r.status, '·', r.pill, '·', r.side);
   r = await run({ key: 'movie:lk', name: 'The Lion King', imdb: '', level: 'unsure' });
   console.log('unsure:', r.status, '·', r.pill);
   r = await run({ key: 'movie:dub', name: 'Konungur ljónanna', imdb: 'tt15398776', level: 'sure', dub: true, soundLang: 'Icelandic' });
