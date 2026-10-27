@@ -331,7 +331,13 @@ export function teamPage({ pushed = false } = {}) {
   const ORDER = [btnFirst, schedTile, ranksFirst, () => firstOf($('.tp-news')), rosterRow];
   const go2 = (...fs) => { for (const f of fs) { const el = f(); if (el) return focus(el); } return false; };
   const below = (i) => go2(...ORDER.slice(i + 1));
-  const above = (i) => go2(...ORDER.slice(0, i).reverse());
+  // nothing above in the page (no header buttons, no schedule): back to the top, and the chip (or the tools row)
+  const above = (i) => go2(...ORDER.slice(0, i).reverse()) || toChip();
+  function toChip() {
+    st.area = 'top'; place(false);
+    if (pushed) return focus(tools?.querySelector('.fx'));
+    ctx.chip(); return true;
+  }
   // The page's own moves (SPEC 7.2, 7.8): the schedule's window, and Up/Down between the rails and the roster.
   function hooks() {
     const btns = $('.nb-btns'), sch = $('.tp-sched'), rk = $('.tp-ranks') || $('.nb-notice[data-area="ranks"]'), nw = $('.tp-news'), pill = $('.tp-pill'), ro = $('.tp-roster');

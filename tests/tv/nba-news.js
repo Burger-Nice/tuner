@@ -40,7 +40,9 @@ module.exports = async ({ p, shot, key, log }) => {
   await key('Escape', 1, 500); await log('back: closes'); console.log('reader'.padEnd(22), await reader());
 
   // The shield, My team: the Grizzlies' finals of the last week unseen (Sat at the Warriors, Sun at the Kings)
-  await ev(() => { const s = JSON.parse(localStorage.getItem('tuner.settings') || '{}'); s.shield = 'mine'; localStorage.setItem('tuner.settings', JSON.stringify(s)); localStorage.setItem('tuner.nbaSeen', JSON.stringify({ upTo: 0, ids: [] })); });
+  // (through saveSettings, as the app does; then 'nba' so every surface redraws)
+  const shield = (mode) => ev(async (m) => { if (m === 'mine') localStorage.setItem('tuner.nbaSeen', JSON.stringify({ upTo: 0, ids: [] })); const st = await import('/tv/js/state.js'); st.saveSettings({ nbaTeam: 'MEM', shield: m }); st.emit('nba'); }, mode);
+  await shield('mine');
   await key('Escape', 1, 400); await key('ArrowLeft', 1, 700); await key('ArrowRight', 1, 2500); await log('shield: News again');
   console.log((await rows()).join('\n'));
   await noSpoiler('shield list');
@@ -57,7 +59,7 @@ module.exports = async ({ p, shot, key, log }) => {
     await key('Escape', 1, 500); await log('back');
   }
   // All games: the reader's body is scanned (the fake story text has "108-101 win")
-  await ev(() => { const s = JSON.parse(localStorage.getItem('tuner.settings') || '{}'); s.shield = 'all'; localStorage.setItem('tuner.settings', JSON.stringify(s)); });
+  await shield('all');
   await key('Escape', 1, 400); await key('ArrowLeft', 1, 700); await key('ArrowRight', 1, 2500);
   const ui = await ev(() => [...document.querySelectorAll('.nb-s[data-s="news"] .nb-nrow')].findIndex((r) => !r.classList.contains('cov') && !/fantasy/i.test(r.textContent)));
   await key('ArrowDown', ui + 1, 350); await key('Enter', 1, 1500); await log('all games: reader'); console.log('reader'.padEnd(22), await reader()); await shot('news-article-shield');

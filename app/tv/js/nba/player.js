@@ -1,7 +1,7 @@
 // The player sheet (design/ui-v1/nba-pages/SPEC.md 7.6): a right sheet over Leaders or a team's roster. The team plate
 // with his headshot and number, his averages, college and home town, an injury if any, and one button: from the roster
 // `☆ 1st in the NBA in points` (only when he's in a top 10), from Leaders `<Team> page`. Under the shield (his team
-// played a game you haven't seen) only MIN, REB and AST show, counted over the games you have seen, and there's no button.
+// played a game you haven't seen) only MIN, REB and AST show, counted over the games you have seen, and there's no leaders button.
 import { esc, ic, dot, teamVars } from '../util.js';
 import { on } from '../state.js';
 import { unseenFor } from '../games.js';
@@ -74,14 +74,15 @@ function html(p, r, from) {
       ${p.gp ? `<div class="avg">${box(num(p.pts), 'PTS')}${box(num(p.reb), 'REB')}${box(num(p.ast), 'AST')}${box(num(p.min), 'MIN')}${box(num(p.fg), 'FG%')}${box(num(p.tp), '3P%')}</div>` : ''}`;
   } else {
     const s = seenAverages(p, unseen);
-    const label = !s ? 'Counting the games you’ve seen…' : s.approx ? `${p.gp} games` : `${s.gp} seen ${s.gp === 1 ? 'game' : 'games'}`;
+    // (when an unseen game's box score can't be read, these are the season's averages, and say so)
+    const label = !s ? 'Counting the games you’ve seen…' : s.approx ? 'Season averages' : `${s.gp} seen ${s.gp === 1 ? 'game' : 'games'}`;
     stats = `<div class="sec" style="margin-top:8px">${seasonOf()}<span class="dot-sep" style="margin:0 6px"></span>${label}</div>
       ${s?.gp ? `<div class="avg">${box(num(s.min), 'MIN')}${box(num(s.reb), 'REB')}${box(num(s.ast), 'AST')}</div>` : ''}`;
     line = `<div class="nb-hid" style="margin-top:10px;white-space:normal;align-items:flex-start;font-size:15px;line-height:20px">${ic('eyeOff')}<span>Points and shooting are hidden: they include ${esc(gameName(unseen[unseen.length - 1]))}${unseen.length > 1 ? ` and ${unseen.length - 1} more` : ''}.</span></div>`;
   }
   const facts = [['College', r?.college], ['From', r?.from], ['Injury', injuryText(r?.injury)]].filter(([, v]) => v);
   let btn = '';
-  if (!shield && from === 'leaders') btn = `<span class="btn fx" tabindex="-1" data-act="team" style="transform-origin:0 50%">${tc(abbr, 's24')}${esc(n.name)} page</span>`;
+  if (from === 'leaders') btn = `<span class="btn fx" tabindex="-1" data-act="team" style="transform-origin:0 50%">${tc(abbr, 's24')}${esc(n.name)} page</span>`;
   else if (!shield && from === 'roster') { const b = bestRank(p.id); if (b) btn = `<span class="btn fx" tabindex="-1" data-act="leaders" data-cat="${b.cat.key}" style="transform-origin:0 50%">${ic('starO')}${b.rank} in the NBA in ${esc(b.cat.label.toLowerCase())}</span>`; }
   return `<div class="sheet nb-pl" style="gap:0"><div class="top" style="${teamVars(abbr)}">${head ? `<img class="hs" src="${esc(head)}" alt="" decoding="async">` : ''}<div class="num">${r?.jersey ? `#${esc(r.jersey)}` : ''}</div>${tc(abbr, 's28')}<span class="tp-pltm">${esc(n.name)}</span></div>
   <div class="nb-plb${btn ? '' : ' fx'}" tabindex="-1"${btn ? '' : ' data-col'}>

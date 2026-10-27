@@ -38,7 +38,7 @@
  {
   "file": "home-live-tipoff.html",
   "title": "Home: live, from tip-off",
-  "note": "01:52, live. Watch live stays first; From tip-off sits next to it (one ▶). With three buttons the channel name moves to the status row.",
+  "note": "01:52, live. Watch live first, From tip-off next to it. v1.3: under the shield the slab drops the live period and clock (ON NOW / Score hidden): he may still start from tip-off.",
   "group": "NBA"
  },
  {
@@ -188,7 +188,19 @@
  {
   "file": "player-notgame.html",
   "title": "Player: Not the game?",
-  "note": "v1.2: each row leads with what you can see, then what it does. One OK moves the replay and stores the correction per channel, applied to every later replay.",
+  "note": "Each row leads with what you can see, then what it does (v1.3: the intro line that repeated them is gone). One OK moves the replay and stores the correction for the channel.",
+  "group": "Player"
+ },
+ {
+  "file": "player-firstcheck.html",
+  "title": "Player: the first-replay check",
+  "note": "v1.3 (review 3, M1): once, before the first game replay. 10 s from 20:05 (inside the show), with its title, time, description and art. Not sure stores nothing.",
+  "group": "Player"
+ },
+ {
+  "file": "player-firstcheck-2.html",
+  "title": "Player: the check, second look",
+  "note": "After \"No, it's something else\": it plays the same show an hour earlier (then later). Only a Yes here stores the ± 1 h correction.",
   "group": "Player"
  },
  {

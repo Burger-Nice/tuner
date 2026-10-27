@@ -257,9 +257,9 @@ page('home-replay-resume.html', 'Home: resume the replay', `${topbar('home')}${h
 page('home-live-tipoff.html', 'Home: live, from tip-off', `${topbar('home', { nbaLive: 1 })}${hero({
   status: `${liveP()}<span class="t-label t-2">NBA${dot}NBA League Pass 4</span>`, ar: recM, hr: recU, score: hidTile,
   btns: [{ t: 'Watch live', i: 'play', f: 1 }, { t: 'From tip-off', i: 'restart' }, { t: 'Reveal score' }],
-  slab: '<span class="big">Q2</span><span class="big">5:18</span><span class="cap">Score hidden</span>',
+  slab: '<span class="big">ON NOW</span><span class="cap">Score hidden</span>',   // v1.3 (review 3, S4): no live clock on a hidden game you may still start from tip-off
 })}${rail('On now', ONNOW.map((c, i) => onNowCard([c[0], c[1], c[2], c[3], 0, ['NBA Today', 'Sky Sports News', 'BBC News', 'CNN Newsroom', 'NHL: Rangers at Devils'][i], [40, 20, 75, 10, 50][i]], i)).join(''), 278)}${rail('Tonight\'s games', tonightPeek(), 422, 1)}<div class="edgefade"></div>`,
-'01:52, live. Watch live stays first; From tip-off sits next to it (one ▶). With three buttons the channel name moves to the status row.', { group: 'NBA', shield: true });
+'01:52, live. Watch live first, From tip-off next to it. v1.3: under the shield the slab drops the live period and clock (ON NOW / Score hidden): he may still start from tip-off.', { group: 'NBA', shield: true });
 
 // ---- the hub, game cards ----
 function gc(a, h, { st, plate, tvn = '', f = false, other = false, rec = ['', ''] }) {
@@ -512,9 +512,27 @@ page('player-replay-options.html', 'Player: Options in a replay', `${video('aren
   ${orow('score', 'Game panel', 'Quarters and plays, as aired', '')}${orow('film', 'Other sources', 'Full game in Movies, 2 more', '3')}${orow('clock', 'Not the game?', 'It starts on the wrong show', '', { f: 1 })}${orow('refresh', 'Sync score', 'Match the game clock', '22 s')}${orow('cc', 'Subtitles', '', 'Off')}${orow('audio', 'Audio', '', 'English')}${orow('pic', 'Picture size', 'This channel', 'Zoom')}</div>${hint([['OK', 'Open'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
 'v1.1: ▼ in a game replay. Game panel (the panel\'s second way in, M8), Other sources, and Not the game? for a replay that lands on the wrong show (M6).', { group: 'Player', shield: true });
 page('player-notgame.html', 'Player: Not the game?', `${video('studio', 'arena')}<div class="nv-panel left" style="width:420px"><div class="nv-h">Not the game?</div>
-  <div class="t-cap" style="padding:2px 10px 6px">If the replay starts on the wrong show, move it. airglow remembers this for the channel.</div>
+  
   ${orow('chevR', 'Showing what was on before the game?', 'Move the replay 1 hour later', '', { f: 1 })}${orow('chevL', 'Started mid-game, or after it?', 'Move the replay 1 hour earlier', '')}${orow('film', 'Other sources', 'Full game in Movies, 2 more', '3')}</div>${hint([['OK', 'Move the replay'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
-'v1.2: each row leads with what you can see, then what it does. One OK moves the replay and stores the correction per channel, applied to every later replay.', { group: 'Player', shield: true });
+'Each row leads with what you can see, then what it does (v1.3: the intro line that repeated them is gone). One OK moves the replay and stores the correction for the channel.', { group: 'Player', shield: true });
+// ---- P16 / P17: the first-replay check (v1.3, review 3 M1): from the programme's start + 5 min, its title, description
+// and art beside the question; "Not sure" stores nothing; ± 1 h is stored only after a second look confirms it
+const fcTile = `<div class="pvtile" style="width:160px;height:90px;flex:none">${Art.art('coast')}</div>`;
+function firstCheck(step2) {
+  const q = step2 ? 'Is it Coastline now?' : 'Is this Coastline?';
+  const sub = step2 ? 'Playing 10 s from an hour earlier on BBC One HD.' : 'airglow is playing 10 s of it to check your provider\'s replays line up. You\'ll see this once.';
+  const btns = step2
+    ? `<span class="btn sm f">Yes, that's it</span><span class="btn2 sm">Try an hour later</span><span class="btn2 sm">Not sure</span>`
+    : `<span class="btn sm f">Yes, that's it</span><span class="btn2 sm">No, it's something else</span><span class="btn2 sm">Not sure</span>`;
+  return `${video('coast')}<div class="nv-card cu-check"><div class="t" style="text-align:left"><b>${q}</b><span>${sub}</span></div>
+  <div class="cu-prog">${fcTile}<div class="grow" style="min-width:0"><div class="a">Coastline</div><div class="b">BBC One HD · Mon 26 Oct · 20:00 to 21:00</div><div class="c">The cliffs of the far north-west, filmed over a year of storms.</div></div></div>
+  <div class="cu-cbtns" style="justify-content:flex-start">${btns}</div></div>`;
+}
+page('player-firstcheck.html', 'Player: the first-replay check', `${firstCheck(false)}${hint([['OK', 'Yes, that\'s it'], ['◀ ▶', 'Move'], ['Back', 'Not sure']])}`,
+'v1.3 (review 3, M1): once, before the first game replay. 10 s from 20:05 (inside the show), with its title, time, description and art. Not sure stores nothing.', { group: 'Player', shield: true, other: true });
+page('player-firstcheck-2.html', 'Player: the check, second look', `${firstCheck(true)}${hint([['OK', 'Yes, that\'s it'], ['◀ ▶', 'Move'], ['Back', 'Not sure']])}`,
+'After "No, it\'s something else": it plays the same show an hour earlier (then later). Only a Yes here stores the ± 1 h correction.', { group: 'Player', shield: true, other: true });
+
 // ---- P15: the connection limit (S3) ----
 page('player-connlimit.html', 'Player: one stream at a time', `${video('arena2', 'arena')}<div class="nv-card cu-wide" style="align-items:stretch;gap:12px;padding:18px 18px 14px"><div class="t" style="text-align:left"><b>Your provider allows 1 stream</b><span>Close it on your other devices, or wait a few seconds. Trying again in 5 s.</span></div>
   <div class="row-flex" style="gap:10px;justify-content:space-between"><span class="btn sm f">${ic('refresh', 'sm')}Try again now</span><span class="t-cap">Back closes</span></div></div>`,

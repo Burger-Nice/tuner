@@ -49,19 +49,35 @@ const hiddenNote = (n) => `${ic('eyeOff')}<span>Shield: ${n} paragraph${n === 1 
 const sized = (url, w, h) => {
   try { const u = new URL(url); return u.host === 'a.espncdn.com' && u.pathname.startsWith('/photo/') ? `https://a.espncdn.com/combiner/i?img=${encodeURIComponent(u.pathname)}&w=${w}&h=${h}` : url; } catch { return url; }
 };
-// A story's two teams, away first (from the game it's tagged with, when airglow knows it).
+// A story's two teams, away first: from the game it's tagged with when airglow knows it, else from the headline
+// ('Phoenix visits Oklahoma City', 'Grizzlies at Jazz', 'Utah hosts Memphis'). { t: [abbrs], at: away/home is known }.
+const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function placeIn(text, a) {
+  const n = names(a), found = [n.name, n.city].filter(Boolean).map((w) => text.match(new RegExp(`\\b${reEsc(w)}\\b`, 'i'))).filter(Boolean);
+  if (!found.length) return null;
+  const m = found.sort((x, y) => x.index - y.index)[0];
+  return { a, i: m.index, end: m.index + m[0].length };
+}
 function sides(s) {
   const t = s.teams || [];
-  if (t.length !== 2) return t.length === 1 ? t : [];
+  if (t.length !== 2) return { t: t.length === 1 ? t : [], at: false };
   const g = s.events?.length ? knownGames().find((x) => s.events.includes(x.id) && t.includes(x.home.abbr) && t.includes(x.away.abbr)) : null;
-  return g ? [g.away.abbr, g.home.abbr] : t;
+  if (g) return { t: [g.away.abbr, g.home.abbr], at: true };
+  for (const text of [s.headline || '', s.description || '']) {
+    const [x, y] = t.map((a) => placeIn(text, a));
+    if (!x || !y) continue;
+    const [p, q] = x.i < y.i ? [x, y] : [y, x], mid = text.slice(p.end, q.i);
+    if (/\b(visits?|at|travels? to|heads? to)\b|@/i.test(mid)) return { t: [p.a, q.a], at: true };
+    if (/\b(hosts?|welcomes?)\b/i.test(mid)) return { t: [q.a, p.a], at: true };
+  }
+  return { t, at: false };   // which side is home isn't known: the crests side by side, no 'at'
 }
 // The photo, or (none, or only ESPN's score graphic, which news() leaves out) the teams' crests: never the score.
 function photo(s, w = 896, h = 504) {
   if (s.image) return `<img src="${esc(sized(s.image, w, h))}" alt="" decoding="async">`;
-  const t = sides(s);
+  const { t, at } = sides(s);
   if (!t.length) return '<div class="nb-noph"><i>NBA</i></div>';
-  return `<div class="nb-noph">${t.map((a) => tc(a, '')).join('<i>at</i>')}</div>`;
+  return `<div class="nb-noph">${t.map((a) => tc(a, '')).join(at ? '<i>at</i>' : '')}</div>`;
 }
 
 // ---------- the list and the preview ----------
@@ -227,6 +243,12 @@ export default {
   mount(root, c) {
     el = root; ctx = c;
     root.innerHTML = `<div class="nb-nlist" data-col></div><div class="nb-sbar" style="right:auto;left:444px;top:${128}px;height:${LIST_H}px" hidden><i></i></div><div class="nb-prev"></div><div class="nw-down" data-row></div><div class="nw-st"></div>`;
+    // the Try again pill (ESPN down, the list kept): Left or Down goes back to the list's row
+    root.querySelector('.nw-down').navHook = (dir) => {
+      if (dir !== 'left' && dir !== 'down') return undefined;
+      const r = root.querySelector(`.nb-nrow[data-i="${sel}"]`) || root.querySelector('.nb-nrow');
+      return r ? focus(r) : false;
+    };
     root.addEventListener('tvfocus', (e) => {
       if (!e.target.closest('.nb-nlist')) return;
       place();

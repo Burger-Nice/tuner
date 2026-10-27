@@ -12,7 +12,7 @@ import { watching } from '../player.js';
 import { push } from '../router.js';
 import { focus } from '../focus.js';
 import { contextMenu, confirmMenu } from '../ui.js';
-import { tc, names, pinView, revealBtn, reveal, espnMeta, downCard, skeleton, gameName } from './common.js';
+import { tc, names, pinView, revealBtn, reveal, espnMeta, downCard, stateCard, skeleton, gameName } from './common.js';
 
 // ---------- shared by the League sections ----------
 // 1st 2nd 3rd 4th … 11th 12th 13th 21st
@@ -47,7 +47,7 @@ const TOP = { tb: 194, vh: 319, th: 168 }, SCR = { tb: 80, vh: 433, th: 52 };
 const WEST = new Set(['DAL', 'DEN', 'GS', 'HOU', 'LAC', 'LAL', 'MEM', 'MIN', 'NO', 'OKC', 'PHX', 'POR', 'SAC', 'SA', 'UTAH']);
 const HEAD = `<span class="c c-seed" style="color:inherit;font-weight:inherit">#</span><span class="c-crest"></span><span class="c-nm">TEAM</span><span class="c c-w">W</span><span class="c c-w">L</span><span class="c c-pct">PCT</span><span class="c c-gb">GB</span><span class="c c-st">STRK</span><span class="c c-l10">L10</span><span class="c c-ha">HOME</span><span class="c c-ha">ROAD</span>`;
 
-let el, ctx, conf = '', dwell = 0, tick = 0, behind = false;
+let el, ctx, conf = '', dwell = 0, tick = 0, behind = false, legendHookRef = null;
 let items = [], H = 0, sc = 0, scrolledOn = false, wasScrolled = false;
 const $ = (s) => el.querySelector(s);
 
@@ -95,8 +95,8 @@ function seasonStarts() {
 }
 function legend(t, bad, pre) {
   if (t.pin && t.cover) return `<span class="legend">The ${esc(conf)} includes a result you haven’t seen</span>`;
-  if (t.pin && t.copy) return `<span class="legend" style="gap:10px">${ic('eyeOff', 'sm')}<span><b style="color:var(--a-text-1);font-weight:650">As of tip-off, ${esc(gameName(t.pin.game))}</b>${dot}${esc(dayDate(t.pin.game.date))}</span>${revealBtn(t.pin.games)}</span>`;
-  if (bad) return `<span class="legend" style="gap:10px">${downBits('standings')}</span>`;
+  if (t.pin && t.copy) return `<span class="legend" data-row style="gap:10px">${ic('eyeOff', 'sm')}<span><b style="color:var(--a-text-1);font-weight:650">As of tip-off, ${esc(gameName(t.pin.game))}</b>${dot}${esc(dayDate(t.pin.game.date))}</span>${revealBtn(t.pin.games)}</span>`;
+  if (bad) return `<span class="legend" data-row style="gap:10px">${downBits('standings')}</span>`;
   if (t.wait) return '';
   if (pre) return `<span class="legend">${esc(seasonStarts())}</span>`;
   if (t.teams && offseason(t.teams)) return `<span class="legend">${esc(t.season || '')} final standings</span>`;
@@ -114,6 +114,7 @@ function draw() {
   items = []; H = 0;
   if (!d?.confs?.length) {
     if (bad) msg = downCard(196);                                     // nothing kept: the card, Try again focused
+    else if (d) msg = stateCard({ icon: 'clock', title: 'No standings from ESPN yet', text: `${seasonStarts()}.`, top: 196 });   // an empty answer
     else { sub = chips; head = true; msg = skeleton(9, { top: TOP.tb }); }
   } else {
     const t = tableFor(d, conf), pre = !!t.teams && preseason(t.teams);
@@ -132,6 +133,8 @@ function draw() {
     }
   }
   let changed = setHtml($('.st-sub'), sub);
+  const lg = $('.st-sub .legend[data-row]');
+  if (lg) lg.navHook = legendHookRef;
   $('.st-th').hidden = !head;
   $('.st-tb').hidden = !rows;
   changed = setHtml($('.nb-in'), rows) || changed;
@@ -167,8 +170,9 @@ function place(fast, follow = true) {
   kids.forEach((n, i) => { const it = items[i]; n.classList.toggle('off', !it || it.y < sc || it.y + it.h > sc + L.vh); });   // whole rows only
   bar.hidden = !items.length || H <= L.vh;
   bar.style.top = `${L.tb}px`; bar.style.height = `${L.vh}px`;
-  const th = bar.firstElementChild;
-  th.style.top = `${(sc / (H || 1)) * L.vh}px`; th.style.height = `${Math.min(1, L.vh / (H || 1)) * L.vh}px`;
+  // the thumb stays in its track, and reaches its end when the last row shows
+  const th = bar.firstElementChild, tH = Math.min(1, L.vh / (H || 1)) * L.vh, end = items.find((x) => x.y >= H - L.vh)?.y || 0;
+  th.style.height = `${tH}px`; th.style.top = `${end > 0 ? Math.min(1, sc / end) * (L.vh - tH) : 0}px`;
   if (wasScrolled !== scrolledOn) { wasScrolled = scrolledOn; ctx.scrolled(scrolledOn); }
 }
 
@@ -202,11 +206,22 @@ export default {
       + `<div class="nb-th st-th" style="top:${TOP.th}px">${HEAD}</div><div class="nb-tb st-tb" data-col style="left:48px;width:852px"><div class="nb-in"></div></div>`
       + '<div class="nb-sbar st-bar" hidden><i></i></div><div class="st-msg"></div>';
     // Down from the chips: your team's row if it shows, else row 1 (or the cover card's first button).
+    const down = () => { const to = $(`.nb-in [data-key="tm:${favTeam()}"]:not(.off)`) || $('.nb-in .nb-tr') || $('.st-msg .fx'); return to ? focus(to) : false; };
+    // The legend's pill (Reveal, Try again) is its own row: Right from the selected chip (or the last one) goes straight
+    // to it, so you never rest on the other chip and switch the table it belongs to; Left from it goes to the last chip.
+    const pill = () => $('.st-sub .legend .fx');
     $('.st-sub').navHook = (dir, cur, repeat) => {
-      if (dir !== 'down' || repeat) return undefined;
-      const to = $(`.nb-in [data-key="tm:${favTeam()}"]:not(.off)`) || $('.nb-in .nb-tr') || $('.st-msg .fx');
-      return to ? focus(to) : false;
+      if (dir === 'down') return repeat ? undefined : down();
+      if (dir === 'right' && pill() && (cur.classList.contains('sel') || !cur.nextElementSibling?.dataset?.conf)) return focus(pill());
+      return undefined;
     };
+    const legendHook = (dir, cur, repeat) => {
+      if (dir === 'left') return focus([...$('.st-sub').querySelectorAll('[data-conf]')].pop());
+      if (dir === 'right') return false;
+      if (dir === 'down') return repeat ? undefined : down();
+      return undefined;
+    };
+    legendHookRef = legendHook;
     // The body: row edges stop; Up from the first row goes to the selected chip (and the top layout).
     $('.st-tb').navHook = (dir, cur) => {
       if (dir === 'left' || dir === 'right') return false;

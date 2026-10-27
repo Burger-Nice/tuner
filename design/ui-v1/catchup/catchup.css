@@ -82,3 +82,8 @@
 .cu-speed.cu-up{top:-120px}
 .g-cell.now.f-in .prog{left:3px;right:3px;width:auto;bottom:3px}   /* the mocks' copy of app.css's :focus rule */
 .nv-tabs.cu-t{gap:4px}.nv-tabs.cu-t span{padding:0 9px}.nv-tabs.cu-t span.act{padding:0 9px 0 7px}   /* v1.1: four tabs fit 280 dp */
+.nv-card.cu-check{width:640px;align-items:stretch;gap:14px;padding:18px 20px 16px;bottom:80px}   /* v1.3: the first-replay check */
+.cu-prog{display:flex;gap:16px;align-items:center;text-align:left}
+.cu-prog .a{font:700 20px/26px var(--a-font-display);color:var(--a-text-1)}
+.cu-prog .b{font:500 15px/20px var(--a-font-text);color:var(--a-text-2);margin-top:2px}
+.cu-prog .c{font:500 15px/20px var(--a-font-text);color:var(--a-text-2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
