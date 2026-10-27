@@ -17,12 +17,17 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   - `js/ui.js` sheets, menus, toasts (`openOverlay`, `radioMenu`, `contextMenu`, `scrollList`).
   - `js/catalog.js` channel / movie / series lists (saved in IndexedDB in parts, prepared once, `PREP` versions per kind).
   - `js/guide.js` the EPG: a queue (3 at a time, on-screen rows first), retries, the provider clock offset.
-  - `js/games.js` NBA: scoreboard, box scores, the spoiler shield, the per-channel score delay, which channels carry a game.
+  - `js/games.js` NBA: scoreboard, box scores, the spoiler shield (seen store `{ upTo, ids }`, `recordFor`, copies kept at
+    tip-off, the news scan), the per-channel score delay, which channels carry a game, `bestChannel` (best quality).
+  - `js/league.js` the Team/League pages' ESPN data (peek/want, kept in IndexedDB, 'league' events).
+  - `js/screens/nba.js` the NBA tab host: section row `Games · [crest] team · Standings · Leaders · Team stats · News`,
+    each section a module in `js/nba/` (hub, standings, leaders, teamstats, news, team, player sheet, picker, common).
+    `js/screens/team.js` another team's page (pushed). Design: `design/ui-v1/nba-pages/SPEC.md`.
   - `js/player.js` talks to the native player (commands and events). `js/sfx.js` UI sounds (Android SoundPool via the
     plugin for no delay; Web Audio for the launch sound). `js/launch.js` the launch animation.
-  - `js/screens/` home, live (the guide), nba (hub), game, lib (Movies/Series), detail, search, saved, account, first (sign-in).
-  - Styles: `ui.css` (the design kit) and `app.css` (app-specific), `launch.css`.
-- `app/core.js` providers (Xtream + M3U), settings and storage. `app/nba.js` ESPN's public JSON. `app/titles.js` title matching.
+  - `js/screens/` home, live (the guide), nba (the NBA tab host), team, game, lib (Movies/Series), detail, search, saved, account, first (sign-in).
+  - Styles: `ui.css` (the design kit) and `app.css` (app-specific), `launch.css`, `nba*.css` (the NBA pages).
+- `app/core.js` providers (Xtream + M3U, with `catchup()` replay links), settings and storage. `app/nba.js` ESPN's public JSON. `app/titles.js` title matching.
 - `android/app/src/main/java/app/tuner/player/`: `PlayerActivity` (Media3 player and its overlays: channel list,
   game panel, options, quality, subtitles…), `TunerPlayerPlugin` (the JS bridge, updater, UI sounds), `ListPanel`,
   `GamePanel`, `VodControls`, `Ui` (tokens, icons). JS → native via `command` (meta, game, ring, tune, queue, versions…);
@@ -34,9 +39,11 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 - Local: `tests/tv/serve.sh` starts the fake provider + fake ESPN (127.0.0.1:8899, demo/demo) and serves the app at
   127.0.0.1:8777/tv.html. `node tests/tv/drive.js <outdir> <script>` drives it with the remote's keys in Playwright
   and takes screenshots (see `tests/tv/example-layout.js`). `tests/tv/serve.sh --test` + `node tests/tv/walkthrough.js
-  <outdir>` runs the CI walkthrough in a browser (the 3 native-player checks can't pass there).
+  <outdir>` runs the CI walkthrough in a browser (the 3 native-player checks can't pass there; restart the fake provider
+  between walkthrough runs, it keeps the reports). NBA page scripts: `tests/tv/nba-{host,league,news,team}.js`, and the
+  bug-hunt scripts `tests/tv/hunt-*.js`.
 - CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign`) builds Windows, Android, iOS and runs
-  `tests/android-test-boot.js` on an Android TV emulator (14 checks). Its screenshots and `reports.json` are uploaded
+  `tests/android-test-boot.js` on an Android TV emulator (17 checks). Its screenshots and `reports.json` are uploaded
   to the `android-test` release as `android-test-shots.tgz`.
 - Work on `tv-redesign`. Pushing it to `main` releases v0.2.<run> and the TV updates itself from `android.json`.
   **The release job doesn't wait for the emulator test**, so run CI on `tv-redesign` and see it pass first.
@@ -59,3 +66,5 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 - Some channels still say "No guide information" on the owner's provider; Account > Provider > Check the guide shows
   what the provider sends (the guide has a full-table fallback and a clock-offset fix, untested on the real provider).
 - Minor: Search's ▼ past the last result jumps to the keyboard; the channel-number toast can cover a guide row.
+- Designed and reviewed, not built yet: catch-up / rewatch (`design/ui-v1/catchup/SPEC.md` v1.3, passed 8.0, owner's
+  answers in its section 13) and the playback diagnosis (`design/ui-v1/diagnosis/`, in review).

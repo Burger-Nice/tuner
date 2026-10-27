@@ -1,5 +1,5 @@
 // node tools/audit.js [--quiet] [--inject] [page ...]
-// design/ui-v1/nba-pages/tools/audit.js, adapted to the catch-up mocks (cu- classes and the player's timeline), plus SPOILER:
+// design/ui-v1/catchup/tools/audit.js (itself from nba-pages), run on the diagnosis mocks. Originally adapted to the catch-up mocks (cu- classes and the player's timeline), plus SPOILER:
 // on a mock marked <meta name="shield" content="unseen">, no visible score (\d{2,3}–\d{2,3}), remaining time (−m:ss) or
 // "OT" may show outside an element marked data-other (another game, shown by the My team rule, or a seen one) or
 // data-moment (the score as aired at the playback moment, SPEC 7). --inject adds a score, a remaining time and a focused

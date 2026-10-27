@@ -1,0 +1,122 @@
+[
+ {
+  "file": "stall-puck.html",
+  "title": "Stalled 1 to 3 s: the puck",
+  "note": "A blip. From 1 s of a stall a 56 dp spinner puck at the card's anchor (bottom centre), instead of PlayerView's spinner in the middle of the picture. Gone the moment it plays.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-checking.html",
+  "title": "Stalled 3 s: checking",
+  "note": "At 3 s the puck opens into the card and the checks run (about 2 s). Each link fills with the pink progress as its answer comes back, left to right.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-provider-slow.html",
+  "title": "Cause: the provider is slow",
+  "note": "The owner's question answered: not you, them. The two numbers side by side are the evidence. OK switches to the game's other feed (its own score delay; never automatic). No score anywhere.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-wifi-weak.html",
+  "title": "Cause: weak Wi-Fi",
+  "note": "Wi-Fi 1 of 4 bars and the stream starving: the link from the TV to the router is the problem. OK steps down to the stream's 720p level (needs 5 Mbps).",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-internet-slow.html",
+  "title": "Cause: slow internet",
+  "note": "On a network cable, so it isn't Wi-Fi; a 3 s speed sample says the line itself is short. OK plays the provider's HD copy of the channel (needs 9 Mbps).",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-offline.html",
+  "title": "Cause: the TV is offline",
+  "note": "Android says there is no network: shown at once (no 3 s wait, no checks). It tunes again the moment the network is back. OK opens the TV's network settings.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-provider-down.html",
+  "title": "Cause: the provider isn't answering",
+  "note": "Google answers, the provider doesn't: it's them, and nothing on this TV can fix it. airglow keeps reconnecting by itself (1, 2, 4… s); the countdown says when.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-limit.html",
+  "title": "Cause: every stream is in use",
+  "note": "A 403 or 401 with the provider's own count full (active_cons = max_connections). The same card as catch-up's player-connlimit, with the path added.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-stutter.html",
+  "title": "Keeps pausing: the chip",
+  "note": "Short pauses that each got under 3 s, but the third in 5 minutes: the action chip's slot and timing (10 s, any key dismisses), the cause in one line, the action on OK.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-vod.html",
+  "title": "A movie: slow internet",
+  "note": "Movies and episodes get the same card; the last node reads Movie. A film can wait, so the best action is to pause and fill the buffer (the card then counts what's loaded); the 1080p copy is in Details.",
+  "group": "While it loads"
+ },
+ {
+  "file": "fail-channel-off.html",
+  "title": "Stopped: the channel is off",
+  "note": "A 404 twice in a row while the provider's own server answers: the channel is down at their end. Replaces \"This channel stopped · The provider may be down\".",
+  "group": "When it stops"
+ },
+ {
+  "file": "fail-game-feed.html",
+  "title": "Stopped: a game feed is off",
+  "note": "A game channel: the other feeds first, as today, one OK away; each keeps its own score delay. No score or clock on the card.",
+  "group": "When it stops"
+ },
+ {
+  "file": "fail-decoder.html",
+  "title": "Stopped: the TV can't decode it",
+  "note": "A decoder error: the only cause on the TV itself, said plainly so nobody restarts the router. The provider's other copy first.",
+  "group": "When it stops"
+ },
+ {
+  "file": "opt-connection.html",
+  "title": "Options: the Connection row",
+  "note": "◀ in the player. Connection sits under Quality; its value is the live verdict (Good, Slow, Weak Wi-Fi, Offline, Checking…) and its line the one number that matters.",
+  "group": "When you're curious"
+ },
+ {
+  "file": "opt-panel-good.html",
+  "title": "The Connection panel: all good",
+  "note": "Options > Connection: the same five links, upright, each with its reading. Opening it runs the quick checks (under 2 s); the speed test only on Check again.",
+  "group": "When you're curious"
+ },
+ {
+  "file": "opt-panel-slow.html",
+  "title": "The Connection panel: during the stall",
+  "note": "Hold OK on the card (or Options > Connection) during the stall: every reading, then every action in order, the best one focused. No score; the game is named only by its feed.",
+  "group": "When you're curious"
+ },
+ {
+  "file": "acct-provider.html",
+  "title": "Account: Check the connection",
+  "note": "Account > Provider gets one row under Check the guide. The same test as the player's panel, from the sofa, without a channel stalling.",
+  "group": "When you're curious"
+ },
+ {
+  "file": "acct-check-running.html",
+  "title": "The check, running",
+  "note": "OK on the row: the five links checked in order, about 10 s in all. Nothing to press while it runs; Back stops it.",
+  "group": "When you're curious"
+ },
+ {
+  "file": "acct-check-done.html",
+  "title": "The check: all good",
+  "note": "The result in one line, in what it means for him (4K, HD), over the readings. The last channel is sampled for 5 s only if a stream is free.",
+  "group": "When you're curious"
+ },
+ {
+  "file": "acct-check-wifi.html",
+  "title": "The check: Wi-Fi is the weak link",
+  "note": "A finding: the speed is only as good as the Wi-Fi gives it. The advice is the one thing that fixes it for good, in plain words.",
+  "group": "When you're curious"
+ }
+]

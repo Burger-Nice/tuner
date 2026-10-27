@@ -21,8 +21,8 @@
 .dg-n{position:relative;z-index:1;flex:none;width:88px;display:flex;flex-direction:column;align-items:center;text-align:center}
 .dg-c{position:relative;flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--a-surface-2);color:var(--a-text-1)}
 .dg-c svg.ic{width:18px;height:18px}
-.dg-c i{position:absolute;right:-5px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:var(--a-ok);display:grid;place-items:center;box-shadow:0 0 0 2px #1E1B28}
-.dg-c i svg{width:11px;height:11px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
+.dg-c i{position:absolute;right:-8px;bottom:-5px;width:16px;height:16px;border-radius:50%;background:var(--a-ok);display:grid;place-items:center;box-shadow:0 0 0 2px #1E1B28}
+.dg-c i svg{width:10px;height:10px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
 .dg-n b{font:650 14px/18px var(--a-font-text);color:var(--a-text-1);margin-top:6px;white-space:nowrap}
 .dg-n small{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
 /* the problem link: chalk disc, ink glyph, the reading in chalk */
@@ -52,14 +52,14 @@
 
 /* ---------- the vertical path (the Connection panel and the Account check) ---------- */
 .dg-vpath{display:flex;flex-direction:column}
-.dg-vn{position:relative;display:flex;align-items:center;gap:14px;height:46px;padding:0 10px}
+.dg-vn{position:relative;display:flex;align-items:center;gap:16px;height:44px;padding:0 10px}
 .dg-vn .tx{flex:1;min-width:0}
 .dg-vn b{display:block;font:650 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
 .dg-vn small{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dg-vn .v{flex:none;font:650 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;text-align:right}
 .dg-vn.bad small,.dg-vn.bad .v{color:var(--a-text-1)}
 .dg-vn.off b{color:var(--a-text-3);font-weight:500}
-.dg-vn+.dg-vn::before{content:"";position:absolute;left:25px;top:-7px;width:2px;height:14px;background:var(--a-border-strong)}
+.dg-vn+.dg-vn::before{content:"";position:absolute;left:25px;top:-6px;width:2px;height:12px;background:var(--a-border-strong)}
 .dg-vn.in-slow::before{width:3px;left:24.5px;background:repeating-linear-gradient(180deg,var(--a-text-1) 0 4px,transparent 4px 7px)}
 .dg-vn.in-cut::before{background:transparent}
 .dg-vn.in-off::before{background:repeating-linear-gradient(180deg,var(--a-border-strong) 0 2px,transparent 2px 5px)}

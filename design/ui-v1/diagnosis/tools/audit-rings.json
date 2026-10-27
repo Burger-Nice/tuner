@@ -1,0 +1,155 @@
+[
+ {
+  "f": "fail-channel-off.html",
+  "el": ".nv-row.f",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   217,
+   295,
+   743,
+   347
+  ],
+  "safe": 166
+ },
+ {
+  "f": "fail-game-feed.html",
+  "el": ".nv-row.f",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   217,
+   239,
+   743,
+   291
+  ],
+  "safe": 169
+ },
+ {
+  "f": "fail-decoder.html",
+  "el": ".nv-row.f",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   217,
+   295,
+   743,
+   347
+  ],
+  "safe": 166
+ },
+ {
+  "f": "opt-connection.html",
+  "el": ".nv-row.g",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   288,
+   377,
+   336
+  ],
+  "safe": 11
+ },
+ {
+  "f": "opt-panel-good.html",
+  "el": ".nv-row.f",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   379,
+   437,
+   429
+  ],
+  "safe": 11
+ },
+ {
+  "f": "opt-panel-slow.html",
+  "el": ".nv-row.f",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   361,
+   437,
+   411
+  ],
+  "safe": 11
+ },
+ {
+  "f": "acct-provider.html",
+  "el": ".arow.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   267,
+   379,
+   917,
+   445
+  ],
+  "safe": -5
+ },
+ {
+  "f": "acct-check-done.html",
+  "el": ".btn.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   444.4,
+   463.8,
+   593.8,
+   512.2
+  ],
+  "safe": 0.8
+ },
+ {
+  "f": "acct-check-wifi.html",
+  "el": ".btn.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   444.4,
+   463.8,
+   593.8,
+   512.2
+  ],
+  "safe": 0.8
+ }
+]
