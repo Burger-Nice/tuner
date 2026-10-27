@@ -199,7 +199,12 @@ export function forgetSubs(key) { clearTimeout(retries.get(key)); retries.delete
 // The player's "Try now" (the add-on down): ask again at once, past the retry wait.
 export function retryNow(key) { const r = reqs.get(key); if (!r) return null; listFails.clear(); return prepare(r, { again: true }); }
 
+// each run for a title has a number: an older run still fetching never overwrites a newer one's answer
+const runs = new Map();
 export async function prepare(req, { again = false } = {}) {
+  const run = (runs.get(req.key) || 0) + 1;
+  runs.set(req.key, run);
+  const stale = () => runs.get(req.key) !== run;
   reqs.delete(req.key); reqs.set(req.key, req);   // (the last one asked for is last)
   if (reqs.size > 30) reqs.delete(reqs.keys().next().value);
   const prefs = subSettings();
@@ -221,6 +226,7 @@ export async function prepare(req, { again = false } = {}) {
   if (!again && !states.has(req.key)) put(finish({ ...base, status: 'looking', choice: choose(prefs, copy, []) }));
   const q = { imdb: req.imdb, season: req.season, episode: req.episode, hash: entry?.hash || '', size: entry?.size || 0, base: store.get('subsBase', undefined) };   // (tuner.subsBase: a fake add-on in tests)
   const list = await getList(q);
+  if (stale()) return states.get(req.key) || null;
   if (!list.ok && !list.stale) { const st = put(finish({ ...base, status: 'down', retryAt: list.retryAt || 0, triedAt: Date.now(), choice: choose(prefs, copy, []) })); retryLater(st); return st; }
   const files = list.ok ? list.files : list.stale;
   const ctx = { copyFps: checked?.fps || 0, copyLen: checked?.len || 0, pairCache: new Map() };
@@ -249,6 +255,7 @@ export async function prepare(req, { again = false } = {}) {
       if (f.timing.skip) { f.dropped = 'timing'; got.delete(f.id); }
     }
   }
+  if (stale()) return states.get(req.key) || null;
   const choice = choose(prefs, copy, files.filter((f) => !f.dropped), ctx);
   const others = [...new Set(files.filter((f) => !f.dropped && f.lang && !prefs.langs.includes(f.lang)).map((f) => f.lang))];
   const anyMine = choice.perLang.some((p) => p.source);

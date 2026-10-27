@@ -405,8 +405,8 @@ function phoneScreen() {
   if (!A.phonePageReady()) return toast('This comes with the next airglow update. Type the link instead.');
   const token = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join('');
   const code = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
-  let c = code(), addr = '', note = '', off = null, visited = false, t60 = 0, t10 = 0;
-  const ov = full('<div data-step></div>', { onClose: () => { off?.remove?.(); clearTimeout(t60); clearTimeout(t10); native?.phone?.stop(); } });
+  let c = code(), addr = '', note = '', off = null, visited = false, t60 = 0, t10 = 0, open = true;
+  const ov = full('<div data-step></div>', { onClose: () => { open = false; off?.remove?.(); clearTimeout(t60); clearTimeout(t10); native?.phone?.stop(); } });
   const step = ov.el.querySelector('[data-step]');
   const draw = () => {
     const url = addr ? `http://${addr}/${token}` : '';
@@ -417,12 +417,17 @@ function phoneScreen() {
     focus(step.querySelector('[data-act="type"]'));
   };
   (async () => {
-    try { const r = await native.phone.start({ token, code: c, port: 8790 }); addr = r?.address || ''; } catch { note = 'The TV couldn\'t open its page. Type the link instead.'; }
-    off = await native.phone.onEvent((e) => {
+    // (listening first, and each wait checked: Back during a wait still stops the page and drops the listener)
+    const l = await native.phone.onEvent((e) => {
+      if (!open) return;
       if (e.type === 'visit') visited = true;
       else if (e.type === 'locked') { c = code(); note = 'Too many wrong codes · here\'s a new one'; native.phone.start({ token, code: c, port: 8790 }).catch(() => {}); draw(); }
-      else if (e.type === 'sent' && e.url) A.readManifest(e.url).then((r) => (r.ok ? confirm(r, 'phone', () => { ov.close(false); closeTop(); }) : toast(`That link isn't an add-on: it sent ${r.why}`, 4000)));
+      else if (e.type === 'sent' && e.url) A.readManifest(e.url).then((r) => { if (!open) return; if (r.ok) confirm(r, 'phone', () => { ov.close(false); closeTop(); }); else toast(`That link isn't an add-on: it sent ${r.why}`, 4000); });
     });
+    if (!open) { l?.remove?.(); return; }
+    off = l;
+    try { const r = await native.phone.start({ token, code: c, port: 8790 }); addr = r?.address || ''; } catch { note = 'The TV couldn\'t open its page. Type the link instead.'; }
+    if (!open) { native.phone.stop(); return; }
     if (ov.el.isConnected) draw();
   })();
   t60 = setTimeout(() => { if (!visited && ov.el.isConnected) { note = 'Phone not getting through? It must be on your home network, not a guest network.'; draw(); } }, 60000);

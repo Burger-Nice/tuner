@@ -131,7 +131,7 @@ final class Subs {
         String onId = on == null ? "" : on.id;
         files.clear();
         files.putAll(parsed);
-        if (on != null) { on = files.get(onId); drawer.set(on); if (on == null) restoreText(); }
+        if (on != null) { on = files.get(onId); drawer.set(on); if (on == null) { restoreText(); if (a.isOpen(strip)) a.closeOverlay(); } }   // (the file that was on is gone: the strip shuts)
         JSONObject pick = d.optJSONObject("pick");
         if (!picked && pick != null && (!pickDone || !waitingFor.isEmpty())) {
             pickDone = true;
@@ -488,7 +488,7 @@ final class Subs {
         private final double openedAt;
         private long lastStep;
         private int target = -1;     // Match a line: the line he listens for
-        private final Runnable tick = new Runnable() { @Override public void run() { if (a.isOpen(Strip.this)) { if (matching) fillMatch(); a.handler.postDelayed(this, 250); } } };
+        private final Runnable tick = new Runnable() { @Override public void run() { if (a.isOpen(Strip.this) && on != null) { if (matching) fillMatch(); a.handler.postDelayed(this, 250); } } };
 
         Strip(PlayerActivity pa, boolean fromOptions) {
             super(pa);
@@ -599,6 +599,7 @@ final class Subs {
             else line.setText("Press OK when you hear it. As timed now, it " + (in >= 1000 ? "comes in about " + Math.round(in / 1000.0) + " s" : in > -1000 ? "comes now" : "came " + Math.round(-in / 1000.0) + " s ago"));
         }
         @Override boolean key(int code, boolean repeat) {
+            if (on == null) { a.closeOverlay(); return true; }
             switch (code) {
                 case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: {
                     if (matching) {
@@ -643,12 +644,13 @@ final class Subs {
             return false;
         }
         @Override boolean back() {
+            if (on == null) return false;
             if (matching) { fill(); return true; }   // cancels Match a line
             done();
             return false;
         }
         private boolean counted;
-        private void done() { if (!counted && Math.abs(on.mine - openedAt) > 3) { counted = true; bigChanges++; } }
+        private void done() { if (on != null && !counted && Math.abs(on.mine - openedAt) > 3) { counted = true; bigChanges++; } }
         @Override void closed() { a.handler.removeCallbacks(tick); }
         @Override String[][] hints() { return null; }
     }

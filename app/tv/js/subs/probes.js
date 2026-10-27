@@ -39,7 +39,7 @@ export function makeProbes(deps) {
   let timer = null, lastEnd = 0, batchOpen = false;
   const subs = new Set();
 
-  const ensure = () => cache ? Promise.resolve(cache) : (loading || (loading = Promise.resolve(D.load()).then((c) => (cache = (c && typeof c === 'object') ? c : {}))));
+  const ensure = () => cache ? Promise.resolve(cache) : (loading || (loading = Promise.resolve(D.load()).then((c) => { cache = (c && typeof c === 'object') ? c : {}; for (const k of Object.keys(cache)) if (!fresh(cache[k])) { delete cache[k]; dirty = true; } return cache; })));   // (checks past their 60 days go)
   const persist = () => { if (!dirty) return; dirty = false; D.save(cache); };
   const budget = () => { const b = D.budgetStore.get() || {}; const day = dayOf(D.now()); return b.day === day ? b : { day, n: 0, refusals: 0, until: b.until || 0 }; };
   const setBudget = (b) => D.budgetStore.set(b);

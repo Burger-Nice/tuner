@@ -1,6 +1,7 @@
 // Catch-up data (design/ui-v1/catchup/SPEC.md 3, 4.3, 5.1, 5.7, 5.8): which sources replay a game (channel archives and
 // full-game videos in the provider's Movies), matching videos to games, the shield's masks for guide text and video
 // titles, the hero state rows and the one "replays until" formatter. No DOM in here; replay.js plays what this finds.
+import { esc } from './util.js';
 import { S, settings, emit, on } from './state.js';
 import { catalog, ensure, qualityOf, langOf, prefLangs, prettyCat } from './catalog.js';
 import { pastFor, pastNow } from './guide.js';
@@ -295,8 +296,8 @@ async function scan(g) {
 // The caption under a source (heroes: two short lines; the game page: one line).
 export function sourceCaption(src, { short = true } = {}) {
   if (!src) return '';
-  if (src.kind === 'channel') return `${src.name}${short ? '<br>' : ' · '}${short ? 'Until' : 'replays until'} ${keptUntil(src.windowStart, src.days, short)}`;
-  return `Full game in Movies${src.feed ? `${short ? '<br>' : ' · '}${NBA.team(src.feed.abbr)?.city || src.feed.name} feed` : ''}`;
+  if (src.kind === 'channel') return `${esc(src.name)}${short ? '<br>' : ' · '}${short ? 'Until' : 'replays until'} ${keptUntil(src.windowStart, src.days, short)}`;
+  return `Full game in Movies${src.feed ? `${short ? '<br>' : ' · '}${esc(NBA.team(src.feed.abbr)?.city || src.feed.name)} feed` : ''}`;
 }
 
 // ---------- the hero state table's catch-up rows (5.1) ----------

@@ -220,21 +220,19 @@ export function addonItem(t, c, tc, row) {
 const mimeOf = (c) => { const m = String(c.filename || c.url || '').toLowerCase().split('?')[0].match(/\.(mkv|mp4|m4v|ts|m3u8|webm|avi|mov)$/); return m ? { mkv: 'video/x-matroska', mp4: 'video/mp4', m4v: 'video/mp4', ts: 'video/mp2t', m3u8: 'application/x-mpegURL', webm: 'video/webm', avi: 'video/x-msvideo', mov: 'video/quicktime' }[m[1]] : ''; };
 // the next copies, as identities (never links): the player asks for one with need: copy (SPEC 8.1)
 const identities = (list) => list.slice(0, 5).map((c) => ({ key: c.key, source: c.source === 'provider' ? 'provider' : c.source, label: copyLine(c) || 'Copy', provider: c.source === 'provider' }));
-let lastPlay = null;   // { tc, list (ranked at the press), row, rows }
+let lastPlay = null;   // { tc, list (ranked at the press), t, row, rows, item (what was played), playing (the copy's key now) }
 function playCopy(t, c, tc, opts = {}) {
   if (!c) return false;
   const list = opts.row ? tc.episodeCopies(opts.row) : tc.copies();
   const rest = list.filter((x) => x !== c && x.key !== c.key);
   if (c.source === 'provider') {
-    lastPlay = { tc, list, t };
     const v = c.v;
-    if (v._entry === undefined) Object.defineProperty(v, '_entry', { value: { source: 'provider', sourceKind: 'provider', copyKey: c.key, copies: identities(rest) }, enumerable: false, configurable: true, writable: true });
-    else v._entry = { ...v._entry, copies: identities(rest) };
-    return playVod(v, { restart: opts.restart });
+    lastPlay = { tc, list, t, item: v, playing: c.key };
+    return playVod(v, { restart: opts.restart, entry: { source: 'provider', sourceKind: 'provider', copyKey: c.key, copies: identities(rest) } });
   }
   const it = addonItem(t, c, tc, opts.row);
   it._entry.copies = identities(rest);
-  lastPlay = { tc, list, t, row: opts.row, rows: opts.rows };
+  lastPlay = { tc, list, t, row: opts.row, rows: opts.rows, item: it, playing: c.key };
   const p = progressOf(it);
   playVod(it, { restart: opts.restart || !inProgress(p) ? !!opts.restart : false });
   return true;
@@ -254,7 +252,7 @@ export async function resumeAddonItem(it, { restart } = {}) {
   const item = addonItem(t, same, tc, row);
   item._entry.copies = identities(all.filter((c) => c !== same));
   if (same.key !== cp.key) toast(`That copy has gone · playing ${copyLine(same)} · ${same.source}`, 4000);
-  lastPlay = { tc, list: all, t, row };
+  lastPlay = { tc, list: all, t, row, item, playing: same.key };
   playVod(item, { restart });
 }
 
@@ -262,12 +260,13 @@ export async function resumeAddonItem(it, { restart } = {}) {
 // session), need: next (Up next keeps the source). The links go only to the player, never anywhere else.
 native?.player.onEvent((e) => {
   const c = playing.cur;
-  if (!c || e.session !== c.session || !lastPlay) return;
+  if (!c || e.session !== c.session || !lastPlay || c.items[0] !== lastPlay.item) return;   // (another title played since)
   if (e.type === 'need' && e.what === 'copy') {
     // key null with speedMbps: Diag just measured the Wi-Fi or internet; re-rank with it (band b) and take the best that fits
     const x = e.key ? lastPlay.list.find((y) => y.key === e.key)
-      : rank(lastPlay.list.filter((y) => y.key !== playing.cur?.items?.[playing.cur.index]?._entry?.copyKey && !failed.has(y.key)), { langs: prefLangs(), runtime: (lastPlay.tc.meta?.runtime || 0) * 60, speedMbps: +e.speedMbps || 0 })[0];
+      : rank(lastPlay.list.filter((y) => y.key !== lastPlay.playing && !failed.has(y.key)), { langs: prefLangs(), runtime: (lastPlay.tc.meta?.runtime || 0) * 60, speedMbps: +e.speedMbps || 0 })[0];
     if (!x) { playerCommand('copy', { key: e.key, error: 'gone' }); return; }
+    lastPlay.playing = x.key;
     if (x.source === 'provider') { playerCommand('copy', { key: x.key, entry: { id: `movie:${x.v.id}`, url: x.v.url, title: x.v._title || x.v.name, source: 'provider', sourceKind: 'provider' } }); return; }
     const it = addonItem(lastPlay.t, x, lastPlay.tc, lastPlay.row);
     playerCommand('copy', { key: x.key, entry: { id: `${it.kind}:${it.id}`, url: it.url, title: lastPlay.t.name, ...it._entry } });

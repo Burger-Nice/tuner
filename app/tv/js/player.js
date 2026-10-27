@@ -238,12 +238,12 @@ function subsSettings(dub = false) {
 const playerSettings = (dub) => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug, sub: subCode(settings().subLang), api: apiUrl(), subs: subsSettings(dub) });
 
 // ---------- movies and episodes ----------
-function vodEntry(it, restart) {
+function vodEntry(it, restart, extra) {
   const p = progressOf(it);
   const ep = it.kind === 'episode';
   // (_entry: an add-on copy's or a ranked copy's extra fields for the player: headers, mime, source, the next copies
   // as identities, binge, key, runtime; design/ui-v1/addons/PORT-NATIVE.md. Non-enumerable, so never saved.)
-  return { id: `${it.kind}:${it.id}`, url: it.url, title: ep ? it.seriesName : it._title || it.name, sub: ep ? `S${it.season} · E${it.ep} · ${it.name}` : '', startAt: restart ? 0 : inProgress(p) ? p.t : 0, ...(it._entry || {}) };
+  return { id: `${it.kind}:${it.id}`, url: it.url, title: ep ? it.seriesName : it._title || it.name, sub: ep ? `S${it.season} · E${it.ep} · ${it.name}` : '', startAt: restart ? 0 : inProgress(p) ? p.t : 0, ...(extra || it._entry || {}) };
 }
 // More episodes after the one playing (Up next), when the series' list arrives after playback started.
 export function queueAfter(item, more) {
@@ -252,9 +252,11 @@ export function queueAfter(item, more) {
   c.items.push(...more);
   cmd('queue', { entries: more.map((it) => ({ ...vodEntry(it, false), startAt: 0 })) });
 }
-export async function playVod(item, { queue, restart } = {}) {
+// entry: the first item's extra fields for this play only (a ranked provider copy's identity and next copies), so the
+// catalog's own version object never carries them into a later play
+export async function playVod(item, { queue, restart, entry } = {}) {
   const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
-  const entries = list.map((it, i) => vodEntry(it, i === 0 && restart));
+  const entries = list.map((it, i) => vodEntry(it, i === 0 && restart, i === 0 ? entry : undefined));
   setWatching(null, null);   // a film or an episode: no game on screen (its final buzzer isn't yours to see)
   if (!native) { if (window.TUNER_TEST) window.__lastVod = entries; toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
   cancelChecks();
@@ -506,7 +508,7 @@ native?.player.onEvent((e) => {
     playVod(v);
   } else if (e.type === 'file' && c.kind === 'vod') {   // the file's size and ETag at play start: a changed file is checked again
     const v = c.items[e.index];
-    if (v) noteStart(v, { size: +e.size || 0, etag: e.etag || '' });
+    if (v && e.id === `${v.kind}:${v.id}`) noteStart(v, { size: +e.size || 0, etag: e.etag || '' });   // (not a copy handed over to)
   } else if (e.type === 'progress' && c.kind === 'vod') {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {

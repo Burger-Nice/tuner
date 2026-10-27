@@ -28,6 +28,9 @@ import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -48,6 +51,8 @@ final class PhonePage {
     private final Consumer<JSObject> emit;
     private final String page;
     private final ExecutorService pool = Executors.newFixedThreadPool(3);
+    // a whole request gets 10 s: a client sending a byte now and then can't hold a thread
+    private final ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     private volatile String token, code;
     private volatile int wrong;
     private volatile boolean locked, closed;
@@ -109,6 +114,7 @@ final class PhonePage {
         closed = true;
         try { ss.close(); } catch (IOException ignored) {}
         pool.shutdownNow();
+        reaper.shutdownNow();
     }
 
     /** The TV's address on the home network: the active network's IPv4 when it is Wi-Fi or Ethernet. */
@@ -195,9 +201,11 @@ final class PhonePage {
     }
 
     private void handle(Socket s) {
+        ScheduledFuture<?> cut = null;
+        try { cut = reaper.schedule(() -> { try { s.close(); } catch (IOException ignored) {} }, 10, TimeUnit.SECONDS); } catch (Exception ignored) {}
         try (Socket sock = s) {
             sock.setSoTimeout(5000);
-            Req r = read(sock.getInputStream());
+            Req r = read(new java.io.BufferedInputStream(sock.getInputStream()));
             OutputStream out = sock.getOutputStream();
             String tok = token;
             if (r.tooBig) { json(out, 413, "{\"error\":\"That's too long to be an add-on link.\"}"); return; }
@@ -236,7 +244,8 @@ final class PhonePage {
                 return;
             }
             send(out, 404, "text/plain; charset=utf-8", "Not here".getBytes(StandardCharsets.UTF_8));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        } finally { if (cut != null) cut.cancel(false); }
     }
 
     /** Only http(s)://…/manifest.json and stremio://…/manifest.json (rewritten to https://); anything else is null. */

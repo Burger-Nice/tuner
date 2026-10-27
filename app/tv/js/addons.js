@@ -242,6 +242,8 @@ export const orderOf = (a) => addons().indexOf(a) + 1;
 const cinemetaAddon = () => enabled().find((a) => a.manifest.id === CINEMETA_ID) || { key: 'cinemeta', url: `${CINEMETA()}/manifest.json`, manifest: { id: CINEMETA_ID, name: 'Cinemeta', resources: ['catalog', 'meta', 'addon_catalog'], types: ['movie', 'series'], idPrefixes: ['tt'], catalogs: [] }, builtin: true };
 const metaMem = new Map();
 const META_DAYS = 7;
+// a memory cache that keeps its newest n entries
+const remember = (m, k, v, n) => { m.delete(k); m.set(k, v); while (m.size > n) m.delete(m.keys().next().value); };
 // A title's details (the first enabled add-on with meta for this id's prefix; for tt ids that is Cinemeta)
 export async function meta(type, id) {
   if (!id) return null;
@@ -249,7 +251,7 @@ export async function meta(type, id) {
   const hit = metaMem.get(ck);
   if (hit && Date.now() - hit.at < META_DAYS * 86400e3) return hit.v;
   const saved = await window.Core.cache.get(`ad:meta:${ck}`);
-  if (saved && Date.now() - saved.at < META_DAYS * 86400e3) { metaMem.set(ck, saved); return saved.v; }
+  if (saved && Date.now() - saved.at < META_DAYS * 86400e3) { remember(metaMem, ck, saved, 300); return saved.v; }
   const who = [...enabled().filter((a) => supports(a, 'meta', type, id)), ...(String(id).startsWith('tt') ? [cinemetaAddon()] : [])];
   for (const a of who) {
     try {
@@ -258,7 +260,7 @@ export async function meta(type, id) {
       if (!m?.name) continue;   // an unknown id answers a meta with no name: none
       const v = cleanMeta(m, type, a);
       const rec = { at: Date.now(), v };
-      metaMem.set(ck, rec);
+      remember(metaMem, ck, rec, 300);
       window.Core.cache.set(`ad:meta:${ck}`, rec);
       keepIndex(`ad:meta:${ck}`);
       return v;
@@ -266,11 +268,11 @@ export async function meta(type, id) {
   }
   return null;
 }
-// the last 500 metas are kept on the device
-function keepIndex(k) {
-  const ix = store.get('adMetaIx', []).filter((x) => x !== k); ix.push(k);
-  while (ix.length > 500) window.Core.cache.set(ix.shift(), null);
-  store.set('adMetaIx', ix);
+// the last 500 metas and 300 catalog pages are kept on the device
+function keepIndex(k, ixKey = 'adMetaIx', n = 500) {
+  const ix = store.get(ixKey, []).filter((x) => x !== k); ix.push(k);
+  while (ix.length > n) window.Core.cache.set(ix.shift(), null);
+  store.set(ixKey, ix);
 }
 const minutes = (r) => { const m = String(r || '').match(/(\d+)\s*h(?:\s*(\d+))?|(\d+)\s*min/i); return m ? (m[1] ? +m[1] * 60 + (+m[2] || 0) : +m[3]) : 0; };
 function cleanMeta(m, type, a) {
@@ -313,12 +315,12 @@ export async function catalogPage(a, c, { genre, skip = 0, search } = {}) {
     const d = await ask(a, 'catalog', c.type, c.id, extra, 10000);
     const v = (d?.metas || []).filter((m) => m && m.id && m.name).map((m) => ({ id: m.imdb_id || m.id, type: m.type || c.type, name: decode(m.name), poster: m.poster || '', year: +String(m.releaseInfo || m.year || '').match(/\d{4}/)?.[0] || 0, releaseInfo: decode(m.releaseInfo || ''), released: m.released || '', genres: (m.genres || m.genre || []).map(decode), imdbRating: m.imdbRating || '', director: (Array.isArray(m.director) ? m.director : m.director ? [m.director] : []).map(decode) }));
     const rec = { at: Date.now(), v };
-    catMem.set(ck, rec);
-    if (!search) window.Core.cache.set(ck, rec);
+    remember(catMem, ck, rec, 150);   // (searches too, so going back to the results is instant; only the newest are kept)
+    if (!search) { window.Core.cache.set(ck, rec); keepIndex(ck, 'adCatIx', 300); }
     return v;
   };
   if (saved?.v) {
-    catMem.set(ck, saved);
+    remember(catMem, ck, saved, 150);
     if (Date.now() - saved.at > 6 * 3600e3) load().then(() => emit('addon-catalog', ck)).catch(() => {});
     return saved.v;
   }

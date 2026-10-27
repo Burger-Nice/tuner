@@ -168,7 +168,8 @@ public class PlayerActivity extends AppCompatActivity {
     private SharedPreferences prefs;
 
     private List<Entry> ring = new ArrayList<>();
-    private Entry cur, last;
+    private volatile Entry cur;
+    private Entry last;
     private int index;
     private String ringName = "";
     private boolean upNext = true;
