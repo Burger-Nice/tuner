@@ -14,7 +14,7 @@ module.exports = async ({ p, shot, key, log }) => {
   const text = (sel) => ev((s) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]') && e.getClientRects().length).map((e) => e.textContent.trim()).join(' | '), sel);
   const closeAll = async () => { for (let i = 0; i < 3 && await ev(() => !!document.querySelector('#overlays .ov')); i++) { await key('Escape', 1, 300); } };
 
-  if (only === 'shield') {
+  if (only.startsWith('shield')) {
     // My team, and the games of the last week unseen (the Grizzlies' Kings and Warriors games are finals)
     await p.addInitScript(() => { const s = JSON.parse(localStorage.getItem('tuner.settings') || '{}'); localStorage.setItem('tuner.settings', JSON.stringify({ ...s, shield: 'mine' })); localStorage.setItem('tuner.nbaSeen', JSON.stringify({ upTo: 0, ids: [] })); });
     await p.reload(); await p.waitForTimeout(1200);
@@ -63,10 +63,13 @@ module.exports = async ({ p, shot, key, log }) => {
     check(/page/.test(menu) && /Make the .* my team/.test(menu), `hold OK menu: ${menu}`);
     await key('ArrowDown', 1, 250); await key('Enter', 1, 500); await shot('standings-confirm');
     check(/your team/.test(await text('#overlays .menu h3')), 'Make my team asks first');
-    await key('Escape', 1, 400); await closeAll();
+    await key('ArrowRight', 1, 250); await key('Enter', 1, 800); await shot('standings-made');
+    check(await ev(() => window.Core.settings().nbaTeam === 'LAL' && /Lakers/.test(document.querySelector('.nb-sec [data-sec="team"]').textContent)), 'Make my team: the Lakers are your team (the chip says so)');
+    await ev(async () => { const st = await import('/tv/js/state.js'); st.saveSettings({ nbaTeam: 'MEM' }); st.emit('nba'); }); await p.waitForTimeout(400);
+    await closeAll();
     // East: ◀▶ on the chips switch after 250 ms
     await key('Escape', 1, 400); await key('ArrowDown', 1, 300); await key('ArrowRight', 1, 700); await log('east chip'); await shot('standings-east');
-    check(/Eastern|East/.test(await text('.st-ctx')) && (await text('.lg-st .nb-in .nb-tr .nm')).includes('Boston') || (await text('.lg-st .nb-in .nb-tr .nm')).length > 0, 'East shows after the dwell');
+    check(await ev(() => /Eastern/.test(document.querySelector('.st-ctx').textContent)), 'East shows after the dwell');
     await key('ArrowDown', 1, 300); a = await act(); check(a.key.startsWith('tm:'), `Down from East lands on row 1 (${a.key})`);
     await key('Escape', 1, 300); await key('ArrowDown', 1, 300); await key('ArrowLeft', 1, 600);
   }
@@ -134,21 +137,55 @@ module.exports = async ({ p, shot, key, log }) => {
   }
 
   // ---------- the shield ----------
-  if (only === 'shield') {
+  // shield: no copy kept (the cover cards); shield-copy: a copy kept at the unseen game's tip-off (Grizzlies 2-0 in it)
+  if (only === 'shield-copy') {
+    const at = await ev(async () => {
+      const L = await import('/tv/js/league.js'), G = await import('/tv/js/games.js');
+      await L.want('schedule:MEM');
+      const [standings, teamStats, ...ld] = await Promise.all([NBA.standings(), NBA.teamStats(), ...NBA.LEADERS.map((c) => NBA.leaders(c.key, 10))]);
+      const mem = standings.confs.flatMap((c) => c.teams).find((t) => t.abbr === 'MEM');
+      Object.assign(mem, { w: 2, l: 0, streak: 'W2', l10: '2-0' });
+      const leaders = Object.fromEntries(NBA.LEADERS.map((c, i) => [c.key, ld[i].map((x) => (x.abbr === 'MEM' ? { ...x, value: '36.5' } : x))]));
+      teamStats.MEM.s.avgPoints = 99;
+      const g = G.unseenFor().filter((x) => x.home.abbr === 'MEM' || x.away.abbr === 'MEM').sort((a, b) => a.date - b.date)[0];
+      await window.Core.cache.set(`nba:pin:${g.date}`, { at: Date.now(), standings, teamStats, leaders });
+      window.Core.store.set('nbaPins', [g.date]);
+      return `${g.away.abbr} at ${g.home.abbr} ${new Date(g.date).toISOString()}`;
+    });
+    console.log('pinned a copy for', at);
+  }
+  if (only.startsWith('shield')) {
     await chip('standings'); await p.waitForTimeout(2500);
     await shot('shield-standings');
     const legend = await text('.st-sub .legend');
     console.log('legend:', legend);
     const cover = await text('.st-msg');
-    check(/As of tip-off/.test(legend) || /hidden/.test(cover), 'West: the copy (labelled) or the cover card');
-    check(!(await text('.lg-st .nb-in .nb-tr .nm')).includes('Grizzlies') || /As of tip-off/.test(legend), 'no live West table with the Grizzlies under the shield');
+    if (only === 'shield') check(/hidden/.test(cover) && !(await text('.lg-st .nb-in .nb-tr .nm')), `West: the cover card (${cover.slice(0, 60)})`);
+    else {
+      check(/As of tip-off/.test(legend), 'West: the copy, labelled');
+      const mem = await text('.lg-st .nb-in [data-key="tm:MEM"]');
+      check(/2\s*0/.test(mem.replace(/[^0-9 ]/g, ' ')) && /W2/.test(mem), `the Grizzlies row is the copy's (${mem})`);
+      check(!(await text('.lg-st .nb-tr .a-live')), 'no LIVE pills on the copy');
+    }
     await key('ArrowDown', 1, 300); let a = await act(); check(a.act !== 'reveal', `Reveal isn't the default focus (${a.text})`);
     await key('ArrowDown', 1, 300); a = await act(); await log('down from chips'); await shot('shield-standings-down');
     check(a.act !== 'reveal', `Down from the chips isn't Reveal (${a.text})`);
+    if (only === 'shield') {
+      a = await act(); check(/East/.test(a.text), `the cover card's Show the East is reached first (${a.text})`);
+      await key('Enter', 1, 600); a = await act(); check(a.conf === 'East', `Show the East shows the East, focus on its chip (${a.conf})`);
+      check((await text('.lg-st .nb-in .nb-tr .nm')).length > 0, 'the East table (no unseen game in it) shows');
+      await shot('shield-east');
+    }
     await chip('leaders'); await p.waitForTimeout(2500); await shot('shield-leaders');
-    console.log('leaders note:', await text('.ld-note'), '| panel:', await text('.lg-panel'));
+    const ln = await text('.ld-note'), lp = await text('.lg-lg-ld .lg-panel, .lg-ld .lg-panel');
+    console.log('leaders note:', ln, '| panel:', lp);
+    check(only === 'shield' ? /hidden/.test(lp) : /As of tip-off/.test(ln) && /36\.5/.test(await text('.nb-lead .v b')), 'Leaders: the copy or the cover');
+    await key('ArrowDown', 1, 300); a = await act(); check(a.act !== 'reveal', `Leaders entry isn't Reveal (${a.text})`);
     await chip('teamstats'); await p.waitForTimeout(2500); await shot('shield-teamstats');
-    console.log('team stats note:', await text('.ts .nb-notice'), '| panel:', await text('.ts .lg-panel'));
+    const tn = await text('.ts .nb-notice'), tp = await text('.ts .lg-panel');
+    console.log('team stats note:', tn, '| panel:', tp);
+    check(only === 'shield' ? /hidden/.test(tp) : /As of tip-off/.test(tn) && /99\.0/.test(await text('.ts-tb [data-key="tm:MEM"]')), 'Team stats: the copy or the cover');
+    if (only === 'shield-copy') { await key('ArrowDown', 1, 300); await key('ArrowRight', 1, 400); await shot('shield-teamstats-row'); a = await act(); check(a.key === 'tm:MEM', `Right lands on your row in the copy (${a.key})`); }
   }
   console.log(fails.length ? `${fails.length} FAILED` : 'all checks passed');
 };

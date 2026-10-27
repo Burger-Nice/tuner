@@ -6,7 +6,7 @@
 .lg .nb-in>.nb-tr.fx:focus{position:absolute}
 .lg .nb-in>.off{opacity:0}                                   /* only whole rows show (opacity: they stay focusable) */
 .lg .nb-sbar i{transition:top .32s var(--a-ease,ease)}
-.lg.fast .nb-in,.lg.fast .nb-tb,.lg.fast .nb-th,.lg.fast .nb-sbar i{transition:none}
+.lg.fast .nb-in,.lg.fast .nb-tb,.lg.fast .nb-th,.lg.fast .nb-sbar,.lg.fast .nb-sbar i{transition:none}
 .lg .lg-cover{width:600px}
 .lg .legend .ic.sm{width:18px;height:18px;flex:none}
 .lg .legend .pillbtn .ic{width:18px;height:18px}
@@ -23,7 +23,6 @@
 .ld-col{position:absolute;left:272px;top:128px;width:640px;height:378px}
 .ld-col .nb-lead{left:0;top:0}
 .ld-col .nb-lrows{left:0;top:108px;height:270px}
-.ld-col .nb-lead .hs{background:none}
 .ld-note{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
 .ld-note .row-flex{gap:6px;color:var(--a-text-2)}
 .ld-note .row-flex .ic{width:16px;height:16px;flex:none}

@@ -16,6 +16,7 @@ import { ord, edge, coverCard, onFinal, isRepeat } from './standings.js';
 // (Points allowed isn't here: NBA.teamStats() keeps only each team's own numbers, not ESPN's opponent split.)
 export const TEAM_CATS = [
   { key: 'avgPoints', label: 'Points' },
+  { key: 'oppAvgPoints', label: 'Points allowed', lower: true },
   { key: 'avgRebounds', label: 'Rebounds' },
   { key: 'avgAssists', label: 'Assists' },
   { key: 'fieldGoalPct', label: 'Field goal %' },
@@ -33,10 +34,10 @@ let el, ctx, cat = TEAM_CATS[0].key, first = -1, rows = [], L = PLAIN, dwell = 0
 const $ = (s) => el.querySelector(s);
 const catOf = (k) => TEAM_CATS.find((c) => c.key === k) || TEAM_CATS[0];
 
-// Every team with a number in this category, best first (ties keep ESPN's rank and go by name).
+// Every team with a number in this category, best first.
 function ranked(data, k) {
   const list = Object.values(data || {}).filter((t) => typeof t.s?.[k] === 'number');
-  list.sort((a, b) => (a.rank[k] || 99) - (b.rank[k] || 99) || (a.full || '').localeCompare(b.full || ''));
+  list.sort((a, b) => (a.rank[k] || 99) - (b.rank[k] || 99));   // (stable: ties keep ESPN's order)
   const n = new Map();
   list.forEach((t) => n.set(t.rank[k], (n.get(t.rank[k]) || 0) + 1));
   return list.map((t) => ({ t, v: t.s[k], rank: t.rank[k], tie: n.get(t.rank[k]) > 1 }));
@@ -82,14 +83,14 @@ function draw() {
       return `<div class="nb-tr fx${mine ? ' mine' : ''}" tabindex="-1" data-key="tm:${esc(r.t.abbr)}" style="top:${i * RH}px">${mine ? edge(r.t.abbr) : ''}<span class="c c-rk" style="width:36px">${esc(rankText(r))}</span><span class="c-crest" style="margin-left:12px">${tc(r.t)}</span><span class="c-nm"><span class="nm">${esc(r.t.full || names(r.t.abbr).full)}</span></span><span class="c-bar"><i style="width:${w.toFixed(1)}%"></i></span><span class="c c-val">${(+r.v).toFixed(1)}</span></div>`;
     }).join('');
   }
-  setHtml($('.ts-note'), note);
-  setHtml($('.ts-msg'), msg);
+  let changed = setHtml($('.ts-note'), note);
+  changed = setHtml($('.ts-msg'), msg) || changed;
   const th = $('.ts-th'), tb = $('.ts-tb');
   setHtml(th, head); th.hidden = !head; th.style.top = `${L.th}px`;
-  setHtml($('.nb-in'), body); tb.hidden = !body;
-  tb.style.top = `${L.tb}px`; tb.style.height = `${L.n * RH}px`;
-  if (first < 0 || first > Math.max(0, rows.length - L.n)) centre();
-  place(true);
+  changed = setHtml($('.nb-in'), body) || changed;
+  tb.hidden = !body; tb.style.top = `${L.tb}px`; tb.style.height = `${L.n * RH}px`;
+  if (first < 0 || first > Math.max(0, rows.length - L.n)) { centre(); changed = true; }
+  if (changed) place(true);   // (a poll that changed nothing leaves a slide running)
 }
 // The list opens with your team in the middle.
 function centre() {

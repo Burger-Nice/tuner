@@ -131,16 +131,16 @@ function draw() {
       line = `NBA${dot}<b>Standings</b>${dot}${esc(t.name || `${conf}ern Conference`)}${t.season ? `${dot}${esc(t.season)}` : ''}${t.copy ? `${dot}As of tip-off, ${esc(gameName(t.pin.game))}` : ''}`;
     }
   }
-  setHtml($('.st-sub'), sub);
+  let changed = setHtml($('.st-sub'), sub);
   $('.st-th').hidden = !head;
   $('.st-tb').hidden = !rows;
-  setHtml($('.nb-in'), rows);
-  setHtml($('.st-msg'), msg);
+  changed = setHtml($('.nb-in'), rows) || changed;
+  changed = setHtml($('.st-msg'), msg) || changed;
   setHtml($('.st-ctx'), line);
   // ESPN down with nothing kept: Try again is the only thing to focus
   const retry = $('.st-msg [data-act="retry"]'), a = document.activeElement;
   if (retry && el.contains(a) && a !== retry) focus(retry);
-  place(true);
+  if (changed) place(true);   // (a poll that changed nothing leaves a slide running)
 }
 
 // The margin rule and the two layouts. Rows move in whole rows (320 ms; at once while a key repeats).
@@ -236,12 +236,14 @@ export default {
     onFinal(() => setTimeout(() => want('standings', { force: true }), 2 * 60e3));   // 2 min after any final
   },
   enter() {
+    wasScrolled = null;   // the host may have brought the bar back while the tab was away
     want('standings');
     if (favTeam()) want(`schedule:${favTeam()}`);   // the shield needs your team's games
     clearInterval(tick);
     // every minute: want() fetches when the copy is over 10 min old, or when the last try failed (ESPN down: 60 s)
     tick = setInterval(() => { if (ctx.visible()) want('standings'); }, 60e3);
     draw();
+    place(true);
     ctx.meta();
   },
   leave() { clearInterval(tick); clearTimeout(dwell); },

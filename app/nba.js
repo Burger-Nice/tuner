@@ -228,11 +228,17 @@
   }
   // Every team's per-game numbers, ranked across the league here (ESPN ranks only some): { MEM: { s, rank } }.
   // Lower is better for points allowed and turnovers.
-  const LOWER = new Set(['avgTurnovers', 'avgFouls']);
+  const LOWER = new Set(['avgTurnovers', 'avgFouls', 'oppAvgPoints']);
   async function teamStats() {
     const d = await getJSON(`${web()}/common/v3/sports/basketball/nba/statistics/byteam?limit=30`);
     const out = {};
     for (const x of statRows(d, 'teams')) { const t = teamBits(x.r.team); if (t.abbr) out[t.abbr] = { ...t, s: x.s, rank: {} }; }
+    // points allowed: the opponents' points (splitId 900), which statRows passes over
+    const cn = Object.fromEntries((d.categories || []).filter((c) => c.names).map((c) => [c.name, c.names])), pi = (cn.offensive || []).indexOf('avgPoints');
+    for (const r of d.teams || []) {
+      const t = out[teamBits(r.team).abbr], opp = r.categories?.find((c) => c.name === 'offensive' && String(c.splitId) === '900');
+      if (t && opp && pi >= 0 && opp.values?.[pi] != null) t.s.oppAvgPoints = opp.values[pi];
+    }
     const all = Object.values(out), keys = new Set(all.flatMap((t) => Object.keys(t.s)));
     for (const k of keys) {
       const sorted = all.filter((t) => typeof t.s[k] === 'number').sort((a, b) => (LOWER.has(k) ? a.s[k] - b.s[k] : b.s[k] - a.s[k]));

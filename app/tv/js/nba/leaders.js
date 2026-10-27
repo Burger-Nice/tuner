@@ -71,7 +71,7 @@ function draw() {
       body = `<div class="ld-col" data-col>${card(list[0], c, list[1]?.value === list[0].value)}<div class="nb-lrows nb-tb">${rowsHtml(list)}</div></div>`;
     }
     // the copy's label under the column, its Reveal a button you move to (never the default focus)
-    if (t.pin) {
+    if (t.copy) {
       const [a, b] = t.pin.label.split(/,\s*/);
       note = `<div class="nb-catnote ld-note" style="top:412px"><span class="row-flex">${ic('eyeOff')}${esc(a)},</span><span style="margin-top:-8px">${esc(b || '')}</span><div data-row><span class="pillbtn fx nb-reveal" tabindex="-1" data-act="reveal" data-g="${t.pin.games.length === 1 ? esc(t.pin.game.id) : '*'}">${t.pin.games.length === 1 ? 'Reveal it' : `Reveal ${t.pin.games.length} results`}</span></div></div>`;
     } else if (bad) note = `<div class="nb-catnote ld-note" style="top:412px"><span class="row-flex">${ic('wifiOff')}ESPN isn’t answering</span>${fetchedAt(keyOf(cat)) ? `<span style="margin-top:-8px">showing ${hm(fetchedAt(keyOf(cat)))}</span>` : ''}<div data-row><span class="pillbtn fx" tabindex="-1" data-act="retry">${ic('refresh')}Try again</span></div></div>`;

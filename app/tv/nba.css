@@ -223,3 +223,4 @@ svg.ic.xs{width:16px;height:16px}
 .nb-s{position:absolute;inset:0}
 .nb-sec{z-index:6;transition:transform .32s var(--a-ease,ease),opacity .2s}
 .nb-sec.away{transform:translateY(-72px);opacity:0;pointer-events:none}
+.nb-tb>.nb-tr.fx:focus{position:absolute}   /* table rows are placed by their own top: focus keeps them there */
