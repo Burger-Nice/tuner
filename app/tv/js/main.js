@@ -23,6 +23,7 @@ import account from './screens/account.js';
 import first from './screens/first.js';
 import { launchOpen, launchReady, launchKey } from './launch.js';
 import { sfx } from './sfx.js';
+import { initSubs } from './subs.js';
 
 const app = $('#app');
 setBase(app);
@@ -168,6 +169,7 @@ if (native) {
 }
 
 async function start() {
+  initSubs();   // the subtitle settings' move from subLang (design/ui-v1/subtitles/SPEC.md 6.2), once
   await Promise.race([Promise.resolve(native?.ready), sleep(1500)]);
   if (resume()) {
     // Home's first look needs the channel list (last channel, On now); the saved copy loads inside the launch.

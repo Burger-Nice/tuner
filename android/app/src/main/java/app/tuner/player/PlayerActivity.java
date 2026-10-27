@@ -2257,6 +2257,9 @@ public class PlayerActivity extends AppCompatActivity {
     boolean timedOut() { return rd.timedOut; }
     boolean decoderFault() { return rd.decoder > 0; }
     /** The account check (max_connections for the stream-limit card), in the background. */
+    boolean online() { return rd.connected; }
+    /** A replay's link failed with the network gone: the diagnosis card says so (offline, the router, the Wi-Fi). */
+    void showOffline() { showCause(Diag.decide(rd, what(), title())); }
     void checkAccount() { if (!apiUrl.isEmpty() && !checkRunning) runChecks(false); }
     int maxStreams() { return rd.acct == 1 ? rd.max : -1; }
     /** A kept programme's Up next (6.7), the last 10 s: the chip without a countdown or a key. */
@@ -2777,6 +2780,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (!rd.validated || !rd.connected || forced || isFinishing()) return;
         if (stopped) { netBackPending = true; return; }   // nothing re-tunes until airglow is back in front
         if (chipUp && chipKind == CHIP_OFFLINE) hideChip();
+        if (rp != null) { hideCard(false); rp.netBack(); return; }
         boolean outage = cause != null && ("offline".equals(cause.id) || "no-internet".equals(cause.id) || "no-router".equals(cause.id) || "wifi-gone".equals(cause.id));
         boolean stuck = outage || (wasOffline && (reconnecting || rd.stalled || open instanceof FailedCard));
         wasOffline = false;

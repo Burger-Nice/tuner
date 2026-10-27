@@ -487,5 +487,5 @@ export function confirm(r, from, done) {
     },
   });
 }
-export { PUZZLE, LINK };
+export { PUZZLE, LINK, sheet as openAddonSheet };
 on('addon-toast', (m) => toast(m, 4000));

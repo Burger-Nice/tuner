@@ -11,7 +11,8 @@ const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" de
 const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
 
 // 2:3 poster: tag 4K top-left, +N versions (or a language) top-right, resume bar flush; the caption below is the real title.
-export function poster(t, i, { sm = false } = {}) {
+// mine: an add-on catalog's title the provider has too (design/ui-v1/addons/SPEC.md 4.2): the [tv] mark
+export function poster(t, i, { sm = false, mine = false } = {}) {
   const mk = videoMask(t);
   if (mk) return maskedPoster(t, i, mk, sm);
   const tl = t._qs?.has('4K') ? tag('4K', 'q') : '';
@@ -20,7 +21,7 @@ export function poster(t, i, { sm = false } = {}) {
   const p = t.kind === 'movie' ? progressOf(t.versions?.[0] || t) : null;
   const art = t.poster ? `<div class="art" data-ini="${esc(initials(t.name))}" data-nt="${esc(t.name)}">${img(t.poster)}</div>` : `<div class="noart"><span class="ini">${esc(initials(t.name))}</span><span class="nt clamp3">${esc(t.name)}</span></div>`;
   const meta = [t.year, t._ir ? `★ ${t._ir.toFixed(1)}` : (t._genres?.[0] || '')].filter(Boolean).join(' · ');
-  return `<div class="pc fx${sm ? ' sm' : ''}" tabindex="-1" data-i="${i}" data-key="t:${esc(t.kind)}:${esc(t.id)}" data-hold><div class="box">${art}${tl ? `<div class="tl">${tl}</div>` : ''}${tr ? `<div class="tr">${tr}</div>` : ''}${p && p.t > 30 && p.t < p.d * 0.94 ? `<div class="prog flush"><i style="width:${pct(p)}%"></i></div>` : ''}</div>
+  return `<div class="pc fx${sm ? ' sm' : ''}" tabindex="-1" data-i="${i}" data-key="t:${esc(t.kind)}:${esc(t.id)}" data-hold><div class="box">${art}${tl ? `<div class="tl">${tl}</div>` : ''}${tr ? `<div class="tr">${tr}</div>` : ''}${mine ? `<span class="ad-mine">${ic('tv')}</span>` : ''}${p && p.t > 30 && p.t < p.d * 0.94 ? `<div class="prog flush"><i style="width:${pct(p)}%"></i></div>` : ''}</div>
     <div class="cap">${esc(t.name)}</div><div class="cm">${esc(meta)}</div></div>`;
 }
 

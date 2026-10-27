@@ -64,7 +64,7 @@ final class Replay implements Timeline.Model {
     // the media
     private long offset;        // where the playing link starts, in the window
     private long target = -1;   // a seek on its way: the thumb shows it
-    private boolean opening, waitingLinks, waitingExt, ended, checking, firstFrame;
+    private boolean opening, waitingLinks, waitingExt, ended, checking;
     private long pendingFrom = -1, openedAt, lastReopen, duration, played;
     private String playingUrl = "";
     private int posTick, extCount, limitTries, checkStep, checkLi;
@@ -170,7 +170,12 @@ final class Replay implements Timeline.Model {
         String[] l = link(li);
         if (l == null || l[0].isEmpty()) { linkFailed(0, "error"); return; }
         if (whole(l, isVideo())) {
-            if (!opening && l[0].equals(playingUrl) && offset == 0 && p.isCurrentMediaItemSeekable()) { localSeek(t); return; }
+            boolean same = !opening && p.isCurrentMediaItemSeekable() && (l[0].equals(playingUrl) || offset > 0 && !fromUrl.isEmpty() && fromUrl.equals(playingUrl));
+            long dur = p.getDuration();
+            boolean known = dur != C.TIME_UNSET && dur > 0;
+            if (same && t >= offset && (!known || t - offset < dur - 1000)) { localSeek(t); return; }
+            // a link that doesn't reach that far (an archive playlist shorter than the window): the rest from that minute
+            if (same && known && t - offset >= dur - 1000 && !isVideo() && minuteFrom(t) > offset) { askFrom(t); return; }
             play(l[0], 0, t);
             return;
         }
@@ -182,6 +187,11 @@ final class Replay implements Timeline.Model {
         // minute would go back)
         if (same && from <= offset + p.getCurrentPosition() && t >= offset + p.getCurrentPosition()) { target = -1; tlChanged(); return; }
         if (from <= 0) { play(l[0], 0, 0); return; }
+        askFrom(t);
+    }
+    /** Asks the app for the window's links from the minute t falls in (the old stream goes first). */
+    private void askFrom(long t) {
+        long from = minuteFrom(t);
         a.releaseStream();
         playingUrl = "";
         opening = true;
@@ -196,6 +206,16 @@ final class Replay implements Timeline.Model {
         e.put("link", li);
         TunerPlayerPlugin.emit(e);
     }
+    private String fromUrl = "";
+    private boolean waitingNet;
+    /** The network is back (2 s after it validated): the same place again, on the same link. */
+    void netBack() {
+        if (!waitingNet) return;
+        waitingNet = false;
+        opening = false;
+        playingUrl = "";
+        openAt(target >= 0 ? target : played);
+    }   // the link from a minute that plays now (offset > 0)
     /** The start of the minute t falls in, as a window position (the archive's links start on whole minutes). */
     private long minuteFrom(long t) {
         long ws = src().windowStart;
@@ -214,8 +234,9 @@ final class Replay implements Timeline.Model {
         a.releaseStream();
         offset = from;
         playingUrl = url;
+        if (from == 0) fromUrl = "";
         opening = true;
-        firstFrame = false;
+        openTarget = at;
         target = at;
         openedAt = SystemClock.uptimeMillis();
         a.setStream(url, Math.max(0, at - from));
@@ -260,12 +281,19 @@ final class Replay implements Timeline.Model {
         if (isVideo() && duration > 0) e.put("duration", duration);
         TunerPlayerPlugin.emit(e);
     }
+    private long openTarget;
     void onEnded() {
         if (checking) { p.pause(); return; }
-        played = played();
-        if (isProgramme()) { a.finish(); return; }
+        long d = p.getDuration(), end = offset + (d != C.TIME_UNSET && d > 0 ? d : p.getCurrentPosition());
+        long want = Math.max(openTarget, end);   // where it should go on from: what the link was asked for, or its end
+        played = Math.min(want, Math.max(played(), end));
         if (isVideo()) { showEnded(false); return; }
         long lp = livePos();
+        // the link ended before the window did, and well before the live point: the rest from that minute (an archive
+        // playlist can be shorter than what was asked; a .ts link may close)
+        boolean early = want < windowMs - 60000 && (lp < 0 || want < lp - 120000) && !(isProgramme() && want >= progLen() - 30000);
+        if (early && minuteFrom(want) > offset) { askFrom(want); return; }
+        if (isProgramme() && !onNow()) { a.finish(); return; }
         if (lp >= 0) {   // caught up with what the archive had when the link was asked for: ask again from here
             long now = SystemClock.uptimeMillis();
             if (now - lastReopen < 20000) { atLive(); return; }
@@ -296,6 +324,7 @@ final class Replay implements Timeline.Model {
         int http = a.httpCode();
         if (checking) { checkLi++; playCheck(); return; }
         if (waitingLinks) return;
+        if (!a.online()) { waitingNet = true; a.showOffline(); return; }   // the network went: the same link once it's back
         if (a.limitAnswer() && limitTries < 3) { connLimit(); return; }
         long t = target >= 0 ? target : played;
         if ((http == 404 || http == 410) && !isVideo() && src().windowStart > 0 && System.currentTimeMillis() - (src().windowStart + t) < 10 * 60000) {
@@ -591,7 +620,8 @@ final class Replay implements Timeline.Model {
             pendingFrom = -1;
             JSONObject k = l == null ? null : l.optJSONObject(Math.min(li, l.length() - 1));
             if (k == null) { linkFailed(0, "error"); return; }
-            play(k.optString("url"), f, Math.max(f, target >= 0 ? target : f));
+            fromUrl = k.optString("url");
+            play(fromUrl, f, Math.max(f, target >= 0 ? target : f));
             return;
         }
         boolean keep = o.optBoolean("keepPosition");

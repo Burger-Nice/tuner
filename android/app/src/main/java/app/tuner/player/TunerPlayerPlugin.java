@@ -118,6 +118,8 @@ public class TunerPlayerPlugin extends Plugin {
                 || pm.hasSystemFeature("android.hardware.type.television")
                 || !pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN);
         r.put("tv", tv);
+        // The player speaks the replay protocol (design/ui-v1/catchup/PORT-NATIVE.md): the app sends mode 'replay'.
+        r.put("replay", true);
         // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).
         try { r.put("systemSounds", Settings.System.getInt(getContext().getContentResolver(), Settings.System.SOUND_EFFECTS_ENABLED, 1) == 1); } catch (Exception ignored) {}
         try {

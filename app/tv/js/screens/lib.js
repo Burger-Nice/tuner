@@ -8,7 +8,10 @@ import { push, barHidden, current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
 import { openDetail } from '../actions.js';
 import { videoMask } from '../catchup.js';
-import { openOverlay, contextMenu, toast, scrollList } from '../ui.js';
+import { openOverlay, contextMenu, toast, scrollList, radioMenu } from '../ui.js';
+import * as AD from '../addons.js';
+import { providerByImdb } from '../imdb.js';
+import { openAddonSheet, SPIN } from './addons.js';
 
 const COLS = 6, PITCH = 252, COLW = 148, MOUNT_BEFORE = 2, MOUNT_AFTER = 3;
 const CHIP_GENRES = 4;
@@ -16,6 +19,11 @@ const CHIP_GENRES = 4;
 export default function lib(kind) {
   const label = kind === 'movie' ? 'Movies' : 'Series';
   let el, list = [], view = null, row = 0, bubbleT = 0, repeatSince = 0, loadT = 0, unhook = () => {};
+  // An add-on catalog chip in use (design/ui-v1/addons/SPEC.md 4.2): its own order, paged with skip, merged with the
+  // provider's titles by IMDb id. { key, a, c, genre, items, ids, mine (provider titles shown), state: 'loading' |
+  // 'ok' | 'down' | 'end', more: '' | 'loading' | 'failed', onlyMine }
+  let ad = null;
+  const adChips = () => AD.chipCatalogs(kind);
   const vkey = () => scoped(kind + 'View');
   function loadView() {
     const v = store.get(vkey(), {});
@@ -34,7 +42,21 @@ export default function lib(kind) {
       ['Top rated', { sort: 'rating', f: { ...keep } }], ['4K', { sort: view.sort, f: { ...keep, q: '4K' } }],
       ...g.map((x) => [x, { sort: view.sort, f: { ...keep, genre: x } }])];
   }
+  // the add-on chips after a divider: the catalog's name, then the add-on in text-3 (SPEC 4.2)
+  function addonChips() {
+    const cs = adChips();
+    if (!cs.length) return '';
+    return `<span class="ad-cut"></span>${cs.map((x) => `<span class="chip lg fx${x.key === view.chip ? ' sel' : ''}" tabindex="-1" data-chip="${esc(x.key)}" data-hold>${esc(x.name)}<span class="ad-by">${esc(x.by)}</span></span>`).join('')}`;
+  }
+  function adHeader() {
+    const gOpts = AD.genreOf(ad.c)?.options || [];
+    const cap = ad.state === 'loading' ? `${SPIN}Asking ${esc(AD.label(ad.a))}…` : `${esc(AD.catalogName(ad.a, ad.c))} from ${esc(AD.label(ad.a))}${ad.genre ? `${dot}${esc(ad.genre)}` : ''}${ad.onlyMine ? `${dot}only titles your provider has` : ad.mine.size ? `${dot}<span class="ad-legend"><i>${ic('tv')}</i>also on your provider</span>` : ''}`;
+    return `<div class="lib-head" data-row><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px">${cap}</span><span class="grow"></span>
+      ${gOpts.length ? `<span class="pillbtn fx" tabindex="-1" data-act="genre">${ic('sliders')}Genre${ad.genre ? `<b>${esc(ad.genre)}</b>` : ''}</span>` : ''}</div>
+      <div class="lib-chips" data-row>${chipDefs().map(([c]) => `<span class="chip lg fx" tabindex="-1" data-chip="${esc(c)}">${esc(c)}</span>`).join('')}${addonChips()}</div>`;
+  }
   function header() {
+    if (ad) return adHeader();
     const n = catalog[kind]?.titles?.length || 0;
     const sortL = SORTS.find(([k]) => k === view.sort)?.[1] || 'Popular';
     const fc = filterCount(view.f);
@@ -43,10 +65,13 @@ export default function lib(kind) {
       <span class="pillbtn fx" tabindex="-1" data-act="sort">${ic('sort')}Sort<b>${esc(sortL)}</b></span>
       <span class="pillbtn fx" tabindex="-1" data-act="filters">${ic('sliders')}Filters${fc > 0 ? `<span class="cnt">${fc}</span>` : ''}</span>
       <span class="pillbtn fx" tabindex="-1" data-act="jump">${ic('chevD')}Jump</span></div>
-      <div class="lib-chips" data-row>${chipDefs().map(([c]) => `<span class="chip lg fx${c === view.chip ? ' sel' : ''}" tabindex="-1" data-chip="${esc(c)}">${esc(c)}</span>`).join('')}</div>`;
+      <div class="lib-chips" data-row>${chipDefs().map(([c]) => `<span class="chip lg fx${c === view.chip ? ' sel' : ''}" tabindex="-1" data-chip="${esc(c)}">${esc(c)}</span>`).join('')}${addonChips()}</div>`;
   }
   function refreshList(keepFocus) {
-    list = browse(kind, view);
+    const cs = view.chip?.startsWith('ad') && adChips().find((x) => x.key === view.chip);
+    if (view.chip?.startsWith('ad') && !cs) view.chip = 'All';   // (its add-on or catalog went)
+    if (cs) { if (ad?.key !== cs.key) openAd(cs); list = ad.items; }
+    else { ad = null; list = browse(kind, view); }
     setHtml(el.querySelector('[data-head]'), header());
     if (!keepFocus) row = 0;
     drawGrid();
@@ -54,6 +79,15 @@ export default function lib(kind) {
   // Mount the rows around `row` (the focused one), positioned absolutely; the grid slides by whole rows.
   function drawGrid(focusIdx) {
     const grid = el.querySelector('.lib-grid');
+    grid.querySelectorAll('.ad-skel, .ad-more').forEach((x) => x.remove());
+    if (ad && !list.length) {
+      const who = esc(AD.label(ad.a));
+      grid.innerHTML = ad.state === 'loading' ? Array.from({ length: 12 }, (_, i) => `<span class="skb" style="position:absolute;left:${(i % 6) * COLW}px;top:${Math.floor(i / 6) * PITCH}px;width:124px;height:186px;border-radius:12px"></span>`).join('')
+        : ad.state === 'down' ? `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('wifiOff')}</div><b>${who} isn't answering</b><p>Its catalogs come back when it does. Your provider's ${label.toLowerCase()} are all still here, under All.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="adretry">Try again</span><span class="btn2 fx" tabindex="-1" data-act="clear">All ${label.toLowerCase()}</span></span></div>`
+        : `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('tv')}</div><b>${ad.onlyMine ? 'None of these are on your provider' : 'Nothing here yet'}</b><p>${ad.onlyMine ? `No add-on of yours gives copies of ${esc(AD.catalogName(ad.a, ad.c))}'s titles, and your provider has none of them.` : `${who} sent no titles for this.`}</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn2 fx" tabindex="-1" data-act="clear">All ${label.toLowerCase()}</span></span></div>`;
+      grid.style.transform = 'translateY(176px)';
+      return;
+    }
     if (!list.length) {
       const n = catalog[kind]?.titles?.length || 0;
       grid.innerHTML = n ? `<div class="state big" style="margin:24px auto 0;position:relative;left:0"><div class="ico">${ic('sliders')}</div><b>Nothing matches these filters</b><p>Remove the last one, or clear them all to see every title again.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="clear">Clear all</span></span></div>` : '';
@@ -69,8 +103,12 @@ export default function lib(kind) {
     const mk = (t) => videoMask(t)?.kind || '';
     for (const [i, node] of have) if (!want.has(i) || node._t !== list[i] || (node._m || '') !== mk(list[i])) { if (node === document.activeElement) continue; node.remove(); have.delete(i); }
     let html = '';
-    for (const i of want) if (!have.has(i)) html += poster(list[i], i).replace('class="pc fx', `data-c="${i % COLS}" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px" class="pc fx`);
+    for (const i of want) if (!have.has(i)) html += poster(list[i], i, { mine: !!ad?.mine.has(list[i]) }).replace('class="pc fx', `data-c="${i % COLS}" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px" class="pc fx`);
     if (html) grid.insertAdjacentHTML('beforeend', html);
+    // the next page on its way: static blocks on the next row; a page that failed: one inline card (SPEC 4.2, S9)
+    const nextTop = Math.ceil(list.length / COLS) * PITCH;
+    if (ad?.more === 'loading' && b >= Math.ceil(list.length / COLS)) grid.insertAdjacentHTML('beforeend', Array.from({ length: COLS }, (_, c) => `<span class="ad-skel" style="left:${c * COLW}px;top:${nextTop}px"></span>`).join(''));
+    if (ad?.more === 'failed') grid.insertAdjacentHTML('beforeend', `<div class="card ad-more" style="position:absolute;left:0;top:${nextTop}px;width:864px;height:64px;box-sizing:border-box;display:flex;align-items:center;gap:14px;padding:0 20px"><span class="ad-bang">${ic('bang')}</span><span class="grow"><b style="display:block;font:650 16px/20px var(--a-font-text)">${esc(AD.label(ad.a))} didn't send the next page</b><span class="t-cap">The titles above stay. ▼ to try again</span></span><span class="btn2 sm">Try again</span></div>`);
     for (const node of grid.children) if (node.dataset.i) { node._t = list[+node.dataset.i]; node._m = mk(node._t); }
     // Scrolled, the focused row sits low enough to show the row above under the top fade, and high enough that its own
     // titles stay on screen (a card is 238 tall: poster 186 + title and year): its bottom lands inside the safe edge (513).
@@ -99,8 +137,14 @@ export default function lib(kind) {
       }
       t = i - COLS;
     }
-    else { if (i + COLS < n) t = i + COLS; else if (Math.floor(i / COLS) < Math.floor((n - 1) / COLS)) t = n - 1; else return false; }
+    else {
+      if (i + COLS < n) t = i + COLS; else if (Math.floor(i / COLS) < Math.floor((n - 1) / COLS)) t = n - 1;
+      else if (ad && ad.more === 'failed') { loadMore(); return true; }          // ▼ on the last row tries again
+      else if (ad && (ad.more === 'loading' || ad.state !== 'end')) return true;  // on its way: focus stays, even under key repeat
+      else return false;
+    }
     row = Math.floor(t / COLS);
+    if (ad && dir === 'down' && row >= Math.ceil(n / COLS) - 2) loadMore();
     drawGrid(t);
     bubble(repeat && (dir === 'up' || dir === 'down'), t);
     return true;
@@ -118,6 +162,58 @@ export default function lib(kind) {
     b.hidden = false;
     clearTimeout(bubbleT);
     bubbleT = setTimeout(() => (b.hidden = true), 600);
+  }
+
+  function openAd(cs) {
+    ad = { key: cs.key, a: cs.a, c: cs.c, genre: '', items: [], ids: new Set(), mine: new Set(), state: 'loading', more: '', onlyMine: !AD.coveredByStreams(cs.a, cs.c), got: 0 };
+    const g = AD.genreOf(cs.c);
+    if (g?.isRequired && g.options?.length) ad.genre = g.options[0];
+    loadPage(ad, true);
+  }
+  async function loadPage(st, first) {
+    let metas;
+    try { metas = await AD.catalogPage(st.a, st.c, { genre: st.genre, skip: st.got }); }
+    catch { if (ad !== st) return; if (first) st.state = 'down'; else st.more = 'failed'; return redrawAd(); }
+    if (ad !== st) return;
+    const prov = await providerByImdb(kind);
+    if (ad !== st) return;
+    st.got += metas.length;
+    let fresh = 0;
+    for (const m of metas) {
+      if (st.ids.has(m.id)) continue;
+      st.ids.add(m.id); fresh++;
+      const t = prov.get(m.id);
+      if (t) { if (!st.items.includes(t)) { st.items.push(t); st.mine.add(t); } continue; }
+      if (st.onlyMine) continue;
+      st.items.push({ kind, key: m.id, id: m.id, name: m.name, poster: m.poster, year: m.year ? String(m.year) : '', versions: [], _qs: new Set(), _langs: new Set(), _genres: m.genres, _ir: parseFloat(m.imdbRating) || 0, _s: window.Titles.norm(m.name), addon: { key: st.a.key, type: m.type || kind }, released: m.released, releaseInfo: m.releaseInfo });
+    }
+    // it stops when a page is empty or brings only titles already shown (Cinemeta sends 49 or 50: SPEC 4.2)
+    st.state = !metas.length || !fresh || !AD.pageable(st.c) ? 'end' : 'ok';
+    st.more = '';
+    if (st.onlyMine && st.state === 'ok' && st.items.length < 12) return loadPage(st, false);   // (few of them are his: keep reading)
+    redrawAd();
+  }
+  function loadMore() {
+    if (!ad || ad.more === 'loading' || ad.state === 'end' || ad.state === 'loading') return;
+    ad.more = 'loading'; drawGrid();
+    loadPage(ad, false);
+  }
+  function redrawAd() {
+    if (!el || current() !== kind || !ad) return;
+    list = ad.items;
+    setHtml(el.querySelector('[data-head]'), header());
+    const inGrid = el.querySelector('.lib-grid').contains(document.activeElement);
+    drawGrid();
+    if (!inGrid && !el.contains(document.activeElement) && mayFocus()) focus(el.querySelector('.lib-chips .chip.sel'));
+  }
+  function genreMenu() {
+    const opts = AD.genreOf(ad.c)?.options || [], req = AD.genreOf(ad.c)?.isRequired;
+    radioMenu({ title: 'Genre', value: ad.genre, rows: [...(req ? [] : [{ v: '', l: 'Any' }]), ...opts.map((o) => ({ v: o, l: o }))], onPick: (v) => {
+      ad = { ...ad, genre: v, items: [], ids: new Set(), mine: new Set(), got: 0, state: 'loading', more: '' };
+      loadPage(ad, true); list = []; row = 0;
+      setHtml(el.querySelector('[data-head]'), header()); drawGrid();
+      focus(el.querySelector('[data-act="genre"]'));
+    } });
   }
 
   function setView(patch, chip) {
@@ -225,21 +321,34 @@ export default function lib(kind) {
       root.querySelector('.lib-grid').navHook = gridHook;
       root.addEventListener('click', (e) => {
         const chip = e.target.closest('[data-chip]');
-        if (chip) { const d = chipDefs().find(([c]) => c === chip.dataset.chip); if (d) setView({ ...d[1] }, d[0]); focus(el.querySelector(`[data-chip="${CSS.escape(chip.dataset.chip)}"]`)); return; }
+        if (chip && chip.dataset.chip.startsWith('ad')) { const cs = adChips().find((x) => x.key === chip.dataset.chip); if (cs) { view.chip = cs.key; saveView(); ad = null; refreshList(); } focus(el.querySelector(`[data-chip="${CSS.escape(chip.dataset.chip)}"]`)); return; }
+        if (chip) { ad = null; const d = chipDefs().find(([c]) => c === chip.dataset.chip); if (d) setView({ ...d[1] }, d[0]); focus(el.querySelector(`[data-chip="${CSS.escape(chip.dataset.chip)}"]`)); return; }
         const b = e.target.closest('[data-act]');
         if (b?.dataset.act === 'sort') return sortMenu(b);
         if (b?.dataset.act === 'filters') return filterSheet();
         if (b?.dataset.act === 'jump') return jumpMenu();
-        if (b?.dataset.act === 'clear') { setView({ f: {} }, 'All'); return; }
+        if (b?.dataset.act === 'clear') { ad = null; setView({ f: {} }, 'All'); focus(el.querySelector('[data-chip="All"]')); return; }
+        if (b?.dataset.act === 'genre') return genreMenu();
+        if (b?.dataset.act === 'adretry') { const cs = adChips().find((x) => x.key === ad?.key); if (cs) { ad = null; refreshList(); focus(el.querySelector('.lib-chips .chip.sel')); } return; }
         const card = e.target.closest('.pc');
         if (card) openDetail(list[+card.dataset.i]);
       });
       root.addEventListener('tvhold', (e) => {
+        // hold OK on an add-on chip: Hide this chip (focused; it comes back from the add-on's sheet), or its catalogs
+        const ch = e.target.closest('[data-chip^="ad"]');
+        if (ch) {
+          const cs = adChips().find((x) => x.key === ch.dataset.chip); if (!cs) return;
+          contextMenu(ch, [
+            { icon: 'eyeOff', label: 'Hide this chip', run: () => { AD.setCatalog(cs.a, cs.c, false); if (view.chip === cs.key) { ad = null; setView({ f: {} }, 'All'); } else refreshList(true); toast(`${cs.name} is hidden. It comes back from ${cs.by}'s sheet in Account`); focus(el.querySelector('.lib-chips .chip.sel') || el.querySelector('.lib-chips .chip')); } },
+            { icon: 'chevR', label: `${cs.by}'s catalogs`, run: () => openAddonSheet(cs.a) },
+          ]);
+          return;
+        }
         const card = e.target.closest('.pc'); if (!card) return;
         const t = list[+card.dataset.i];
         contextMenu(card, [
           { icon: 'saved', label: isFav(t) ? 'Remove from Saved' : 'Save to Saved', run: () => toast(toggleFav(t) ? `Saved ${t.name}` : `Removed ${t.name}`) },
-          { icon: 'check', label: 'Mark watched', run: () => { markWatched(t.versions[0]); drawGrid(); } },
+          ...(t.addon ? [] : [{ icon: 'check', label: 'Mark watched', run: () => { markWatched(t.versions[0]); drawGrid(); } }]),
           { icon: 'info', label: 'Details', run: () => openDetail(t) },
         ]);
       });
@@ -254,7 +363,8 @@ export default function lib(kind) {
           strip.classList.toggle('scrolled', strip.scrollLeft > 0);
         }
       });
-      on('session', () => { view = null; list = []; });
+      on('session', () => { view = null; list = []; ad = null; });
+      on('addons', () => { if (current() === kind && el.querySelector('.lib-chips')) setHtml(el.querySelector('[data-head]'), header()); });
       on('nba', () => { if (current() === kind && list.length) drawGrid(); });   // (the shield's masks follow what you've seen)
       on('catalog', (k) => {
         if (k !== kind) return;

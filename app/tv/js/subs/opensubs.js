@@ -10,12 +10,12 @@ export const MAX_FILE = 2 * 1024 * 1024;   // a file over 2 MB is dropped
 // /subtitles/movie/tt15398776.json, /subtitles/series/tt11280740:1:1.json, and with the copy's fingerprint
 // /subtitles/movie/tt15398776/videoHash=<16 hex>&videoSize=<bytes>.json (the add-on lists files "made for this copy",
 // "m":"h", first; an unknown fingerprint just returns the IMDb list).
-export function listUrl({ imdb, season, episode, hash, size }) {
+export function listUrl({ imdb, season, episode, hash, size, base = ADDON }) {
   if (!/^tt\d{5,10}$/.test(String(imdb || ''))) return '';
   const ep = season != null && episode != null && season !== '' && episode !== '';
   const id = ep ? `${imdb}:${+season}:${+episode}` : imdb;
   const extra = hash && /^[0-9a-f]{16}$/.test(hash) && size > 0 ? `/videoHash=${hash}&videoSize=${size}` : '';
-  return `${ADDON}/subtitles/${ep ? 'series' : 'movie'}/${id}${extra}.json`;
+  return `${base}/subtitles/${ep ? 'series' : 'movie'}/${id}${extra}.json`;
 }
 
 // An episode a file name names: S01E08, s1.e8, 1x08, "Season 1 Episode 8" -> [{ s, e }] (a double episode gives two)

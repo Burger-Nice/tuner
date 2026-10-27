@@ -1,6 +1,8 @@
 // Account: groups on the left, 56 px rows on the right. A row is itself the button (OK opens its choices or toggles it).
 import { esc, ic, dot, setHtml, host } from '../util.js';
 import { S, on, emit, settings, saveSettings, store } from '../state.js';
+import { subSettings, saveSubSettings } from '../subs.js';
+import { rowValues } from '../subs/prefs.js';
 import { catalog, resetCatalogs, ensure, forget } from '../catalog.js';
 import { resetGuides } from '../guide.js';
 import { setShield, shieldMode, favTeam, delayFor, nba } from '../games.js';
@@ -72,10 +74,14 @@ function body() {
       ${row('replays', 'Replays play', more(REPLAYS[s.replaysPlay || 'channel'][0]), 'What Watch from tip-off plays. Hold OK on it lists every source')}`;
   }
   if (group === 'languages') {
-    const langs = s.langs || ['English'];
+    // design/ui-v1/subtitles/SPEC.md 6.2 (account-languages)
+    const v = rowValues(s);
     return `<div class="t-title" style="margin-bottom:10px">Languages</div>
-      ${row('langs', 'Shown first', more(langs.join(', ')), 'Movies and series in these languages come first, and pick the version you get by default')}
-      ${row('subs', 'Subtitles', more({ auto: 'Auto', off: 'Off' }[s.subLang || 'auto'] || s.subLang), 'Used when a file has them')}`;
+      ${row('langs', 'Shown first', more(short(v.shown, 30)), 'Movies and series in these come first')}
+      ${row('subs', 'Subtitles', more(v.mode), 'Always, only when the sound isn\'t in your language, or off')}
+      ${row('sublangs', 'Subtitle languages', more(short(v.langs, 30)), 'The first one found shows. The others wait in the player')}
+      ${row('subsounds', 'Subtitles with sounds', more(v.sounds), 'Lines like [door slams] and who is speaking')}
+      ${row('subonline', 'Subtitles from OpenSubtitles', more(v.online ? 'On' : 'Off'), 'When the file has none in your languages')}`;
   }
   if (group === 'home') {
     return `<div class="t-title" style="margin-bottom:10px">Home rows</div>
@@ -140,6 +146,16 @@ async function guideCheck() {
   ov.el.querySelector('.inner').innerHTML = lines.map(([k, v], i) => `<div class="lr fx" tabindex="-1"${i ? '' : ' data-first'}><span style="width:120px;flex:none" class="t-3">${k}</span><span class="grow ellipsis">${esc(v)}</span></div>`).join('');
   focus(ov.el.querySelector('.lr'));
 }
+// Languages: a tick sheet in the order you tick them (Shown first, Subtitle languages). done(list) when it closes.
+function tickSheet(title, cur, done, cap = 'In the order you tick them') {
+  let langs = [...cur];
+  const drawL = () => ov.el.querySelector('.inner').innerHTML = LANGS.map((l) => `<div class="lr fx" tabindex="-1" data-act="${l}"><span class="ck${langs.includes(l) ? ' on' : ''}">${langs.includes(l) ? ic('check') : ''}</span><span class="grow">${l}</span>${langs.includes(l) ? `<small>${langs.indexOf(l) + 1}</small>` : ''}</div>`).join('');
+  const ov = openOverlay(`<div class="sheet"><h3>${esc(title)}</h3><div class="t-cap" style="margin-top:-6px">${esc(cap)}</div><div class="sheet-body"><div class="inner" data-col></div></div></div>`, {
+    onClick: (l) => { langs = langs.includes(l) ? langs.filter((x) => x !== l) : [...langs, l]; if (!langs.length) langs = [cur[0] || 'English']; const at = document.activeElement?.dataset.act; drawL(); focus(ov.el.querySelector(`[data-act="${at}"]`)); },
+    onClose: () => done(langs),
+  });
+  drawL(); focus(ov.el.querySelector('.lr')); scrollList(ov.el);
+}
 function act(a) {
   const s = settings();
   if (a === 'guidecheck') return guideCheck();
@@ -171,14 +187,16 @@ function act(a) {
     if (!ids.length) return toast('No delays yet. In the player press ◀ on a game channel, then Sync score.', 5000);
     radioMenu({ title: 'Score delay', value: null, rows: [...ids.map((id) => ({ v: id, l: catalog.live?.byId.get(id)?.name || 'A channel', sub: `${ds[id]} s` })), { v: '__reset', l: 'Reset all to 60 s' }], onPick: (v) => { if (v === '__reset') { store.set(`a:${S.acc.id}:delays`, {}); toast('Score delays reset'); } else toast('Sync it again in the player: ◀ then Sync score.', 4000); draw(); } });
   } else if (a === 'langs') {
-    let langs = [...(s.langs || ['English'])];
-    const drawL = () => ov.el.querySelector('.inner').innerHTML = LANGS.map((l) => `<div class="lr fx" tabindex="-1" data-act="${l}"><span class="ck${langs.includes(l) ? ' on' : ''}">${langs.includes(l) ? ic('check') : ''}</span><span class="grow">${l}</span>${langs.includes(l) ? `<small>${langs.indexOf(l) + 1}</small>` : ''}</div>`).join('');
-    const ov = openOverlay(`<div class="sheet"><h3>Languages shown first</h3><div class="t-cap" style="margin-top:-6px">In the order you tick them</div><div class="sheet-body"><div class="inner" data-col></div></div></div>`, {
-      onClick: (l) => { langs = langs.includes(l) ? langs.filter((x) => x !== l) : [...langs, l]; if (!langs.length) langs = ['English']; const at = document.activeElement?.dataset.act; drawL(); focus(ov.el.querySelector(`[data-act="${at}"]`)); },
-      onClose: () => { saveSettings({ langs }); resetCatalogs(); draw(); },
-    });
-    drawL(); focus(ov.el.querySelector('.lr')); scrollList(ov.el);
-  } else if (a === 'subs') radioMenu({ title: 'Subtitles', value: s.subLang || 'auto', rows: [{ v: 'auto', l: 'Auto' }, { v: 'off', l: 'Off' }, ...LANGS.slice(0, 6).map((l) => ({ v: l, l }))], onPick: (v) => { saveSettings({ subLang: v }); draw(); } });
+    tickSheet('Languages shown first', s.langs || ['English'], (langs) => { saveSettings({ langs }); saveSubSettings({}); resetCatalogs(); draw(); });
+  } else if (a === 'subs') {
+    const sp = subSettings();
+    radioMenu({ title: 'Subtitles', value: sp.mode, style: 'right:48px;top:120px;width:440px', rows: [{ v: 'always', l: 'Always' }, { v: 'foreign', l: 'Only when the sound isn\'t in your language' }, { v: 'off', l: 'Off' }],
+      extra: '<div class="t-cap" style="padding:8px 8px 2px">Off still lists them in the player: press ▼ in a movie.</div>', onPick: (v) => { saveSubSettings({ subMode: v }); draw(); } });
+  } else if (a === 'sublangs') tickSheet('Subtitle languages', subSettings().langs, (subLangs) => { saveSubSettings({ subLangs }); draw(); }, 'In the order you tick them. The first one found shows');
+  else if (a === 'subsounds') radioMenu({ title: 'Subtitles with sounds', value: subSettings().sounds ? 'prefer' : 'leave', style: 'right:48px;top:120px;width:440px', rows: [{ v: 'leave', l: 'Leave out' }, { v: 'prefer', l: 'Prefer them' }],
+    extra: '<div class="t-cap" style="padding:8px 8px 2px">Lines like [door slams] and who is speaking. Leave out picks plain subtitles when there are both.</div>', onPick: (v) => { saveSubSettings({ subSounds: v }); draw(); } });
+  else if (a === 'subonline') radioMenu({ title: 'Subtitles from OpenSubtitles', value: subSettings().online ? 'on' : 'off', style: 'right:48px;top:120px;width:440px', rows: [{ v: 'on', l: 'On' }, { v: 'off', l: 'Off', sub: 'The file\'s own only' }],
+    extra: '<div class="t-cap" style="padding:8px 8px 2px">airglow sends the film\'s IMDb id and the copy\'s fingerprint to OpenSubtitles through Stremio\'s add-on.</div>', onPick: (v) => { saveSubSettings({ subOnline: v === 'on' }); draw(); } });
   else if (a === 'hero') { saveSettings({ heroGame: s.heroGame === false }); flip(s.heroGame === false); draw(); }
   else if (a === 'alert') { saveSettings({ liveAlert: s.liveAlert === false }); flip(s.liveAlert === false); draw(); }
   else if (a === 'install') native?.updates.install();
