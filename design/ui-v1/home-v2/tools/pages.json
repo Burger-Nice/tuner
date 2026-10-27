@@ -1,0 +1,68 @@
+[
+ {
+  "file": "home-live.html",
+  "title": "Game night: your team is live",
+  "note": "Tue 27 Oct 01:52. Grizzlies at Jazz in Q2 and he is watching it (so the score shows). The billboard is the broadcast lower-third: plates, score, Watch live focused, From tip-off, the clock on the slab. Continue watching first, Tonight in the NBA under it, the rest below.",
+  "group": "Home"
+ },
+ {
+  "file": "home-pre.html",
+  "title": "Before tip-off",
+  "note": "Tue 27 Oct 00:11, 49 minutes to tip-off. VS between the plates, the minutes on the slab (the time is shown once), Watch pre-game focused.",
+  "group": "Home"
+ },
+ {
+  "file": "home-morning.html",
+  "title": "The morning after",
+  "note": "Tue 27 Oct 10:40, shield My team. Last night's game is unseen and kept: Watch from tip-off is focused, no score, records only up to the seen games. In the NBA row the Grizzlies card is hidden (Ended, no plate); the other finals show (My team rule).",
+  "group": "Home"
+ },
+ {
+  "file": "home-evening.html",
+  "title": "A normal evening",
+  "note": "Wed 28 Oct 20:41, no Grizzlies game. The billboard is the episode he is in the middle of (its backdrop, Resume focused). Continue watching first (the billboard's own title not repeated), then Tonight in the NBA led by the Grizzlies' next game, then New in your shows.",
+  "group": "Home"
+ },
+ {
+  "file": "home-scrolled.html",
+  "title": "A row in focus mid-page",
+  "note": "Down three times from Continue watching: the page lifts so the focused row's title sits at y 84, the bar steps away (Back brings it back), the next rows peek below. Posters carry the [tv] mark when the provider has the add-on's title too.",
+  "group": "Home"
+ },
+ {
+  "file": "home-channels.html",
+  "title": "The channels, at the bottom",
+  "note": "The last row: favourites first, then the channels he watched lately (the old On now, folded low as he asked). Nothing peeks below it: Down stops here.",
+  "group": "Home"
+ },
+ {
+  "file": "home-discover.html",
+  "title": "Nothing to continue: a top pick",
+  "note": "Sat 31 Oct 21:10. Nothing in progress for 7 days, so the billboard is the day's top pick (Popular, his languages, unseen, the add-on's backdrop and line). Play focused, Details, Save; the pick changes once a day, never under his thumb.",
+  "group": "Home"
+ },
+ {
+  "file": "home-first.html",
+  "title": "First start",
+  "note": "Signed in a minute ago, nothing watched. The billboard is Popular's first title in his languages with the provider's poster (no backdrop yet: the poster stands upright on the canvas). No Continue watching, no Because you watched; Top picks first, the NBA, Series to start, then New on your provider and Channels below.",
+  "group": "Home"
+ },
+ {
+  "file": "home-card-menu.html",
+  "title": "Hold OK on a card",
+  "note": "Hold OK on The Long Take: Resume first and focused, Start over, Details, Mark watched, Remove from Home (it leaves Continue watching; the title stays in History). A poster's menu is Save to Saved · Details · Not interested.",
+  "group": "Home"
+ },
+ {
+  "file": "home-offline.html",
+  "title": "Offline, with a cache",
+  "note": "The provider does not answer: Home is drawn from what airglow kept (the billboard, Continue watching, the last slate marked \"As of 20:12\", the catalog rows). No LIVE pills, no clocks; New in your shows is left out (it needs the provider). One slim bar, never focusable.",
+  "group": "Home"
+ },
+ {
+  "file": "home-rows-setting.html",
+  "title": "Account: Home rows",
+  "note": "Every row with its toggle and its place. OK turns a row off or on; hold OK lifts it and ▲▼ move it (the Saved page's reorder). Continue watching is pinned first (no grip). The list scrolls: 10 rows, 4 on screen.",
+  "group": "Home"
+ }
+]
