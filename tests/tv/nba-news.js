@@ -58,16 +58,21 @@ module.exports = async ({ p, shot, key, log }) => {
     await key('Enter', 1, 700); await log('OK: the card'); await shot('news-covered');
     await key('ArrowRight', 1, 400); await log('right: Reveal'); await shot('news-covered-reveal');
     await key('ArrowLeft', 1, 300); await key('Enter', 1, 600); await log('Keep it hidden'); await noSpoiler('kept');
+    // All games, before the reveal (Grizzlies at Kings still unseen): the reader's body is scanned (the fake story text has "108-101 win")
+    await shield('all');
+    await key('Escape', 1, 400); await key('ArrowLeft', 1, 700); await key('ArrowRight', 1, 2500);
+    const ui = await ev(() => [...document.querySelectorAll('.nb-s[data-s="news"] .nb-nrow')].findIndex((r) => !r.classList.contains('cov') && !/fantasy/i.test(r.textContent)));
+    await key('ArrowDown', ui + 1, 350); await key('Enter', 1, 1500); await log('all games: reader'); console.log('reader'.padEnd(22), await reader()); await shot('news-article-shield');
+    await key('Escape', 1, 500);
+    console.log((await rows()).slice(0, 8).join('\n'));
+    // back to My team: Reveal marks Grizzlies at Kings seen and opens the story
+    await shield('mine');
+    await key('Escape', 1, 400); await key('ArrowLeft', 1, 700); await key('ArrowRight', 1, 2500);
+    await key('ArrowDown', ci + 1, 350); await p.waitForTimeout(400); await log('the covered row again');
     await key('Enter', 1, 600); await key('ArrowRight', 1, 300); await key('Enter', 1, 1500); await log('Reveal');
     console.log('after reveal'.padEnd(22), await reader(), '|', await ev(() => document.querySelector('#overlays .menu h3')?.textContent || ''));
     await shot('news-revealed');
     await key('Escape', 1, 500); await log('back');
   }
-  // All games: the reader's body is scanned (the fake story text has "108-101 win")
-  await shield('all');
-  await key('Escape', 1, 400); await key('ArrowLeft', 1, 700); await key('ArrowRight', 1, 2500);
-  const ui = await ev(() => [...document.querySelectorAll('.nb-s[data-s="news"] .nb-nrow')].findIndex((r) => !r.classList.contains('cov') && !/fantasy/i.test(r.textContent)));
-  await key('ArrowDown', ui + 1, 350); await key('Enter', 1, 1500); await log('all games: reader'); console.log('reader'.padEnd(22), await reader()); await shot('news-article-shield');
-  await key('Escape', 1, 500);
   console.log((await rows()).slice(0, 8).join('\n'));
 };

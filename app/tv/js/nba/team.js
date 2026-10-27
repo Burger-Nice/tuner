@@ -160,7 +160,7 @@ export function teamPage({ pushed = false } = {}) {
     const nx = nextOf(games, hero);
     let next = '';
     if (nx) { const ns = sideOf(nx, abbr); next = `<div class="nb-next"><span class="t-label">Next${dot}${esc(whenWord(nx.date))} ${hm(nx.date)}</span><div class="mu">${tc(ns.op, 's28')}<span>${ns.word} ${esc(ns.op.name)}</span></div><div class="tv">${esc(nx.tv[0] || '')}</div></div>`; }
-    else if (data) next = '<div class="nb-next"><span class="t-label">Off-season</span><div class="tv">Schedule out in August</div></div>';
+    else if (data) next = '<div class="nb-next"><span class="t-label">Next</span><div class="tv">Schedule out in August</div></div>';   // (the status row says Off-season)
     const parts = heroParts(hero);
     const btns = parts.btns.map(([act, label], i) => `<span class="${i ? 'btn2' : 'btn'} fx" tabindex="-1" data-act="${act}"${act === 'reveal' ? ` data-g="${esc(hero.id)}"` : ''}>${label}</span>`).join('');
     return `<div class="nb-head tp-b" data-area="top">
