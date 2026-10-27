@@ -148,7 +148,6 @@ window.TUNER_TEST = true;
         const tip = G.chaptersOf(g.id).list.find((c) => c.key === 'tip')?.at || g.date;
         const table = await GD.pastFor(espn, { urgent: true }).catch(() => []);
         const prog = table.find((x) => x.start <= tip && x.end > tip) || { start: Math.floor(tip / 3600e3) * 3600e3, end: Math.floor(tip / 3600e3) * 3600e3 + 3 * 3600e3, title: `NBA: ${g.away.name} at ${g.home.name}`, raw: '' };
-        window.__replayTest?.state();
         await RP.watchOnChannel(g, espn, prog);
         await until(() => PL.ctx.cur?.kind === 'replay' && window.__replayTest?.state()?.played > 0, 20000);
         const R = window.__replay?.R;
@@ -158,7 +157,7 @@ window.TUNER_TEST = true;
         await press(['DPAD_UP', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'player-replay-skip-focused');
         const q2 = (R?.chapters || []).find((c) => c.key === 'q2');
         await press(['DPAD_CENTER'], 'player-replay-skipped', 3000);
-        await until(() => q2 && window.__replayTest?.state()?.played >= q2.at - 15000, 10000);
+        await until(() => q2 && window.__replayTest?.state()?.played >= q2.at - 75000, 10000);   // (from the minute: up to 59 s early)
         check('catch-up: Skip to Q2 lands 10 s before Q2', !!q2 && Math.abs(window.__replayTest?.state()?.played - (q2.at - 10000)) < 61000, { played: window.__replayTest?.state()?.played, q2: q2?.at });
         await press(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_CENTER'], 'player-replay-game-panel', 1000);   // the Game button (after Back to live)
         await press(['DPAD_DOWN', 'DPAD_DOWN'], 'player-replay-panel-quarters');
