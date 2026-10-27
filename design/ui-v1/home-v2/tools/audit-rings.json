@@ -1,0 +1,189 @@
+[
+ {
+  "f": "home-live.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   235.6,
+   220.4,
+   292.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-pre.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   235.6,
+   275.1,
+   292.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-morning.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   235.6,
+   290.8,
+   292.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-evening.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   235.6,
+   199.3,
+   292.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-scrolled.html",
+  "el": ".box.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   114.1,
+   183.4,
+   319.9
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "home-channels.html",
+  "el": ".wc.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   114,
+   261.1,
+   241
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "home-discover.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   235.6,
+   171.2,
+   292.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-first.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   235.6,
+   171.2,
+   292.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-card-menu.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   274,
+   216,
+   502,
+   274
+  ],
+  "safe": 189
+ },
+ {
+  "f": "home-offline.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   235.6,
+   199.3,
+   292.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-rows-setting.html",
+  "el": ".arow.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   267,
+   403,
+   917,
+   469
+  ],
+  "safe": -5
+ }
+]

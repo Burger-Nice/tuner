@@ -154,28 +154,29 @@ function gameCard(g, { focus = false, hidden = false, other = false } = {}) {
     <div class="tr${lose(hwWin)}${long(H)}">${edge(H)}${crest(H)}<span class="nm">${NAME[H]}</span><span class="rc">${rec(g.hr)}</span></div>${plate}</div>`;
 }
 /* your team's next game: one card at the head of the NBA row (SPEC 4.3) */
-function nextGameCard({ opp, home, day, tip, rec = '2-2', focus = false }) {
+function nextGameCard({ opp, home, day, tip, rec = '2-2', date = 'Thu 29 Oct', focus = false }) {
   return `<div class="gc next${focus ? ' f' : ''}" data-key="g:next"><div class="st"><span class="mine">Your team</span><span class="tvn">${day}</span></div>
-    <div class="ng">${crest('MEM')}<span>${home ? 'vs' : 'at'} ${NAME[opp]}</span>${crest(opp)}</div><div class="ng"><small>${NAME[opp]} ${rec}</small></div>
+    <div class="ng">${crest(opp)}<span>${home ? 'vs' : 'at'} ${NAME[opp]}</span></div><div class="ng"><small>${rec}${dot}${date}</small></div>
     <span class="plate"><span class="x"><span class="score sm">${tip}</span><span class="t-cap">tip-off</span></span></span></div>`;
 }
 
 // ---------- rows ----------
 /* A row block: title (28) + 6 + cards. Heights: wide 111, game 124, poster 186 + 52 caption. Pitch = block + 24. */
 const H = { wide: 111, game: 124, poster: 238 };
-function row({ title, sub = '', cards, kind = 'wide', peek = false, id = '' }, top) {
-  return `<div class="hv-row" data-rail="${esc(id)}" style="top:${top}px;height:${34 + H[kind]}px"><div class="hv-rt">${title}${sub ? `<small>${sub}</small>` : ''}</div><div class="rail${peek ? ' peek' : ''}"><div class="track" data-row>${cards.join('')}</div></div></div>`;
+const GAP = (kind) => (kind === 'poster' ? 40 : 38);   // title 28 + 10 (12 for posters, whose lift is bigger)
+function row({ title, sub = '', cards, kind = 'wide', peek = false, id = '', notitle = false }, top) {
+  return `<div class="hv-row${kind === 'poster' ? ' poster' : ''}" data-rail="${esc(id)}" style="top:${top}px;height:${GAP(kind) + H[kind]}px">${notitle ? '' : `<div class="hv-rt">${title}${sub ? `<small>${sub}</small>` : ''}</div>`}<div class="rail${peek ? ' peek' : ''}"><div class="track" data-row>${cards.join('')}</div></div></div>`;
 }
 /* lays rows out from y 306 (under the billboard); `lift` = index of the focused row, which is put at y 84 with the ones before it gone above */
 function rows(list, { lift = -1 } = {}) {
-  let y = 306; const out = []; const tops = [];
-  list.forEach((r, i) => { tops.push(y); y += 34 + H[r.kind || 'wide'] + 24; });
+  let y = 298; const out = []; const tops = [];
+  list.forEach((r, i) => { tops.push(y); y += GAP(r.kind || 'wide') + H[r.kind || 'wide'] + 24; });
   const dy = lift > 0 ? tops[lift] - 84 : 0;
   list.forEach((r, i) => {
-    const top = tops[i] - dy;
-    if (top > 540 || top + 34 + H[r.kind || 'wide'] < -10) return;   // not mounted: the app mounts the focused row and its neighbours
-    const peek = top + 34 + H[r.kind || 'wide'] > 513 && i !== lift;   // a row whose cards cross the safe line shows art only
-    out.push(row({ ...r, peek }, top));
+    const top = tops[i] - dy, k = r.kind || 'wide';
+    if (top > 540 || top + GAP(k) + H[k] < -10) return;   // not mounted: the app mounts the focused row and its neighbours
+    const peek = top + GAP(k) + (k === 'poster' ? 186 : H[k]) > 513 && i !== lift;   // a row whose cards cross the safe line shows art only
+    out.push(row({ ...r, peek, notitle: top + 28 > 513 }, top));   // (and no title when the title would cross the line)
   });
   return out.join('');
 }
@@ -376,7 +377,7 @@ ${bbContinue({ t: T.nightCircuit, ep: 'S1 · E3 · Night Circuit', left: '21 min
   const body = `${topbar('home')}
 ${bbDiscover({ t: T.harbor, why: 'Thriller · from your add-ons' })}
 <div class="hv-page">${rows([
-    { id: 'nba', title: 'Tonight in the NBA', sub: '4 later', cards: [nextGameCard({ opp: 'DEN', home: false, day: 'Sun', tip: '01:00' }), ...gameRow(G.evening)], kind: 'game' },
+    { id: 'nba', title: 'Tonight in the NBA', sub: '4 later', cards: [nextGameCard({ opp: 'DEN', home: false, day: 'Sun', tip: '01:00', rec: '4-0', date: 'Sun 1 Nov' }), ...gameRow(G.evening)], kind: 'game' },
     { id: 'picks', title: 'Top picks for you', sub: 'Popular this week · English first', cards: PICKS(), kind: 'poster' },
     { id: 'neweps', title: 'New in your shows', cards: NEWEPS(), kind: 'wide' },
   ])}</div><div class="hv-edge"></div>`;
@@ -387,11 +388,11 @@ ${bbDiscover({ t: T.harbor, why: 'Thriller · from your add-ons' })}
   const body = `${topbar('home')}
 ${bbDiscover({ t: T.paperMoons, why: 'Animation · 4,812 films on your provider', first: true, pst: true })}
 <div class="hv-page">${rows([
-    { id: 'picks', title: 'Top picks for you', sub: 'Popular this week · English first', cards: PICKS(), kind: 'poster' },
     { id: 'nba', title: 'Tonight in the NBA', sub: '4 later', cards: [nextGameCard({ opp: 'LAL', home: true, day: 'Thu', tip: '23:30' }), ...gameRow(G.evening)], kind: 'game' },
+    { id: 'picks', title: 'Top picks for you', sub: 'Popular this week · English first', cards: PICKS(), kind: 'poster' },
     { id: 'series', title: 'Series to start', cards: SERIES_START(), kind: 'poster' },
   ])}</div><div class="hv-edge"></div>`;
-  page('home-first.html', 'First start', body, 'Signed in a minute ago, nothing watched. The billboard is Popular\'s first title in his languages with the provider\'s poster (no backdrop yet: the poster stands upright on the canvas). No Continue watching, no Because you watched; Top picks first, the NBA, Series to start, then New on your provider and Channels below.');
+  page('home-first.html', 'First start', body, 'Signed in a minute ago, nothing watched. The billboard is Popular\'s first title in his languages with the provider\'s poster (no backdrop yet: the poster stands upright on the canvas). No Continue watching, no Because you watched: the NBA first (it needs no history), Top picks, Series to start, then New on your provider and Channels below.');
 }
 // 7. Hold OK on a Continue watching card
 {
