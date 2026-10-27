@@ -110,16 +110,19 @@
       abbr: t.team?.abbreviation || '',
       stats: Object.fromEntries((t.statistics || []).map((s) => [s.name, s.displayValue])),
     }));
-    const plays = (d.plays || []).slice(-60).reverse().map((p) => ({
+    const all = (d.plays || []).map((p) => ({
       text: p.text || '', clock: p.clock?.displayValue || '', period: p.period?.number || 0,
       away: p.awayScore, home: p.homeScore, scoring: !!p.scoringPlay, team: teamAbbr.get(String(p.team?.id)) || '', at: Date.parse(p.wallclock) || 0,
     }));
-    return { game: g, box, teams, plays };
+    const plays = all.slice(-60).reverse();
+    // Every play in order, for a replay's as-aired score and its chapters (read only through games.js asAired()).
+    return { game: g, box, teams, plays, all };
   }
 
-  // Which of `games` does this text (channel name, guide title) refer to? Returns a game or null.
-  function matchGame(text, games) {
-    if (!text) return null;
+  // How surely this text (channel name, guide title, video name) names game g: 10 and up when both teams are named
+  // (nickname or city of each side), less for one team with a basketball hint, 0 for none.
+  function matchScore(text, g) {
+    if (!text || !g) return 0;
     const nbaish = /\bNBA\b|basketball|league pass/i.test(text);
     const hits = (abbr) => {
       const t = byAbbr.get(abbr);
@@ -128,15 +131,21 @@
       if (t.cityRe?.test(text)) return 1;
       return 0;
     };
+    const a = hits(g.away.abbr), h = hits(g.home.abbr);
+    // Both teams named, or one nickname plus a basketball hint, or one nickname for a game that is on now.
+    let score = 0;
+    if (a && h) score = 10 + a + h;
+    else if (Math.max(a, h) === 2 && (nbaish || g.state === 'in')) score = 5;
+    else if (Math.max(a, h) === 1 && nbaish) score = 3;
+    if (score && g.state === 'in') score += 1;
+    return score;
+  }
+  // Which of `games` does this text (channel name, guide title) refer to? Returns a game or null.
+  function matchGame(text, games) {
+    if (!text) return null;
     let best = null, bestScore = 0;
     for (const g of games) {
-      const a = hits(g.away.abbr), h = hits(g.home.abbr);
-      // Both teams named, or one nickname plus a basketball hint, or one nickname for a game that is on now.
-      let score = 0;
-      if (a && h) score = 10 + a + h;
-      else if (Math.max(a, h) === 2 && (nbaish || g.state === 'in')) score = 5;
-      else if (Math.max(a, h) === 1 && nbaish) score = 3;
-      if (score && g.state === 'in') score += 1;
+      const score = matchScore(text, g);
       if (score > bestScore) { bestScore = score; best = g; }
     }
     return best;
@@ -289,5 +298,5 @@
     return { headline: h.headline || '', byline: h.byline || '', published: Date.parse(h.published) || 0, paragraphs: paras, premium: !!h.premium };
   }
 
-  global.NBA = { TEAMS, team, scoreboard, summary, matchGame, logoFor, ESPN_ID, idOf, abbrOfId, LEADERS, standings, leaders, teamPlayers, teamStats, schedule, roster, news, story };
+  global.NBA = { TEAMS, team, scoreboard, summary, matchGame, matchScore, logoFor, ESPN_ID, idOf, abbrOfId, LEADERS, standings, leaders, teamPlayers, teamStats, schedule, roster, news, story };
 })(window);

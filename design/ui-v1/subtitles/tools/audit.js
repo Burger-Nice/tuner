@@ -1,4 +1,5 @@
-// node tools/audit.js [--quiet] [--inject] [page ...]
+// node tools/audit.js [--quiet] [--inject-st] [page ...]
+// design/ui-v1/subtitles: the diagnosis audit plus the subtitles checks ONE, TICK, BEST, STEP, SOURCE, JARGON, CLOCK, HUE (SPEC 12).
 // design/ui-v1/catchup/tools/audit.js (itself from nba-pages), run on the diagnosis mocks. Originally adapted to the catch-up mocks (cu- classes and the player's timeline), plus SPOILER:
 // on a mock marked <meta name="shield" content="unseen">, no visible score (\d{2,3}–\d{2,3}), remaining time (−m:ss) or
 // "OT" may show outside an element marked data-other (another game, shown by the My team rule, or a seen one) or
@@ -47,6 +48,15 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const ln = document.querySelector('.dg-card .dg-head span'); if (ln) ln.textContent += ' Restarting the router usually helps, and so does waiting a little.';
       if (document.querySelector('.nv-chip')) for (const k of document.querySelectorAll('.nv-hint .kbd')) if (k.textContent === '◀ ▼') k.textContent = '◀';
       const pr = document.querySelectorAll('.dg-panel .nv-row'); if (pr.length > 1) { pr.forEach((x) => x.classList.remove('f')); pr[0].classList.add('f'); }
+    });
+    // --inject-st: put in one fault per subtitles check, to prove each fires (SPEC 12)
+    if (process.argv.includes('--inject-st')) await p.evaluate(() => {
+      const s = document.querySelector('.screen');
+      s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:200px;z-index:40;font:500 16px Inter;color:#F3EFE6;background:#1E1B28">2.2 s later · HEVC · 9:30 pm</div><div style="position:absolute;left:300px;top:230px;z-index:40;font:500 16px Inter;color:#F5B112;background:#1E1B28">Amber text</div>');
+      const n = document.querySelector('[data-q="named"]'); if (n) n.insertAdjacentHTML('afterbegin', '<span class="st-tk"></span>');
+      const r = document.querySelectorAll('[data-rank]'); if (r.length > 1) r[1].insertAdjacentHTML('beforeend', '<span class="tag q">Best</span>');
+      const sh = document.querySelector('.nv-panel,.sheet'); if (sh) sh.innerHTML = sh.innerHTML.replace(/OpenSubtitles/g, 'the web') + '<div class="b">Timing fixed</div>';
+      const f = document.querySelector('.nv-row:not(.f):not(.dis),.lr:not(.f-ring)'); if (f) f.classList.add(f.classList.contains('nv-row') ? 'f' : 'f-ring');
     });
     if (inject) await p.evaluate(() => { if (!document.querySelector('meta[name="shield"]')) return; const s = document.querySelector('.screen'); s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112 · −12:40</div><div style="position:absolute;left:300px;top:52px;font:500 16px Inter;color:#F3EFE6;z-index:30">Grizzlies vs Jazz 2026-10-26</div><div style="position:absolute;left:300px;top:74px;font:500 16px Inter;color:#F3EFE6;z-index:30">Jazz 118:112</div><span class="btn2 f" style="position:absolute;left:600px;top:470px;z-index:30">Reveal score</span>'); });
     const r = await p.evaluate(() => {
@@ -317,6 +327,38 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       for (const r of document.querySelectorAll('.dg-panel .nv-row.f')) if (/Same game|Watch the|copy|feed/i.test(r.textContent)) issues.overlap.push(`PANELFOCUS: the panel opens on a switch ("${r.textContent.trim().slice(0, 24)}")`);
       // KEYS (S10): Hold OK is Last channel, always
       for (const k of document.querySelectorAll('.kbd')) if (/^Hold OK$/.test(k.textContent.trim())) { const nx = (k.nextSibling && k.nextSibling.textContent || '') + (k.nextElementSibling ? k.nextElementSibling.textContent : ''); if (!/^\s*Last/.test(nx)) issues.overlap.push(`KEYS: Hold OK bound to "${nx.trim().slice(0, 20)}" (it is Last channel)`); }
+      // ---- subtitles v1.0 (SPEC 12): the checks for this design
+      // ONE: one focus ring per screen (the timing strip and the chip are HUDs with none)
+      if (focusEls.length > 1) issues.overlap.push(`ONE: ${focusEls.length} focus rings`);
+      // TICK: a green tick only on something airglow checked; a named-only claim is dashed and has no tick
+      for (const t of document.querySelectorAll('[data-q]')) {
+        const k = t.getAttribute('data-q'), tick = !!t.querySelector('.st-tk');
+        if (k === 'named' && (tick || !t.classList.contains('st-name'))) issues.overlap.push(`TICK: the named claim "${t.textContent.trim()}" looks checked`);
+        if (k === 'checked' && !tick) issues.overlap.push(`TICK: the checked "${t.textContent.trim().slice(0, 20)}" has no tick`);
+      }
+      // BEST: in a list of copies, ranks run in order and exactly one Best, on rank 1
+      const ranked = [...document.querySelectorAll('[data-rank]')];
+      if (ranked.length) {
+        const rk = ranked.map((e) => +e.dataset.rank); if (rk.some((v, i) => i && v < rk[i - 1])) issues.overlap.push(`BEST: copies out of rank order (${rk.join(',')})`);
+        const bests = ranked.filter((e) => /\bBest\b/.test(e.textContent)); if (bests.length !== 1 || +bests[0].dataset.rank !== 1) issues.overlap.push(`BEST: ${bests.length} Best marks, on rank ${bests.map((e) => e.dataset.rank).join(',') || '-'}`);
+      }
+      const vis = (e) => { for (let a = e; a && a !== document.body; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden') return false; } return true; };
+      const allText = texts.map((t) => t.e.textContent).join(' | ');
+      // STEP: timing moves in 0.5 s steps
+      for (const m of allText.matchAll(/(\d+(?:\.\d+)?) s (earlier|later)/g)) if (Math.abs(+m[1] * 2 - Math.round(+m[1] * 2)) > 1e-6) issues.overlap.push(`STEP: "${m[0]}" is not a 0.5 s step`);
+      // SOURCE: a surface that offers downloaded subtitles names where they come from
+      for (const c of document.querySelectorAll('.nv-panel,.sheet,.nv-chip,.st-src,.menu')) { const t = c.textContent; if (/Timing (fixed|fits|not checked)|from (the )?internet|downloaded/i.test(t) && !/OpenSubtitles/.test(t)) issues.overlap.push(`SOURCE: "${t.trim().slice(0, 30)}" offers downloaded subtitles without naming OpenSubtitles`); }
+      // JARGON: plain words: no codec, container or hash words on screen
+      { const j = allText.match(/\b(HEVC|AVC|H\.?26[45]|x26[45]|codec|moviehash|hash|SRT|fps|remux|bitrate|tt\d{6,})\b/i); if (j) issues.overlap.push(`JARGON: "${j[0]}" on screen`); }
+      // CLOCK: 24 h times
+      { const j = allText.match(/\b\d{1,2}(:\d\d)?\s?(am|pm|a\.m\.|p\.m\.)/i); if (j) issues.overlap.push(`CLOCK: "${j[0]}" is a 12 h time`); }
+      // HUE: no amber or yellow anywhere in the UI, and red only on LIVE (stand-in art and video excluded)
+      { const hue = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); if (v[3] === 0) return null; const [r, g, b] = v.map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 0.25) return null; const l = (mx + mn) / 2, sat = d / (1 - Math.abs(2 * l - 1)); if (sat < 0.45) return null; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; return h; };
+        for (const e of document.querySelectorAll('.screen *')) { if (e.closest('svg,.art,.vid') || !vis(e)) continue; const cs = getComputedStyle(e);
+          for (const [k, c] of [['color', cs.color], ['background', cs.backgroundColor], ['border', cs.borderTopWidth !== '0px' ? cs.borderTopColor : '']]) { const h = hue(c); if (h == null) continue;
+            if (k === 'color' && !(e.childNodes.length && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))) continue;
+            if (h >= 32 && h <= 68) issues.overlap.push(`HUE: amber/yellow ${k} on ${short(e)}`);
+            if ((h < 12 || h > 350) && !e.closest('.a-live')) issues.overlap.push(`HUE: red ${k} on ${short(e)} (red is LIVE only)`); } } }
       const fr = focusEls.map((fe) => { const q = fe.getBoundingClientRect(), cs = getComputedStyle(fe); return { cls: short(fe), inset: cs.boxShadow.includes('inset') || fe.classList.contains('f-in'), x0: q.left, y0: q.top, x1: q.right, y1: q.bottom, rad: parseFloat(cs.borderTopLeftRadius) || 0, sc: q.width / (fe.offsetWidth || q.width) }; });
       const textFocus = [...document.querySelectorAll('.fx')].filter((e) => !e.matches(sel)).map(short);
       const bangs = [...document.querySelectorAll('i.bang')].map((g) => { const c = g.querySelector('circle').getBoundingClientRect(), pa = g.querySelector('path').getBoundingClientRect(); return { dot: [c.left + c.width / 2, c.top + c.height / 2], bar: [pa.left + pa.width / 2, pa.top + pa.height / 2] }; });

@@ -123,6 +123,14 @@
     return `${p.year}-${p.month}-${p.day}:${p.hour}-${p.minute}`;
   }
 
+  // A panel's own time string ('2026-10-27 01:00:00') as a timeshift stamp ('2026-10-27:01-00'), moved by whole hours.
+  function rawStamp(str, hours = 0) {
+    const m = /^(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)/.exec(String(str || ''));
+    if (!m) return '';
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) + hours * 3600e3), two = (n) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${two(d.getUTCMonth() + 1)}-${two(d.getUTCDate())}:${two(d.getUTCHours())}-${two(d.getUTCMinutes())}`;
+  }
+
   // ---------- catch-up (the provider's archive of what a channel showed) ----------
   // M3U catch-up attributes (as Kodi's IPTV Simple and TiviMate read them): catchup="default|append|shift|flussonic|xc",
   // catchup-source (a template), catchup-days. Templates: {utc} {start} {utcend} {end} {lutc} {now} {duration[:div]}
@@ -243,14 +251,30 @@
         };
       },
       // What a channel showed from start to end (ms), from the panel's archive: its timeshift link, which takes the start as
-      // the panel's clock reads it (its zone, from the login answer), and the length in minutes. The guide's clock offset
-      // (acc.epgShift) is taken back off: the link wants the panel's own time for the programme.
-      catchup(ch, start, end) {
+      // the panel's clock reads it and the length in minutes (design/ui-v1/catchup/SPEC.md 3.5). The clock, in this order:
+      // the programme's own start string from the panel's table (o.raw, '2026-10-27 01:00:00'), written back as it came
+      // with no zone conversion; else the moment in the panel's zone (from the login answer). Either way moved by the
+      // channel's archive correction (o.shift, whole hours). The guide's clock offset (epgShift) is a different clock and
+      // isn't used here. The .m3u8 link comes first: it's usually a VOD playlist that seeks.
+      catchup(ch, start, end, o = {}) {
         if (!ch.archive) return null;
-        const t0 = start - (acc.epgShift || 0), mins = Math.max(1, Math.ceil((end - start) / 60000));
-        const tail = `${encodeURIComponent(acc.username)}/${encodeURIComponent(acc.password)}/${mins}/${panelStamp(t0, acc.tz || null)}/${ch.id}`;
-        return [{ url: `${base}/timeshift/${tail}.ts`, engine: 'mpegts' }, { url: `${base}/timeshift/${tail}.m3u8`, engine: 'hls' },
-          { url: `${base}/streaming/timeshift.php?${cred}&stream=${ch.id}&start=${panelStamp(t0, acc.tz || null)}&duration=${mins}`, engine: 'mpegts' }];
+        const mins = Math.max(1, Math.ceil((end - start) / 60000)), hours = Math.round(o.shift || 0);
+        const stamp = (o.raw && rawStamp(o.raw, hours)) || panelStamp(start + hours * 3600e3, acc.tz || null);
+        const tail = `${encodeURIComponent(acc.username)}/${encodeURIComponent(acc.password)}/${mins}/${stamp}/${ch.id}`;
+        return [{ url: `${base}/timeshift/${tail}.m3u8`, engine: 'hls' }, { url: `${base}/timeshift/${tail}.ts`, engine: 'mpegts' },
+          { url: `${base}/streaming/timeshift.php?${cred}&stream=${ch.id}&start=${stamp}&duration=${mins}`, engine: 'mpegts' }];
+      },
+      // The channel's whole table (the past days the panel keeps, and what's coming), for the guide's past and for finding
+      // which channel carried a game: each programme with its raw start string (for catchup) and has_archive (0: this one
+      // isn't in the archive, whatever the channel keeps). Times as the provider sends them (guide.js applies epgShift).
+      async table(ch) {
+        const tz = acc.tz || null;
+        const d = await api('get_simple_data_table', `&stream_id=${ch.id}`);
+        return arr(d?.epg_listings).map((e) => ({
+          title: b64(e.title), desc: b64(e.description), raw: String(e.start || ''),
+          start: +e.start_timestamp ? +e.start_timestamp * 1000 : panelTime(e.start, tz), end: +e.stop_timestamp ? +e.stop_timestamp * 1000 : panelTime(e.end || e.stop, tz),
+          kept: e.has_archive == null ? null : +e.has_archive === 1,
+        })).filter((p) => p.end > p.start).sort((a, b) => a.start - b.start);
       },
       // The short guide first; when it has nothing for now, the full table (some panels only fill that one). Returned as
       // the provider sends it: guide.js applies the account's clock offset (acc.epgShift) in one place.
@@ -359,9 +383,11 @@
       movieInfo: async () => ({}),
       seriesInfo: async () => ({ seasons: [] }),
       epg: async () => [],
-      catchup: (ch, start, end) => (ch.archive ? m3uCatchup(ch, start, end) : null),
+      table: async () => [],
+      // (an M3U panel has no table: the moment moves by the channel's correction, o.shift hours)
+      catchup: (ch, start, end, o = {}) => (ch.archive ? m3uCatchup(ch, start + Math.round(o.shift || 0) * 3600e3, end + Math.round(o.shift || 0) * 3600e3) : null),
     };
   }
 
-  global.Core = { store, cache, settings, saveSettings, parseLogin, parseM3U, xtream, m3u, fillCatchup };
+  global.Core = { store, cache, settings, saveSettings, parseLogin, parseM3U, xtream, m3u, fillCatchup, rawStamp, panelStamp };
 })(window);
