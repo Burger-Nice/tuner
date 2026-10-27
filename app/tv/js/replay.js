@@ -23,6 +23,8 @@ const MIN = 60e3, H = 3600e3, MARGIN = 90e3;   // asAired shows nothing later th
 const gameName = (g) => `${g.away.name} at ${g.home.name}`;
 const chOf = (id) => catalog.live?.byId.get(String(id)) || catalog.live?.byId.get(+id) || null;
 const ringOf = () => catalog.live?.items || [];
+// A message while the player is up goes to the player (the app's toast would sit behind it).
+const say = (text, ms = 4000) => (ctx.cur && replayNative() ? playerCommand('show-text', text) : toast(text, ms));
 
 // ---------- the links ----------
 // A channel source's links for a window: the table's own start string when the game was matched in it (case 1), else
@@ -298,7 +300,7 @@ const gameItem = (g, prev) => ({ ...(prev || {}), kind: 'rp', id: g.id, game: { 
 export async function watchFromTipoff(g, { source, ask = false, resume = false } = {}) {
   if (!g) return;
   const list = await findReplays(g);
-  if (!list.length && !source) { toast(`No replay of ${gameName(g)} found yet. airglow keeps looking.`, 4000); return; }
+  if (!list.length && !source) { say(`No replay of ${gameName(g)} found yet. airglow keeps looking.`); return; }
   if (!source && (ask || settings().replaysPlay === 'ask')) return sourcesSheet(g);
   const src = source || list[0];
   const p = replayProgress(g.id);
@@ -344,7 +346,7 @@ export function playProgramme(ch, p, { restart = false, at = 0 } = {}) {
 function nextProgramme(ch, p) {
   const l = pastNow(ch) || guideNow(ch) || [];
   const n = l.find((x) => x.start >= p.end - 60e3 && x.start > p.start);
-  if (!n) { toast('The next programme isn’t in the guide.'); return; }
+  if (!n) { say('The next programme isn’t in the guide.'); return; }
   if (n.start <= Date.now() && n.end > Date.now()) playLive(ch, ringOf(), 'All channels');
   else playProgramme(ch, n, { restart: true });
 }
@@ -355,7 +357,7 @@ on('rewind-request', async ({ chId, at }) => {
   if (!ch || !at) return;
   const has = (l) => (l || []).find((x) => x.start <= at && x.end > at);
   const p = has(pastNow(ch)) || has(await pastFor(ch, { urgent: true })) || has(guideNow(ch));
-  if (!p) { toast('That part of the programme isn’t in the replay.'); return; }
+  if (!p) { say('That part of the programme isn’t in the replay.'); return; }
   playProgramme(ch, p, { at });
 });
 export const programmeProgress = (ch, p) => S.progress[`rp:${ch.id}:${p.start}`] || null;
