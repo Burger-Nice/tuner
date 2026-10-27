@@ -32,7 +32,7 @@ const dayOf = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.get
 //   setTimer(f, ms), clearTimer(id)
 // result: { status: 'ok'|'head-only'|'couldnt'|'refused'|'unavailable', size, etag, formats, dur, mbps, hash, why }
 export function makeProbes(deps) {
-  const D = { setTimer: setTimeout, clearTimer: clearTimeout, ...deps };
+  const D = { setTimer: (f, ms) => setTimeout(f, ms), clearTimer: (id) => clearTimeout(id), ...deps };   // (wrapped: a browser's setTimeout called as D.setTimer throws Illegal invocation)
   let cache = null, loading = null, dirty = false;
   const queue = [];          // { key, url, headers, prio, at }
   let running = null;        // { job, ctl }
