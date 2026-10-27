@@ -201,8 +201,11 @@ export function delayed(g) {
   const lag = watch.gameId === g.id ? watch.lag || 0 : 0;
   const d = ch ? (delayFor(ch) + lag) * 1000 : 0, h = hist.get(g.id);
   // a game that has just ended is still live on your stream until its delay has passed
+  // (a game you tune to that airglow first sees already final: its end is counted from now)
+  if (g.state === 'post' && watch.gameId === g.id && !finalAt.has(g.id)) finalAt.set(g.id, Date.now());
   const ending = g.state === 'post' && finalAt.has(g.id) && Date.now() - finalAt.get(g.id) < d;
   if (!ch || (g.state !== 'in' && !ending)) return { g, s };
+  if (ending && !h?.length) return { g, s, pending: true };   // no live moment kept to show: nothing until it has passed
   if (!d || !h?.length) return { g, s };
   const target = Date.now() - d;
   let pick = h[0];
@@ -443,7 +446,7 @@ export function show(g) {
   const v = delayed(g);
   // synced: the delay you matched on this channel; delayed: the delay in use (the 60 s default until you sync).
   const on = watch.gameId === g.id && g.state === 'in';
-  return { ...v, hidden: hidden(g), synced: on && delayKnown(watch.chId) ? delayFor(watch.chId) : null, delayed: on ? delayFor(watch.chId) : null };
+  return { ...v, hidden: hidden(g) || !!v.pending, synced: on && delayKnown(watch.chId) ? delayFor(watch.chId) : null, delayed: on ? delayFor(watch.chId) : null };
 }
 
 // ---------- which channels carry a game ----------
