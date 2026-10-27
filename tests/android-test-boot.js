@@ -230,8 +230,9 @@ window.TUNER_TEST = true;
         check('subtitles: the player says probe and subs', info.probe === true && info.subs === 1, { info: JSON.stringify(info) });
         const film = `${API}/movie/demo/demo/5000.mp4`;
         const pr = await TP.probe({ id: 'test:movie:5000', url: film, headers: {} });
-        check('quality check: the fake film (206 head and tail, fingerprint, tracks)', pr.status === 'ok' && pr.size === 2547988 && pr.hash === 'c66f32bd101993f2' && pr.formats?.video?.w === 1280 && pr.formats?.audio?.length === 1 && pr.dur > 55,
-          { status: pr.status, size: pr.size, hash: pr.hash, dur: pr.dur, why: pr.why, ms: pr.ms, formats: JSON.stringify(pr.formats) });
+        const want = await (await fetch(`${API}/_film`)).json();   // (made by CI's own ffmpeg: here it was 2,547,988 bytes, c66f32bd101993f2)
+        check('quality check: the fake film (206 head and tail, fingerprint, tracks)', pr.status === 'ok' && pr.size === want.size && pr.hash === want.hash && pr.formats?.video?.w === 1280 && pr.formats?.audio?.length === 1 && pr.dur > 55,
+          { status: pr.status, size: pr.size, hash: pr.hash, want: JSON.stringify(want), dur: pr.dur, why: pr.why, ms: pr.ms, formats: JSON.stringify(pr.formats) });
         const nr = await TP.probe({ id: 'test:norange', url: `${API}/movie-norange/demo/demo/5000.mp4`, headers: {} });
         check('quality check: no partial reads gives head-only, no fingerprint', nr.status === 'head-only' && !nr.hash, { status: nr.status, why: nr.why, video: JSON.stringify(nr.formats?.video || null) });
         const rf = await TP.probe({ id: 'test:refuse', url: `${API}/movie-refuse/demo/demo/5000.mp4`, headers: {} });

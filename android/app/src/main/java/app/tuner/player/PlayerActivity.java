@@ -1484,7 +1484,7 @@ public class PlayerActivity extends AppCompatActivity {
         ListPanel.Item now = new ListPanel.Item(f == null || f.height <= 0 ? "Now: starting…" : "Now: " + f.width + " × " + f.height + (film && hdr ? " · " + (f.colorInfo != null && f.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG ? "HDR" : "HDR10") : ""));
         now.sub = film ? null : qualityDetails(f);
         now.disabled = true;
-        if (film) now.height = 44;
+        if (film) { now.height = 44; now.info = true; }
         items.add(now);
         int sel = -1;
         // the stream's own levels

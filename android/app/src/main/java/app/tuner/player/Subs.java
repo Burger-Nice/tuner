@@ -257,7 +257,7 @@ final class Subs {
     }
     private static ListPanel.Item note(String title, String sub) {
         ListPanel.Item it = new ListPanel.Item(title);
-        it.sub = sub; it.disabled = true; it.height = sub == null ? 44 : 50;
+        it.sub = sub; it.disabled = true; it.subLit = sub != null; it.height = sub == null ? 44 : 50;
         return it;
     }
     void open(boolean fromOptions) {

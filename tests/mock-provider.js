@@ -167,6 +167,19 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/x-subrip; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
     return res.end(body);
   }
+  // the film's size and OpenSubtitles fingerprint, worked out here (CI's ffmpeg makes its own bytes), for the emulator test
+  if (u.pathname === '/_film') {
+    const f = path.join(MEDIA, 'movie.mp4');
+    const out = { size: 0, hash: '' };
+    if (fs.existsSync(f)) {
+      const b = fs.readFileSync(f);
+      let h = BigInt(b.length);
+      if (b.length >= 65536) for (const at of [0, b.length - 65536]) for (let i = 0; i < 65536; i += 8) h = (h + b.readBigUInt64LE(at + i)) & 0xffffffffffffffffn;
+      Object.assign(out, { size: b.length, hash: b.length >= 65536 ? h.toString(16).padStart(16, '0') : '' });
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(out));
+  }
   if (/^\/movie-norange\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { const f = path.join(MEDIA, 'movie.mp4'); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': fs.statSync(f).size }); return fs.createReadStream(f).pipe(res); }
   if (/^\/movie-refuse\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { res.writeHead(458, { 'Content-Type': 'text/plain' }); return res.end('Too many connections'); }
   if (addons(req, res, u)) return;

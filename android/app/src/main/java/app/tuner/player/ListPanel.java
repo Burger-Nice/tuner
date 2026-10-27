@@ -27,7 +27,7 @@ class ListPanel extends Overlay {
         boolean radio, radioOn, live, disabled, current, chevron, pin, clock;
         // the subtitles design (design/ui-v1/subtitles SPEC 7.2, 7.7): a section head (30 high, caps, no focus), a row
         // indented under the one it belongs to, and the checked tick before line 1 or line 2 (centred, 6 dp from its text)
-        boolean head, tickA, tickB;
+        boolean head, tickA, tickB, info, subLit;   // info: takes no focus but reads as normal text (Quality's "Now: …"); subLit: line 2 too
         int indent;
         float progress = -1;
         int height = 48;
@@ -294,7 +294,7 @@ class ListPanel extends Overlay {
             if (focused) setBackground(Ui.rowBg(true, false));
             else if (it.pin) { android.graphics.drawable.GradientDrawable g = Ui.round(Ui.S1, 12); g.setStroke(Math.max(1, Ui.dp(1)), Ui.BORDER); setBackground(g); }
             else setBackground(Ui.rowBg(false, it.current));
-            int main = it.disabled ? Ui.T4 : Ui.T1;
+            int main = it.disabled && !it.info ? Ui.T4 : Ui.T1;
             show(num, it.num != null);
             if (it.num != null) num.setText(it.num);
             show(icon, it.icon != null);
@@ -312,7 +312,7 @@ class ListPanel extends Overlay {
             show(tickB, it.tickB);
             show(rb, it.sub != null && !it.sub.isEmpty());
             b.setText(it.sub);
-            b.setTextColor(it.disabled ? Ui.T4 : Ui.T3);
+            b.setTextColor(it.disabled && !it.info && !it.subLit ? Ui.T4 : Ui.T3);
             show(badge, it.badge != null);
             badge.setText(it.badge);
             show(value, it.value != null);
