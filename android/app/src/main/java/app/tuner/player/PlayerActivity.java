@@ -264,9 +264,10 @@ public class PlayerActivity extends AppCompatActivity {
         @Override public void run() {
             if (!chipUp || chipKind == CHIP_OFFLINE) return;   // (the offline chip has no countdown)
             long left = chipUntil - SystemClock.uptimeMillis();
-            if (chipIsUpNext) left = upNextLeft();
-            if (left <= 0) { hideChip(); return; }
-            float total = chipIsUpNext ? 30000f : 8000f;
+            if (chipIsUpNext && upNextAt > 0 && player != null && !player.isPlaying()) upNextAt += 200;   // (paused: the count waits)
+            if (chipIsUpNext) left = upNextAt > 0 ? upNextAt - SystemClock.uptimeMillis() : upNextLeft();
+            if (left <= 0) { if (chipIsUpNext && upNextAt > 0) nextEpisode(); else hideChip(); return; }   // (the credits' card: the next one now)
+            float total = chipIsUpNext ? (upNextAt > 0 ? 15000f : UP_NEXT_MS) : 8000f;
             chipRing.set(Math.min(1, left / total), (int) Math.ceil(left / 1000.0));
             if (chipIsUpNext) chipTitle.setText("Next episode in " + (int) Math.ceil(left / 1000.0) + " s");
             handler.postDelayed(this, 200);
@@ -285,9 +286,12 @@ public class PlayerActivity extends AppCompatActivity {
                     e.put("t", player.getCurrentPosition() / 1000.0);
                     e.put("d", d / 1000.0);
                     TunerPlayerPlugin.emit(e);
-                    long left = d - player.getCurrentPosition();
-                    if (player.hasNextMediaItem() && stayIndex != index && left > 0 && left <= 30000) {
-                        if (!chipUp && open == null) showUpNext();
+                    long pos = player.getCurrentPosition(), left = d - pos;
+                    // the credits: 3 s after the last spoken line, when that leaves 20 s to 5 min (from the subtitles)
+                    long last = subs != null ? subs.lastLineEnd() : -1;
+                    boolean credits = last > 0 && d - last >= 20000 && d - last <= 300000 && pos >= last + 3000;
+                    if (player.hasNextMediaItem() && stayIndex != index && left > 0 && (left <= UP_NEXT_MS || credits)) {
+                        if (!chipUp && open == null) showUpNext(left > UP_NEXT_MS);
                     } else if (chipUp && chipIsUpNext) hideChip();
                 }
             }
@@ -960,13 +964,17 @@ public class PlayerActivity extends AppCompatActivity {
         long d = player.getDuration();
         return d == C.TIME_UNSET ? 0 : d - player.getCurrentPosition();
     }
-    private void showUpNext() {
+    // Up next: in the last 40 s, or when the credits start (then a 15 s count and the next one plays)
+    private static final long UP_NEXT_MS = 40000;
+    private long upNextAt;   // the early card's end (uptime ms), 0: it counts down to the episode's end
+    private void showUpNext(boolean early) {
         if (index + 1 >= ring.size()) return;
+        upNextAt = early ? SystemClock.uptimeMillis() + 15000 : 0;
         Entry n = ring.get(index + 1);
         chipIsUpNext = true;
         chipKind = CHIP_UPNEXT;
         chipStyle(true, true);
-        chipTitle.setText("Next episode in 30 s");
+        chipTitle.setText("Next episode in " + (early ? 15 : (int) Math.ceil(upNextLeft() / 1000.0)) + " s");
         chipSub.setText(n.sub == null || n.sub.isEmpty() ? n.title : n.sub);
         String say = ho != null ? ho.upNextSay : "";
         chipSay.setText(say);

@@ -182,6 +182,14 @@ final class Subs {
     }
     /** The download goes (a file track or Off was picked). */
     void drop() { if (on != null) { on = null; drawer.set(null); } }
+    /** Where the last spoken line ends, as timed now (ms into the file), from the file that's on or any downloaded one:
+     *  the credits start a little after it. -1 when there's none. */
+    long lastLineEnd() {
+        SrtTrack t = on != null ? on : files.isEmpty() ? null : files.values().iterator().next();
+        if (t == null || t.lines.isEmpty()) return -1;
+        SrtTrack.Line l = t.lines.get(t.lines.size() - 1);
+        return t.showAt(l) + (l.end - l.start);
+    }
     private void restoreText() {
         p.setTrackSelectionParameters(prefer(p.getTrackSelectionParameters().buildUpon()).build());
     }
