@@ -58,7 +58,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   to the `android-test` release as `android-test-shots.tgz`.
 - Local Android build: the SDK is at `/root/android-sdk`: `export ANDROID_HOME=/root/android-sdk; node scripts/build-web.js tv;
   npx cap sync android; cd android && ./gradlew assembleDebug --no-daemon -q` (Maven sometimes answers 429: retry).
-- Work on `tv-redesign`. Pushing it to `main` releases v0.2.<run> and the TV updates itself from `android.json`.
+- Work on `tv-redesign`. Pushing it to `main` releases v0.3.<run> (bump the middle number in `build.yml`'s `VERSION` for
+  each big release, 1.0 once it's solid on the TV; the TV orders updates by the run number, not the name) and the TV updates itself from `android.json`.
   **The release job doesn't wait for the emulator test**, so run CI on `tv-redesign` and see it pass first.
 - On the owner's TV over adb (same network): see `NEXT.md`.
 
