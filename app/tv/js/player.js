@@ -3,10 +3,11 @@
 // the game on this channel at the synced delay, live games, groups, favourites) and acts on what you pick in its panels.
 // It also records where you got to in movies and episodes.
 import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
-import { busy, catalog, versionLabel, pickVersion } from './catalog.js';
+import { busy, catalog, versionLabel, pickVersion, forget, ensure } from './catalog.js';
 import { native } from './native.js';
 import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
-import { guideFor, guideNow, onNow, nextUp } from './guide.js';
+import { guideFor, guideNow, onNow, nextUp, resetGuides } from './guide.js';
+import { go } from './router.js';
 import { teamPalette, hm } from './util.js';
 import { toast } from './ui.js';
 import { sfx } from './sfx.js';
@@ -16,7 +17,9 @@ let sentKey = '';
 busy.watching = () => !!ctx.cur;
 export const watching = () => !!ctx.cur;
 const cmd = (what, arg) => native?.player.command([what, typeof arg === 'string' ? arg : JSON.stringify(arg)]);
-const urlOf = (c) => (c.sources.find((s) => s.engine === 'mpegts') || c.sources[0]).url;
+export const urlOf = (c) => (c.sources.find((s) => s.engine === 'mpegts') || c.sources[0]).url;
+// The provider's account check (status, expiry, streams in use and allowed), for the playback diagnosis; M3U has none.
+export const apiUrl = () => (S.acc?.type === 'xtream' && S.acc.server ? `${S.acc.server}/player_api.php?username=${encodeURIComponent(S.acc.username)}&password=${encodeURIComponent(S.acc.password)}` : '');
 // A channel list for the player, kept small: one URL pattern ("…/live/user/pass/{id}.ts") and a row per channel
 // [id, name, number, logo, url (only when it doesn't follow the pattern)]. 30,000 channels were 5.7 MB as objects.
 const packed = new WeakMap();
@@ -215,7 +218,7 @@ const subCode = (v) => (!v || v === 'auto' ? 'auto' : v === 'off' ? 'off' : SUB_
 // The player reports a track's language as the stream has it: 2 letters, 3 letters ("eng", "ger"), or "und".
 const ISO3 = { eng: 'en', spa: 'es', fra: 'fr', fre: 'fr', deu: 'de', ger: 'de', ita: 'it', por: 'pt', nld: 'nl', dut: 'nl', swe: 'sv', nor: 'no', nob: 'no', dan: 'da', isl: 'is', ice: 'is', pol: 'pl', tur: 'tr', ara: 'ar', hin: 'hi' };
 const subName = (c) => { if (c === 'off') return 'off'; const two = ISO3[String(c).toLowerCase()] || String(c).toLowerCase().slice(0, 2); return Object.keys(SUB_CODE).find((k) => SUB_CODE[k] === two) || null; };
-const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug, sub: subCode(settings().subLang) });
+const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug, sub: subCode(settings().subLang), api: apiUrl() });
 
 // ---------- movies and episodes ----------
 function vodEntry(it, restart) {
@@ -325,6 +328,13 @@ native?.player.onEvent((e) => {
     reveal(e.gameId);
     sent.game = '';
     push();
+  } else if (e.type === 'diag') {
+    // the player's diagnosis (a card, chip, failure card or the Connection panel): no score or clock is in it
+    window.__diag = { cause: e.cause, surface: e.surface, at: Date.now() };   // (the emulator test reads it)
+  } else if (e.type === 'refresh') {   // Refresh channels, from a channel that's off at the provider
+    forget().then(() => { resetGuides(); return ensure('live'); }).then(() => cmd('show-text', 'Channels are up to date')).catch((er) => cmd('show-text', er?.message || 'Couldn’t refresh the channels'));
+  } else if (e.type === 'goto-account') {   // the account has ended: Account, once the player has closed
+    c.gotoAfter = 'account';
   } else if (e.type === 'lag') {
     setLag(+e.sec || 0);
     sent.game = '';
@@ -362,5 +372,6 @@ native?.player.onEvent((e) => {
     // The game you were watching stays at its synced delay on every screen until you tune something else,
     // so leaving the player never shows a score your stream hadn't reached.
     emit('player-closed', c);
+    if (c.gotoAfter) setTimeout(() => go(c.gotoAfter), 300);
   }
 });

@@ -35,7 +35,11 @@ public class TunerPlayerPlugin extends Plugin {
     private static int session = 0;
 
     @Override
-    public void load() { instance = this; }
+    public void load() {
+        instance = this;
+        String u = getContext().getSharedPreferences("player", Context.MODE_PRIVATE).getString("speedUrl", "");
+        if (u.startsWith("http")) Diag.speedUrl = u;
+    }
 
     static void emit(JSObject e) {
         if (instance != null) instance.notifyListeners("event", e, true);
@@ -156,6 +160,7 @@ public class TunerPlayerPlugin extends Plugin {
         i.putExtra("upNext", call.getBoolean("upNext", true));
         i.putExtra("sounds", call.getString("sounds", "on"));
         i.putExtra("sub", call.getString("sub", ""));
+        i.putExtra("api", call.getString("api", ""));   // the provider's player_api.php, for the account check
         Boolean bug = call.getBoolean("scoreBug");
         if (bug != null) i.putExtra("scoreBug", bug.booleanValue());
         i.putExtra("session", session);
@@ -190,6 +195,161 @@ public class TunerPlayerPlugin extends Plugin {
             else if (PlayerActivity.launching && "queue".equals(what)) synchronized (early) { early.add(new String[] { what, arg }); }
         }
         call.resolve();
+    }
+
+    /** Settings from the release's android.json: speedUrl, where the speed test downloads from (kept across launches). */
+    @PluginMethod
+    public void config(PluginCall call) {
+        String u = call.getString("speedUrl", "");
+        if (u != null && (u.startsWith("https://") || u.startsWith("http://"))) {
+            Diag.speedUrl = u;
+            getContext().getSharedPreferences("player", Context.MODE_PRIVATE).edit().putString("speedUrl", u).apply();
+        }
+        call.resolve();
+    }
+
+    // ---------- Account > Provider > Check the connection (design/ui-v1/diagnosis/SPEC.md 7, 10.3) ----------
+    // The five links in order, each reported as it answers ("check" events), then everything at once. The app draws the
+    // sheet and its verdict. The last channel is sampled for 5 s only on a 2+ stream account (or when asked), and then
+    // the check waits until the provider has let that stream go.
+    private volatile int checkRun;
+    private static final class Stopped extends RuntimeException {}
+    private void step(int run, String name, JSObject data, JSObject all) {
+        if (run != checkRun) throw new Stopped();
+        all.put(name, data);
+        JSObject e = new JSObject();
+        e.put("step", name);
+        e.put("data", data);
+        notifyListeners("check", e);
+    }
+    @PluginMethod
+    public void connectionCheck(PluginCall call) {
+        String api = call.getString("api", ""), url = call.getString("url", "");
+        boolean sample = Boolean.TRUE.equals(call.getBoolean("sample", false));
+        int run = ++checkRun;
+        Context ctx = getContext();
+        new Thread(() -> {
+            JSObject all = new JSObject();
+            try {
+                JSObject tv = new JSObject();
+                tv.put("plays", Diag.decoders(ctx));
+                step(run, "tv", tv, all);
+                JSObject net = new JSObject();
+                android.net.ConnectivityManager cm = (android.net.ConnectivityManager) ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
+                android.net.Network n = cm == null ? null : cm.getActiveNetwork();
+                android.net.NetworkCapabilities nc = n == null ? null : cm.getNetworkCapabilities(n);
+                boolean wifi = nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI);
+                net.put("type", n == null ? "none" : wifi ? "wifi" : nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET) ? "cable" : "other");
+                int[] w = wifi ? Diag.wifi(ctx) : new int[] { Integer.MIN_VALUE, 0 };
+                net.put("bars", Diag.bars(w[0]));
+                net.put("link", w[1]);
+                step(run, "net", net, all);
+                long[] in = Diag.internet(2000);
+                boolean weak = wifi && Diag.bars(w[0]) > 0 && Diag.bars(w[0]) <= 2;
+                if (in[0] == -1 && weak) in = Diag.internet(5000);   // (review 3, M3-2)
+                JSObject inet = new JSObject();
+                inet.put("code", in[0]);
+                inet.put("ms", in[1]);
+                step(run, "internet", inet, all);
+                Diag.Probe sp = new Diag.Probe();
+                if (in[0] == 204) Diag.speedTest(ctx, sp); else sp.speedState = 3;
+                JSObject speed = new JSObject();
+                speed.put("state", sp.speedState);
+                speed.put("mbps", Math.round(sp.speed * 10) / 10.0);
+                speed.put("full", sp.speedFull);
+                speed.put("link", Math.max(w[1], sp.linkMax));
+                step(run, "speed", speed, all);
+                android.net.Uri u = android.net.Uri.parse(url.isEmpty() ? api : url);
+                JSObject prov = new JSObject();
+                if (u.getHost() != null) {
+                    long[] h = Diag.hostCheck(u.getHost(), u.getPort() > 0 ? u.getPort() : "https".equalsIgnoreCase(u.getScheme()) ? 443 : 80, in[0] == -1 && weak ? 5000 : 2000);
+                    prov.put("host", h[0]);
+                    prov.put("ms", h[1]);
+                }
+                int before = -1, max = -1;
+                if (!api.isEmpty()) {
+                    Object[] a = Diag.account(api, 3000);
+                    prov.put("acct", (int) a[0]);
+                    if ((int) a[0] == 1) {
+                        org.json.JSONObject ui = (org.json.JSONObject) a[2];
+                        prov.put("status", ui.optString("status", ""));
+                        prov.put("exp", ui.optLong("exp_date", 0));
+                        before = ui.optInt("active_cons", -1);
+                        max = ui.optInt("max_connections", -1);
+                        prov.put("active", before);
+                        prov.put("max", max);
+                    }
+                }
+                step(run, "provider", prov, all);
+                JSObject ch = new JSObject();
+                if (url.isEmpty()) ch.put("state", "none");
+                else if (!sample && max >= 0 && max < 2) ch.put("state", "one-stream");   // (S14: on a 1-stream account only when asked)
+                else {
+                    ch.put("state", "run");
+                    step(run, "channel", ch, all);
+                    ch = sampleStream(url);
+                    Diag.closedAt = android.os.SystemClock.elapsedRealtime();
+                    step(run, "channel", ch, all);
+                    // until the provider has let that stream go (polling the account every 5 s, up to 60 s)
+                    if (!api.isEmpty() && before >= 0) {
+                        JSObject rel = new JSObject();
+                        rel.put("state", "waiting");
+                        step(run, "release", rel, all);
+                        long until = android.os.SystemClock.elapsedRealtime() + 60000;
+                        boolean freed = false;
+                        while (!freed && android.os.SystemClock.elapsedRealtime() < until) {
+                            Object[] a = Diag.account(api, 3000);
+                            freed = (int) a[0] == 1 && ((org.json.JSONObject) a[2]).optInt("active_cons", 99) <= before;
+                            if (!freed) { Thread.sleep(5000); if (run != checkRun) throw new Stopped(); }
+                        }
+                        rel = new JSObject();
+                        rel.put("state", freed ? "done" : "gave-up");
+                        step(run, "release", rel, all);
+                    }
+                }
+                if (!"run".equals(ch.optString("state")) && !all.has("channel")) step(run, "channel", ch, all);
+                call.resolve(all);
+            } catch (Stopped e) {
+                JSObject r = new JSObject();
+                r.put("stopped", true);
+                call.resolve(r);
+            } catch (Exception e) {
+                call.resolve(all);
+            }
+        }).start();
+    }
+    @PluginMethod
+    public void connectionCheckStop(PluginCall call) { checkRun++; call.resolve(); }
+    /** The last channel's stream for 5 s: what arrives per second (from the last 4 s, past the start). */
+    private static JSObject sampleStream(String url) {
+        JSObject r = new JSObject();
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(4000);
+            c.setReadTimeout(4000);
+            int code = c.getResponseCode();
+            r.put("code", code);
+            if (code >= 400) { r.put("state", "fail"); return r; }
+            InputStream in = c.getInputStream();
+            byte[] buf = new byte[64 * 1024];
+            long t0 = android.os.SystemClock.elapsedRealtime(), got = 0, got1 = -1, t1 = 0;
+            int k;
+            while ((k = in.read(buf)) > 0) {
+                got += k;
+                long t = android.os.SystemClock.elapsedRealtime() - t0;
+                if (got1 < 0 && t >= 1000) { got1 = got; t1 = t; }
+                if (t >= 5000) break;
+            }
+            long t = android.os.SystemClock.elapsedRealtime() - t0;
+            double secs = got1 >= 0 ? (t - t1) / 1000.0 : t / 1000.0;
+            r.put("mbps", Math.round((got1 >= 0 ? got - got1 : got) * 8 / Math.max(0.2, secs) / 1e5) / 10.0);
+            r.put("state", "ok");
+        } catch (Exception e) {
+            r.put("state", "fail");
+            r.put("code", -1);
+        } finally { if (c != null) c.disconnect(); }
+        return r;
     }
 
     /** Downloads a new airglow APK and hands it to Android's installer. */

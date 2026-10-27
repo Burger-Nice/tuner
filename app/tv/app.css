@@ -86,3 +86,42 @@ input.field[readonly]{caret-color:transparent}
 .sheet-body.more.less{-webkit-mask-image:linear-gradient(180deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(180deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}
 /* the quick-chip strip scrolled along: what's left of a chip that slid out on the left fades instead of a sliver */
 .lib-chips.scrolled{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 12px);mask-image:linear-gradient(90deg,transparent 0,#000 12px)}
+
+/* ---------- playback diagnosis: Account > Provider > Check the connection (design/ui-v1/diagnosis/diagnosis.css) ----------
+   A link that works is neutral with a green tick (--a-ok, always with its icon); the problem is a chalk disc with an ink
+   glyph and an ink "!" whose mark is painted chalk explicitly; not judged is an outline; pink only as progress. */
+.dg-c{position:relative;flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--a-surface-2);color:var(--a-text-1)}
+.dg-c svg.ic{width:18px;height:18px}
+.dg-c i{position:absolute;right:-8px;bottom:-5px;width:16px;height:16px;border-radius:50%;background:var(--a-ok);display:grid;place-items:center;box-shadow:0 0 0 2px var(--a-bg-1)}
+.dg-c i svg{width:10px;height:10px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
+.dg-c i.bang{width:20px;height:20px;right:-9px;bottom:-6px;background:var(--a-ink);box-shadow:0 0 0 2px var(--a-bg-1),inset 0 0 0 1.5px var(--a-text-1)}
+.dg-c i.bang svg{width:14px;height:14px;stroke:var(--a-text-1);stroke-width:3.2}
+.dg-c i.bang svg circle{fill:var(--a-text-1)}
+.bad>.dg-c{background:var(--a-text-1);color:var(--a-ink)}
+.off>.dg-c,.run>.dg-c{background:var(--a-bg-1);box-shadow:inset 0 0 0 1.5px var(--a-border-strong);color:var(--a-text-3)}
+.run>.dg-c::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--a-pink);border-right-color:var(--a-pink);animation:dg-spin 1s linear infinite}
+@keyframes dg-spin{to{transform:rotate(360deg)}}
+.dg-vpath{display:flex;flex-direction:column;outline:none}
+.dg-vn{position:relative;display:flex;align-items:center;gap:16px;height:44px;padding:0 10px}
+.dg-vn .tx{flex:1;min-width:0}
+.dg-vn b{display:block;font:650 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
+.dg-vn small{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dg-vn .v{flex:none;font:650 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;text-align:right}
+.dg-vn.bad small,.dg-vn.bad .v{color:var(--a-text-1)}
+.dg-vn.off b{color:var(--a-text-3);font-weight:500}
+.dg-vn+.dg-vn::before{content:"";position:absolute;left:25px;top:-6px;width:2px;height:12px;background:var(--a-border-strong)}
+.dg-vn.in-slow::before{width:3px;left:24.5px;background:repeating-linear-gradient(180deg,var(--a-text-1) 0 4px,transparent 4px 7px)}
+.dg-vn.in-cut::before{background:transparent}
+.dg-vn.in-off::before{background:repeating-linear-gradient(180deg,var(--a-border-strong) 0 2px,transparent 2px 5px)}
+.dg-vn.in-run::before{background:linear-gradient(180deg,var(--a-pink) 0 50%,var(--a-surface-2) 50%)}
+.sheet.dg-sheet{width:480px;gap:8px;padding:18px 20px 18px}
+.dg-sheet .dg-sub{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-top:-4px}
+.dg-sheet .dg-out{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+.dg-sheet .dg-vn{height:54px}
+.dg-sheet .dg-vn+.dg-vn::before{top:-11px;height:22px}
+.dg-verdict{border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border);padding:10px 14px}
+.dg-verdict b{display:block;font:650 16px/22px var(--a-font-text);color:var(--a-text-1)}
+.dg-verdict span{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.dg-sheet .sheet-foot{flex-direction:row;align-items:center;gap:16px;margin-top:auto}
+.dg-sheet .sheet-foot .t-cap{margin-left:auto}
+.dg-wait{font:500 15px/20px var(--a-font-text);color:var(--a-text-3)}

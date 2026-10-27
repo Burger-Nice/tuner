@@ -14,6 +14,14 @@ export const sized = (url, w) => (url ? String(url).replace(/(image\.tmdb\.org\/
 
 // Icons from the design kit (24 x 24, stroked).
 const P = {
+  // the diagnosis path (design/ui-v1/diagnosis)
+  wifi: '<path d="M2.6 9.2a14 14 0 0 1 18.8 0M5.6 12.5a9.6 9.6 0 0 1 12.8 0M8.7 15.8a5 5 0 0 1 6.6 0"/><circle cx="12" cy="19.2" r="1.4" fill="currentColor" stroke="none"/>',
+  wifiWeak: '<path d="M2.6 9.2a14 14 0 0 1 18.8 0M5.6 12.5a9.6 9.6 0 0 1 12.8 0" opacity=".3"/><path d="M8.7 15.8a5 5 0 0 1 6.6 0"/><circle cx="12" cy="19.2" r="1.4" fill="currentColor" stroke="none"/>',
+  cable: '<path d="M9 3v4.5M15 3v4.5M6.5 7.5h11v3.5a5.5 5.5 0 0 1-11 0zM12 16.5V21"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z"/>',
+  server: '<rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/><path d="M8 7.5h.01M8 16.5h.01" stroke-width="3"/>',
+  stream: '<circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/>',
+  bang: '<path d="M12 5v8.5"/><circle cx="12" cy="18.6" r="2" stroke="none"/>',
   home: '<path d="M3.5 11 12 3.5l8.5 7.5v8.5a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/>',
   live: '<circle cx="12" cy="12" r="1.7"/><path d="M8 8a5.7 5.7 0 0 0 0 8M16 8a5.7 5.7 0 0 1 0 8M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/>',
   play: '<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>',

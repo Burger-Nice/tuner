@@ -10,6 +10,7 @@ import { go, current } from '../router.js';
 import { focus } from '../focus.js';
 import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js';
 import { sfx } from '../sfx.js';
+import { connectionCheck } from '../conncheck.js';
 
 const GROUPS = [['provider', 'Provider'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
@@ -34,6 +35,7 @@ function body() {
       ${S.accounts.length > 1 ? row('switch', 'Switch account', more(S.accounts.filter((a) => a.id !== S.acc?.id).map((a) => a.name).join(' · ').slice(0, 30))) : ''}
       ${row('add', 'Add account', ic('plus', 'sm'))}
       ${row('guidecheck', 'Check the guide', more(short(lastCh()?.name || 'No channel yet', 28)), 'What your provider sends for the last channel you watched')}
+      ${row('conncheck', 'Check the connection', more('Run'), 'Tests your Wi-Fi, internet and provider, and how fast a channel arrives')}
       ${row('refresh', 'Refresh channels and guide', esc(catalog.live?._at ? `Updated ${new Date(catalog.live._at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''))}
       ${row('signout', 'Sign out', ic('chevR', 'sm'))}`;
   }
@@ -93,7 +95,7 @@ function draw() {
   const u = upd();
   const side = GROUPS.map(([k, l]) => `<div class="gl fx${k === group ? ' sel' : ''}" tabindex="-1" data-g="${k}">${l}${k === 'updates' && u.state === 'ready' ? '<i class="udot s"></i>' : ''}</div>`).join('');
   // ◀ ▶ between the panes: into the groups on the selected one, into the settings on the first (not the item level with you)
-  setHtml(el, `<div class="abs" data-col data-mem="off" data-entry=".gl.sel" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:260px;top:84px;width:664px;height:435px;padding:6px 12px;box-sizing:border-box;overflow:hidden"><div class="inner" data-col data-mem="off" data-entry=".arow:not(.dis)" style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
+  setHtml(el, `<div class="abs" data-col data-mem="off" data-entry=".gl.sel" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:260px;top:84px;width:658px;height:435px;padding:6px 12px;box-sizing:border-box;overflow:hidden"><div class="inner" data-col data-mem="off" data-entry=".arow:not(.dis)" style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
 }
 
 // A toggle row's sound: on is bright, off is dim (replaces the OK sound for that press).
@@ -133,6 +135,7 @@ async function guideCheck() {
 function act(a) {
   const s = settings();
   if (a === 'guidecheck') return guideCheck();
+  if (a === 'conncheck') return connectionCheck(lastCh());
   if (a === 'switch') {
     radioMenu({ title: 'Switch account', value: S.acc?.id, rows: S.accounts.map((x) => ({ v: x.id, l: x.name, sub: x.type === 'xtream' ? x.username : 'Playlist' })), onPick: async (id) => {
       const x = S.accounts.find((y) => y.id === id); if (!x || x.id === S.acc?.id) return;

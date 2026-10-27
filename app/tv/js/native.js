@@ -21,12 +21,15 @@ function bridge() {
       const me = await ready;
       const r = await fetch('https://github.com/Burger-Nice/tuner/releases/latest/download/android.json', { cache: 'no-store' });
       const latest = await r.json();
+      if (latest.speedUrl) TP.config({ speedUrl: String(latest.speedUrl) }).catch(() => {});   // where the diagnosis' speed test downloads from
       uset(+latest.code > +me.code ? { state: 'ready', version: latest.version, url: latest.url, notes: latest.notes || '' } : { state: 'current' });
     } catch {
       uset({ state: 'error', message: 'Could not reach GitHub.' });
     }
   };
   TP.addListener('update', (e) => uset({ ...ustatus, state: 'downloading', percent: e.percent }));
+  let onCheck = null;   // Account > Check the connection: each link as it answers
+  TP.addListener('check', (e) => onCheck?.(e.step, e.data));
   setTimeout(ucheck, 8000);
   setInterval(ucheck, 4 * 3600e3);
   // The TV keeps apps running in the background, so check again whenever the app comes back on screen.
@@ -60,6 +63,10 @@ function bridge() {
       stop: () => TP.stop(),
       command: (args) => TP.command({ args }),
       onEvent: (f) => TP.addListener('event', f),
+    },
+    diag: {
+      check: (o, f) => { onCheck = f; return TP.connectionCheck(o).finally(() => { if (onCheck === f) onCheck = null; }); },
+      stop: () => { onCheck = null; return TP.connectionCheckStop().catch(() => {}); },
     },
     onBack: (f) => AppPlugin.addListener('backButton', f),
     onResume: (f) => resumeSubs.push(f),
