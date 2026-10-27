@@ -85,7 +85,39 @@ window.TUNER_TEST = true;
       await press(['BACK'], 'player-sync-closed');
       await press(['BACK'], 'player-right-closed');
       check('still in the player', state()?.watching);
-      await press(['BACK'], 'player-closed', 1500);
+
+      // Playback diagnosis (design/ui-v1/diagnosis): the debug intent shows each cause from made-up readings
+      const diag = (cause, name, after = 600) => step({ keys: [], adb: ['am', 'broadcast', '-a', 'app.tuner.player.DIAG', '-p', 'app.tuner.player', '--es', 'diag', cause], name }, after);
+      window.__diag = null;
+      await diag('provider-slow', 'diag-provider-slow');
+      check('diagnosis card: the provider is slow', window.__diag?.cause === 'provider-slow' && window.__diag?.surface === 'card', { diag: window.__diag });
+      await diag('wifi', 'diag-wifi-weak');
+      check('diagnosis card: weak Wi-Fi', window.__diag?.cause === 'wifi' && window.__diag?.surface === 'card', { diag: window.__diag });
+      await diag('no-internet', 'diag-no-internet');
+      await diag('wifi-gone', 'diag-wifi-too-weak');
+      await diag('limit', 'diag-limit');
+      await diag('checking', 'diag-checking');
+      await diag('puck', 'diag-puck');
+      await diag('fail-off', 'diag-fail-channel-off');
+      check('failure card: the channel is off', window.__diag?.cause === 'off' && window.__diag?.surface === 'failed', { diag: window.__diag });
+      await diag('decoder', 'diag-fail-decoder');
+      await diag('options', 'diag-options-during-stall');   // ◀ with the card up: Options with Connection first and focused
+      await press(['DPAD_CENTER'], 'diag-connection-panel', 800);
+      check('Options > Connection opens the panel', window.__diag?.surface === 'panel', { diag: window.__diag });
+      await press(['BACK'], 'diag-panel-back-to-options');
+      await press(['BACK'], 'diag-options-closed');
+      await diag('stutter', 'diag-stutter-chip');
+      await diag('offline-chip', 'diag-offline-chip');
+      await diag('clear', 'diag-cleared');
+      // A real slow channel: the fake provider sends Channel 317 at 0.4 of real time, so the player's own checks run
+      window.__diag = null;
+      await press(['3', '1', '7'], 'diag-real-tune', 1000);
+      await until(() => window.__diag?.surface === 'card' && window.__diag?.cause !== 'checking', 45000);
+      await shot('diag-real-slow-channel');
+      check('a slow channel gets a diagnosis card', window.__diag?.surface === 'card', { diag: window.__diag });
+      await press(['LAST_CHANNEL'], 'diag-real-back', 2500);   // (back to the first channel: the tune clears the card)
+      // Back closes the player (a failure card, if the slow channel got that far, takes one Back first)
+      for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], k ? `player-closed-${k + 1}` : 'player-closed', 1500);
 
       await press(['BACK'], 'back-to-tab');
       check('back focuses the tab', document.activeElement?.classList.contains('tab'));
@@ -150,6 +182,16 @@ window.TUNER_TEST = true;
       await press(['DPAD_DOWN'], 'search-keyboard', 800);
       await press(['DPAD_RIGHT', 'DPAD_DOWN', 'DPAD_CENTER'], 'search-h');
       await press(['DPAD_UP', 'DPAD_LEFT', 'DPAD_CENTER'], 'search-ha');
+
+      // Account > Provider > Check the connection: the sheet as it runs, then its verdict
+      window.__tunerTest.go('account');
+      await wait(1200);
+      document.querySelector('.arow[data-act="conncheck"]')?.focus();
+      await press(['DPAD_CENTER'], 'account-conncheck-running');
+      await until(() => document.querySelector('.dg-sheet [data-act="again"]'), 75000);
+      await shot('account-conncheck-done');
+      check('the connection check finishes', !!document.querySelector('.dg-sheet [data-act="again"]'), { rows: [...document.querySelectorAll('.dg-sheet .dg-vn')].map((x) => x.textContent).join(' | ') });
+      await press(['BACK'], 'account-conncheck-closed');
 
       // Account
       window.__tunerTest.go('account');

@@ -2459,14 +2459,7 @@ public class PlayerActivity extends AppCompatActivity {
     private void watchNetwork() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (cm == null) return;
-        try {
-            Network n = cm.getActiveNetwork();
-            rd.connected = n != null;
-            NetworkCapabilities nc = n == null ? null : cm.getNetworkCapabilities(n);
-            if (nc != null) caps(nc);
-            LinkProperties lp = n == null ? null : cm.getLinkProperties(n);
-            if (lp != null) gateway(lp);
-        } catch (Exception ignored) {}
+        readNetwork();
         netCb = new ConnectivityManager.NetworkCallback() {
             @Override public void onLost(@NonNull Network n) { handler.post(PlayerActivity.this::netLost); }
             @Override public void onCapabilitiesChanged(@NonNull Network n, @NonNull NetworkCapabilities c) {
@@ -2479,6 +2472,17 @@ public class PlayerActivity extends AppCompatActivity {
             @Override public void onLinkPropertiesChanged(@NonNull Network n, @NonNull LinkProperties lp) { handler.post(() -> gateway(lp)); }
         };
         try { cm.registerDefaultNetworkCallback(netCb); } catch (Exception e) { netCb = null; }
+    }
+    private void readNetwork() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            Network n = cm.getActiveNetwork();
+            rd.connected = n != null;
+            NetworkCapabilities nc = n == null ? null : cm.getNetworkCapabilities(n);
+            if (nc != null) caps(nc);
+            LinkProperties lp = n == null ? null : cm.getLinkProperties(n);
+            if (lp != null) gateway(lp);
+        } catch (Exception ignored) {}
     }
     private void caps(NetworkCapabilities c) {
         rd.wifi = c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
@@ -2657,6 +2661,9 @@ public class PlayerActivity extends AppCompatActivity {
             if (open != null) closeOverlay();
             puck.setVisibility(View.GONE);
             cause = null;
+            // the made-up readings go: back to what the network and the next checks say
+            rd.clearError(); rd.inet = 0; rd.host = 0; rd.acct = 0; rd.router = 0; rd.speedState = 0; rd.speed = -1; rd.checkedAt = 0; rd.bars = 0; rd.link = rd.linkMax = 0;
+            readNetwork();
             return;
         }
         cancelChecks();

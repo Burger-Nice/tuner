@@ -35,7 +35,7 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
 (async () => {
   const seen = new Set();
   const start = Date.now();
-  while (Date.now() - start < 540000) {
+  while (Date.now() - start < 840000) {
     let reports = [];
     try { reports = await (await fetch('http://127.0.0.1:8899/_reports')).json(); } catch {}
     for (const [i, r] of reports.entries()) {
@@ -49,6 +49,8 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
       if (r.step === 'shot') { shot(r.data.name); console.log(`${r.data.name}: keyboard ${keyboard()}`); await ack(r.data.name); }
       if (r.step === 'keys') {
         if (r.data.text) { try { adb('shell', 'input', 'text', r.data.text); } catch (e) { console.log(`typing failed: ${e.message}`); } }
+        // a shell command first (the playback diagnosis' debug intent: am broadcast … --es diag <cause>)
+        if (r.data.adb) { try { console.log(`adb shell ${r.data.adb.join(' ')}: ${adb('shell', ...r.data.adb).toString().trim().split('\n').pop()}`); } catch (e) { console.log(`adb failed: ${e.message}`); } await sleep(600); }
         for (const k of r.data.keys) { key(k); await sleep(1200); }
         await sleep(r.data.name.startsWith('player') || r.data.name.startsWith('vod') ? 3500 : 900);
         shot(r.data.name);

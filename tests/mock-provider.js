@@ -81,7 +81,7 @@ function throttled(req, res, file, rate) {
 function stalls(req, res, file) {
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'Content-Type': 'video/mp2t' });
-  res.write(fs.readFileSync(file).subarray(0, 400 * 1024));
+  res.write(fs.readFileSync(file).subarray(0, 100 * 1024));
   const t = setTimeout(() => res.destroy(), 120000);
   req.on('close', () => clearTimeout(t));
 }
@@ -136,8 +136,8 @@ http.createServer((req, res) => {
   if ((m = /^\/live\/demo\/demo\/(\d+)\.ts$/.exec(u.pathname))) {
     if (+m[1] === 1003) { res.writeHead(404); return res.end(); }
     // the playback diagnosis' test channels (the last four, Channel 317 to 320; nothing else uses them)
-    if (+m[1] === 1316) return throttled(req, res, path.join(MEDIA, 'live.ts'), 40 * 1024);   // arrives too slowly: stalls
-    if (+m[1] === 1317) return stalls(req, res, path.join(MEDIA, 'live.ts'));                 // 400 KB, then nothing at all
+    if (+m[1] === 1316) return throttled(req, res, path.join(MEDIA, 'live.ts'), 8 * 1024);   // 0.4 of real time (the clip is 20 KB a second): stalls
+    if (+m[1] === 1317) return stalls(req, res, path.join(MEDIA, 'live.ts'));                 // 5 s of picture, then nothing at all
     if (+m[1] === 1318) { res.writeHead(403, { 'Content-Type': 'text/plain' }); return res.end('Maximum connections reached for this account'); }
     if (+m[1] === 1319) { res.writeHead(503); return res.end(); }
     if (+m[1] === 1005 || +m[1] === 1013) return sendFile(req, res, path.join(MEDIA, 'uhd.ts'), 'video/mp2t'); // 4K HEVC
