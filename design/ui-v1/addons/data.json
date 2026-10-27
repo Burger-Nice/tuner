@@ -2682,13 +2682,1079 @@
    }
   ]
  },
+ "communitySubs": [
+  {
+   "id": "community.anime.kitsu",
+   "name": "Anime Kitsu",
+   "transportUrl": "https://anime-kitsu.strem.fun/manifest.json",
+   "resources": [
+    "catalog",
+    "meta",
+    "subtitles"
+   ],
+   "types": [
+    "anime",
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Unofficial Kitsu.io anime catalog addon"
+  },
+  {
+   "id": "org.stremio.wheresthejump",
+   "name": "Where's The Jump",
+   "transportUrl": "https://a00f518e60ff-wheresthejump.baby-beamup.club/manifest.json",
+   "resources": [
+    "stream",
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Adds jump scare information and subtitles from wheresthejump.com. Open source at <a href='https://github.com/neon-ninja/wheresthejump'>https"
+  },
+  {
+   "id": "org.store.turkcealtyaziorg-stremio-addon",
+   "name": "[NEW] TurkceAltyazi.Org",
+   "transportUrl": "https://turkcealtyaziorg-stremio-addon.mycodelab.com.tr/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Bu eklenti,TurkceAltyazi.org'dan tüm Türkçe altyazıları alır ve Stremio'nuza getirir."
+  },
+  {
+   "id": "com.kepners.flashclock",
+   "name": "🕒 Clockrr (Top Right)",
+   "transportUrl": "https://8e53c55af949-clockrr.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Digital clock overlay via subtitles - flashes current time briefly, then disappears. Perfect for checking time when pausing."
+  },
+  {
+   "id": "community.addic7ed",
+   "name": "addic7ed subtitles by dexter21767",
+   "transportUrl": "https://2ecbbd610840-addic7ed.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Addon for getting subtitles from addic7ed, by Dexter21767."
+  },
+  {
+   "id": "comunity.aio-subtitle",
+   "name": "AIO Subtitle",
+   "transportUrl": "https://3b4bbf5252c4-aio-streaming.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Unofficial addon to get subtitles from Subscene, OpenSubtitles, and Kitsunekko. Uses Microsoft Translator to translate subtitles if they are"
+  },
+  {
+   "id": "aiosubtitle.org",
+   "name": "AIO Subtitle PRO",
+   "transportUrl": "https://aiosubtitle.org/stremio/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Subtitle addon using OpenSubtitles PRO, OpenAI for context-aware subtitle translations, Bilingual and SDH support. Visit https://aiosubtitle"
+  },
+  {
+   "id": "com.jenryk.animeo",
+   "name": "animeo",
+   "transportUrl": "https://7a625ac658ec-animeo.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Track your anime progress with anilist while using stremio."
+  },
+  {
+   "id": "org.autotranslate.geanpn",
+   "name": "Auto Subtitle Translate by geanpn",
+   "transportUrl": "https://stremio-translate.geanpedro.com.br/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "series",
+    "movie"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "This addon takes subtitles from OpenSubtitlesV3 then translates into desired language using Google Translate, or ChatGPT (OpenAI Compatible "
+  },
+  {
+   "id": "org.autotranslate.sonsuzanime",
+   "name": "Auto Subtitle Translate by SonsuzAnime (DeepL)",
+   "transportUrl": "https://deeplsubtitle.sonsuzanime.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "series",
+    "movie"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "This addon takes subtitles from OpenSubtitlesV3 then translates into desired language.For donations: https://www.buymeacoffee.com/sonsuzosma"
+  },
+  {
+   "id": "com.buta.no.subs.stremio.addon",
+   "name": "Buta No Subs Stremio Addon",
+   "transportUrl": "https://buta-no-subs-stremio-addon.onrender.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "anime",
+    "other"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Add japanese subtitles to Stremio via Jimaku and Kitsunekko. GitHub repo: https://github.com/Pigamer37/buta-no-subs-stremio-addon"
+  },
+  {
+   "id": "community.opensubtitles",
+   "name": "Community OpenSubtitles",
+   "transportUrl": "https://32d94ecc2689-stremio-addon-opensubtitles.baby-beamup.club/pick/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Community add-on for subtitles from OpenSubtitles"
+  },
+  {
+   "id": "org.stremio.discordpresence",
+   "name": "Discord Rich Presence Addon",
+   "transportUrl": "https://4daa2bdba2f6-stremio-rich-presence.baby-beamup.club/manifest.json",
+   "resources": [
+    "meta",
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "channel"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Addon that updates Discord status with the current stream from Stremio."
+  },
+  {
+   "id": "community.gtsubs",
+   "name": "GTSubs",
+   "transportUrl": "https://gtsubs.strem.top/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "anime",
+    "subtitles"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Auto-translate subtitles using Google Translate"
+  },
+  {
+   "id": "heb-subs-premium",
+   "name": "Heb Subs Premium",
+   "transportUrl": "https://stremiohebsubs.onrender.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Enjoy Hebrew subtitles from all the top notch websites in one convenient location."
+  },
+  {
+   "id": "community.jimakusub.v2",
+   "name": "Jimaku Subtitles v2",
+   "transportUrl": "https://56bf09e9ba27-jimaku-subs-stremiov2.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Get Japanese subtitles for anime from Jimaku.cc community database. Works best with Kitsu anime addon for proper anime detection and metadat"
+  },
+  {
+   "id": "org.kitsu-stremio-sync",
+   "name": "Kitsu Tracker",
+   "transportUrl": "https://kitsu.ruka.pw/manifest.json",
+   "resources": [
+    "catalog",
+    "subtitles"
+   ],
+   "types": [
+    "anime",
+    "series",
+    "movie"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Your ultimate Kitsu anime catalog and watch-tracker for Stremio."
+  },
+  {
+   "id": "me.stremio.ktuvit",
+   "name": "Ktuvit.me Subtitles",
+   "transportUrl": "https://4b139a4b7f94-ktuvit-stremio.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "An unofficial Stremio addon for Hebrew subtitles from Ktuvit.me. Developed by Maor Development"
+  },
+  {
+   "id": "legendasdivx-stremio-addon",
+   "name": "LegendasDivx.pt",
+   "transportUrl": "https://e1d6cc1ff4a7-legendasdivx-stremio.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "subtitles"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Legendas em português"
+  },
+  {
+   "id": "lowlevel.subtitles",
+   "name": "MSubtitles",
+   "transportUrl": "https://msubtitles.lowlevel1989.click/conf/api/v1/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "MSubtitles is an add-on that allows you to manage your subtitles or follow the subtitles of other users completely free of charge."
+  },
+  {
+   "id": "com.multisub.addon",
+   "name": "MultiSub",
+   "transportUrl": "https://www.multisub.org/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Can't find subtitles? MultiSub translates the best human-created subtitles into 40+ languages using AI. Watch with dual subtitles (two langu"
+  },
+  {
+   "id": "com.skoruppa.napisy24-stremio-addon",
+   "name": "Napisy24 Addon",
+   "transportUrl": "https://napisy24-stremio.top/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Addon for getting polish subtitles from Napisy24.pl"
+  },
+  {
+   "id": "community.opensubtitlesv3.pro",
+   "name": "opensubtitles PRO",
+   "transportUrl": "https://opensubtitlesv3-pro.dexter21767.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "ad-free and spam-free subtitles addon"
+  },
+  {
+   "id": "community.opensubtitles",
+   "name": "opensubtitles.org subtitles by dexter21767",
+   "transportUrl": "https://2ecbbd610840-opensubtitles.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Addon for getting subtitles from opensubtitles.org, by Dexter21767."
+  },
+  {
+   "id": "org.pgssubtitle.localsubtitles",
+   "name": "PGSSUBTITLE V1.0.1",
+   "transportUrl": "https://pgssubtitle.onrender.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Local subtitles imported from multiple sources (OpenSubtitles.org, SubSource.net, Sub-Scene.com, Community Sub, Internet Sub,...). Supports "
+  },
+  {
+   "id": "community.podnapisi",
+   "name": "podnapisi subtitles by dexter21767",
+   "transportUrl": "https://2ecbbd610840-podnapisi.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Addon for getting subtitles from podnapisi, by Dexter21767."
+  },
+  {
+   "id": "com.community.stremio-subtitles",
+   "name": "Stremio Community Subtitles",
+   "transportUrl": "https://stremio-community-subtitles.top/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Community-driven subtitle addon for Stremio with user accounts and uploading."
+  },
+  {
+   "id": "community.subdl.subtitles",
+   "name": "SubDL Subtitles",
+   "transportUrl": "https://subdl.strem.top/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "anime",
+    "subtitles"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Unofficial addon for getting subtitles from SubDL.com"
+  },
+  {
+   "id": "com.stremio.submaker",
+   "name": "SubMaker | ElfHosted",
+   "transportUrl": "https://submaker.elfhosted.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "anime"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Take control of your subtitles! Fetch and translate subtitles from OpenSubtitles, SubScene, and SubDL with AI translation powered by Gemini,"
+  },
+  {
+   "id": "org.stremio.subsro",
+   "name": "Subs.ro Subtitles",
+   "transportUrl": "https://cdcd7719a6b3-stremio-subs-ro.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "subtitles"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Romanian subtitles from Subs.ro (unofficial)"
+  },
+  {
+   "id": "community.subscene",
+   "name": "Subscene subtitles by dexter21767",
+   "transportUrl": "https://2ecbbd610840-subscene.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Addon for getting subtitles from Subscene, by Dexter21767."
+  },
+  {
+   "id": "community.subsource.subtitles",
+   "name": "SubSource Subtitles",
+   "transportUrl": "https://subsource.strem.top/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "anime",
+    "subtitles"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Unofficial addon for getting subtitles from SubSource.net"
+  },
+  {
+   "id": "org.subtis",
+   "name": "Subtis - Beta Pública",
+   "transportUrl": "https://stremio.fly.dev/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Subtis es tu fuente de subtítulos para tus películas favoritas."
+  },
+  {
+   "id": "com.subtito.ai",
+   "name": "Subtito",
+   "transportUrl": "https://subtito.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "series",
+    "movie",
+    "anime"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "The content you love, with the subtitles you need. AI translated subtitles in your language."
+  },
+  {
+   "id": "com.aliyss.syncribullet",
+   "name": "syncribullet",
+   "transportUrl": "https://56bca7d190fc-syncribullet.baby-beamup.club/manifest.json",
+   "resources": [
+    "catalog",
+    "meta",
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "anime"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "App that mixes your syncs"
+  },
+  {
+   "id": "stremio-addon-subtitles-corysus",
+   "name": "Titlovi.com Subtitles (Community addon by CoRySus)",
+   "transportUrl": "https://subtitles.mooo.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Addon for subtitles from titlovi.com"
+  },
+  {
+   "id": "com.github.IsraPerez98.Stremio-TuSubtitulo",
+   "name": "Tu Subtitulo",
+   "transportUrl": "https://58196d6c26cf-stremio-tusubtitulo.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Obtiene subtitulos de series en español de españa, español latino, catalán e inglés de TuSubtitulo.com, este addon no está afiliado a TuSubt"
+  },
+  {
+   "id": "org.sonsuzanime",
+   "name": "Turkce Altyazi(SonsuzAnime)",
+   "transportUrl": "https://onepiecetr.sonsuzanime.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "series",
+    "anime",
+    "movie"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Bagis yapmak isteyenler için: https://www.buymeacoffee.com/sonsuzosman Turkce Altyazilari Senkron Sorunu İstek Altyazi İçin infinity@sonsuza"
+  },
+  {
+   "id": "org.community.turkcealtyaziorg",
+   "name": "TurkceAltyazi.Org",
+   "transportUrl": "https://5a0d1888fa64-turkcealtyaziorg.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Bu eklenti,TurkceAltyazi.org'dan tüm Türkçe altyazıları alır ve Stremio'nuza getirir."
+  },
+  {
+   "id": "xyz.stremio.wizdom",
+   "name": "Wizdom Subtitles",
+   "transportUrl": "https://4b139a4b7f94-wizdom-stremio-v2.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "An unofficial Stremio addon for Hebrew subtitles from wizdom.xyz. Developed by Maor Development"
+  },
+  {
+   "id": "community.yifysubtitles",
+   "name": "yifysubtitles subtitles by dexter21767",
+   "transportUrl": "https://2ecbbd610840-yifysubtitles.baby-beamup.club/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "subtitles"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Addon for getting subtitles from yifysubtitles, by Dexter21767."
+  },
+  {
+   "id": "community.hebrew.subs",
+   "name": "כתוביות בעברית",
+   "transportUrl": "https://sub.scary.network/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "אדון כתוביות בעברית מ-7 מקורות: Wizdom, OpenSubtitles (כולל hash), SubDL, YIFY, Podnapisi, Subsource, Ktuvit. תמיד תהיה כתובית."
+  },
+  {
+   "id": "com.subdl.stremio",
+   "name": "SubDL Official Subtitles",
+   "transportUrl": "https://api3.subdl.com/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "anime"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Official SubDL subtitles for movies, series and anime. Plus and Pro can create a missing configured language from the subtitle menu."
+  },
+  {
+   "id": "org.subtitlesync.reference",
+   "name": "Subtitle Sync",
+   "transportUrl": "https://subtitlesync.stream/manifest.json",
+   "resources": [
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Subtitle Sync for Stremio finds subtitles in your language and times them to the exact file you are playing, using the video's own subtitle "
+  }
+ ],
+ "communityStreams": [
+  {
+   "id": "com.almosteffective.aftercredits",
+   "name": "AfterCredits",
+   "transportUrl": "https://aftercredits.almosteffective.com/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Are there mid-credits or after credits scenes?"
+  },
+  {
+   "id": "org.community.cast-search",
+   "name": "Cast Search",
+   "transportUrl": "https://stremio-cast-search.onrender.com/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Makes cast members clickable and searchable on Android TV"
+  },
+  {
+   "id": "org.stremio.deepdivecompanion",
+   "name": "Content Deep Dive Companion",
+   "transportUrl": "https://stremio-content-deepdive-addon-dc8f7b513289.herokuapp.com/manifest.json",
+   "resources": [
+    "meta",
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "A comprehensive companion addon that provides detailed content information, cast details, reviews, and production insights for movies and se"
+  },
+  {
+   "id": "com.discussio",
+   "name": "Discussio | ElfHosted",
+   "transportUrl": "https://discussio.elfhosted.com/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "series",
+    "movie"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Opens Google search for TV show episodes and movie discussions with one click. Simply select an episode or movie to search for its discussio"
+  },
+  {
+   "id": "imdb.ratings.local",
+   "name": "IMDb Ratings",
+   "transportUrl": "https://stremio-ratings-v3-production.up.railway.app/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Shows IMDb ratings for movies and individual TV episodes with a completely configurable format. Works with anime."
+  },
+  {
+   "id": "org.radios",
+   "name": "Radios",
+   "transportUrl": "https://1fe84bc728af-stremio-radios.baby-beamup.club/manifest.json",
+   "resources": [
+    "catalog",
+    "meta",
+    "stream"
+   ],
+   "types": [
+    "music",
+    "movie"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Over 93.000 radio stations from SHOUTcast."
+  },
+  {
+   "id": "community.peario",
+   "name": "Peario",
+   "transportUrl": "https://addon.peario.xyz/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Watch movies with your all your friends in sync !"
+  },
+  {
+   "id": "org.stinger.pro",
+   "name": "Stremio Stinger Pro",
+   "transportUrl": "https://stremio-stinger-pro.onrender.com/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Detects mid/post-credit scenes and optionally bloopers/outtakes and sequel setups. Powered by a multi-tiered scraping system including After"
+  },
+  {
+   "id": "community.watch.next",
+   "name": "Watch Next",
+   "transportUrl": "https://099757617587-watch-next.baby-beamup.club/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Shows similar movies and series right below what you’re currently watching using TMDb recommendations."
+  },
+  {
+   "id": "org.stremio.doesTheDogDie",
+   "name": "DoesTheDogDie (Jump Scares)",
+   "transportUrl": "https://a00f518e60ff-doesthedogdie.baby-beamup.club/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Adds jump scare information from DoesTheDogDie.com, with link to full page. Open source at <a href='https://github.com/neon-ninja/stremio_do"
+  },
+  {
+   "id": "org.stremio.wheresthejump",
+   "name": "Where's The Jump",
+   "transportUrl": "https://a00f518e60ff-wheresthejump.baby-beamup.club/manifest.json",
+   "resources": [
+    "stream",
+    "subtitles"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Adds jump scare information and subtitles from wheresthejump.com. Open source at <a href='https://github.com/neon-ninja/wheresthejump'>https"
+  },
+  {
+   "id": "community.aiostatus",
+   "name": "AIOStatus",
+   "transportUrl": "https://p01--status--sdfgdgfsgdfs--s2qq-tktv.code.run/manifest.json",
+   "resources": [
+    "stream",
+    "catalog",
+    "meta"
+   ],
+   "types": [
+    "movie",
+    "series",
+    "other"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Track premium status, expiration dates & API quotas for 100+ Debrid, Usenet, Indexers, Subtitles, Metadata, and AI services."
+  },
+  {
+   "id": "org.stremio.AnthonyBourdainFans",
+   "name": "Anthony Bourdain Fans",
+   "transportUrl": "https://ramonmedeiros.github.io/org.stremio.NoReservationDailyMotion/manifest.json",
+   "resources": [
+    "catalog",
+    "meta",
+    "stream"
+   ],
+   "types": [
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Anthony Bourdain series at Dailymotion.com"
+  },
+  {
+   "id": "org.stremio.internet-archive",
+   "name": "Archivio | ElfHosted",
+   "transportUrl": "https://archivio.elfhosted.com/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": false,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "See if a movie is available on Internet Archive and play it instantly, directly from Stremio."
+  },
+  {
+   "id": "community.game-cinema",
+   "name": "Game Cinema",
+   "transportUrl": "https://game-cinema.ip-checker.workers.dev/manifest.json",
+   "resources": [
+    "catalog",
+    "meta",
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Watch full cinematic game playthroughs as movies inside Stremio. No commentary, just the story. 9 curated YouTube channels, genre filters, p"
+  },
+  {
+   "id": "com.stremio.plexio",
+   "name": "Plexio",
+   "transportUrl": "https://plexio.stream/manifest.json",
+   "resources": [
+    "stream",
+    "catalog",
+    "meta"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Play movies and series from plex.tv."
+  },
+  {
+   "id": "a1337user.statusio.tv.compatible",
+   "name": "Statusio",
+   "transportUrl": "https://statusio.elfhosted.com/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Shows premium status & days remaining across multiple debrid providers."
+  },
+  {
+   "id": "org.streambridge.embyresolver",
+   "name": "StreamBridge: Emby to Stremio",
+   "transportUrl": "https://39427cdac546-streambridge.baby-beamup.club/manifest.json",
+   "resources": [
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "series"
+   ],
+   "configurable": true,
+   "configurationRequired": true,
+   "p2p": false,
+   "description": "Stream media from your Emby server using IMDb/TMDB/Tvdb/Anidb IDs."
+  },
+  {
+   "id": "org.stremio.tmdbcollections",
+   "name": "TMDB Collections",
+   "transportUrl": "https://61ab9c85a149-tmdb-collections.baby-beamup.club/manifest.json",
+   "resources": [
+    "catalog",
+    "meta",
+    "stream"
+   ],
+   "types": [
+    "movie",
+    "collections"
+   ],
+   "configurable": true,
+   "configurationRequired": false,
+   "p2p": false,
+   "description": "Addon lets you explore TMDB Collections, which are essentially grouped movie series. Discover collections featuring newly released movies or"
+  }
+ ],
+ "notld": {
+  "id": "tt0063350",
+  "type": "movie",
+  "name": "Night of the Living Dead",
+  "year": "1968",
+  "imdbRating": "7.8",
+  "genres": [
+   "Horror",
+   "Thriller"
+  ],
+  "runtime": "96 min",
+  "poster": true,
+  "background": true,
+  "description": "A ragtag group of Pennsylvanians barricade themselves in an old farmhouse to remain safe from a horde of flesh-eating ghouls that are ravaging the Northeast of the United States.",
+  "director": [
+   "George A. Romero"
+  ],
+  "cast": [
+   "Duane Jones",
+   "Judith O&apos;Dea",
+   "Karl Hardman"
+  ]
+ },
  "archivio": null,
- "fetchedAt": "2026-10-27T04:05:03.417Z",
+ "fetchedAt": "2026-10-27T04:10:39.180Z",
  "log": [
   {
    "url": "https://v3-cinemeta.strem.io/manifest.json",
    "status": 200,
-   "ms": 405,
+   "ms": 244,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2698,7 +3764,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/catalog/movie/top.json",
    "status": 200,
-   "ms": 464,
+   "ms": 202,
    "redirected": "https://cinemeta-catalogs.strem.io/top/catalog/movie/top.json",
    "type": "application/json",
    "cors": "*",
@@ -2708,7 +3774,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/catalog/series/top.json",
    "status": 200,
-   "ms": 102,
+   "ms": 113,
    "redirected": "https://cinemeta-catalogs.strem.io/top/catalog/series/top.json",
    "type": "application/json",
    "cors": "*",
@@ -2718,7 +3784,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/catalog/movie/imdbRating.json",
    "status": 200,
-   "ms": 98,
+   "ms": 89,
    "redirected": "https://cinemeta-catalogs.strem.io/imdbRating/catalog/movie/imdbRating.json",
    "type": "application/json",
    "cors": "*",
@@ -2728,7 +3794,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/catalog/movie/top/search=dune.json",
    "status": 200,
-   "ms": 49,
+   "ms": 56,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2738,7 +3804,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/catalog/series/top/search=dune.json",
    "status": 200,
-   "ms": 39,
+   "ms": 53,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2748,7 +3814,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/meta/movie/tt15239678.json",
    "status": 200,
-   "ms": 236,
+   "ms": 55,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2758,7 +3824,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/meta/series/tt14452776.json",
    "status": 200,
-   "ms": 228,
+   "ms": 50,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2768,7 +3834,7 @@
   {
    "url": "https://opensubtitles-v3.strem.io/manifest.json",
    "status": 200,
-   "ms": 403,
+   "ms": 221,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2778,7 +3844,7 @@
   {
    "url": "https://opensubtitles-v3.strem.io/subtitles/movie/tt15239678.json",
    "status": 200,
-   "ms": 239,
+   "ms": 45,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2788,7 +3854,7 @@
   {
    "url": "https://caching.stremio.net/publicdomainmovies.now.sh/manifest.json",
    "status": 200,
-   "ms": 344,
+   "ms": 170,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2798,7 +3864,7 @@
   {
    "url": "https://caching.stremio.net/publicdomainmovies.now.sh/catalog/movie/publicdomainmovies.json",
    "status": 200,
-   "ms": 54,
+   "ms": 45,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2808,7 +3874,7 @@
   {
    "url": "https://caching.stremio.net/publicdomainmovies.now.sh/stream/movie/tt0063350.json",
    "status": 200,
-   "ms": 49,
+   "ms": 43,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2818,7 +3884,7 @@
   {
    "url": "https://watchhub.strem.io/manifest.json",
    "status": 200,
-   "ms": 427,
+   "ms": 401,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2828,7 +3894,7 @@
   {
    "url": "https://watchhub.strem.io/stream/movie/tt15239678.json",
    "status": 200,
-   "ms": 53,
+   "ms": 43,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2838,17 +3904,17 @@
   {
    "url": "https://api.strem.io/api/addonCollectionGet",
    "status": 200,
-   "ms": 470,
+   "ms": 458,
    "redirected": "",
    "type": "application/json",
    "cors": "",
    "json": true,
-   "bytes": 9786
+   "bytes": 9785
   },
   {
    "url": "https://api.strem.io/api/login",
    "status": 200,
-   "ms": 133,
+   "ms": 142,
    "redirected": "",
    "type": "application/json",
    "cors": "",
@@ -2858,7 +3924,7 @@
   {
    "url": "https://api.strem.io/api/addonCollectionGet",
    "status": 200,
-   "ms": 132,
+   "ms": 135,
    "redirected": "",
    "type": "application/json",
    "cors": "",
@@ -2868,7 +3934,7 @@
   {
    "url": "https://link.stremio.com/api/v2/create?type=Create",
    "status": 200,
-   "ms": 557,
+   "ms": 1447,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2876,9 +3942,9 @@
    "bytes": 162
   },
   {
-   "url": "https://link.stremio.com/api/v2/read?type=Read&code=R2T3",
+   "url": "https://link.stremio.com/api/v2/read?type=Read&code=TIC6",
    "status": 200,
-   "ms": 61,
+   "ms": 285,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2888,7 +3954,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/addon_catalog/all/official.json",
    "status": 200,
-   "ms": 42,
+   "ms": 46,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2898,7 +3964,7 @@
   {
    "url": "https://v3-cinemeta.strem.io/addon_catalog/all/community.json",
    "status": 200,
-   "ms": 43,
+   "ms": 64,
    "redirected": "",
    "type": "application/json",
    "cors": "*",
@@ -2906,9 +3972,19 @@
    "bytes": 123565
   },
   {
+   "url": "https://v3-cinemeta.strem.io/meta/movie/tt0063350.json",
+   "status": 200,
+   "ms": 47,
+   "redirected": "",
+   "type": "application/json",
+   "cors": "*",
+   "json": true,
+   "bytes": 2487
+  },
+  {
    "url": "https://archivio.elfhosted.com/manifest.json",
    "status": 200,
-   "ms": 781,
+   "ms": 399,
    "redirected": "https://docs.elfhosted.com/app/archivio/",
    "type": "text/html",
    "cors": "",

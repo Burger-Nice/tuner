@@ -1,0 +1,138 @@
+/* airglow TV: add-ons v1.0 (design/ui-v1/addons/SPEC.md). New classes only, prefix ad-.
+   Built on tv/brand/tokens.css + tv/ui.css + tv/app.css (+ nba.css for the one shield mock); meant to be appended to
+   app/tv/app.css when ported. Canvas 960 x 540, safe area x 48-912 / y 27-513. Only transform and opacity animate.
+   The mocks mark focus with .f / .f-ring / .f-in (ui.css); the app uses :focus on .fx (SPEC 2.4 lists the selectors).
+   The player part (nv-*) is drawn here as HTML for measuring; the native views take the same sizes in dp (SPEC 8). */
+
+.ic.xs{width:16px;height:16px}
+.ad-spin{width:18px;height:18px;color:var(--a-pink);flex:none}
+.ad-spin.lg{width:26px;height:26px}
+
+/* ---------- Account > Add-ons (SPEC 3) ---------- */
+.ad-pane{position:absolute;left:260px;top:84px;width:658px;height:435px;padding:6px 12px;box-sizing:border-box}
+.ad-sub{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin:-6px 0 12px}
+.ad-sec{display:flex;align-items:baseline;gap:10px;height:22px;margin:4px 4px 6px;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
+.ad-sec small{font:500 14px/18px var(--a-font-text);letter-spacing:0;text-transform:none;color:var(--a-text-3)}
+.ad-row{display:flex;align-items:center;gap:14px;height:52px;padding:0 14px 0 10px;border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border);margin-bottom:6px}
+.ad-row.f-ring{background:var(--a-surface-2)}
+.ad-row.off .a,.ad-row.off .b{color:var(--a-text-3)}
+.ad-row .grow{min-width:0}
+.ad-row .a{display:block;font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-row .b{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-row .st{display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;flex:none}
+.ad-row .st.on{color:var(--a-text-1)}
+.ad-row .st.warn{color:var(--a-text-1);font-weight:650}
+.ad-row.lift{background:var(--a-surface-3);border-color:transparent;box-shadow:var(--a-focus-ring);transform:scale(1.02);transform-origin:50% 50%;position:relative;z-index:3}
+.ad-row .grip{display:flex;color:var(--a-text-1)}
+.ad-lg{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font:700 13px/1 var(--a-font-display);letter-spacing:.02em;background:var(--a-surface-3);color:var(--a-text-1);flex:none}
+.ad-lg.xl{width:56px;height:56px;border-radius:12px;font-size:20px}
+.ad-lg.dim{background:var(--a-surface-2)!important;color:var(--a-text-2)}
+.ad-bang{width:20px;height:20px;border-radius:50%;background:var(--a-text-1);color:var(--a-ink);display:grid;place-items:center;flex:none}
+.ad-bang svg{width:14px;height:14px;stroke-width:3}
+
+/* the add-on's own sheet (right 420) */
+.ad-head{display:flex;align-items:center;gap:14px}
+.ad-head .tx b{display:block;font:700 22px/28px var(--a-font-display)}
+.ad-head .tx span{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.ad-gives{display:flex;flex-wrap:wrap;gap:6px}
+.ad-gives span{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:var(--a-surface-2);font:650 14px/1 var(--a-font-text);color:var(--a-text-1)}
+.ad-gives span .ic{width:16px;height:16px}
+.ad-lr{display:flex;align-items:center;gap:12px;min-height:48px;padding:4px 12px;border-radius:12px;font:500 16px/20px var(--a-font-text);color:var(--a-text-1)}
+.ad-lr.f-ring{background:var(--a-surface-3)}
+.ad-lr .grow{min-width:0}
+.ad-lr .a{display:block;font:650 16px/20px var(--a-font-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-lr .b{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-lr .v{display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;flex:none}
+.ad-lr .ico{display:flex;color:var(--a-text-2);flex:none}
+.ad-lr .ico svg{width:22px;height:22px}
+.ad-lr small{font:650 14px/18px var(--a-font-text);color:var(--a-pink-text);flex:none}
+.ad-lr.dis .a,.ad-lr.dis .ico{color:var(--a-text-3)}
+.ad-note{font:500 14px/20px var(--a-font-text);color:var(--a-text-2)}
+
+/* "Add an add-on": the four ways (a centred menu) */
+.menu.ad-ways{left:50%;top:50%;width:600px;transform:translate(-50%,-50%);padding:20px 16px 14px}
+.ad-ways .ad-lr{height:64px}
+
+/* ---------- full-screen steps (Stremio code, phone, setup) ---------- */
+.ad-steps{margin:0;padding:0 0 0 22px;font:500 16px/24px var(--a-font-text);color:var(--a-text-2)}
+.ad-steps li{margin-bottom:10px;padding-left:4px}
+.ad-steps b{color:var(--a-text-1);font-weight:650}
+.ad-code{display:inline-flex;gap:8px;margin-top:4px}
+.ad-code span{width:52px;height:60px;border-radius:12px;background:var(--a-surface-2);display:grid;place-items:center;font:700 32px/1 var(--a-font-display);color:var(--a-text-1)}
+.ad-wait{position:absolute;left:48px;top:420px;width:864px;height:64px;padding:0 20px;gap:14px;display:flex;align-items:center;box-sizing:border-box}
+.ad-wait b{display:block;font:650 16px/20px var(--a-font-text)}
+.ad-addr{font:650 16px/22px var(--a-font-text);color:var(--a-text-1)}
+
+/* the import list */
+.ad-imp .ad-lr{height:52px}
+.ad-why{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+
+/* ---------- catalogs (SPEC 4) ---------- */
+.lib-chips .ad-cut{width:1px;height:24px;background:var(--a-border-strong);align-self:center;flex:none;margin:0 4px}
+.chip .ad-by{font-weight:500;color:var(--a-text-3)}
+.chip.sel .ad-by{color:var(--a-pink-text)}
+.pc .ad-mine{position:absolute;right:6px;bottom:6px;height:22px;padding:0 7px;border-radius:var(--a-radius-sm);background:rgba(21,19,29,.82);display:flex;align-items:center;color:var(--a-text-1)}
+.pc .ad-mine svg{width:14px;height:14px;stroke-width:2.6}
+.ad-legend{display:inline-flex;align-items:center;gap:6px}
+.ad-legend i{height:20px;padding:0 6px;border-radius:6px;background:var(--a-surface-2);display:inline-flex;align-items:center;color:var(--a-text-1)}
+.ad-legend i svg{width:14px;height:14px;stroke-width:2.6}
+.hc .ad-src{display:inline-flex;align-items:center;gap:5px}
+
+/* ---------- the title page: the source pill and the Sources sheet (SPEC 5) ---------- */
+.ad-pills{display:flex;align-items:center;gap:10px;height:36px;width:864px}
+.ad-look{display:inline-flex;align-items:center;gap:8px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.ad-q{width:52px;height:40px;border-radius:10px;background:var(--a-surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;flex:none}
+.ad-q b{font:700 16px/18px var(--a-font-display);color:var(--a-text-1)}
+.ad-q i{font:650 12px/14px var(--a-font-text);font-style:normal;letter-spacing:.04em;color:var(--a-text-2)}
+.ad-q.top{background:var(--a-grad)}
+.ad-q.top b,.ad-q.top i{color:var(--a-ink)}
+.ad-srcs .ad-lr{height:60px}
+.ad-srcs .grp{font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3);padding:6px 12px 2px}
+.ad-wbtn{display:inline-flex;align-items:center;gap:10px}
+.ad-ring{width:22px;height:22px;flex:none}
+.ad-cap{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.ad-cap b{color:var(--a-text-1);font-weight:650}
+.ep .ad-only{position:absolute;right:8px;top:8px;height:22px;padding:0 7px;border-radius:var(--a-radius-sm);background:rgba(21,19,29,.82);display:flex;align-items:center;gap:4px;font:650 12px/1 var(--a-font-text);color:var(--a-text-1)}
+.ep .ad-only svg{width:13px;height:13px;stroke-width:2.6}
+.epsyn .ad-r{float:right;color:var(--a-text-1);font-weight:650;margin-left:12px}
+
+/* which film is it (an unsure match) */
+.menu.ad-which{left:48px;top:150px;width:560px;padding:18px 12px 12px}
+.ad-which .ad-lr{height:72px}
+.ad-th{width:40px;height:60px;border-radius:6px;overflow:hidden;position:relative;flex:none;border:1px solid var(--a-border)}
+
+/* ---------- Search (SPEC 6) ---------- */
+.ad-rh{display:flex;align-items:baseline;gap:10px;margin:14px 0 8px}
+.ad-rh small{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);letter-spacing:0;text-transform:none}
+.rrow .ad-mt{display:flex;flex-direction:column;min-width:0}
+.rrow .ad-mt b{font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .ad-mt span{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .mini{width:30px;height:44px;border-radius:6px;overflow:hidden;position:relative;flex:none}
+
+/* ---------- the player (SPEC 8), drawn in dp ---------- */
+.nv-card.ad-fail{width:560px;align-items:stretch;text-align:left;gap:12px;padding:16px 18px 14px}
+.ad-fail .t b{font:700 20px/26px var(--a-font-display)}
+.ad-next{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--a-surface-1)}
+.ad-next .ad-ring{width:36px;height:36px}
+.ad-next .a{font:650 16px/20px var(--a-font-text);color:var(--a-text-1)}
+.ad-next .b{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.ad-fail .cbtns{display:flex;gap:12px}
+.nv-panel .ad-grp{height:32px;padding:10px 12px 0;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
+.nv-row .ad-v{margin-left:auto;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap}
+.nv-row .rd{margin-left:2px}
+.ad-up{position:absolute;right:48px;bottom:84px;width:400px;padding:14px 16px;border-radius:16px;background:rgba(30,27,40,.94);border:1px solid var(--a-border);display:flex;gap:14px;align-items:center;z-index:7}
+.ad-up .a{font:700 18px/24px var(--a-font-display);color:var(--a-text-1)}
+.ad-up .b{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+
+/* ---------- the phone page (SPEC 3.5): drawn at 1:1 CSS px of a 300 px wide phone ---------- */
+.ad-phone{position:absolute;top:28px;width:300px;height:484px;border-radius:28px;background:#0C0B12;border:2px solid var(--a-border-strong);padding:18px 16px;box-sizing:border-box;overflow:hidden}
+.ad-phone .bar{font:650 14px/18px var(--a-font-text);color:var(--a-text-3);display:flex;justify-content:space-between;margin-bottom:12px}
+.ad-phone h4{margin:0 0 6px;font:700 22px/28px var(--a-font-display);color:var(--a-text-1)}
+.ad-phone p{margin:0 0 12px;font:500 14px/20px var(--a-font-text);color:var(--a-text-2)}
+.ad-phone .pf{height:44px;border-radius:10px;border:2px solid var(--a-border-strong);background:var(--a-surface-1);display:flex;align-items:center;padding:0 12px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-bottom:10px;white-space:nowrap;overflow:hidden}
+.ad-phone .pb{height:44px;border-radius:999px;background:var(--a-grad);display:grid;place-items:center;font:700 16px/1 var(--a-font-display);color:var(--a-ink);margin-bottom:10px}
+.ad-phone .pb2{height:44px;border-radius:999px;border:2px solid var(--a-border-strong);display:grid;place-items:center;font:700 15px/1 var(--a-font-display);color:var(--a-text-1);margin-bottom:10px}
+.ad-phone .pl{font:650 14px/18px var(--a-font-text);color:var(--a-text-3);letter-spacing:.06em;text-transform:uppercase;margin:4px 0 6px}
+.ad-phone .pn{font:500 14px/20px var(--a-font-text);color:var(--a-text-3)}
+.ad-cap2{position:absolute;font:500 14px/20px var(--a-font-text);color:var(--a-text-2)}
+.ad-cap2 b{display:block;color:var(--a-text-1);font:700 18px/24px var(--a-font-display);margin-bottom:4px}

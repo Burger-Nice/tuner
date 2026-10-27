@@ -47,6 +47,9 @@ const pick = (m) => ({ id: m.id, type: m.type, name: m.name, year: m.releaseInfo
   const sum = (a) => ({ id: a.manifest.id, name: a.manifest.name, transportUrl: a.transportUrl, resources: (a.manifest.resources || []).map((r) => (typeof r === 'string' ? r : r.name)), types: a.manifest.types, configurable: !!a.manifest.behaviorHints?.configurable, configurationRequired: !!a.manifest.behaviorHints?.configurationRequired, p2p: !!a.manifest.behaviorHints?.p2p, description: (a.manifest.description || '').slice(0, 140) });
   d.addonCatalogOfficial = off.addons.map(sum);
   d.addonCatalogCommunity = { count: com.addons.length, configurationRequired: com.addons.filter((a) => a.manifest.behaviorHints?.configurationRequired).length, subtitles: com.addons.filter((a) => sum(a).resources.includes('subtitles')).length, stream: com.addons.filter((a) => sum(a).resources.includes('stream')).length, catalog: com.addons.filter((a) => sum(a).resources.includes('catalog')).length, first: com.addons.slice(0, 12).map(sum) };
+  d.communitySubs = com.addons.map(sum).filter((a) => a.resources.includes('subtitles'));
+  d.communityStreams = com.addons.map(sum).filter((a) => a.resources.includes('stream'));
+  const notld = (await get(`${CIN}/meta/movie/tt0063350.json`)).meta; d.notld = { ...pick(notld), director: notld.director, cast: notld.cast };
   d.archivio = await get('https://archivio.elfhosted.com/manifest.json');
   d.fetchedAt = new Date().toISOString();
   d.log = log;

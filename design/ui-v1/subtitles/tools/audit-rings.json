@@ -1,0 +1,257 @@
+[
+ {
+  "f": "detail-ready.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   243.6,
+   173.2,
+   300.4
+  ],
+  "safe": -3.3
+ },
+ {
+  "f": "detail-checking.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   243.6,
+   173.2,
+   300.4
+  ],
+  "safe": -3.3
+ },
+ {
+  "f": "detail-copies.html",
+  "el": ".lr.st-two",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   56,
+   88,
+   640,
+   158
+  ],
+  "safe": 8
+ },
+ {
+  "f": "detail-subs-sheet.html",
+  "el": ".lr.st-two",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   508,
+   125,
+   896,
+   195
+  ],
+  "safe": 16
+ },
+ {
+  "f": "detail-which-film.html",
+  "el": ".pillbtn.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   251,
+   300.6,
+   297
+  ],
+  "safe": -5
+ },
+ {
+  "f": "detail-match.html",
+  "el": ".lr.st-two",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   56,
+   120,
+   560,
+   190
+  ],
+  "safe": 8
+ },
+ {
+  "f": "detail-subs-down.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   243.6,
+   173.2,
+   300.4
+  ],
+  "safe": -3.3
+ },
+ {
+  "f": "detail-series.html",
+  "el": ".th.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   268,
+   263.3,
+   396
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "movies-tags.html",
+  "el": ".box.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   187.6,
+   166.1,
+   328.4,
+   371.9
+  ],
+  "safe": 139.1
+ },
+ {
+  "f": "account-languages.html",
+  "el": ".arow.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   267,
+   187,
+   905,
+   253
+  ],
+  "safe": 7
+ },
+ {
+  "f": "player-start.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   53.6,
+   415,
+   85.6,
+   447
+  ],
+  "safe": 5.6
+ },
+ {
+  "f": "player-subs.html",
+  "el": ".nv-row.st-r",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   218,
+   421,
+   268
+  ],
+  "safe": 11
+ },
+ {
+  "f": "player-subs-mixed.html",
+  "el": ".nv-row.st-r",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   308,
+   421,
+   358
+  ],
+  "safe": 11
+ },
+ {
+  "f": "player-subs-down.html",
+  "el": ".nv-row.st-r",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   308,
+   421,
+   352
+  ],
+  "safe": 11
+ },
+ {
+  "f": "player-quality.html",
+  "el": ".nv-row.st-r",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   170,
+   437,
+   220
+  ],
+  "safe": 11
+ }
+]

@@ -1,0 +1,182 @@
+[
+ {
+  "file": "acct-addons.html",
+  "title": "Account > Add-ons",
+  "note": "A new group under Provider. \"Add an add-on\" first, then the installed ones in order: what each gives, in plain words, and its state. OK opens an add-on's sheet; hold OK: Move, Turn off, Remove.",
+  "group": "Account: Add-ons"
+ },
+ {
+  "file": "acct-addon-sheet.html",
+  "title": "An add-on's sheet: Cinemeta",
+  "note": "OK on Cinemeta. What it gives, an on/off switch, and one row per catalog saying where it shows. This is where a Home row or a Movies chip is switched off for good.",
+  "group": "Account: Add-ons"
+ },
+ {
+  "file": "acct-catalog-menu.html",
+  "title": "One catalog: where it shows",
+  "note": "OK on a catalog row: two checks. OK ticks, Back closes and keeps it. The same menu is reached from a Home row (hold OK, \"Hide this row\") so the owner never has to come here to tidy Home.",
+  "group": "Account: Add-ons"
+ },
+ {
+  "file": "acct-addon-move.html",
+  "title": "Moving an add-on",
+  "note": "Hold OK on a row, then Move: the row lifts (the Saved reorder model), ▲▼ move it, OK drops. Order decides which rows come first and which add-on wins a tie in Sources.",
+  "group": "Account: Add-ons"
+ },
+ {
+  "file": "add-ways.html",
+  "title": "Add an add-on: four ways",
+  "note": "OK on \"Add an add-on\". The Stremio account is first and marked Easiest: no typing, and it also carries add-ons that need setting up. Typing is last.",
+  "group": "Adding one"
+ },
+ {
+  "file": "add-stremio-code.html",
+  "title": "Stremio sign-in: the code",
+  "note": "Stremio's own TV sign-in (link.stremio.com, verified: a 4-letter code, a link and a QR). The phone does the typing; the TV asks every 3 s. The fallback is one press away and focused, so a stray OK is harmless.",
+  "group": "Adding one"
+ },
+ {
+  "file": "add-stremio-found.html",
+  "title": "Your Stremio add-ons",
+  "note": "The answer to addonCollectionGet, in plain words. What airglow can't use is named once, with why, never as a broken row. One OK adds them; the checks can be changed first.",
+  "group": "Adding one"
+ },
+ {
+  "file": "add-stremio-email.html",
+  "title": "Stremio sign-in: email fallback",
+  "note": "The fallback, from the code screen. Errors sit under the field that caused them, in chalk with the \"!\" (never red). Verified: Stremio answers \"User not found\" with wrongEmail for an unknown address.",
+  "group": "Adding one"
+ },
+ {
+  "file": "add-list.html",
+  "title": "Stremio's list, on the TV",
+  "note": "Pick from Stremio's list (Cinemeta's addon_catalog, real data). Chips filter by what an add-on gives. OK on Add adds it after a confirm; \"Set up on your phone\" opens the setup card. 23 of the 44 subtitle add-ons need setting up.",
+  "group": "Adding one"
+ },
+ {
+  "file": "add-phone.html",
+  "title": "Send a link from your phone",
+  "note": "For an add-on set up on a web page (most debrid ones), without a Stremio account. The TV app serves one small page on the Wi-Fi (the same page the first-run \"Use your phone\" sign-in was designed with, UI-SPEC 5.1).",
+  "group": "Adding one"
+ },
+ {
+  "file": "add-confirm.html",
+  "title": "Before adding: what it gives",
+  "note": "Every way in ends here: airglow reads the manifest first and says what the add-on gives. Nothing is added without this OK. A link that isn't an add-on gets a plain \"That link isn't an add-on\" instead.",
+  "group": "Adding one"
+ },
+ {
+  "file": "add-setup.html",
+  "title": "An add-on that needs setting up",
+  "note": "A configurable add-on with configurationRequired. The setup itself happens on the add-on's own page (Stremio's rule); airglow only carries the result back. Nothing to press on the TV, so nothing is focused.",
+  "group": "Adding one"
+ },
+ {
+  "file": "phone-page.html",
+  "title": "The page the TV serves to the phone",
+  "note": "Not a TV screen: the one page the TV serves on the Wi-Fi (http, port 8790, code in the link). Three states: paste and send, set up an add-on, sent. Phone text is 14 px and up; one column; big buttons.",
+  "group": "Adding one"
+ },
+ {
+  "file": "home-rows.html",
+  "title": "Home: add-on rows",
+  "note": "Home scrolled down. Add-on rows come after airglow's own (Continue watching, On now, Tonight's games); two by default, the first movie and series catalogs. The catalog's name is the row, the add-on's is the small caption. A title the provider has too says so (here Obsession).",
+  "group": "Catalogs and Search"
+ },
+ {
+  "file": "home-row-menu.html",
+  "title": "Home: hiding an add-on row",
+  "note": "Hold OK on any add-on card: Save to Saved first and focused (the app-wide rule), Details, then \"Hide … from Home\". Hidden rows come back from Account > Add-ons > Cinemeta.",
+  "group": "Catalogs and Search"
+ },
+ {
+  "file": "movies-addon.html",
+  "title": "Movies: an add-on catalog chip",
+  "note": "Add-on catalogs are chips after the provider's, past a thin divider (the row scrolls). On an add-on chip the grid is that catalog, in its own order; Filters becomes the catalog's own Genre list; Sort and Jump go (an add-on has no total).",
+  "group": "Catalogs and Search"
+ },
+ {
+  "file": "movies-addon-down.html",
+  "title": "Movies: the add-on isn't answering",
+  "note": "The add-on timed out (8 s) or sent no JSON. The card says whose fault, that the provider's movies are fine, and offers Try again (focused) and All movies. Nothing else on the screen changes.",
+  "group": "Catalogs and Search"
+ },
+ {
+  "file": "search-addons.html",
+  "title": "Search: provider first, then add-ons",
+  "note": "Real Cinemeta search for \"dune\". The provider's matches are instant and come first; add-on results arrive under \"From add-ons\" with the add-on named. A title in both shows once, as the provider's (Dune: Part Two is the top result with its 4K from Northlight).",
+  "group": "Catalogs and Search"
+ },
+ {
+  "file": "detail-sources.html",
+  "title": "Title page: Play takes the best source",
+  "note": "The version pill becomes the source pill: it names what Play will play (the best so far, here Northlight's 4K Dolby Vision over the provider's Full HD). Add-ons answer while the page is read; the pill updates in place, focus never moves.",
+  "group": "The title page"
+ },
+ {
+  "file": "detail-sources-sheet.html",
+  "title": "The Sources sheet",
+  "note": "OK on the source pill: every copy in one list, provider and add-ons together, best first, the current one focused. Quality is the left block; size, language, kind of copy and source in plain words. A pick is remembered for this title.",
+  "group": "The title page"
+ },
+ {
+  "file": "detail-play-wait.html",
+  "title": "Play, while an add-on is still looking",
+  "note": "Play when the best so far isn't 4K and an add-on hasn't answered: up to 4 s for a better copy, counting down on the button. OK again plays the best so far at once; Back stops. With a 4K copy in hand, Play never waits.",
+  "group": "The title page"
+ },
+ {
+  "file": "detail-addon-only.html",
+  "title": "A title only add-ons have",
+  "note": "Opened from a Cinemeta row. The same page: Cinemeta's details, Northlight's copies, More like this from both. One quiet line says the provider doesn't have it and where the details come from.",
+  "group": "The title page"
+ },
+ {
+  "file": "detail-series.html",
+  "title": "Series: episodes from both",
+  "note": "Episodes are the union of the provider's list and Cinemeta's (seasons 1 to 5 and Specials, real data). An episode only add-ons have is marked Add-on. The focused episode's best source sits at the right of its one-line summary; the pill by Resume is for S3 · E4.",
+  "group": "The title page"
+ },
+ {
+  "file": "detail-match.html",
+  "title": "Which film is it? (an unsure match)",
+  "note": "A provider title that matches more than one IMDb title (no year, two films called Dune) is never guessed: add-ons aren't asked until he picks. Real Cinemeta search results; the pick is remembered for this title.",
+  "group": "The title page"
+ },
+ {
+  "file": "detail-nosources.html",
+  "title": "No copy to play",
+  "note": "Real: Public Domain Movies answers this film with one infoHash stream and no link. airglow hides torrents, so the page says plainly why there's nothing, names each add-on, and offers Look again (focused) instead of a Play that can't work.",
+  "group": "The title page"
+ },
+ {
+  "file": "player-source-failed.html",
+  "title": "Player: a copy stops, the next one takes over",
+  "note": "After the player's own retries fail, a film moves to the next source by itself (3 s, OK sooner), 10 s before where it stopped. Live TV never does this (the score delay rule); films and episodes have no delay to break.",
+  "group": "Player, states, shield"
+ },
+ {
+  "file": "player-sources.html",
+  "title": "Player: switching source",
+  "note": "Options > Quality: today's \"Other copies of this title\" becomes \"Sources\", the same list as the title page, in the same order. A file has one picture level, so the levels group only shows for HLS.",
+  "group": "Player, states, shield"
+ },
+ {
+  "file": "player-upnext.html",
+  "title": "Player: Up next keeps the same source",
+  "note": "bingeGroup: the next episode's streams are fetched 2 min before the end, and the one with the same bingeGroup plays (same add-on, same quality). The card says so. With no match it takes the best, and says that instead.",
+  "group": "Player, states, shield"
+ },
+ {
+  "file": "state-addon-down.html",
+  "title": "An add-on that stopped answering",
+  "note": "Real: Archivio now redirects to a web page. airglow keeps it, marks it \"Not answering\" with what it got and when it last worked, and stops asking it for 30 min. Public Domain Movies reads \"Catalog only\": real, its streams are all torrents.",
+  "group": "Player, states, shield"
+ },
+ {
+  "file": "sources-shield.html",
+  "title": "Shield: add-on replays in the sources sheet",
+  "note": "An add-on video matched to a hidden game is a \"full-game video\" (catch-up 3.1, 3.3): same ranking, same masking (5.7), and no size or length (either could tell overtime). \"Courtside\" is illustrative.",
+  "group": "Player, states, shield"
+ }
+]

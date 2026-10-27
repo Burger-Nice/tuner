@@ -1,0 +1,110 @@
+[
+ {
+  "file": "detail-ready.html",
+  "title": "Title page: checked, subtitles ready",
+  "note": "The tags now say what the copy really is: airglow read its first and last 64 KB (SPEC 5). Filled tags with a tick are checked, so the Version pill names the real best copy (\"best of 4\"). Subtitles: English is on; Icelandic is ready for the player. The line under the pills names the source.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-checking.html",
+  "title": "Title page: first visit, checking",
+  "note": "Until a copy is checked, the tag is what the name says: dashed, no tick. The checks run one copy at a time (SPEC 5.3: never more streams than the provider allows). Play stays focused and works: it plays the best copy known by then and waits at most 3 s for a check already running.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-copies.html",
+  "title": "The Copies menu",
+  "note": "OK on the Version pill. \"Always the best copy\" is the default and is focused. Every copy shows what the check found, not its name: the \"4K UHD\" one is really 1080p at 3 Mb/s, and the Dolby Vision one ranks last because this TV has no way to play its only sound track. The name is still there, in quotes, at the end.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-subs-sheet.html",
+  "title": "The Subtitles sheet",
+  "note": "OK on the Subtitles pill. Your languages first, with where each comes from and whether its timing was checked. The pick is for this film and goes with you into the player. \"Not this film?\" re-opens the match (next mocks). The default for every film is in Account > Settings > Languages.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-which-film.html",
+  "title": "Subtitles: which film is it?",
+  "note": "The IMDb match needs a name and a year. The provider gives \"IS| Konungur ljónanna\" with no year, and Cinemeta finds The Lion King twice (1994 and 2019, real result, SPEC 10.2). airglow doesn't guess. Only the file's own subtitles are used until you pick.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-match.html",
+  "title": "Which film is this?",
+  "note": "Each row has the year and the length, so you can tell the films apart (this copy runs 1 h 28 min, so it's the 1994 film: the check in SPEC 5 found its length). The first result is focused because it is the closest length, never because it came first. \"None of these\" turns OpenSubtitles off for this title.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-subs-down.html",
+  "title": "Subtitles: OpenSubtitles isn't answering",
+  "note": "The add-on is down (or slow: 8 s). The page says so and when it tries again; nothing to press. Play still works: subtitles that come in later appear in the player, which says so once (SPEC 7.6). Lists already downloaded for a film are kept for 2 days, so a film you opened before still has them.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-series.html",
+  "title": "A series: subtitles per episode",
+  "note": "Series: the pill and the line follow the focused episode (subtitles are found per episode: tt11280740:1:1, real result: 2 English, no Icelandic). The tags are the checked episode copy. One request per episode, made when the episode is focused for 1 s or played.",
+  "group": "On the title page"
+ },
+ {
+  "file": "movies-tags.html",
+  "title": "Movies: checked and named tags",
+  "note": "A filled tag with a tick is what airglow found in the best copy; a dashed one is only the provider's name. Dune: Part Two's copies are named 4K, but both checked as 1080p, so its tag is HD (and it leaves the 4K chip). Checks run in the background when nothing plays (SPEC 5.3), so the ticks spread over the titles you look at.",
+  "group": "Around the app"
+ },
+ {
+  "file": "account-languages.html",
+  "title": "Account: Languages",
+  "note": "The one place for the defaults. \"Subtitles\" gets a third choice, \"Only when the sound isn't in your language\". Subtitle languages default to Shown first and can be set apart (English sound with Icelandic subtitles). Sound descriptions are the [rain pattering] files (2 of the 6 English ones for Oppenheimer).",
+  "group": "Around the app"
+ },
+ {
+  "file": "player-start.html",
+  "title": "Play: the best copy starts",
+  "note": "The controls show for 4 s when a film starts (as today). The title block gets one line: what the check found in the copy that is playing, that it was the best of 4, and the subtitles that are on. If you picked a copy by hand it says \"your pick\" instead of \"best of 4\".",
+  "group": "In the player"
+ },
+ {
+  "file": "player-subs.html",
+  "title": "Options > Subtitles",
+  "note": "CC, or ▼ then Subtitles. Rows say where each comes from and what the timing check found (SPEC 7.3). The Icelandic file was timed for a copy that runs 4% faster (real: its lines drift 7 min over the film); airglow stretched it to fit, which no early/late step can do. \"Subtitles early or late\" sits right under the choices.",
+  "group": "In the player"
+ },
+ {
+  "file": "player-subs-mixed.html",
+  "title": "Options > Subtitles: in the file and downloaded",
+  "note": "The 1080p copy has English and Spanish in its file: they come first and need no check. Downloads only fill your languages the file doesn't have (Icelandic here). Early/late is greyed for subtitles in the file: ExoPlayer draws them, and they are made for it (SPEC 7.4).",
+  "group": "In the player"
+ },
+ {
+  "file": "player-timing.html",
+  "title": "Subtitles early or late",
+  "note": "One small strip at the top, so the picture and the subtitle line at the bottom stay in view while you change it. Each ◀ ▶ moves the subtitles 0.5 s (hold: 4 steps a second, up to 60 s either way), and it shows at once: airglow draws downloaded subtitles itself (SPEC 7.4). The film keeps playing.",
+  "group": "In the player"
+ },
+ {
+  "file": "player-timing-match.html",
+  "title": "Match a line",
+  "note": "When you can't tell if they're early or late: the strip shows the next line coming up. You press OK when you hear it, and the difference (less 0.3 s for the press) becomes the timing, rounded to 0.5 s. Then it goes back to the early/late strip so you can adjust by a step.",
+  "group": "In the player"
+ },
+ {
+  "file": "player-subs-chip.html",
+  "title": "Downloaded subtitles, timing not checked",
+  "note": "Shown once per film, for 6 s at the first downloaded line, only when nothing could check the timing (no file made for this copy, no others to compare: SPEC 7.3). Top right on films: the bottom is the subtitles' place. No action and no countdown, so OK stays Pause.",
+  "group": "In the player"
+ },
+ {
+  "file": "player-subs-down.html",
+  "title": "Options > Subtitles: OpenSubtitles down",
+  "note": "The add-on is down and this copy has none. The panel says so, offers Try now, and points at the copy that has subtitles in its file (known from the check, SPEC 5.2), which opens Quality. When subtitles come in later, a one-line note says so: \"English subtitles are ready · CC\".",
+  "group": "In the player"
+ },
+ {
+  "file": "player-quality.html",
+  "title": "Options > Quality: the real copies",
+  "note": "The panel that exists today (openQuality), with each copy's real quality in place of its name, and the same \"Always the best copy\" default as the title page. The rows are the cached checks: opening this panel never opens another stream.",
+  "group": "In the player"
+ }
+]
