@@ -114,7 +114,10 @@ function draw() {
   items = []; H = 0;
   if (!d?.confs?.length) {
     if (bad) msg = downCard(196);                                     // nothing kept: the card, Try again focused
-    else if (d) msg = stateCard({ icon: 'clock', title: 'No standings from ESPN yet', text: `${seasonStarts()}.`, top: 196 });   // an empty answer
+    else if (d) {   // an empty answer: before the season, or ESPN between tables
+      const played = peek(`schedule:${favTeam()}`)?.data?.games?.some((g) => g.state === 'post');
+      msg = stateCard({ icon: 'clock', title: 'No standings from ESPN yet', text: played ? 'ESPN sent an empty table. airglow asks again in a few minutes.' : `${seasonStarts()}.`, top: 196 });
+    }
     else { sub = chips; head = true; msg = skeleton(9, { top: TOP.tb }); }
   } else {
     const t = tableFor(d, conf), pre = !!t.teams && preseason(t.teams);

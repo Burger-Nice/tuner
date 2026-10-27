@@ -131,7 +131,8 @@ export default {
     root.innerHTML = '<div class="nb-cats" data-col></div><div class="ts-note"></div><div class="nb-th ts-th" style="left:272px;width:628px" hidden></div>'
       + '<div class="nb-tb ts-tb" data-col style="left:272px;width:628px" hidden><div class="nb-in"></div></div><div class="nb-sbar ts-bar" hidden><i></i></div><div class="ts-msg"></div>';
     // ▶ from the column: the list, on your team's row
-    $('.nb-cats').navHook = (dir) => {
+    $('.nb-cats').navHook = (dir, cur, repeat) => {
+      if (dir === 'up' && repeat && cur === $('.nb-cats .nb-cat')) return false;   // a held key stops at the top of the list
       if (dir === 'left') return false;
       if (dir !== 'right') return undefined;
       const to = $(`.nb-in [data-key="tm:${favTeam()}"]`) || $('.nb-in .nb-tr:not(.off)') || $('.ts-msg .fx') || $('.ts-note .fx');

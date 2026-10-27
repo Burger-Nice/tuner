@@ -59,9 +59,9 @@ function draw() {
   const c = CATS.find((x) => x.key === cat) || CATS[0];
   const got = peek(keyOf(cat)), bad = failed(keyOf(cat));
   setHtml($('.nb-cats'), CATS.map((x) => `<div class="nb-cat fx${x.key === cat ? ' sel' : ''}" tabindex="-1" data-cat="${x.key}">${esc(label(x))}<small>${esc(x.short)}</small></div>`).join(''));
-  let note = '<div class="nb-catnote" style="top:428px">Per game, 2026-27.<br>ESPN’s qualified players.</div>', body = '';
+  // the season's name comes with the standings (asked for on entering)
   const season = peek('standings')?.data?.season;
-  if (season) note = note.replace('2026-27', esc(season));
+  let note = `<div class="nb-catnote" style="top:428px">Per game, ${season ? esc(season) : 'this season'}.<br>ESPN’s qualified players.</div>`, body = '';
   if (!got?.data) body = bad ? `<div class="lg-panel">${downCard(196)}</div>` : blocks();
   else if (!got.data.length) body = `<div class="lg-panel">${stateCard({ icon: 'clock', title: 'Leaders start after the first games', text: 'ESPN lists qualified players once the season is under way.', top: 210 })}</div>`;
   else {
@@ -80,8 +80,14 @@ function draw() {
   }
   setHtml($('.ld-note-box'), note);
   setHtml($('.ld-body'), body);
+  // the card and rows: ◀ back to the selected category; ▼ past the last row to the note's pill (Reveal, Try again)
   const col = $('.ld-col');
-  if (col) col.navHook = (dir) => (dir === 'left' ? focus($(`.nb-cats [data-cat="${cat}"]`)) : dir === 'right' ? false : undefined);
+  if (col) col.navHook = (dir, cur) => {
+    if (dir === 'left') return focus($(`.nb-cats [data-cat="${cat}"]`));
+    if (dir === 'right') return false;
+    if (dir === 'down' && cur === [...col.querySelectorAll('.fx')].pop()) { const to = $('.ld-note-box .fx'); return to ? focus(to) : false; }
+    return undefined;
+  };
 }
 
 function pick(k, { now = false } = {}) {
@@ -105,9 +111,11 @@ export default {
     root.classList.add('lg', 'lg-ld');
     root.innerHTML = '<div class="nb-cats" data-col></div><div class="ld-note-box"></div><div class="ld-body"></div>';
     // ▶ from the column goes to the card; ◀ from the card or a row goes back to the selected category
-    $('.nb-cats').navHook = (dir) => {
+    $('.nb-cats').navHook = (dir, cur, repeat) => {
+      if (dir === 'up' && repeat && cur === $('.nb-cats .nb-cat')) return false;   // a held key stops at the top of the list
       if (dir === 'right') { const to = $('.ld-col .nb-lead') || $('.ld-body .fx'); return to ? focus(to) : false; }
       if (dir === 'left') return false;
+      if (dir === 'down' && cur === $('.nb-cats .nb-cat:last-child')) { const to = $('.ld-note-box .fx'); return to ? focus(to) : false; }
       return undefined;
     };
     root.addEventListener('tvfocus', (e) => {
@@ -127,7 +135,7 @@ export default {
       const n = e.target.closest('[data-key]'), p = n && playerOf(n);
       if (p) contextMenu(n, [{ icon: 'chevR', label: `${names(p.abbr).name} page`, run: () => push('team', { abbr: p.abbr }) }]);
     });
-    on('league', (k) => { if (k === keyOf(cat) || k === 'pin' || k.startsWith('schedule:')) { draw(); if (ctx.visible()) ctx.meta(); } });
+    on('league', (k) => { if (k === keyOf(cat) || k === 'pin' || k === 'standings' || k.startsWith('schedule:')) { draw(); if (ctx.visible()) ctx.meta(); } });
     on('nba', draw);
     on('player-closed', () => { if (behind) { behind = false; draw(); } });
     onFinal((g) => { if (isMine(g)) setTimeout(() => want(keyOf(cat), { force: true }), 5 * 60e3); });   // 5 min after your team's final
@@ -137,6 +145,7 @@ export default {
     const k = params?.cat && CATS.some((x) => x.key === params.cat) ? params.cat : null;
     if (k) cat = k;
     want(keyOf(cat));
+    want('standings');                              // (the season's name for the note)
     if (favTeam()) want(`schedule:${favTeam()}`);   // the shield needs your team's games
     clearInterval(tick);
     // every minute: want() fetches when the list is over an hour old, or when the last try failed (ESPN down: 60 s)

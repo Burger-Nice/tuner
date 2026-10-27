@@ -33,6 +33,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const cap = document.querySelector('.hero-btns .clamp2'); if (cap && /Until/.test(cap.textContent)) cap.innerHTML = 'NBA League Pass 4<br>Kept until Thu 29 Oct · late';   // the v1.1 caption
       const pos = document.querySelector('.cu-pos span'); if (pos && document.querySelector('meta[name="shield"]')) pos.textContent = 'Live is in Q2';
     });
+    if (injectV10) await p.evaluate(() => { const c = document.querySelector('.cu-check'); if (!c) return; [...c.querySelectorAll('.btn2')].filter((b) => /Not sure/.test(b.textContent)).forEach((b) => b.remove()); });   // the v1.2 card had no Not sure
     if (inject) await p.evaluate(() => { if (!document.querySelector('meta[name="shield"]')) return; const s = document.querySelector('.screen'); s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112 · −12:40</div><div style="position:absolute;left:300px;top:52px;font:500 16px Inter;color:#F3EFE6;z-index:30">Grizzlies vs Jazz 2026-10-26</div><div style="position:absolute;left:300px;top:74px;font:500 16px Inter;color:#F3EFE6;z-index:30">Jazz 118:112</div><span class="btn2 f" style="position:absolute;left:600px;top:470px;z-index:30">Reveal score</span>'); });
     const r = await p.evaluate(() => {
       const SAFE = { l: 48, r: 912, t: 27, b: 513 }, TOL = 1.5;
@@ -164,6 +165,14 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         const sc = c.classList.contains('f') ? (q.width - c.offsetWidth) / 2 : 0;   // a lifted control may grow past its row by its own lift
         const out = Math.max(inner.l - q.left - sc, q.right - inner.r - sc, inner.t - q.top - sc, q.bottom - inner.b - sc);
         if (out > 1) issues.clip.push(`CONTAIN: ${short(c)} "${(c.textContent || '').trim().slice(0, 24)}" pokes ${out.toFixed(0)} px out of ${short(box)}`);
+      }
+      // ---- catch-up v1.3: CHECK, the first-replay card (review 3, M1): it shows what it plays (title, time, description),
+      // always offers a way out that stores nothing ("Not sure"), and never uses a sports channel (it must not show a score)
+      for (const c of document.querySelectorAll('.cu-check')) {
+        const t = c.textContent;
+        if (!/Not sure/.test(t)) issues.overlap.push('CHECK: the first-replay card has no "Not sure"');
+        if (!c.querySelector('.cu-prog .a') || !c.querySelector('.cu-prog .b') || !c.querySelector('.cu-prog .c')) issues.overlap.push('CHECK: the first-replay card must show the programme title, time and description');
+        if (/sport|nba|espn|league pass|tnt|dazn/i.test(c.querySelector('.cu-prog .b')?.textContent || '')) issues.overlap.push('CHECK: the first-replay card uses a sports channel');
       }
       // ---- catch-up v1.2: TRUNC, a two-line caption cut by its clamp (the hero caption "Kept until Thu 29 Oct ·…")
       for (const e of document.querySelectorAll('.clamp2,.clamp3')) { if (e.closest('.rail,.art')) continue; if (e.scrollHeight > e.clientHeight + 1) issues.clip.push(`TRUNC: "${e.textContent.trim().slice(0, 30)}" is cut by its line clamp`); }

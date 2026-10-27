@@ -23,6 +23,11 @@ module.exports = async ({ p, shot, key, log }) => {
     console.log(label.padEnd(22), bad.length ? `SPOILER: ${bad.join(' | ').slice(0, 200)}` : 'no Grizzlies result shows');
   };
 
+  // the mocks' moment, Mon 26 Oct 23:40 (the fixtures' time): the Kings final of Sun is the Grizzlies' latest
+  await p.clock.install({ time: new Date('2026-10-26T23:40:00Z') });
+  // seen before Sun noon: Grizzlies at Kings (Sun night) is unseen once the shield is on (games.js reads seen once, at start)
+  await ev(() => localStorage.setItem('tuner.nbaSeen', JSON.stringify({ upTo: Date.parse('2026-10-25T12:00:00Z'), ids: [] })));
+  await p.reload(); await p.waitForTimeout(1200);
   await require('./signin.js')({ p, key });
   await p.waitForTimeout(3000);
   await ev(() => window.__tunerTest.go('nba')); await p.waitForTimeout(2000);
@@ -39,9 +44,9 @@ module.exports = async ({ p, shot, key, log }) => {
   await key('ArrowUp', 1, 300); await log('up: the body');
   await key('Escape', 1, 500); await log('back: closes'); console.log('reader'.padEnd(22), await reader());
 
-  // The shield, My team: the Grizzlies' finals of the last week unseen (Sat at the Warriors, Sun at the Kings)
+  // The shield, My team: Grizzlies at Kings (Sun) unseen
   // (through saveSettings, as the app does; then 'nba' so every surface redraws)
-  const shield = (mode) => ev(async (m) => { if (m === 'mine') localStorage.setItem('tuner.nbaSeen', JSON.stringify({ upTo: 0, ids: [] })); const st = await import('/tv/js/state.js'); st.saveSettings({ nbaTeam: 'MEM', shield: m }); st.emit('nba'); }, mode);
+  const shield = (mode) => ev(async (m) => { const st = await import('/tv/js/state.js'); st.saveSettings({ nbaTeam: 'MEM', shield: m }); st.emit('nba'); }, mode);
   await shield('mine');
   await key('Escape', 1, 400); await key('ArrowLeft', 1, 700); await key('ArrowRight', 1, 2500); await log('shield: News again');
   console.log((await rows()).join('\n'));
