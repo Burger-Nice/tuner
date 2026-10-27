@@ -71,7 +71,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   Don't make the repo private.
 - Design and brand work: a brand/UX agent designs, an independent reviewer scores it (out of 10), and it goes back
   below 7.5 (never tell the reviewer the bar). Brand and design history: `design/` (brand-v5, ui-v1/UI-SPEC.md, sound-v1).
-- Bug hunts and other report-only agent work run on a cheaper model that does it well (Sonnet), to save tokens.
+- Pick the model for the job: design and design reviews (judgement, quality first) on the strongest model (Opus); bug
+  hunts and other report-only checking on Sonnet, which does them well for fewer tokens.
 - Team colours are the teams' real colours. The sounds' design is final; they just have to play instantly.
 - The owner writes casually and tests on the real TV. Explain in plain words, say what you verified and what you
   couldn't, and ask before anything outward-facing.
