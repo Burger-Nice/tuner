@@ -336,7 +336,7 @@ public class PlayerActivity extends AppCompatActivity {
                 }
                 if (s == Player.STATE_ENDED && !live && !player.hasNextMediaItem()) finish();
                 // A live stream the server closed, or one stuck buffering: reconnect instead of freezing.
-                if (live && s == Player.STATE_ENDED) reconnect();
+                if (live && s == Player.STATE_ENDED) { quietTry = true; reconnect(); }   // (the puck covers a routine one; the card only if it doesn't come back)
                 if (live && s == Player.STATE_BUFFERING && played) handler.postDelayed(stall, 12000);
             }
             // Live: whenever the picture isn't moving (a stall, a pause, the Assistant taking the sound for a moment), it falls
@@ -1476,7 +1476,9 @@ public class PlayerActivity extends AppCompatActivity {
         nextTryAt = SystemClock.uptimeMillis() + wait;
         toast.setVisibility(View.GONE);
         card.setVisibility(View.GONE);
-        if (!cardUp && open == null) {
+        boolean quiet = quietTry && retries <= 1;
+        quietTry = false;
+        if (!cardUp && open == null && !quiet) {
             Diag.Cause c = cause != null && !"good".equals(cause.id) ? cause : Diag.checking(rd, what());
             if (!hidden(c)) showCause(c);
             if (!checkRunning) runChecks(false);
@@ -1485,6 +1487,7 @@ public class PlayerActivity extends AppCompatActivity {
         handler.postDelayed(retune, wait);
         updateRight();
     }
+    private boolean quietTry;
     private boolean limitEvidence() {
         int h = rd.http;
         return h == 458 || h == 509 || ((h == 401 || h == 403) && (rd.limitBody || Diag.closedRecently() || (rd.acct == 1 && rd.max > 0 && rd.active >= rd.max)));
@@ -1595,7 +1598,8 @@ public class PlayerActivity extends AppCompatActivity {
         }
         // Options' order is decided now (opening it dismisses the chip): Connection first while the card shows, second while
         // a diagnosis chip does (so ◀ OK OK still syncs), else under Quality
-        optOrder = cardUp && live ? 1 : chipUp && (chipKind == CHIP_STUTTER || chipKind == CHIP_OFFLINE) ? 2 : 0;
+        boolean opts = code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_MENU;
+        optOrder = !opts ? 0 : cardUp && live ? 1 : chipUp && (chipKind == CHIP_STUTTER || chipKind == CHIP_OFFLINE) ? 2 : 0;
         if (chipUp && !chipIsUpNext && !isOk(code)) hideChip();   // any other key dismisses the chip
         if (live) liveKey(code, repeat);
         else {
@@ -2042,7 +2046,7 @@ public class PlayerActivity extends AppCompatActivity {
     private final Map<String, Long> hiddenUntil = new HashMap<>();   // "channel:cause" → hidden until (Back on the card)
     private long stallStart;
     private int notRec;
-    private boolean versionsAsked, stallSlowStart;
+    private boolean versionsAsked, stallSlowStart, stallCounts;
     private boolean reconnecting, droppedWhilePaused, decoderRetried, stopped, netBackPending, wasOffline;
     private int limitTries, notFound, broken;
     private long nextTryAt, lastNetTune;
@@ -2131,7 +2135,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (forced) return;
         long now = SystemClock.uptimeMillis();
         if (rd.stalled) {
-            if (stallStart == 0) { stallStart = now; notRec = 0; stallSlowStart = !played; }
+            if (stallStart == 0) { stallStart = now; notRec = 0; stallSlowStart = !played; stallCounts = played && !reconnecting; }
             long el = now - stallStart;
             float target = live ? 6f : 5f;
             if (chipUp && chipKind == CHIP_OFFLINE && !rd.connected) { hideChip(); showCause(Diag.decide(rd, what(), title())); }   // the picture stopped: the chip becomes the card
@@ -2162,7 +2166,7 @@ public class PlayerActivity extends AppCompatActivity {
     /** "This keeps pausing": the third stall of half a second or more in 5 min while playing (not in the first 10 s after a
      * tune), once per channel per 15 min (30 after Back). */
     private void stallEnded(long dur) {
-        if (!live || dur < 500 || stallSlowStart || cur == null) return;
+        if (!live || dur < 500 || !stallCounts || cur == null) return;   // (a reconnect's own refill isn't a pause in the picture)
         long now = SystemClock.uptimeMillis();
         if (now - tunedAt < 10000) return;
         stalls.add(now);
@@ -2678,7 +2682,7 @@ public class PlayerActivity extends AppCompatActivity {
         hiddenUntil.clear();
         switch (n) {
             case "puck": puck.set(0.62f); puck.setVisibility(View.VISIBLE); return;
-            case "checking": showCause(Diag.checking(rd, what())); emitDiag(Diag.checking(rd, what()), "card"); return;
+            case "checking": showCause(Diag.checking(rd, what())); return;
             case "offline-chip": showOfflineChip(); return;
             case "stutter": tunedAt = SystemClock.uptimeMillis() - 60000; showStutter(Diag.decide(rd, what(), title())); return;
             case "panel": openConnection(); return;

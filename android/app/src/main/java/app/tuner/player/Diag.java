@@ -394,6 +394,7 @@ final class Diag {
         c.line = "Checking your " + (r.cable ? "connection" : "Wi-Fi") + ", internet and provider…";
         c.path.nodes(OK, r.connected ? OK : OFF, RUN, OFF, OFF).links(L_OK, L_RUN, L_OFF, L_OFF);
         c.verdict = "Checking…"; c.brief = "Checking…";
+        c.actions = new String[] { "feed" };   // on a game channel, the same game elsewhere from the moment it opens (3.1)
         return fin(c, r, what);
     }
 
