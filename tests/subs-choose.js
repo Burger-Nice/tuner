@@ -25,7 +25,7 @@ const { t, done } = runner('subs-choose');
   const c = O.choose(owner, { soundLang: 'English', inFile: [] }, files);
   t('his order: Icelandic shows, English is ready too', c.on?.lang === 'Icelandic' && c.on.source === 'opensubtitles' && c.ready[0] === 'English' && !c.missing.length);
   const plan = O.downloadPlan(owner, { soundLang: 'English', inFile: [] }, files);
-  t('the title page downloads 3 files: Icelandic, the best English, and a second English release for the timing pair', plan.files.length === 3 && plan.files[0].lang === 'Icelandic' && plan.files[1].id === '9767889' && plan.files[2].lang === 'English' && plan.files[2].release !== plan.files[1].release, plan.files.map((f) => `${f.lang} ${f.release}`).join(' | '));
+  t('the title page downloads 4 files: Icelandic, the best English, and two more English releases (each shown file gets a pair of others)', plan.files.length === 4 && plan.files[0].lang === 'Icelandic' && plan.files[1].id === '9767889' && plan.files.slice(2).every((f) => f.lang === 'English') && new Set(plan.files.map((f) => f.release)).size === 4, plan.files.map((f) => `${f.lang} ${f.release}`).join(' | '));
   t('no pair from Arabic (8 files, more than English) when his languages have one', plan.files.every((f) => f.lang !== 'Arabic'));
   // in the file first (an English track in the copy's file)
   const inFile = O.choose(owner, { soundLang: 'English', inFile: [{ lang: 'English', forced: false }, { lang: 'Spanish', forced: false }] }, files);

@@ -58,6 +58,10 @@ const { t, done } = runner('subs-timing');
   t('copy rate not known yet: the pair\'s 23.976 assumed (and said so), the fix as on a 23.976 copy', v.verdict === 'fixed' && near(v.speed, PAL) && v.why.assumedFps === true);
   v = T.checkFile(file('Icelandic'), { copyFps: 23.976, copyLen: 10800, others: [file('Will1869'), file('Will1869-HI')] });
   t('two files of one release are not a pair: "Timing not checked"', v.verdict === 'unchecked' && v.words === 'Timing not checked' && near(v.speed, 1) && v.offset === 0);
+  v = T.checkFile(file('WEB-DL MA'), { copyFps: 23.976, copyLen: 10800, others: [file('Icelandic'), file('Will1869')] });
+  t('a pair that agrees only after a speed change (Icelandic + Will1869) is no pair: "Timing not checked"', v.verdict === 'unchecked' && near(v.speed, 1));
+  v = T.checkFile(file('WEB-DL MA'), { copyFps: 23.976, copyLen: 10800, others: [file('Icelandic'), file('Will1869'), file('GalaxyRG')] });
+  t('... with GalaxyRG in, Will1869 + GalaxyRG are the pair: "Lined up with other subtitles"', v.verdict === 'pair' && v.why.pair.join() === 'Will1869,GalaxyRG');
   v = T.checkFile(file('Icelandic'), { copyFps: 23.976, copyLen: 10800, others: [] });
   t('no anchor: "Timing not checked", shown as downloaded', v.verdict === 'unchecked' && !v.anchored);
   // the fingerprint file as the anchor: any speed and offset, with a tick

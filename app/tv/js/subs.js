@@ -127,10 +127,16 @@ async function getList(q) {
   listFails.set(url, { n, next });
   return { ...r, retryAt: next, stale: old ? normalise(old.json, q) : null };
 }
+let fileIdx = null;   // id -> { at }, the files kept (one copy in memory: downloads run side by side)
+const saveIdx = () => {
+  const ks = Object.keys(fileIdx);
+  if (ks.length > FILE_MAX) ks.sort((a, b) => fileIdx[a].at - fileIdx[b].at).slice(0, ks.length - FILE_MAX).forEach((x) => { delete fileIdx[x]; Core.cache.set(`subs:file:${x}`, null); });
+  store.set('subsFiles', fileIdx);
+};
 async function getFile(f) {
   const k = `subs:file:${f.id}`;
-  const idx = store.get('subsFiles', {});
-  const hit = idx[f.id] && Date.now() - idx[f.id].at < FILE_KEEP ? await Core.cache.get(k) : null;
+  fileIdx = fileIdx || store.get('subsFiles', {}) || {};
+  const hit = fileIdx[f.id] && Date.now() - fileIdx[f.id].at < FILE_KEEP ? await Core.cache.get(k) : null;
   let text = hit?.text;
   if (text == null) {
     const r = await fetchFile(f.url);
@@ -138,12 +144,10 @@ async function getFile(f) {
     const p = parse(r.bytes, f.lang);
     if (!p.format) return { format: null, cues: [] };
     text = new TextDecoder().decode(r.bytes);
-    Core.cache.set(k, { text });
-    idx[f.id] = { at: Date.now() };
-  } else idx[f.id].at = Date.now();
-  const ks = Object.keys(idx);
-  if (ks.length > FILE_MAX) ks.sort((a, b) => idx[a].at - idx[b].at).slice(0, ks.length - FILE_MAX).forEach((x) => { delete idx[x]; Core.cache.set(`subs:file:${x}`, null); });
-  store.set('subsFiles', idx);
+    await Core.cache.set(k, { text });
+  }
+  fileIdx[f.id] = { at: Date.now() };
+  saveIdx();
   return parse(text, f.lang);
 }
 

@@ -127,8 +127,8 @@ export function choose(prefs, copy = {}, files = [], opts = {}) {
 
 // ---------- which files to download for the title page (SPEC 3.5: up to 4, about 1 MB) ----------
 // the best file of each of his first two languages that the copy's file doesn't have, plus the timing reference: the
-// fingerprint file (any language) or, failing that, two files of different releases (his languages first, then English,
-// then the most listed) so the check has a pair.
+// fingerprint file (any language) or, failing that, two more files of two other releases (his languages first, then
+// English, then the most listed) so every file shown has a pair of others to be checked against.
 export function downloadPlan(prefs, copy, files, opts = {}) {
   const c = choose(prefs, copy, files, opts);
   const want = [];
@@ -142,12 +142,14 @@ export function downloadPlan(prefs, copy, files, opts = {}) {
     // his languages first (a pair there is downloaded anyway), then English (the most timed), then the most listed
     const mine = [...(prefs.langs?.length ? prefs.langs : prefs.shown || []), 'English'];
     const order = [...counts.keys()].sort((a, b) => { const x = mine.indexOf(a), y = mine.indexOf(b); return (x < 0 ? 99 : x) - (y < 0 ? 99 : y) || counts.get(b).length - counts.get(a).length; });
+    // the pair: two releases that are neither each other's nor any file above's (each file is checked against two
+    // OTHER files that agree), with a known frame rate first (the reference is scaled by it)
+    const taken = new Set(want.map((f) => f.release));
     for (const lang of order) {
-      const fs = rankFiles(counts.get(lang), { copyFps: opts.copyFps || 0 });
-      const picked = want.filter((f) => f.lang === lang);
-      const rel = new Set(picked.map((f) => f.release));
-      for (const f of fs) { if (rel.size >= 2 || want.length >= 4) break; if (f.release && !rel.has(f.release)) { add(f); rel.add(f.release); } }
-      if (rel.size >= 2) break;
+      const fs = rankFiles(counts.get(lang), { copyFps: opts.copyFps || 0 }).filter((f) => f.release && !taken.has(f.release) && !want.includes(f)).sort((a, b) => (b.fps > 0) - (a.fps > 0));
+      const pick = [], rel = new Set();
+      for (const f of fs) { if (!rel.has(f.release)) { pick.push(f); rel.add(f.release); } if (pick.length === 2) break; }
+      if (pick.length === 2 && want.length <= 2) { pick.forEach(add); break; }
     }
   }
   return { choice: c, files: want };

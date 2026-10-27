@@ -33,6 +33,8 @@ module.exports = async ({ p, log }) => {
   });
   await require('./signin.js')({ p, key: global.ctx.key });
   await p.waitForTimeout(2500);
+  // his settings (SPEC 14): Always, Icelandic then English, Shown first English, Icelandic
+  await ev(() => { const s = JSON.parse(localStorage.getItem('tuner.settings') || '{}'); Object.assign(s, { langs: ['English', 'Icelandic'], subMode: 'always', subLangs: ['Icelandic', 'English'] }); localStorage.setItem('tuner.settings', JSON.stringify(s)); });
   const run = (req) => ev(async (req) => {
     const m = await import('/tv/js/subs.js');
     const t0 = performance.now();
@@ -43,7 +45,7 @@ module.exports = async ({ p, log }) => {
   }, req);
   let r = await run({ key: 'movie:opp', name: 'Oppenheimer', imdb: 'tt15398776', level: 'sure' });
   console.log('Oppenheimer, his settings:', JSON.stringify(r, null, 1));
-  console.log(r.pill === 'Subtitles: Icelandic' && /English ready too/.test(r.side) && r.files.some((f) => /^Icelandic .* fixed x1\.0427 \+0\.4$/.test(f)) ? 'HUB OK' : 'HUB WRONG');
+  console.log(r.pill === 'Subtitles: Icelandic' && /English ready too/.test(r.side) && r.files.some((f) => /^Icelandic .* fixed x1\.0427 /.test(f)) && r.files.filter((f) => / pair x1\.0000 \+0$/.test(f)).length === 3 ? 'HUB OK' : 'HUB WRONG');
   r = await run({ key: 'movie:opp', name: 'Oppenheimer', imdb: 'tt15398776', level: 'sure' });
   console.log('again (cached):', r.ms, 'ms, requests so far', lists, 'lists,', files, 'files');
   r = await run({ key: 'movie:x', name: 'Unknown', imdb: 'tt0000001', level: 'sure' });

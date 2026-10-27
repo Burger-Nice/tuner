@@ -103,8 +103,9 @@ export const WORDS = {
 const out = (verdict, fix, why = {}) => ({ verdict, anchored: verdict === 'made' || verdict === 'lined', speed: fix.speed, offset: fix.offset, skip: verdict === 'skip', words: WORDS[verdict], why });
 const NONE = { speed: 1, offset: 0 };
 
-// Two other files that agree: different releases, 0.4+ and 2x the wrong speeds between them. The first such pair in
-// the order given (the caller lists the best files first). -> { a, b, r } | null
+// Two other files that agree: different releases, 0.4+ and 2x the wrong speeds between them, AT THE SAME SPEED (a pair
+// that agrees only after a speed change can't say which of the two is timed for the copy's rate). The first such pair
+// in the order given (the caller lists the best files first). -> { a, b, r } | null
 export function findPair(files, cache = new Map()) {
   for (let i = 0; i < files.length; i++) for (let j = i + 1; j < files.length; j++) {
     const a = files[i], b = files[j];
@@ -112,7 +113,7 @@ export function findPair(files, cache = new Map()) {
     const k = `${a.id}|${b.id}`;
     if (!cache.has(k)) cache.set(k, compare(startsOf(a.cues), startsOf(b.cues)));
     const r = cache.get(k);
-    if (r.score >= ACCEPT && r.score >= RATIO * r.wrong) return { a, b, r };
+    if (!isPal(r.speed) && r.score >= ACCEPT && r.score >= RATIO * r.wrong) return { a, b, r };
   }
   return null;
 }
@@ -131,10 +132,10 @@ export function checkFile(file, ctx = {}) {
   const pool = others.filter((f) => f.id !== file.id && f.release !== file.release && f.cues?.length);
   const pair = findPair(pool, ctx.pairCache);
   if (pair) {
-    // The pair's own rate: the one of its files whose fpsMilli is known (the add-on's 23976 on most), with a pair that
-    // agrees at a PAL speed taken at the first file's. The copy's rate from the check; when it isn't known yet the
-    // pair's rate is assumed (most copies are 23.976) and the check runs again when the copy's rate arrives.
-    const pairFps = pair.a.fps || (isPal(pair.r.speed) ? 0 : pair.b.fps) || 23.976;
+    // The pair's own rate: its files' fpsMilli (the add-on's 23976 on most), else 23.976. The copy's rate from the
+    // check; when it isn't known yet the pair's rate is assumed (most copies are 23.976), said in `why.assumedFps`, and
+    // the check runs again when the copy's rate arrives.
+    const pairFps = pair.a.fps || pair.b.fps || 23.976;
     const copyFps = ctx.copyFps || pairFps;
     const k = pairFps / copyFps;                      // a 23.976 pair on a 25 fps copy: 23.976 / 25
     const ref = startsOf(pair.a.cues).map((t) => t * k);
