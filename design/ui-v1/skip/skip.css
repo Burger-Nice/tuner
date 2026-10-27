@@ -32,3 +32,12 @@
 
 /* ---------- Options > Skip intros (384 wide, as the subtitles' panels) ---------- */
 .nv-panel.sk-panel{width:384px}
+
+/* v1.2: the offer's keys on its second line; a key cap drawn at 40% until it binds (the guard) */
+.sk-chip small.sk-keys{display:flex;align-items:center;gap:4px;margin-top:2px;color:var(--a-text-1)}
+.sk-chip small.sk-keys .kbd{margin:0 2px 0 0;height:20px}
+.sk-sep{display:inline-block;width:10px}
+.kbd.sk-wait{opacity:.4}
+.nv-chip .sk-keycol{display:flex;flex-direction:column;gap:4px;flex:none}
+.nv-chip .sk-keycol>span{display:flex!important;align-items:center;gap:6px;font:500 14px/20px var(--a-font-text)!important;color:var(--a-text-1)!important}
+.nv-chip .sk-keycol .kbd{margin:0;height:20px;min-width:44px;justify-content:center}

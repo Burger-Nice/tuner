@@ -17,6 +17,23 @@
   "safe": 96.8
  },
  {
+  "f": "player-back-pill.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   119.6,
+   411,
+   151.6,
+   443
+  ],
+  "safe": 70
+ },
+ {
   "f": "player-options-skip.html",
   "el": ".nv-row.st-r",
   "inset": true,
@@ -27,9 +44,9 @@
   "min": 100,
   "ring": [
    59,
-   134,
+   80,
    421,
-   184
+   130
   ],
   "safe": 11
  },
@@ -45,7 +62,7 @@
   "ring": [
    59,
    368,
-   457,
+   421,
    412
   ],
   "safe": 11

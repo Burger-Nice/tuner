@@ -12,7 +12,12 @@
  {
   "file": "player-skipped.html",
   "title": "After a skip: the way back",
-  "note": "After every skip, pressed or by itself. S1 E2's 28 s intro was skipped; for 5 s OK goes back to its start (OK does nothing for the first 1.5 s). The two-line subtitle would touch the chip, so it rises to 8 above it."
+  "note": "After every skip, pressed or by itself. S1 E2's 27 s intro (1:18.9 to 1:45.9) was skipped; for 5 s of playing time from the first frame after the jump, OK goes back to its start (the key cap is dimmed for the first 0.5 s). The two-line subtitle would touch the chip, so it steps up to 8 above it."
+ },
+ {
+  "file": "player-back-pill.html",
+  "title": "Back to intro, with the controls up",
+  "note": "He paused 2 s after the skip. The way-back chip's life stops; the row has Back to intro in the Skip pill's place; focus stays on the seek thumb (OK plays). When the controls hide, the chip comes back with the 3 s it had left."
  },
  {
   "file": "player-recap.html",
@@ -22,21 +27,21 @@
  {
   "file": "player-upnext-credits.html",
   "title": "Up next when the credits start",
-  "note": "The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it in the downloaded subtitles. Up next comes at 21:28, counts 15 s and plays the next one. OK plays now, Back stays on this one."
+  "note": "The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it. Up next comes after 1.5 s without a key, counts 15 s and plays the next one. OK plays now (after 0.7 s); Back stops the count and keeps the queue."
  },
  {
   "file": "player-options-skip.html",
   "title": "Intros in this show",
-  "note": "OK on the Options row: this show's own choice. It wins over Account's Show a button and Skip automatically; Account's Off wins over it. Recaps follow their own rule (foot)."
+  "note": "OK on the Options row. Same as Account (the default) follows Account; a choice made here wins over it; Account's Off wins over everything. Recaps follow their own rule (foot)."
  },
  {
   "file": "player-offer.html",
   "title": "The offer: this show by itself",
-  "note": "Asked once per show, after he pressed Skip intro in 2 of its episodes, 10 s after the way-back chip went (never in an intro). 8 s; OK Yes; Back No; ignored, it asks once more after the next press."
+  "note": "After his Skip intro press in a second episode of the show, 10 s after the way-back chip went (never in an intro). 8 s of playing time. OK yes; Back not now (like letting it run out: asked once more, then never). The explicit No is in ▼ Options."
  },
  {
   "file": "player-options.html",
   "title": "Options in an episode",
-  "note": "▼ in an episode. Intros in this show is the last row (episodes only), with this show's value."
+  "note": "▼ in an episode. Intros in this show is the last row (episodes only), with this show's value (Same as Account until he picks one). The panel keeps the films' 384 width."
  }
 ]
