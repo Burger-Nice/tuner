@@ -1,4 +1,4 @@
-# airglow TV: subtitles that are always there, and real quality for every copy, v1.1
+# airglow TV: subtitles that are always there, and real quality for every copy, v1.2
 
 This is the design spec for the engineer. It extends `design/ui-v1/UI-SPEC.md` v1.2 (layout, type, focus, the native
 player's panels) and reuses the diagnosis rules (`design/ui-v1/diagnosis/SPEC.md`: a green tick only on something that
@@ -18,12 +18,131 @@ quality, shit like that".
 | File | What it is |
 |---|---|
 | `SPEC.md` | this |
-| `*.html` (18) | the mocks; `png/*.png` are their 2x renders, and `png/contact-sheet.png` shows all of them |
+| `*.html` (20) | the mocks; `png/*.png` are their 2x renders, and `png/contact-sheet.png` shows all of them |
 | `subtitles.css` | the new CSS, all prefixed `st-` (the TV parts go into `app/tv/app.css`; the player parts are measurements for native views) |
 | `tools/build.js` | builds the mocks |
 | `tools/render.js` | the PNGs and the contact sheet |
-| `tools/audit.js` | the self-check (section 12): the diagnosis audit plus 11 new checks |
-| `REVIEW-independent.md` | the review of v1.0 (6.8 / 10) that v1.1 answers |
+| `tools/audit.js` | the self-check (section 12): the diagnosis audit plus 12 new checks |
+| `REVIEW-independent.md`, `REVIEW-independent-2.md` | the reviews of v1.0 (6.8 / 10) and v1.1 (7.4 / 10) |
+| **`../copies/RANKING.md`**, `copies.js`, `copies-test.js` | **the one copy ranking, the one Play wait and the IMDb match levels, shared with the add-ons design** (this design owns them; section 5.4) |
+
+## v1.2 changes: an answer to every point of review 2
+
+**One shared file now.** The copy ranking, the one wait before Play and the IMDb match levels are no longer written in
+this spec or the add-ons spec. They are in **`design/ui-v1/copies/RANKING.md`**, which this design owns (the
+coordinator's decision), with the reference code `copies.js` and `copies-test.js` moved there from
+`design/ui-v1/addons/tools/`. Sections 3.2 and 5.4 here are now pointers. The same file also settles the add-ons
+review 2's M1 and M2 (series) and its S1 and S2.
+
+### Must fix
+
+**M1. The dub rule called every copy in his languages a dub. Accepted.**
+- **A dub** is now a copy whose sound language differs from the film's **original** language.
+- Cinemeta has no language field (checked), so the original is taken from the languages of the countries Cinemeta lists
+  (`RANKING.md` 5, `isDub()`), or from a name that says so ("Með íslensku tali"). When it can't be known, it isn't a dub.
+- **Verified on Cinemeta today:**
+
+| Copy | Countries | Verdict |
+|---|---|---|
+| The Lion King, English | United States | not a dub, so `detail-which-film` rightly asks |
+| The Lion King, Icelandic | United States | a dub |
+| Touch, English | Iceland, United Kingdom | not a dub |
+| Lamb, Icelandic | Iceland, Sweden, Poland, United States | not a dub |
+| Amélie, English | France, Germany | a dub |
+
+- **One sentence in 3.1 and section 8:** a dub's subtitles default to off, and it never asks which film. Every other copy
+  follows the setting, so Icelandic first shows Icelandic on English films.
+
+**M2. The pill-row text had no width limit, and two designs want the slot. Accepted.**
+- The row is 864 wide, so the slot ends by x 912, with an ellipsis as the last resort.
+- **One text, by priority:**
+  1. the time left (Resume);
+  2. the add-ons' "Still asking …";
+  3. the subtitles text.
+- A text that loses the slot is still in the Subtitles sheet.
+- **New mocks:** `detail-resume` ("1 h 12 min left" wins) and `detail-addon-asking` ("Still asking Kestrel" wins over
+  "OpenSubtitles isn't answering"; the pill itself says "none yet").
+- **The new SIDE check** fails a slot past 912, or one that is cut. With review 2's fault injected (`--inject-v11`) it
+  fires on all 8 slot pages.
+
+**M3. Two rankings, each claiming to win. Accepted.**
+- **`RANKING.md` is the one list,** taken from the reviewer's order:
+  1. a pin that hasn't failed **and plays now**;
+  2. the bands;
+  3. plays on this TV;
+  4. language in Shown-first order;
+  5. the cut, within a language;
+  6. class;
+  7. checked before unchecked;
+  8. kind, with unknown above TV;
+  9. range;
+  10. bitrate;
+  11. sound and subtitles in the file;
+  12. ties.
+- **The wait:** none for checks, on any account.
+- **`copies-test.js` has every case asked for:**
+  - the DTS-only English copy;
+  - a longer English cut vs a German dub of the main cut;
+  - unknown vs TV rip;
+  - Shown first both ways;
+  - a failed pin, and a pin with no sound right now;
+  - no wait on 3+ connection accounts;
+  - this design's Oppenheimer order.
+- **Also from the add-ons review 2:**
+  - one cut tolerance (5%);
+  - checked-before-unchecked between provider copies only;
+  - a size-based bitrate so the speed band reaches add-on copies;
+  - a speed under 7 days old;
+  - series Sure by TMDB / TVDB ids or by most episodes; a long episode as its own note;
+  - an episode "not ready" floor of 3 min;
+  - Atmos only when parsed; the bigger-file tie; 2+ rows within ± 1 year.
+- **Result:** 90 cases, 0 failed.
+
+### Should fix
+
+**1. Head-only MKVs. Accepted.**
+- The probe always sets `MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES` (it is in 1.6.0).
+- What head-only can read is now said: MKV, faststart MP4, TS without a duration.
+- `detail-which-film`'s copy is an MP4 with its index at the end, which is why its length is unknown.
+
+**2. The length bound vs the translator's credit. Accepted.**
+- The bound uses the last cue within 60 s of the one before, with 2% slack. Measured on the Icelandic file: the credit
+  would be at 3:00:14 after the fix, 395 s after the line before, so it is skipped. The last dialogue line is at
+  2:53:23, inside the 3 h 0 min copy.
+
+**3. Before the length is known. Accepted.**
+- 3.2 uses the add-ons' level names.
+- Subtitles download on **Sure and Likely**. A Likely match is re-checked when the length arrives, and dropped with
+  `These subtitles were for another film` if it is more than 8% off (`recheck()` in the tests).
+
+**4. One wording per shared piece. Accepted, settled in section 15.**
+- Version pill: quality, then the source when there are add-on copies.
+- Copies line 2: the source first, then the problem; the provider's name in quotes stays last, as the reviewer
+  suggested.
+- One "None of these" line: `Keep this copy only: no add-on copies, no downloaded subtitles`.
+
+**5. The migration, in plain words. Accepted.**
+- 6.2 and 14.2 say that until he answers, English films show no subtitles. The answer is needed **before release**.
+
+**6. A pinned copy that stops playing. Accepted.**
+- The pin stays. Play uses the next copy, and the Copies row says `Your pick has no sound on this TV right now`, or
+  `Your pick didn't play this time` (`RANKING.md` 2.1, tested).
+
+**7. The offset of an unanchored speed fix. Accepted, applied.**
+- With a speed fix, the offset found at that speed comes with it (the Icelandic file: +0.4 s), since nothing better is
+  known.
+- At the right speed, an unanchored offset still moves the file only when it is 2 s or more.
+
+**8. Untagged tracks. Accepted.**
+- The row reads "Probably English" / "Its file doesn't say the language", with no tick.
+
+### Nits
+All are fixed:
+- the FHD copy is 6.6 Mb/s;
+- the HEVC SPS: find NAL type 33 and pass it without its start code (5.1.4);
+- "Couldn't check: your provider doesn't allow a quick look";
+- episodes skip the ± 8% length check (`RANKING.md` 4.3);
+- 384 for `player-sources` is asked of the add-ons design in section 15, with its audit.
 
 ## v1.1 changes: an answer to every review point
 
@@ -180,7 +299,7 @@ carry (add-ons review M2).
 - The only wait before Play is the add-ons' one (5.4).
 
 **12. When the best copy fails. Accepted.**
-- The diagnosis design's failure card gets a "Try the next copy" row, naming it ("1080p · 6.7 Mb/s · Dolby Digital
+- The diagnosis design's failure card gets a "Try the next copy" row, naming it ("1080p · 6.6 Mb/s · Dolby Digital
   5.1"). OK plays rank 2 from where you were.
 - After two copies fail, it's the card's normal end.
 
@@ -266,7 +385,7 @@ All are fixed:
 | Copy (provider's name) | What the check finds | Rank |
 |---|---|---|
 | `EN\| Oppenheimer 4K` | 3840 × 1600, HDR10, picture 15 Mb/s, Dolby Digital Plus 5.1, 21.6 GB, no subtitles in the file | 1, Best |
-| `EN\| Oppenheimer FHD` | 1920 × 800, picture 6.7 Mb/s, Dolby Digital 5.1, 9.8 GB, English and Spanish in the file | 2 |
+| `EN\| Oppenheimer FHD` | 1920 × 800, picture 6.6 Mb/s, Dolby Digital 5.1, 9.8 GB, English and Spanish in the file | 2 |
 | `EN\| Oppenheimer (2023) 4K UHD` | 1920 × 800, picture 2.8 Mb/s, stereo, 4.1 GB: **named 4K, really 1080p** | 3 |
 | `MULTI\| Oppenheimer 2160p DV` | 3840 × 2160, Dolby Vision, picture 22 Mb/s, DTS-HD 5.1 as its only sound | 4 (no sound on this TV) |
 
@@ -350,38 +469,31 @@ For each of your subtitle languages, in your order, the first of these that exis
 | Only when the sound isn't in your language | the same, when the copy's sound isn't one of "Shown first" |
 | Off | nothing (the panel still lists them) |
 
-**The dub rule (should-fix 7):** when the copy's sound is one of your languages, only subtitles **in that same
-language** show by default.
+**A dub** is a copy whose sound language differs from the film's original language (`RANKING.md` 5: the original is
+taken from Cinemeta's countries, and when it can't be known it isn't a dub). **A dub's subtitles default to off, and a
+dub never raises the which-film ask.** Every other copy follows the setting above. An English copy of an American film
+with Icelandic first in Subtitle languages shows Icelandic.
 
 The other languages are fetched in the background and wait in the panel; "Icelandic ready too" says so.
 
-### 3.2 The IMDb id (strict: for subtitles and copies)
-1. **The provider's own ids:** a `tt\d{7,8}` in `get_vod_info` / `get_series_info`, if any. And `info.tmdb_id`, kept
-   for step 5.
-2. **The ratings file, v2.**
-   - `build-ratings.js` adds the tconst as the row's 7th field; this costs about 0.6 MB on today's 3.0 MB.
-   - **A strict index:** key + year ± 1, and the original-title key as well.
-   - A key with 2 or more rows is "unsure" without a year.
-   - Today's loose `matchImdb()` stays for the star rating only.
-3. **Cinemeta search** (`/catalog/{movie|series}/top/search=<cleaned name>.json`), top 5, for anything step 2 didn't
-   settle.
-   - **with a year:** within ± 1, and names sharing ≥ 60% of words (or the top result sharing ≥ 1 word);
-   - **with no year:** a single exact name.
-   - Verified: "Philosopher's Stone" (2001) → Sorcerer's Stone; "Leitin að Nemo" (2003) → Finding Nemo.
-4. **Length check, for every candidate from any step:** Cinemeta `/meta/movie/{tt}.json` `runtime` within ± 8% of the
-   copy's checked length. When several candidates remain, exactly one within ± 5% (others more than 10% away) is
-   accepted.
-5. **TMDB check:** `info.tmdb_id` equal to the meta's `moviedb_id` confirms a candidate or picks among them.
-6. **Ask** (`detail-which-film`, `detail-match`) only when steps 1 to 5 leave it open, and never for a dub (the sheet's
-   "Not this film?" still works). The answer is remembered per title and serves add-on copies too.
+### 3.2 The IMDb id: `RANKING.md` 4
+**The match lives in one place, `design/ui-v1/copies/RANKING.md` 4,** with its levels **Sure / Likely / Unsure** (the
+add-ons design's names) and the code in `copies.js` `matchLevel()`.
 
-**Series:**
-- The episode id is `tt…:season:episode`.
-- The series is matched as above, with the year when the provider gives one.
-- Cinemeta `/meta/series/{tt}.json` (25 KB, every episode) checks that the episode exists. If it doesn't, the episode
-  uses the file's own subtitles only.
+**What subtitles do with each level:**
 
-**One matcher for the app:** this section is the add-ons design's 4.4 as well.
+| Level | Subtitles |
+|---|---|
+| **Sure** | downloaded and offered |
+| **Likely** (one year-matched row, no checked length yet) | downloaded and offered. When the copy's length arrives: within 8% it becomes Sure; more than 8% off, the downloads are dropped with one line in the sheet and the panel, `These subtitles were for another film` |
+| **Unsure** | none: the file's own only, and the pill reads `Subtitles: which film is it?` (never for a dub) |
+
+**Series and episodes** are in `RANKING.md` 4.3:
+- Sure by TMDB / TVDB ids, his pick, or most episodes' lengths;
+- a long episode is only that episode's note, never the series';
+- episodes skip the length check.
+
+The episode id is `tt…:season:episode`, and the episode must exist in Cinemeta's `videos[]`.
 
 ### 3.3 Ranking OpenSubtitles files within a language
 Each file's fields: `{ id, url, lang, m, g, SubEncoding, subtitleFileName, movieReleaseName, releaseGroup, fpsMilli,
@@ -414,7 +526,7 @@ Danish `dan`; Finnish `fin`; Polish `pol`; Turkish `tur`; Arabic `ara`; Hindi `h
 | Anchor | Reference | Speed | Offset applied | Verdict words | Tick |
 |---|---|---|---|---|---|
 | Fingerprint file (`m:"h"`, any language) | that file | any of the 7 speeds | any | "Lined up with this copy" (or "Made for this copy" for the file itself) | yes |
-| Copy's frame rate + length, plus two other files that agree (different releases, ≥ 0.4 and 2× rule between them) | the pair, scaled to the copy's frame rate | the one that fits the copy's rate | only if ≥ 2 s | "Lined up with other subtitles"; when a speed fix was needed, "Timing fixed to fit this film" | no |
+| Copy's frame rate + length, plus two other files that agree (different releases, ≥ 0.4 and 2× rule between them) | the pair, scaled to the copy's frame rate | the one that fits the copy's rate | **with a speed fix: the offset found at that speed** (the Icelandic file: +0.4 s), because nothing better is known; **at the right speed: only if ≥ 2 s** (releases differ by up to 0.7 s) | "Lined up with other subtitles"; with a speed fix, "Timing fixed to fit this film" | no |
 | None | – | none | none | "Timing not checked" (and the chip, 7.6) | no |
 
 **2. Search:**
@@ -426,7 +538,10 @@ Danish `dan`; Finnish `fin`; Polish `pol`; Turkish `tur`; Arabic `ara`; Hindi `h
 - the best ≥ 0.4;
 - the best ≥ 2 × the best wrong speed;
 - each third ≥ 0.3;
-- the last cue, after the fix, starts before the copy's end.
+- **the length bound:** the last cue that is within 60 s of the one before it (so a translator's credit doesn't count)
+  starts, after the fix, before the copy's end + 2%. The Icelandic file: its credit "Þýðandi: Haraldur Jóhannsson"
+  would be at 3:00:14 after the fix, 395 s after the line before; the bound uses the last dialogue line, 10,403 s =
+  2:53:23, inside the 3 h 0 min copy (measured).
 
 **4. Otherwise:**
 - with an anchor, below 0.25 → the file is skipped and the next one is tried (up to 3);
@@ -449,11 +564,12 @@ The fix is stored with the file, and your steps are added on top. "Undo my chang
   about 1 MB. They're kept 30 days, 80 files, least recently used out first.
 - **Lists:** one request per title or episode. Kept 2 days; retried after 60 s, then every 5 min.
 
-## 4. The title page (`detail-ready`, `detail-checking`, `detail-copies`, `detail-subs-sheet`, `detail-which-film`, `detail-match`, `detail-subs-down`, `detail-series`)
+## 4. The title page (`detail-ready`, `detail-checking`, `detail-resume`, `detail-addon-asking`, `detail-copies`, `detail-subs-sheet`, `detail-which-film`, `detail-match`, `detail-subs-down`, `detail-series`)
 
 - **Layout:** as today (`detail.js`): the column at x 48, y 44, 500 wide; Play and Save; the pill row (y 306 to 342).
-- **The pill row's text** (`.st-side`, 14/18 `text-2`) sits after the pills on the same row, in the space the row
-  already has (x about 511 to 805 in `detail-ready`).
+- **The pill row's slot** (`.st-side`, 14/18 `text-2`) sits after the pills on the same row. The row is 864 wide, so
+  the slot ends by x 912. It shows **one** text, by priority (4.2): `detail-resume`, `detail-addon-asking`. A text that
+  loses the slot is still in the Subtitles sheet. The SIDE check fails a slot that is cut.
 - **More like this** stays at 366 / 400.
 
 ### 4.1 The meta line's tags
@@ -467,7 +583,7 @@ The fix is stored with the file, and your steps are added on top. "Undo my chang
 |---|---|---|---|
 | **Version pill** (2+ copies, or 1 while a stream add-on is still asking: add-ons 5.1) | tick + real quality + "best of N" ("4K HDR10 · best of 4"), or "your pick" · checking: dashed "Checking copies · 2 of 4" · checks paused: "4K · not checked" | the Copies menu | row: Subtitles pill; ▲ Play; ▼ More like this |
 | **Subtitles pill** | "Subtitles: English" (the one that will show) · "Subtitles: Off" · "Subtitles: looking…" (dashed) · "Subtitles: none found" · "Subtitles: none yet" (dashed, add-on down) · "Subtitles: which film is it?" | the Subtitles sheet, or the match menu for "which film" | as today |
-| **Pill-row text** (no focus) | "From OpenSubtitles · Icelandic ready too" · "In the file · Icelandic from OpenSubtitles" · "No Icelandic for this film" · "OpenSubtitles isn't answering · trying again at 21:31" · "Two films are called The Lion King" · while checking: a 56 px progress line + "Checking what each copy really is" | – | – |
+| **Pill-row slot** (no focus; one text, x up to 912, ellipsis as a last resort: v1.2 M2) | **by priority, the first that applies:** 1 the time left on a Resume (`1 h 12 min left`, today's `leftText`), 2 the add-ons' `[spinner] Still asking Kestrel`, 3 this design's text: | "From OpenSubtitles · Icelandic ready too" · "In the file · Icelandic from OpenSubtitles" · "No Icelandic for this film" · "OpenSubtitles isn't answering · trying again at 21:31" · "Two films are called The Lion King" · while checking: a 56 px progress line + "Checking what each copy really is" | – | – |
 | **Play** | as today, and never waits for a check (5.4) | plays rank 1 | as today |
 
 ### 4.3 The Copies menu (`detail-copies`, `.menu.st-copies`, left 48, top 40, 600 wide; shared with add-ons)
@@ -480,7 +596,12 @@ The fix is stored with the file, and your steps are added on top. "Undo my chang
     sound, size, and the name in quotes, ellipsised last;
   - **right:** `Best` on rank 1.
 - **Not checked:** no tick, the name's claim, "Not checked yet". **Couldn't check:** "Couldn't check: your provider
-  was busy" / "…doesn't allow partial reads".
+  was busy" / "Couldn't check: your provider doesn't allow a quick look".
+- **A pin passed over** (`RANKING.md` 2.1): its row says `Your pick didn't play this time` or `Your pick has no sound on
+  this TV right now`, and stays pinned.
+- **Line 2 with add-on copies:** the source leads (`Your provider ·`), then the problem, then the rest. The provider's
+  name in quotes stays last on provider rows: it is how he recognises "the 4K UHD one", and it is the provider's
+  label, not a file name.
 - **Foot:** "Mb/s is the picture's share. Picking a copy keeps it for this film."
 - **Keys:**
   - ▲▼ move; OK picks and closes (focus back on the pill); Back closes.
@@ -499,7 +620,8 @@ The fix is stored with the file, and your steps are added on top. "Undo my chang
 - **Under the title:** "From the Cinemeta search for “<name>” · this copy runs 1 h 58 min", or "· this copy's length is
   unknown".
 - **Rows:** title / year · length · director, from one `/meta` per row.
-- **Then:** "Search by another name / On the keyboard" and "None of these / Use only the subtitles in the file".
+- **Then:** "Search by another name / On the keyboard" and "None of these / Keep this copy only: no add-on copies, no
+  downloaded subtitles" (one line for both designs).
 - **Focus:** the row closest in length; with no length, the first result.
 - **Foot:** "Your pick is remembered for this title, for subtitles and copies alike."
 
@@ -515,16 +637,22 @@ The fix is stored with the file, and your steps are added on top. "Undo my chang
 ### 5.1 What is read (native `Probe.java`)
 **1. Head:** `Range: bytes=0-65535`. Read at most 64 KB, then close.
 - **206:** the size comes from `Content-Range`.
-- **200 (no partial reads):** keep the 64 KB, take the size from `Content-Length`, and skip the tail. The tracks still
-  parse (an MKV's are in the first 5 KB); there is no fingerprint, and the copy is marked "doesn't allow partial
-  reads".
+- **200 (no partial reads):** keep the 64 KB, take the size from `Content-Length`, and skip the tail. There is no
+  fingerprint, and the copy is marked "your provider doesn't allow a quick look".
+  - **What a head-only check can read:** MKV (tracks and duration, from the Info element), faststart MP4 (`moov` at the
+    start), TS (tracks, no duration).
+  - **What it can't:** an MP4 with its `moov` at the end. `detail-which-film`'s copy is one of these, so its length is
+    unknown.
 
 **2. Tail:** `Range: bytes=<size−65536>-<size−1>`.
 - It must be a **206 whose `Content-Range` names that range**. Anything else aborts the check, "Couldn't check": a 200
   would hand over the file's first 64 KB as its last.
 
 **3. Parse:** prepare a `ProgressiveMediaSource` over `ProbeDataSource`, a data source that serves the head and tail
-from memory and HTTP for the rest.
+from memory and HTTP for the rest. Use a `DefaultExtractorsFactory` with
+**`setMatroskaExtractorFlags(MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)`**, always (it exists in 1.6.0). mkvmerge
+puts the Cues after the clusters, and seeking there would reopen the file from byte 0 on a server without partial reads
+and hit the 1 MB cap. A probe never needs the Cues: the duration comes from the Info element.
 - `prepareSource()` gives the Timeline and its duration; `createPeriod()` + `MediaPeriod.prepare()` give the track
   groups. That is what `MetadataRetriever` does internally; its 1.6.0 API returns only the track groups.
 - Release everything after.
@@ -535,7 +663,8 @@ from memory and HTTP for the rest.
 - width, height, frame rate;
 - **HDR:**
   - `colorInfo.colorTransfer`, or, when it's empty on HEVC, `NalUnitUtil.parseH265SpsNalUnit` on
-    `initializationData` (`H265SpsData.colorTransfer`, present in 1.6.0): ST2084 = HDR10, HLG = HDR;
+    `initializationData` (`H265SpsData.colorTransfer`, present in 1.6.0). In MKV that is one buffer of start-coded VPS /
+    SPS / PPS: find the NAL of type 33 first and pass it without its start code: ST2084 = HDR10, HLG = HDR;
   - Dolby Vision from its MIME type;
 - **sound tracks:** MIME, channels, language;
 - **text tracks:** language, forced flag, and whether the Matroska TrackEntry had a Language element (from the head
@@ -581,42 +710,15 @@ from memory and HTTP for the rest.
 - **Cache:** `Core.cache`, key `<account>:<kind>:<stream id>`, about 300 B each. Kept 60 days; checked again when the
   size or ETag seen at play start changes. 20,000 entries, least recently used out first.
 
-### 5.4 Shared with add-ons: the copy ranking and the one wait before Play
-**This is one rule for the whole app:** `defaultVersion()`, the Copies menu, the player's Quality panel and Play. The
-add-ons spec carries the same text in its "Shared with subtitles" section; if the two ever differ, this list wins.
-
-**The ranking:**
-1. **Your pinned copy** for this title (`pickVersion`), if any.
-2. **Plays on this TV** (5.2).
-3. **The cut:** the copies of the main cut (IMDb's runtime ± 8%, else the most common length). Other cuts only by hand.
-4. **Sound language,** in your "Shown first" order (from the check; before it, the name's or the add-on's language).
-5. **Picture class:**
-
-| Class | Rule |
-|---|---|
-| 4K | width ≥ 3200 or height ≥ 1600 |
-| 1080p | width ≥ 1800 or height ≥ 1000 |
-| 720p | width ≥ 1200 |
-| SD | the rest |
-| unknown | unchecked, with no claim |
-
-   A copy drops a class when its picture's share is under 8 Mb/s (4K) or 2.5 Mb/s (1080p).
-6. **Kind** (add-on copies say it; provider copies count as unknown): Blu-ray > web > unknown > TV. **A cinema
-   recording ranks below every copy that plays.**
-7. **HDR:** Dolby Vision (when the TV plays it) > HDR10 > HDR (HLG) > none.
-8. The picture's bitrate.
-9. **Sound:** 7.1 > 5.1 > stereo.
-10. Subtitles in the file in your languages.
-11. **Ties:** the provider first, then add-ons in their Account order.
-
-**Unchecked copies** rank by their name's or add-on's claim, below checked copies of the same class.
-
-**The one wait:**
-- **Play never waits for a copy check** on any account. A check that finishes later is for the next Play.
-- **The only wait** is the add-ons' (their 5.5). When the best copy in hand isn't 4K and a stream add-on hasn't
-  answered, Play waits up to **4 s from the press**, with one caption on the button ("Playing in 3 s"); OK plays now;
-  Back stops.
-- Nothing else adds to it.
+### 5.4 The copy ranking and the one wait before Play: `RANKING.md` 2 and 3
+**One file for the whole app:** `design/ui-v1/copies/RANKING.md`. This design owns it; the add-ons design's 5.0 points
+to it. This section holds no list of its own.
+- **The order:** a pin that hasn't failed and plays now → the bands → plays on this TV → sound language in Shown-first
+  order → the cut (one tolerance, 5%) → class → checked before unchecked (provider copies only) → kind (Blu-ray > web >
+  unknown > TV) → range → bitrate → sound and subtitles in the file → ties.
+- **The wait:** Play never waits for a copy check, on any account. The only wait is up to 4 s for stream add-ons still
+  asking, below 4K.
+- **The proof:** `copies.js` and `copies-test.js` (90 cases, including this design's Oppenheimer copies a, b, c, d).
 
 ## 6. Around the app
 
@@ -641,7 +743,7 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 
 | Today's `subLang` | Becomes |
 |---|---|
-| `auto` (the default) | Only when the sound isn't in your language (until 14.2 is answered) |
+| `auto` (the default) | Only when the sound isn't in your language, **until the owner answers 14.2, which must be before release**. In plain words: until he answers, English films show no subtitles. That is today's behaviour on files without English subtitles, but not what the mocks assume ("Always") |
 | `off` | Off |
 | a language | Always, with that language first in Subtitle languages |
 
@@ -660,7 +762,7 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 |---|---|---|
 | Off (44) | radio | off for this title; closes |
 | IN THE FILE (head 30) | only if the file has any | – |
-| a file track (50) | language / tick "Made for this copy" (or "Untagged track · probably English") | picks it (`pickText`) and closes |
+| a file track (50) | language / tick "Made for this copy". An untagged one: "Probably English" / "Its file doesn't say the language", no tick (the language isn't checked) | picks it (`pickText`) and closes |
 | FROM OPENSUBTITLES (head) | only if any were found | – |
 | a downloaded file (50) | language (+ ", with sounds") / its verdict (3.4), a tick only when anchored | picks it and closes with `showText` "Icelandic subtitles on · ▼, then Subtitles for timing" |
 | ↳ Early or late (44, indented 40) | only under the downloaded subtitle that's on; value "As downloaded" / "1.5 s later" | the strip (7.3) |
@@ -704,7 +806,7 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 | Add-on down (`player-subs-down`) | "OpenSubtitles isn't answering / Tried at 21:31. Trying again at 21:32", Try now (focused), "Other copies of this film · 1 has English in its file" (opens Quality) |
 | None anywhere | disabled "None in this copy's file", "Nothing on OpenSubtitles for this film"; CC shows today's "This video has no subtitles" |
 | A file fails to parse, or is off against an anchor | skipped; the next is tried, up to 3 |
-| The copy fails or keeps stalling | the diagnosis failure card adds "Try the next copy · 1080p · 6.7 Mb/s · Dolby Digital 5.1"; OK plays rank 2 from where you were |
+| The copy fails or keeps stalling | the diagnosis failure card adds "Try the next copy · 1080p · 6.6 Mb/s · Dolby Digital 5.1"; OK plays rank 2 from where you were |
 
 ### 7.7 Options > Quality (`player-quality`, 384 wide)
 - **Rows:**
@@ -722,15 +824,17 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 |---|---|---|
 | Checks running | dashed tags, "Checking copies · n of N", progress + "Checking what each copy really is" | – |
 | Checks waiting (streams in use, refusals, budget) | "4K · not checked"; Copies "Not checked yet" | Quality rows "not checked" |
-| Head-only (no partial reads) | tags checked; no fingerprint; Copies "…doesn't allow partial reads" | same |
+| Head-only (no partial reads) | tags checked (MKV, faststart MP4, TS); no fingerprint; Copies "Couldn't check: your provider doesn't allow a quick look" only when the head says nothing | same |
 | Couldn't check | Copies "Couldn't check: your provider was busy" | same |
 | A copy can't play here | ranked below every copy that plays, with the reason | same |
 | Named 4K, really 1080p | tag "1080p" filled; Copies "Named 4K" | same |
 | A different cut | Copies "Longer cut · 3 h 20 min"; never chosen by "Always the best" | same |
 | Only one copy | no Version pill (unless an add-on is still asking) | Quality as today |
 | IMDb match unsure | "Subtitles: which film is it?" → the match menu | the file's own only |
-| A dub in your language | subtitles default off; no ask | – |
+| A dub (sound in another language than the film's, `RANKING.md` 5) | subtitles default off; no ask | – |
 | "None of these" | "Subtitles: none" or the file's own | the file's own only |
+| A Likely match turns out wrong (the length arrives 8% off) | downloads dropped; the sheet says `These subtitles were for another film`; the pill asks | the same line in the panel |
+| Resume, an add-on asking, and subtitles text all at once | the slot shows the time left; the rest is in the sheet | – |
 | Add-on down or slow (8 s) | "Subtitles: none yet", "OpenSubtitles isn't answering · trying again at hh:mm" | 7.6 |
 | Cinemeta down | the ratings path works; unsure matches wait, retried in 10 min | – |
 | Nothing found | "Subtitles: none found", "Not in the file, none on OpenSubtitles" | 7.6 |
@@ -859,7 +963,8 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
      descenders are cut (47 px of content in a 44 px box). A suggested task is queued for it.
    - **the VodControls time labels:** 14 px under the seek bar, so the thumb's ring at 0:00 clears the elapsed time.
 2. **Ratings v2** and the strict index (3.2).
-3. **`copies.js` + `Probe.java`:**
+3. **`copies.js` (port `design/ui-v1/copies/copies.js` as is, with its tests) + `Probe.java` (with
+   `FLAG_DISABLE_SEEK_FOR_CUES`):**
    - the queue and the connection rules;
    - the cache of formats;
    - the shared ranking (5.4), poster facets and `PREP`.
@@ -896,7 +1001,7 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 - CONTAIN; chip ≤ 420; panel ≤ 453; ellipsised panel text; one-line chip lines;
 - the RING pixel check.
 
-**This design's checks** (8 in v1.0, 3 more in v1.1):
+**This design's checks** (8 in v1.0, 3 more in v1.1, 1 more in v1.2):
 
 | Check | Fails when |
 |---|---|
@@ -911,17 +1016,21 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 | **RINGTEXT** (v1.1, M7) | a ring's full extent (6 px out) crosses text that isn't part of the focused element |
 | **RAILFOCUS** (v1.1, M4) | a focusable rail card would sit past y 513 (ring past 519) when focused |
 | **TICKGAP** (v1.1, S18) | a tick under 3.5 px from its text, or more than 3 px off its line |
+| **SIDE** (v1.2, review 2 M2) | the pill-row slot ends past x 912, or its text is cut (the mocks show the priority winner whole) |
 
 **Proved by injection:**
-- **`--inject-st`** (one fault of each kind in every mock): ONE 7, TICK 4, BEST 2, STEP 15, SOURCE 5, JARGON 15,
-  CLOCK 15, HUE 18, TICKGAP 4. The injected text sits under a scrim on the modal mocks, where the audit rightly skips
+- **`--inject-st`** (one fault of each kind in every mock): ONE 7, TICK 4, BEST 2, STEP 17, SOURCE 5, JARGON 17,
+  CLOCK 17, HUE 20, TICKGAP 4. The injected text sits under a scrim on the modal mocks, where the audit rightly skips
   it.
 - **`--inject-v10`** (the v1.0 faults put back):
   - RAILFOCUS fires on all 5 film pages ("would sit at y 539, ring 544");
   - RINGTEXT on the sheet ("crosses Your languages, 5 px");
   - TICKGAP on the panel ("0.0 px from its text, 7.0 px off its line").
+  - RAILFOCUS now fires on 7 film pages, the two new ones included.
+- **`--inject-v11`** (review 2's fault put back: two texts in the slot): SIDE fires on all 8 pages that have a slot.
+- **SOURCE was narrowed in v1.2.** "no downloaded subtitles", in the shared "None of these" line, isn't an offer.
 
-**Result: 18 pages, 0 findings.**
+**Result: 20 pages, 0 findings.** The shared ranking: `node ../copies/copies-test.js`, **90 cases, 0 failed**.
 
 **Found and fixed in v1.1:**
 - the sheet's note running past y 513;
@@ -931,7 +1040,8 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 
 | Mock | Focused | Ring white | Ring box | To the safe edge |
 |---|---|---|---|---|
-| detail-ready, detail-checking, detail-subs-down | Play | 100% | 45, 244, 173, 300 | −3.3 (lift from the left edge, as the app's `.d-col .btn`) |
+| detail-ready, detail-checking, detail-subs-down, detail-addon-asking | Play | 100% | 45, 244, 173, 300 |
+| detail-resume | Resume 1:47:58 | 100% | 45, 244, 261, 300 | −3.3 | −3.3 (lift from the left edge, as the app's `.d-col .btn`) |
 | detail-copies | Always the best copy | 100% | 56, 88, 640, 158 | 8 |
 | detail-subs-sheet | English | 100% | 508, 133, 896, 203 | 16 |
 | detail-which-film | Subtitles pill | 100% | 43, 275, 301, 321 | −5 (ring on the x 48 line; allowed to 6) |
@@ -962,8 +1072,10 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 1. **Outward-facing:** OK to send each title's IMDb id and the copy's fingerprint to Stremio's servers
    (`opensubtitles-v3.strem.io`, `v3-cinemeta.strem.io`)? It tells Stremio what he watches, not who he is. It is free,
    with no account; if it goes away, the file's own subtitles still work.
-2. **Subtitle languages:** English first, or Icelandic first when there is one? And "Always", or "Only when the sound
-   isn't in your language"? Today's "Auto" maps to the second until he says.
+2. **Before release, please answer:** subtitles "Always", or "Only when the sound isn't in your language"? Until you
+   answer, **English films show no subtitles** (today's "Auto"). And which first: English or Icelandic? With Icelandic
+   first, English films show Icelandic subtitles when there are any (rare: 1 of the 5 films checked had them) and
+   English otherwise.
 3. **Checks:** is the cautious default right (title pages, Continue watching, Saved; 60 a day; never while the account
    is in use)?
 4. **A copy with better picture but no sound on this TV:** offer it (ranked last, with the reason, as designed) or hide
@@ -972,13 +1084,12 @@ add-ons spec carries the same text in its "Shared with subtitles" section; if th
 
 ## 15. What changed in the pieces the add-ons design shares
 
-| Piece | v1.1 change | What `design/ui-v1/addons/` should mirror |
+| Piece | Now (v1.2) | What `design/ui-v1/addons/` should do |
 |---|---|---|
-| Copy ranking and the Play wait | written once in 5.4: plays → cut → language → class → kind (cinema recording last) → HDR → picture bitrate → sound → subtitles in the file → ties (provider, then add-on order). Play never waits for a check; the add-ons' 4 s "Playing in N s" is the only wait | its "Shared with subtitles" section carries this text |
-| Copies menu (`.st-copies` / `.ad-copies`) | Mb/s is the picture's share (foot "Mb/s is the picture's share"); line 2 can start "Longer cut · 3 h 20 min"; "1080p" not "Full HD" or "HD"; "Couldn't check: your provider was busy / doesn't allow partial reads" | the same words and the foot. Its add-on rows already lead line 2 with the source; keep the problem-first rule after it |
-| Which film is this? (`.st-match` / `.ad-match`) | rows "title / year · length · director" (no "animated"); the header says "this copy runs …" or "…length is unknown"; auto-accept when one candidate is within ± 5% of the copy's length and the others more than 10% away; never asked for a dub; foot "…for subtitles and copies alike" | its `detail-match` already has the director and the length header: no change but the auto-accept rule |
-| The matcher | strict index (2+ rows = unsure), length check ± 8%, `tmdb_id` ↔ `moviedb_id` | its 4.4 points here |
-| The tick and tags (`.st-tk` / `.ad-tk`) | centred on its line, 6 px gap; tags keep their case ("1080p"); no tick on posters | the same CSS |
-| The text under the pills | moved onto the pill row (`.st-side`); the page gains no height | its 5.1 caption "the subtitles line under the pills" becomes the pill row's text |
-| The Subtitles pill | names the one that will show ("Subtitles: English"), as its mocks already do | – |
-| Panel widths | Options, Subtitles and Quality are 384 while a film plays | `player-sources` at 384 |
+| **Copy ranking, Play wait, IMDb match** | **one file: `design/ui-v1/copies/RANKING.md`**, with `copies.js` and `copies-test.js` (90 cases). This design owns it | point its 5.0 there, with no list of its own. Redraw `detail-sources-sheet` in the new order **B, A, N, P, F**: an add-on Blu-ray 1080p is no longer buried under a checked provider 1080p (its review 2, S2). Use the series rules (`RANKING.md` 4.3) and the episode "not ready" floor (2.2) |
+| Copies menu (`.st-copies` / `.ad-copies`) | foot `Mb/s is the picture's share. Picking a copy keeps it for this film.`; line 2: the source first when add-on copies are listed, then the problem (`Longer cut · …`, `Named 4K`, `No sound on this TV`, a pin note), then the rest, and on provider rows the provider's name in quotes, last; `Couldn't check: your provider doesn't allow a quick look`; "1080p", never "HD" or "Full HD" | the same foot and order (its provider row put the problem third) |
+| Version pill | `[tick] <checked quality> · best of N`; with add-on copies the source follows the quality: `[tick] 4K Blu-ray · Northlight · best of 9` | the same; also with 1 copy while an add-on is asking (`RANKING.md` 3.2) |
+| Pill-row slot (`.st-side`) | one text, by priority: 1 the time left, 2 the add-ons' `Still asking …`, 3 the subtitles text. Max to x 912, ellipsis as the last resort (`detail-resume`, `detail-addon-asking`) | its "Still asking" and the wait caption use this slot. The wait caption is on the Play button, not here |
+| Which film is this? (`.st-match` / `.ad-match`) | rows `title / year · length · director`; header `this copy runs …` / `…length is unknown`; **one None-of-these line: `Keep this copy only: no add-on copies, no downloaded subtitles`**; Unsure only (`RANKING.md` 4.2); never for a dub (`RANKING.md` 5) | already matches |
+| Tick and tags (`.st-tk` / `.ad-tk`) | centred, 6 px gap; tags keep their case; no tick on posters | the same CSS; `detail-play-wait`'s `HD` tag becomes `1080p` |
+| Panel widths | Options, Subtitles and Quality are 384 while a film plays | `player-sources` at 384 (it is 400), and its audit should check it |

@@ -44,7 +44,7 @@
  {
   "file": "add-list.html",
   "title": "Stremio's list, on the TV",
-  "note": "Pick from Stremio's list (Cinemeta's addon_catalog, real data). v1.1 (review M3): no \"Streams\" chip: none of the 19 community stream add-ons gives copies of films (they are ratings, after-credits and warnings: \"Extras\"). One line says where copies come from. Subtitles are filtered to his languages, so focus lands on something he can use.",
+  "note": "Real data, Cinemeta's addon_catalog. v1.2 (review 2, S3): \"for other languages\" is now a rule on the manifest text (an add-on naming only languages he hasn't chosen is left out: 19 of the 44 subtitle add-ons), rows keep Stremio's order and their own descriptions, and only community add-ons are under Community.",
   "group": "Adding one"
  },
  {
@@ -110,13 +110,13 @@
  {
   "file": "detail-sources-sheet.html",
   "title": "The Copies menu, provider and add-ons together",
-  "note": "OK on the Version pill: the subtitles design's Copies menu, add-on copies in the same list, in the shared order (SPEC 5.0). v1.1: no add-on copy is ticked (never opened before Play, review M4); a name claiming Dolby Vision on a Blu-ray ranks and reads as HDR10 until checked (review S3: profile 7). Ticks only where airglow checked.",
+  "note": "OK on the Version pill: the subtitles design's Copies menu with add-on copies in the same list, in RANKING.md's order. v1.2: B, A, N, P, F (Northlight's 1080p Blu-ray, about 11 Mb/s from its size, now above the provider's checked 1080p at 7.1); line 2 puts the source, then the problem; the shared foot. No add-on copy is ticked: none is opened before Play.",
   "group": "The title page"
  },
  {
   "file": "detail-play-wait.html",
   "title": "Play, while an add-on is still looking",
-  "note": "v1.1 (review M2): the one pre-play wait shared with the subtitles design (SPEC 5.0.2): one 4 s budget from the press, one caption, whatever it is waiting for. Here an add-on hasn't answered and the best known isn't 4K. The pill shows with one copy while an add-on is still asking.",
+  "note": "RANKING.md 3: the one wait, 4 s from the press, only for stream add-ons while the best in hand is below 4K, never for a check. v1.2 (subtitles 15): the caption sits on the Play button's row; the pill-row slot says who is still asking (its priority 2). The tag reads 1080p, never HD. The pill shows with one copy while an add-on is asking.",
   "group": "The title page"
  },
  {
@@ -128,13 +128,13 @@
  {
   "file": "detail-copies-likely.html",
   "title": "Copies when the match is only Likely",
-  "note": "The provider copy isn't checked yet, so the IMDb match is only Likely (same name, same year). Add-on copies, even 4K, wait below the provider's under \"might be another film\", naming the film they are for. When the check finds the same length (±8%), the match becomes Sure and they move up.",
+  "note": "The provider copy isn't checked yet, so the IMDb match is only Likely (same name, same year). Add-on copies, even 4K, wait below the provider's under \"might be another film\", naming the film they are for. When the check finds the same length (±8%), the match becomes Sure and they move up. v1.2 (review 2, S9): picking one of them makes the match Sure for this title, so it stays first.",
   "group": "The title page"
  },
  {
   "file": "detail-series.html",
   "title": "Series: episodes from both",
-  "note": "Episodes are the union of the provider's list and Cinemeta's (seasons 1 to 5 and Specials, real data). An episode only add-ons have is marked Add-on. The focused episode's best source sits at the right of its one-line summary; the pill by Resume is for S3 · E4.",
+  "note": "Episodes are the union of the provider's list and Cinemeta's (seasons 1 to 5 and Specials, real data). An episode only add-ons have is marked Add-on. The focused episode's best source sits at the right of its one-line summary; the pill by Resume is for S3 · E4. v1.2 (RANKING.md 4.3): The Bear is Sure because the TVDB ids agree (403294), so Northlight's copies may rank first; one odd-length episode would only get its own note.",
   "group": "The title page"
  },
  {
@@ -152,19 +152,19 @@
  {
   "file": "player-source-failed.html",
   "title": "Player: a copy stops, the next one takes over",
-  "note": "The hand-over card wins over the diagnosis cards for add-on copies (review M6): it names the add-on, never \"your provider\". v1.1 (review S7): the next copy comes from another source when it can, so a 1-connection provider is never asked twice in a row. Live TV never hands over (the score delay rule).",
+  "note": "The hand-over card wins over the diagnosis cards for add-on copies: it names the add-on, never \"your provider\". \"Stopped sending\" is a source-wide failure (review 2, S5), so the next copy comes from another source: the provider, though Northlight's 1080p ranks above it. Live TV never hands over.",
   "group": "Player and states"
  },
  {
   "file": "player-not-ready.html",
   "title": "Player: a copy that isn't ready yet",
-  "note": "v1.1 (review M4): debrid add-ons answer an uncached copy with a short placeholder video. A copy under half the film's length (Cinemeta's runtime or the provider's) is \"not ready\": no progress, no \"watched\", no tick, and the next copy plays. It drops to the bottom of Copies for the session.",
+  "note": "v1.1 (review M4): debrid add-ons answer an uncached copy with a short placeholder video. A copy under half the film's length (Cinemeta's runtime or the provider's) is \"not ready\": no progress, no \"watched\", no tick, and the next copy plays. It drops to the bottom of Copies for the session. v1.2 (review 2, S5): a placeholder is about one copy, so the next in rank plays even from the same add-on; only source-wide failures prefer another source.",
   "group": "Player and states"
  },
  {
   "file": "player-sources.html",
   "title": "Player: Quality lists every copy",
-  "note": "Options > Quality, the subtitles design's panel, with each copy's source. The playing add-on copy was checked when it started, so it has its tick now. The Blu-ray copy sent a placeholder (player-not-ready) and sits last, dimmed, for this session.",
+  "note": "Options > Quality, the subtitles design's panel at 384 (v1.2, subtitles 15), with each copy's source, in RANKING.md's order. The playing add-on copy was checked as it started, so it has its tick. The Blu-ray copy sent a placeholder (player-not-ready) and sits last, dimmed, for this session.",
   "group": "Player and states"
  },
  {
@@ -176,7 +176,7 @@
  {
   "file": "state-addon-down.html",
   "title": "Add-ons that stopped working",
-  "note": "Real: Archivio's link now opens a web page, so it reads \"Not an add-on any more\" (review nit); \"Not answering\" is kept for timeouts (Kestrel, 3 in 10 min, not asked again for 30 min). Public Domain Movies reads \"Catalog only\": its films are all torrents.",
+  "note": "Real: Archivio's link now opens a web page, so it reads \"Not an add-on any more\" (review nit); \"Not answering\" is kept for timeouts. v1.2 (review 2, nit): this is later the same evening, 23:10, after Kestrel timed out 3 times in 10 min; it isn't asked again for 30 min. Public Domain Movies reads \"Catalog only\": its films are all torrents.",
   "group": "Player and states"
  }
 ]

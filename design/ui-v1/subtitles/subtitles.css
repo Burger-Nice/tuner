@@ -114,3 +114,12 @@
 /* found by RINGTEXT (port item, SPEC 11): at the start of a film the seek thumb's ring touches the elapsed time under
    it (VodControls today: labels 10 px under the bar). 14 px clears it. */
 .nv-vbar .seek+.row-flex{margin-top:14px!important}
+
+/* ---------- v1.2 (REVIEW-independent-2.md) ---------- */
+/* M2: one slot after the pills, never past x 912 (the row spans the safe width), one text by priority (SPEC 4.2):
+   1 the time left, 2 the add-ons' "Still asking …", 3 the subtitles text. Ellipsis as the last resort. */
+.st-pills{width:864px}
+.st-side{display:block;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.st-side .dot-sep{vertical-align:middle}
+.st-side .st-run{margin-right:8px}
+.st-spin{display:inline-block;width:14px;height:14px;margin-right:8px;border-radius:50%;border:2px solid var(--a-surface-3);border-top-color:var(--a-pink);vertical-align:-2px}

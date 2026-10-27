@@ -4,6 +4,7 @@
 //           "manifest.json" is allowed only where he is told what a link looks like
 //   SECRET  a configured add-on link (a long path segment) shown in full: it holds his debrid or account key
 //   CUT     (v1.1) a row's text in a menu, sheet, panel or add-on list cut by an ellipsis
+//   PANEL   (v1.2) the player's Options / Subtitles / Quality panel isn't 384 wide (subtitles SPEC 15)
 // --inject adds a jargon line and a full configured link to every page, to prove both fire.
 // From catch-up: SPOILER:
 // on a mock marked <meta name="shield" content="unseen">, no visible score (\d{2,3}–\d{2,3}), remaining time (−m:ss) or
@@ -221,9 +222,11 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       }
       // ---- add-ons v1.1 (review S18): CUT, a row's text cut by an ellipsis inside a menu, sheet, panel or add-on list
       for (const e of document.querySelectorAll('.menu .a,.menu .b,.sheet .a,.sheet .b,.ad-row .a,.ad-row .b,.ad-lr .a,.ad-lr .b,.nv-row .a,.nv-row .b,.card .a,.card .b')) {
-        const cs = getComputedStyle(e); if (cs.textOverflow !== 'ellipsis' || e.closest('.scrim ~ * .sheet-scroll') && false) continue;
+        const cs = getComputedStyle(e); if (cs.textOverflow !== 'ellipsis' || e.hasAttribute('data-desc')) continue;   // v1.2: an add-on's own description, one line by design (review 2, S3)
         if (e.scrollWidth > e.clientWidth + 1) issues.clip.push(`CUT: "${e.textContent.trim().slice(0, 40)}" is cut by an ellipsis`);
       }
+      // ---- add-ons v1.2 (subtitles SPEC 15): PANEL, the player's Options, Subtitles and Quality panels are 384 wide while a film plays
+      for (const pn of document.querySelectorAll('.nv-panel')) { const h = pn.querySelector('.nv-h'); if (h && /^(Options|Subtitles|Quality)/.test(h.textContent.trim()) && Math.abs(pn.getBoundingClientRect().width - 384) > 0.5) issues.clip.push(`PANEL: "${h.textContent.trim()}" is ${pn.getBoundingClientRect().width.toFixed(0)} wide, not 384`); }
       // ---- contrast on flat backgrounds
       const parse = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return { r: v[0], g: v[1], b: v[2], a: v[3] == null || isNaN(v[3]) ? 1 : v[3] }; };
       const lum = ({ r, g, b }) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };

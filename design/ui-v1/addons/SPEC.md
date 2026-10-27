@@ -1,4 +1,4 @@
-# airglow TV: add-ons (the Stremio add-on system), v1.1
+# airglow TV: add-ons (the Stremio add-on system), v1.2
 
 This is the design spec for the engineer. It extends `design/ui-v1/UI-SPEC.md` v1.2 (layout, type, focus, the shield)
 and plugs into the designs made beside it:
@@ -7,8 +7,9 @@ and plugs into the designs made beside it:
 - **diagnosis** (`design/ui-v1/diagnosis/`): the player's stall and failure cards;
 - **catch-up** (`design/ui-v1/catchup/SPEC.md`): replays and their shield.
 
-Everything not said here follows those. **Section 5.0 is written for both this design and the subtitles design**: one
-copy ranking, one pre-play wait and one IMDb match, which both specs point to.
+Everything not said here follows those. **The copy ranking, the one wait before Play and the IMDb match live in one
+shared file, `design/ui-v1/copies/RANKING.md`** (owned by the subtitles designer, reviewed by me). Section 5.0 points
+there and keeps only what is add-ons-specific.
 
 The owner asked: *"I want to be able to add addons like stremio, just do stremio's system on our app."* His provider's
 films and shows are often poor (missing subtitles, bad quality). Add-ons add more copies, catalogs and subtitles
@@ -33,13 +34,84 @@ films and shows are often poor (missing subtitles, bad quality). Add-ons add mor
 | `tools/build.js` | builds the mocks from `data.json` |
 | `tools/render.js` | the PNGs and the contact sheet |
 | `tools/audit.js` | the self-check (section 13) |
-| `tools/copies.js` | **new in v1.1**: the reference code for 5.0 (ranking, match levels) and 11.4 (reading a copy's name) |
-| `tools/copies-test.js` | **new in v1.1**: 31 cases from the review, run with `node tools/copies-test.js` |
-| `REVIEW-independent.md` | the review of v1.0 (7.2 / 10) that v1.1 answers |
+| `../copies/` | **v1.2**: the shared `RANKING.md`, `copies.js` and `copies-test.js` (90 cases). This folder's own `tools/copies.js` and `copies-test.js` are deleted; their cases live on there |
+| `REVIEW-independent.md`, `REVIEW-independent-2.md` | the reviews of v1.0 (7.2) and v1.1 (7.8) |
 
 ---
 
+## v1.2 changes: an answer to the second review
+
+### Must fix
+
+**M1. The ranking, wait and match were written twice and disagreed. Accepted.**
+- They now live in **one file**, `design/ui-v1/copies/RANKING.md`, with `copies.js` and `copies-test.js` (90 cases,
+  0 failed). This was the coordinator's decision; the subtitles designer owns the file and I review changes to it.
+- **Section 5.0 here is a pointer.** It keeps only what is about add-ons: who is asked, info-only add-ons, links never
+  opened before Play, the Likely group's look.
+- This folder's `tools/copies.js` and `copies-test.js` are **deleted**. Their cases (the name parser, the bands, the
+  not-ready rule) are in the shared test. The self-check runs it (13.2).
+- **The order changes, as RANKING.md 8 says:** `detail-sources-sheet` is now **B, A, N, P, F**. Northlight's 1080p
+  Blu-ray (14.2 GB, about 11 Mb/s from its size) is above the provider's checked 1080p (7.1 Mb/s). `player-sources` and
+  the hand-over card follow the same order.
+- **The subtitles spec's section 15, mirrored:**
+  - **Copies foot:** `Mb/s is the picture's share. Picking a copy keeps it for this film.` (the Likely menu adds `, and
+    tells airglow it's the same film`).
+  - **Line 2:** the source first, then the problem (`named 4K`, `its name says Dolby Vision`, `not checked yet`), then
+    the rest; on a provider row, the provider's name in quotes, last.
+  - **Pill:** `4K Blu-ray · Northlight · best of 9`.
+  - **Tags:** `1080p`, never `HD`, with their case kept (`detail-play-wait`, `detail-copies-likely`). A text scan of the
+    mocks finds no `HD` or `Full HD` left.
+  - **The pill-row slot**, one text by priority: 1 the time left, 2 `Still asking …`, 3 the subtitles text. **The wait
+    caption is on the Play button's row, not in the slot** (`detail-play-wait`: caption after Save; the slot says
+    `Still asking Northlight`).
+  - **Quality panel:** 384 wide (`player-sources`). A new audit check, **PANEL**, fails anything else.
+
+**M2. The match gate and the placeholder rule broke on series. Accepted; settled in RANKING.md 4.3 and 2.2.**
+- **A series is Sure** when he picked it, or the TMDB or TVDB ids agree, or 2 of its first 3 checked episodes are within
+  8% of the series runtime.
+- **One odd-length episode** gets its own note and never changes the series.
+- **Not ready, for an episode:** under 50% of the provider episode's own length, else under a 3 min floor, or the
+  add-on's marker. Never the series runtime.
+- `detail-series` now says why The Bear is Sure: the TVDB ids agree, 403294.
+- 8.1's `runtime` field and 8.2 point there.
+
+### Should fix (all accepted)
+
+1. **Speed cap on unchecked copies** and **2. checked before unchecked**: settled in RANKING.md 2:
+   - unchecked copies get a size-based bitrate;
+   - the speed counts only if measured in the last 7 days;
+   - "checked first" applies between provider copies only.
+3. **The `add-list` filter is now a rule on the manifest text** (3.4).
+   - It leaves out an add-on that names a language and none of his: 19 of the 44 subtitle add-ons, computed from the
+     real list in `tools/build.js`.
+   - Rows keep Stremio's order and their **own** descriptions, one line with an ellipsis. Those lines are marked
+     `data-desc`, which the CUT check exempts.
+   - OpenSubtitles v3 is no longer shown under Community.
+4. **The pill-row slot:** see M1 (5.1).
+5. **Which copy comes next** (8.2):
+   - another source only for **source-wide** failures (timeouts, 5xx, refused, stopped sending);
+   - a placeholder or decoder failure takes the next in rank, even from the same add-on (`player-not-ready`).
+6. **A Wi-Fi cause re-ranks** with the new speed before picking the next copy (8.2).
+7. **`stremio:///detail` links** go into More like this, at most 10, with duplicates and the title itself dropped;
+   never into Copies (5.6).
+8. **`countryWhitelist`** uses the TV's own region (Android Settings); when it's unknown nothing is filtered (5.4).
+9. **Picking a Likely add-on copy** makes the match Sure for this title, so it stays first next time (5.2).
+10. **Default catalog switches:** the first two catalogs of each type per add-on start on, the rest off. Cinemeta:
+    Popular and New on, Featured off (3.1.3).
+
+### Nits (all fixed)
+- **Kestrel's moment:** `state-addon-down` is now later the same evening (23:10, synced 23:02), after Kestrel timed out.
+  The title-page mocks at 21:10 still ask it.
+- **The contact sheet header** no longer lists "Courtside".
+- **`add-stremio-found`:** changes arrive `when airglow starts or you open Add-ons`.
+- **Copies line 2:** the problem comes right after the source.
+- **The same add-on set up twice** gets a short label after its name in Copies, Continue watching and Account: the
+  debrid service when its link or name says it (`Torrentio · RD`), else `· 2` (3.3).
+- **`player-not-ready`:** the next copy, unchecked, says `the name says`.
+
 ## v1.1 changes: an answer to every review point
+
+*(History. Where it says 5.0.1, 5.0.2 or 5.0.3, read RANKING.md 2, 3 and 4: v1.2 moved them there, and `tools/copies.js` went with them.)*
 
 ### Must fix
 
@@ -318,7 +390,7 @@ and Series, Search and the player.
 | `Extras: notes about films` | its streams have all been info (M3) |
 | `A catalog only: its films come as torrents` | every stream it sent was dropped by rule 0 |
 
-An add-on that sends only info or other-app links is **never asked while Play waits** (5.0.2).
+An add-on that sends only info or other-app links is **never waited for before Play** (RANKING.md 3.1).
 
 **3.1.2 States:**
 - `On`;
@@ -351,12 +423,14 @@ Entry focus: the first add-on (or `Add an add-on` when there are none).
 - **Catalogs that are never listed:** those with a required extra other than `genre` (Cinemeta's `last-videos`).
 - **Search-only catalogs** read `Used by Search`, with no switch.
 - **A catalog no stream add-on covers** reads `Only titles your provider has` (S10).
+- **Defaults (v1.2):** the first two catalogs of each type per add-on start on, the rest off (Cinemeta: Popular and New
+  on, Featured off). Search-only catalogs are always used by Search.
 
 **3.1.4 Move** (`acct-addon-move`): the Saved reorder model.
 - The row lifts (ring, 1.02), the grip arrows show and the right side says `2 of 7`. ▲▼ move it, OK drops, Back puts it
   back.
 - **Order decides** whose details win for a title, the order of catalog chips, and the tie-break between equal copies
-  (5.0.1).
+  (RANKING.md 2, key 12).
 
 ### 3.2 Adding one: the decision (`add-ways`)
 
@@ -430,6 +504,8 @@ On the screen:
 - **Removed** ones are removed here if they came from Stremio.
 - airglow's own choices (off, order, catalog switches) are kept **by `transportUrl` hash** (S1) and survive every sync.
   If an address changes but the manifest id, host and a newer version say it's the same add-on, the choices move over.
+- **The same add-on set up twice** (two links, one manifest id) is two add-ons. The second gets a short label after its
+  name everywhere it shows: the debrid service when its link or name says it (`Torrentio · RD`), else `· 2`.
 - `{"error":{"code":1,"message":"Session does not exist"}}` (verified for a bad key) means he was signed out. The
   section line reads `Stremio signed you out · Sign in again ›`, and the add-ons stay as they were.
 
@@ -452,7 +528,10 @@ On the screen:
 - Cinemeta's `addon_catalog` resource is Stremio's own list: `/addon_catalog/all/official.json` (7) and
   `/addon_catalog/all/community.json` (97), verified.
 - A pushed screen with the chips `Official · Community | Catalogs · Subtitles · Extras`.
-  - **Subtitles is filtered to his languages** (Account > Languages), and its chip says so (`Subtitles English`).
+  - **Subtitles leaves out add-ons for other languages only (v1.2):** a subtitle add-on whose name or description names
+    a language and none of his (Account > Languages), nor "your language" / "40+ languages", is left out. Manifests
+    don't declare subtitle languages, so this is a rule on their text. On the real list it leaves out 19 of 44, and the
+    header says so (`19 for other languages left out`).
   - **Extras** are the community stream add-ons that give info, not copies (M3).
 - Under the chips: `Copies of films come from add-ons set up with a service like Real-Debrid, not from this list.`
 
@@ -462,7 +541,8 @@ On the screen:
 | `✓ Added` | already in the list | its sheet |
 | `[phone] Set up on your phone` | `behaviorHints.configurationRequired` | the setup card (3.7) |
 
-Entry focus: the first row of Community · Subtitles in his languages.
+- Rows keep Stremio's order and show the manifest's own description, one line with an ellipsis (HTML stripped).
+- Entry focus: the first row.
 
 ### 3.5 Send a link from your phone (`add-phone`, `phone-page`)
 
@@ -543,7 +623,7 @@ or `Cinemeta's catalogs` (opens the sheet).
   titles above stay. ▼ to try again`, with `Try again`.
 
 **Posters.**
-- The meta's `poster`, with the `[tv]` mark when the provider has the title (a Sure or Likely match, 5.0.3), and the
+- The meta's `poster`, with the `[tv]` mark when the provider has the title (a Sure or Likely match, RANKING.md 4), and the
   provider's 4K tag when it has a 4K copy.
 - **Without a stream add-on** covering the catalog's type and id prefix, the chip shows only the titles the provider
   has, captioned `only titles your provider has` (S10).
@@ -563,130 +643,78 @@ or `Cinemeta's catalogs` (opens the sheet).
 
 ### 4.4 The IMDb match
 
-Written once, in **5.0.3**, shared with the subtitles design.
+Written once, in `design/ui-v1/copies/RANKING.md` 4 (series in 4.3), shared with the subtitles design.
 
 ---
 
 ## 5. The title page
 
-### 5.0 Shared with subtitles: the copy ranking, the Play wait and the IMDb match
+### 5.0 The copy ranking, the Play wait and the IMDb match: `design/ui-v1/copies/RANKING.md`
 
-**This section is written for both designs.**
-- `design/ui-v1/subtitles/SPEC.md` should point here from 5.4 (Ranking), 4.2 (the Play row) and 3.2 (the IMDb id).
-- It **amends** those sections. What they say about checks, connections and the Copies menu's look stands.
-- The reference code is `tools/copies.js`; `tools/copies-test.js` proves it on the review's cases.
+**One file for the whole app.** The ranking (its section 2), the one wait before Play (3), the IMDb match (4,
+including series in 4.3), not-ready copies (2.2), dubs (5) and reading a copy's name (6) are written **only there**.
+This spec has no list of its own. Port `defaultVersion()`, the wait, `matchLevel()` and `readName()` from
+`design/ui-v1/copies/copies.js`. If anything here seems to disagree with RANKING.md, RANKING.md wins.
 
-#### 5.0.1 The one ranking (`defaultVersion()` becomes this)
-
-Copies of a title, from every source, sort by these keys in turn:
-
-0. **His pinned copy** for this title (`pickVersion`), if it is still there and hasn't failed this session.
-1. **Band:**
-   - **a.** copies that fit;
-   - **b.** copies faster than 0.7 x Diag's last measured speed (S3);
-   - **c.** add-on copies whose match isn't Sure (M5);
-   - **d.** cinema recordings;
-   - **e.** copies that failed or weren't ready this session (M4).
-2. **Language:** the audio language in his "Shown first" order. Before a check it is the name's language; `Multi` or
-   unknown come after his languages and before others.
-3. **Plays on this TV** (subtitles 5.2), decided at ranking time from the stored formats.
-4. **Class:** 4K, 1080p, 720p, SD, by the checked size. A starved copy drops a class (4K under 8 Mb/s, 1080p under
-   2.5 Mb/s, after the subtitles review's audio subtraction).
-5. **Checked before unchecked** in the same class (subtitles 5.4's rule). Add-on copies are unchecked until they have
-   played once.
-6. **Kind** (new): Blu-ray, web copy, TV or DVD copy, unknown. A name-only fact: the check can't tell.
-7. **Range:** Dolby Vision (when the TV plays its profile), HDR10 (HDR10+ counts as HDR10 unless it is parsed), HLG,
-   none. **A name claiming Dolby Vision on a Blu-ray or remux counts as HDR10** until the check reads the profile, since
-   it is usually profile 7 (S3).
-8. **Bitrate**, measured.
-9. **Sound** (subtitles 5.4; Atmos only when parsed) and subtitles in the file (subtitles 5.4).
-10. **Ties:** `Your provider` first, then add-on order, then the bigger file.
-
-- **Picks.** "Always the best copy" plays the top one. A check that finishes later changes the default for the **next**
-  Play, never the one that's playing (subtitles 5.4).
-- **Cuts.** Copies of a different cut (checked lengths more than 3% apart) are marked `Longer cut`, and "Always the
-  best copy" never switches the cut (the subtitles review's S6).
-- **Add-on links are never opened before Play** (M4): add-ons give "resolve" links that add the torrent to his debrid
-  account, or start a download.
-  - An add-on copy is checked as it starts: the player's own first reads, plus the 64 KB tail read.
-  - The check is cached by `cp:` key, so the copy keeps its tick next time.
-
-#### 5.0.2 The one pre-play wait
-
-- **A single 4 s budget**, counted from the press of Play. During it airglow may wait for:
-  - stream add-ons that haven't answered, only while the best known copy is below 4K and below the best its own
-    language could give;
-  - the subtitles design's check of a provider copy whose name claims better than the best checked one, **only when the
-    provider allows 3 or more connections** (the subtitles review's S11; on 1 or 2, never).
-- **What it never waits for:** add-ons learnt to be info-only or other-app-only (3.1.1); add-ons marked Not answering.
-- **The button** reads `Playing in 3 s` with a countdown ring.
-- **One caption**, whatever is being waited for: `Looking for a better copy · OK plays this one now · Back stops`.
-- **It ends early** when nothing left could change the pick, or a 4K copy in his language arrives.
-- **OK** plays the best so far; **Back** stops.
-- **The Version pill** shows with 2+ copies (subtitles 4.2), **or with 1 copy while a stream add-on is still asking**, so
-  the caption has a place.
-
-#### 5.0.3 The one IMDb match (amends subtitles 3.2)
-
-**Where the id comes from**, in order, stopping at the first that answers:
-1. a `tt…` in the provider's `info`;
-2. the ratings file v2, which adds the tconst as the row's 7th field (subtitles 3.2) **and counts rows per key**;
-3. the provider's `tmdb_id` against Cinemeta's `moviedb_id` (Dune: Part Two = 693134, verified);
-4. Cinemeta search, with the subtitles design's acceptance rules;
-5. asking him.
-
-| Level | Rule | Add-on copies | Catalog merge |
-|---|---|---|---|
-| **Sure** | he picked it; or the TMDB ids agree; or the key has one row within ±1 year **and** the provider copy's checked length is within ±8% of Cinemeta's `runtime` | rank on equal terms (band a) | yes |
-| **Likely** | the key has one row within ±1 year, no length yet; a series with one candidate | after the provider's copies, under `From add-ons · might be another film`, each naming the film it is for (`detail-copies-likely`) | yes |
-| **Unsure** | no year on a film (even with one candidate); 2+ rows for the key; a length more than 8% off | not asked until he picks | no |
-
-- **Subtitles** use Sure and Likely as the subtitles design decides (its review asks for Sure-or-length).
-- **An add-on-only title** carries the add-on's own id, so it is Sure by definition.
-
-**The picker** is the subtitles design's "Which film is this?" (`detail-match` in both folders).
-- Rows: `title / year · length`, plus `· director` when Cinemeta has one.
-- Then `Search by another name` and `None of these` (`Keep this copy only: no add-on copies or downloaded subtitles`).
-- The row closest to this copy's checked length is focused.
-- **One answer per title, for both designs.**
+**What stays here, because it is about add-ons:**
+- **Who is asked** and when (5.4). Info-only and other-app-only add-ons, and Not answering ones, are never waited for
+  (3.1.1; RANKING.md 3.1).
+- **Add-on links are never opened before Play** (RANKING.md 2.1): asking an add-on only reads its list of streams. An
+  add-on copy is checked as it starts.
+- **How the bands look:**
+  - band c (an add-on copy whose match isn't Sure) is the Likely group in the Copies menu (5.2);
+  - band e (failed or not ready) is dimmed at the bottom, with `wasn't ready yet` / `didn't play on this TV`.
+- **The wait on screen** (RANKING.md 3.2): the button reads `Playing in 3 s`, and the caption `Looking for a better copy
+  · OK plays this one now · Back stops` sits on the Play button's row, after Save. The pill-row slot meanwhile says who
+  is still asking (5.1).
+- **The match picker** is the shared "Which film is this?" (`detail-match` in both folders). Its None-of-these line is
+  `Keep this copy only: no add-on copies, no downloaded subtitles`.
 
 ### 5.1 The Version pill names the best copy (`detail-sources`)
 
-- **What it says:** the best copy and its source, by 5.0.1: `[film] 4K Blu-ray · Northlight  best of 9 ▾`. With only the
-  provider: `1080p · Your provider`. On a series: the copy for the episode Play would play (`S3 · E4`).
+- **What it says:** the best copy and its source, by RANKING.md 2: `[film] 4K Blu-ray · Northlight · best of 9 ▾`. With
+  only the provider: `[tick] 1080p · Your provider`. On a series: the copy for the episode Play would play (`· S3 · E4`).
+  It shows with 2+ copies, or with 1 while a stream add-on is still asking.
 - **Ticks:** an add-on copy has no tick and dashed meta tags until it has played (M4). Provider copies follow the
   subtitles design's ticks.
 - **Progressive:**
   - stream add-ons are asked when the page opens (5.4);
-  - right of the pills, `[spinner] Still asking Kestrel` names who is still looking, until the last answers or times out;
+  - right of the pills, in **the pill-row slot** (`.st-side`, to x 912 at most, ellipsis as a last resort), one text by
+    priority: **1** the time left (as `detail.js` today), **2** `[spinner] Still asking Kestrel`, until the last add-on
+    answers or times out, **3** the subtitles design's text;
   - the pill updates in place, focus never moves, and Play is focused on entry.
-- **The subtitles line** under the pills is the subtitles design's.
+- **The wait caption** never uses the slot: it is on the Play button's row (5.0).
 
 ### 5.2 The Copies menu (`detail-sources-sheet`, `detail-copies-likely`)
 
 OK on the pill opens the subtitles design's menu (`Copies of …`, `Always the best copy` first and focused, two-line
-rows, a `Best` tag), with every copy from every source in **one** list, in the 5.0.1 order:
+rows, a `Best` tag), with every copy from every source in **one** list, in RANKING.md's order. In the mock that is
+**B, A, N, P** (F is below the fold): RANKING.md 8.
 
 | Row | Line 1 | Line 2 |
 |---|---|---|
 | Always the best copy | `Always the best copy` | `Now: 4K · Blu-ray · Northlight. Changes if a better copy shows up` |
-| an add-on copy (unchecked) | `4K · HDR10 · Blu-ray` | `Northlight · English · 51.6 GB · its name says Dolby Vision` |
-| a provider copy (checked) | `[tick] 1080p · 7.1 Mb/s` | `Your provider · English · named 4K · 6.1 GB` |
+| an add-on copy (unchecked) | `4K · HDR10 · Blu-ray` | `Northlight · its name says Dolby Vision · English · 51.6 GB` |
+| another add-on copy | `1080p · Blu-ray` | `Northlight · the name says · English · 14.2 GB` |
+| a provider copy (checked) | `[tick] 1080p · 7.1 Mb/s` | `Your provider · named 4K · English · 6.1 GB · “EN| Dune: Part Two 4K”` |
 | a Likely match | under `FROM ADD-ONS · MIGHT BE ANOTHER FILM`: `4K · HDR10 · web copy` | `Northlight · for The Invite (2026) · the name says` |
 | still looking | spinner, `Kestrel is still looking` | `Its copies join this list as they come` |
 | other apps | `[ext] Watch in another app` | `HBO Max, Prime Video and 6 more · WatchHub` (5.6) |
 | trailer | `[play] Trailer` | `Opens YouTube` |
 
 - **The header's right side:** `matched on IMDb · 9 so far`, or `matched by name and year` (Likely).
-- **The foot:** `Add-on copies are checked when they play · ▼ 4 more, and Watch in another app`.
+- **The foot** (shared): `Mb/s is the picture's share. Picking a copy keeps it for this film.` Below it, out of view,
+  are 4 more copies, Watch in another app and the trailer.
+- **Picking a Likely copy** (band c) makes the match Sure for this title, so it ranks on equal terms from then on. The
+  Likely menu's foot says so: `…, and tells airglow it's the same film`.
 - **A copy that failed** or wasn't ready this session sits at the bottom, dimmed: `wasn't ready yet` / `didn't play on
   this TV`.
-- **Line 2 in words:** the source (bold), language, kind of copy, size, then `the name says` for an unchecked add-on
-  copy. The file name itself is never shown (it is jargon).
+- **Line 2 in words:** the source (bold), then the problem or `the name says`, then language and size; a provider row
+  ends with the provider's name in quotes. An add-on's file name is never shown (it is jargon).
 
 ### 5.3 Ranking
 
-5.0.1.
+RANKING.md 2.
 
 ### 5.4 Asking add-ons (progressive)
 
@@ -699,12 +727,13 @@ rows, a `Best` tag), with every copy from every source in **one** list, in the 5
   `idPrefixes`) for this type and id prefix; an absent `idPrefixes` matches all ids (S4).
 - **How many:** all at once, and at most 6 add-on requests in the air app-wide.
 - **Time:** 10 s each.
-- **Country:** a stream whose `behaviorHints.countryWhitelist` doesn't include his country is dropped (S4).
+- **Country:** a stream whose `behaviorHints.countryWhitelist` doesn't include his country is dropped. His country is
+  the TV's own region (Android Settings), never the provider's; when it's unknown, nothing is dropped (v1.2).
 - Asking only reads the add-on's list of streams: no stream link is opened (M4).
 
 ### 5.5 Play while an add-on is still looking (`detail-play-wait`)
 
-5.0.2.
+RANKING.md 3, drawn as 5.0 says.
 
 ### 5.6 Other apps, info and trailers (M3)
 
@@ -721,7 +750,9 @@ which opens a menu (`HBO Max · Subscription`, `Prime Video · Rent, buy`).
 There is no browser fallback: the Google TV usually has none.
 
 **Other links and text:**
-- `stremio:///detail/{type}/{id}` opens airglow's own title page for that id. Other `stremio://` links are dropped.
+- `stremio:///detail/{type}/{id}` links (Watch Next sends ten for one title) become cards in **More like this**: at
+  most 10, the title itself and duplicates dropped, each opening airglow's own page for that id. Never in Copies. Other
+  `stremio://` links are dropped.
 - **Info-only answers** (an `externalUrl` to a web page, or no link at all, as AfterCredits sends) go to the full
   description sheet as one line per add-on: `AfterCredits: No stingers found`.
 - **Trailers:** `ytId` opens `vnd.youtube:<id>`.
@@ -737,6 +768,8 @@ There is no browser fallback: the Google TV usually has none.
 
 - **Episodes are the union** of the provider's `get_series_info` and the meta's `videos[]` (id `tt…:s:e`, season 0 =
   `Specials`, verified on The Bear).
+- **Sure for a series:** RANKING.md 4.3 (his pick, TMDB or TVDB ids, or 2 of the first 3 checked episodes within 8%).
+  The Bear is Sure by its TVDB id (403294). An odd-length episode gets its own note, never the series.
 - **Merging (S5):** a provider episode and a Cinemeta episode are one row only when the season and number agree **and**
   either the names match (normalised) or the lengths are within ±20%. Otherwise they stay separate.
   - A provider episode with no Cinemeta twin gets no add-on copies.
@@ -809,7 +842,7 @@ widens "OpenSubtitles" to **every subtitle add-on**.
 | `copies` | the next 5 in rank order, **as identities** (`cp:` key, source, label), not links | 8.2: the app resolves the link on `need: copy` |
 | `binge` | `behaviorHints.bingeGroup` | 8.4 |
 | `key` | the IMDb id (`tt…` or `tt…:s:e`) | progress, 8.3 |
-| `runtime` | Cinemeta's `runtime` or the provider's length | the not-ready rule, 8.2 |
+| `runtime` | for a film, Cinemeta's `runtime`; for an episode, the provider episode's own length (else none) | the not-ready rule, RANKING.md 2.2 |
 
 `proxyHeaders.response` and `notWebReady` are ignored: they exist for Stremio's own server and web player.
 
@@ -817,15 +850,23 @@ widens "OpenSubtitles" to **every subtitle add-on**.
 
 - **Before the first frame** (an HTTP error, a timeout, a decoder error, Dolby Vision profile 7 on a TV that can't):
   the next copy starts at once, with a toast `That copy didn't play · trying 4K · Dolby Vision · Northlight`.
-- **Not ready** (M4): the copy plays, but its duration is under 50% of `runtime`. The card reads `That copy isn't ready
+- **Not ready** (RANKING.md 2.2): a film under 50% of IMDb's runtime; an episode under 50% of the provider episode's
+  length, else under 3 min; or the add-on's marker. The card reads `That copy isn't ready
   yet` / `Northlight sent a short "still downloading" clip instead of the film.` No progress is saved; it is not
   "watched"; the next copy plays in 3 s.
 - **After it played**, once the player's retries are spent: `This copy stopped at 1:12:40` / `Northlight stopped sending
   its 4K Dolby Vision copy. Your place is kept.`
   - The card shows the next best with a 3 s ring, and where it starts (`starts at 1:12:30`, 10 s back).
   - Buttons: `Play it now` (focused) / `Choose another`. Hint bar: `OK Play it now · ◀ ▶ Move · Back Stop`.
-- **Which copy is next (S7):** the next in rank order, preferring **another source**. Going from one provider copy to
-  another waits for Diag's provider retry first, so a 1-connection account isn't refused.
+- **Which copy is next (v1.2):**
+  - **a source-wide failure** (a timeout, 5xx, refused, "stopped sending"): the next in rank from **another source**. In
+    `player-source-failed` that is the provider's 1080p, though Northlight's 1080p ranks above it;
+  - **a failure of one copy** (a placeholder, a decoder or profile it can't play): simply the next in rank, even from the
+    same add-on (`player-not-ready`);
+  - **a Wi-Fi or internet cause from Diag:** re-rank with the speed Diag just measured (RANKING.md band b) and take the
+    best copy that fits, not the next 4K;
+  - going from one provider copy to another waits for Diag's provider retry first, so a 1-connection account isn't
+    refused.
 - **At most 3 automatic hand-overs** per play; then the card lists the copies left.
 - **With Diag (M6):** for a copy whose `source` isn't the provider, Diag skips the Xtream account and connection-limit
   causes and names the add-on (`Northlight refused this copy`, `Northlight isn't answering`). The hand-over card wins;
@@ -853,7 +894,8 @@ widens "OpenSubtitles" to **every subtitle add-on**.
 
 ### 8.5 Quality in the player (`player-sources`)
 
-- Options > Quality is the subtitles design's panel, with each copy's source on line 2 and `playing` on the current one.
+- Options > Quality is the subtitles design's panel, **384 wide** while a film plays, with each copy's source on line 2
+  and `playing` on the current one.
 - The playing add-on copy has its tick (it was checked as it started); a failed one is last and dimmed.
 - Same order as the title page.
 
@@ -867,7 +909,7 @@ widens "OpenSubtitles" to **every subtitle add-on**.
 | Add-on returns nothing | title page | named only when nothing came at all (5.9) |
 | Only torrents | title page, Account | 5.9's line; after 20 titles with nothing playable: `Catalog only` |
 | Only info or other apps | Account, Copies | `Extras: notes about films` or `Where else to watch it…`; never asked during the Play wait |
-| Not answering | Account (`state-addon-down`) | timeouts, 3 in 10 min: `Not answering` with the "!", `No answer in 10 s, 3 times since 20:40 · tries again 21:40`; not asked for 30 min |
+| Not answering | Account (`state-addon-down`, 23:10) | timeouts, 3 in 10 min: `Not answering` with the "!", `No answer in 10 s, 3 times since 22:40 · tries again 23:40`; not asked for 30 min, and never waited for |
 | Not an add-on any more | Account (`state-addon-down`) | it answers, but not with JSON (Archivio, real): `Opens a web page now · last worked Sat 24 Oct`; after 7 days, `Remove it ›` |
 | Catalog down | Movies | the first page: the card (`movies-addon-down`); a later page: the inline card (`movies-addon-more`) |
 | Needs setup | Account, the list | `Needs setup` / `Set up on your phone` → 3.7 |
@@ -875,7 +917,7 @@ widens "OpenSubtitles" to **every subtitle add-on**.
 | Stremio signed out | Account | 3.3 |
 | Phone can't reach the TV | phone screen | after 60 s with no visit: `Phone not getting through? It must be on your home network, not a guest network.` |
 | Phone code guessed wrong 5 times | phone screen | `Too many wrong codes · here's a new one` |
-| The provider also has it | everywhere | one card, the provider's page, add-on copies in its Copies list (gated by 5.0.3) |
+| The provider also has it | everywhere | one card, the provider's page, add-on copies in its Copies list (gated by RANKING.md 4) |
 | Likely match | Copies | `From add-ons · might be another film` (`detail-copies-likely`) |
 | Unsure match | title page | the pill's caption and the shared picker (`detail-match`) |
 | Not ready yet | player | 8.2 (`player-not-ready`) |
@@ -950,7 +992,7 @@ out today. Open question 7.
 They are never logged, never sent anywhere but their own host, never shown in a toast, a diagnosis or the Check screens,
 and shown at most as their host (audit: SECRET).
 
-### 11.4 Turning a stream into a copy (reference: `tools/copies.js` `readName`)
+### 11.4 Turning a stream into a copy (reference: `design/ui-v1/copies/copies.js` `readName`, RANKING.md 6)
 
 1. **Drop it** unless `url` is `http(s)://` and not `127.0.0.1:11470` (rule 0).
    - `externalUrl` → 5.6, and `ytId` → trailer.
@@ -971,8 +1013,8 @@ and shown at most as their host (audit: SECRET).
      copies won't carry one; that's why the length rule in 8.2 exists.
 3. A copy's check (at Play) replaces claims with facts and ticks them.
 
-`tools/copies-test.js` covers `.ts`, `DTS`, `DVDRip`, `HDRip`, `webcam`, `sd` inside a word, `HDTS`, a real release name
-from OpenSubtitles, and the size rules.
+`design/ui-v1/copies/copies-test.js` covers `.ts`, `DTS`, `DVDRip`, `HDRip`, `webcam`, `sd` inside a word, `HDTS`, a
+real release name from OpenSubtitles, and the size rules.
 
 ### 11.5 Couldn't verify
 
@@ -989,14 +1031,15 @@ from OpenSubtitles, and the size rules.
 ## 12. Port checklist
 
 1. **`scripts/build-ratings.js`:** the tconst as the 7th field (`v: 2`, shared with subtitles). The index counts rows per
-   key. `core.js` keeps Xtream's `tmdb_id`. The levels of 5.0.3 (port `matchLevel` from `tools/copies.js`).
+   key. `core.js` keeps Xtream's `tmdb_id` (films and series). The match levels: port `matchLevel` from
+   `design/ui-v1/copies/copies.js`.
 2. **`app/addons.js`** (new):
    - the list, keyed by `transportUrl` hash;
    - manifests (with `extraSupported` and `extraRequired`);
    - the requests of 11.1, with timeouts and the 6-at-once limit;
    - health and the learnt kind;
    - caches;
-   - `readName` (port from `tools/copies.js`);
+   - `readName` (port from `design/ui-v1/copies/copies.js`);
    - country filtering;
    - Stremio link codes, login, logout and `addonCollectionGet` (read only), and keeping in step.
 3. **Account:** the Add-ons group, the sheet with its catalog switches, Move, the four ways and their screens. Stremio's
@@ -1010,8 +1053,8 @@ from OpenSubtitles, and the size rules.
 5. **Movies and Series:** add-on chips, the chip menu, paging (skeleton and inline failure), the merge by IMDb id,
    provider-only chips (S10).
 6. **Title page:**
-   - `defaultVersion()` becomes 5.0.1 (port `rank`);
-   - the pre-play wait of 5.0.2;
+   - `defaultVersion()` becomes RANKING.md 2 (port `rank`);
+   - the pre-play wait of RANKING.md 3, drawn as 5.0 says;
    - add-on copies in the subtitles design's pill and Copies menu, with the Likely group;
    - asking (5.4), other apps and info (5.6), series merging (5.8), 5.9.
 7. **Search:** the From add-ons block, without unreleased titles.
@@ -1056,32 +1099,21 @@ every side). Plus three add-on checks:
   is allowed. **v1.1 added `stream`**, which found 5 mocks; all are fixed (S16).
 - **SECRET:** a link with a long path part shown in full.
 - **CUT** (new in v1.1): a row's text in a menu, sheet, panel or list cut by an ellipsis. It found 2 on its first run
-  (S18); both are fixed.
+  (S18); both are fixed. v1.2 exempts an add-on's own description in Stremio's list (`data-desc`), one line by design.
+- **PANEL** (new in v1.2): the player's Options, Subtitles and Quality panels must be 384 wide. A 400 wide copy of
+  `player-sources` fails it.
 
 **Proof they fire:** `--inject` adds a line with `infoHash` and a full configured link to every page. JARGON and SECRET
 fire on all 30 pages: 60 findings.
 
 **Result: 30 pages, 0 findings.** Every ring is 100% white on all four sides.
 
-### 13.2 The logic test (`node tools/copies-test.js`)
+### 13.2 The logic test (`node ../copies/copies-test.js`)
 
-**31 cases, 0 failed.** The cases:
-- the name parser: S2's false matches, a real release name, size;
-- the ranking:
-  - the mocks' own order (`B, A, P, N, F` = Blu-ray 4K, web 4K, provider 1080p, Northlight 1080p, French);
-  - Dolby Vision on a Blu-ray counted as HDR10;
-  - a checked profile 7 the TV can't play;
-  - the speed cap;
-  - unchecked below checked;
-  - Likely below the provider;
-  - not ready last, cinema recording last;
-  - his pick;
-  - ties;
-- the match levels, including the M5 gap;
-- the not-ready length rule.
-
-The first run caught a real mistake: a speed-capped copy that only dropped a class won back on *kind*. The rule is now
-a band, after every copy that fits.
+**90 cases, 0 failed** (run from this folder on 27 Oct 2026). It is the shared test. It holds this design's old 31
+cases (the name parser, the bands, not ready) and the mock order **B, A, N, P, F**. It also holds the second review's
+series cases: TVDB and TMDB Sure, a 60 min episode of a 35 min show, a 12 min special, a 30 s clip, the provider
+episode's own length. The first v1.1 run caught the speed-band bug; that rule is now in RANKING.md 2.
 
 ### 13.3 The rings
 
@@ -1092,9 +1124,9 @@ a band, after every copy that fits.
 | acct-addon-move | Northlight, lifted | 261, 272, 917, 336 | −5.4 (the 1.02 lift; inside the 6 px allowance) |
 | add-ways | Use your Stremio account | 192, 133, 768, 207 | 106 |
 | add-stremio-code, add-phone | the fallback button | 680 / 706, 429, 896, 475 | 16 |
-| add-stremio-found | Add 4 add-ons | 614, 275, 827, 331 | 85 |
+| add-stremio-found | Add 4 add-ons | 614, 295, 827, 351 | 85 |
 | add-stremio-email | Email field | 43, 137, 573, 195 | −5 (ring in the margin) |
-| add-list | MSubtitles | 43, 205, 917, 267 | −5 |
+| add-list | Where's The Jump (the first row of the real list) | 43, 205, 917, 267 | −5 |
 | add-confirm | Add it | 238, 327, 379, 383 | 130 |
 | movies-addon | Tenzing | 188, 166, 328, 372 | 139 |
 | movies-chip-menu | Hide this chip | 344, 180, 572, 238 | 153 |
@@ -1106,7 +1138,7 @@ a band, after every copy that fits.
 | detail-series | E5 | 491, 310, 711, 438 | 75 |
 | detail-match | Dune · 2021 | 56, 116, 580, 186 | 8 |
 | player-source-failed, player-not-ready | Play it now | 210, 387, 368, 435 | 78 |
-| player-sources | 1080p, the provider (inset) | 59, 220, 437, 270 | 11 |
+| player-sources | 1080p · Blu-ray, Northlight (inset) | 59, 220, 421, 270 | 11 |
 | state-addon-down | Archivio | 267, 349, 911, 411 | 1 |
 | add-setup, phone-page, player-upnext | nothing (a progress card, the phone, Up next) | – | – |
 
@@ -1122,7 +1154,7 @@ a band, after every copy that fits.
 - Adding without typing: the Stremio account first, Stremio's list on the TV, the home-network page from the phone;
   typing last. No hosted page and no relay.
 - airglow reads the Stremio account and never writes to it.
-- **One ranking, one pre-play wait, one IMDb match and one picker, shared with the subtitles design (5.0).**
+- **One ranking, one pre-play wait, one IMDb match and one picker for the whole app: `design/ui-v1/copies/RANKING.md`.**
 - An add-on link is never opened before Play, and an add-on copy outranks his provider's only on a Sure match.
 - A failed or placeholder film copy hands over by itself, preferring another source; live TV never does.
 

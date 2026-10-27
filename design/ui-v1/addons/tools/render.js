@@ -24,7 +24,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
   h1{font:700 26px/30px Outfit,sans-serif;margin:0 0 4px}h2{font:700 20px/26px Outfit,sans-serif;margin:22px 0 12px}p.s{margin:0 0 6px;color:#C8C4D8;font-size:14px}
   .g{display:grid;grid-template-columns:repeat(4,480px);gap:22px 20px}figure{margin:0}img{width:480px;height:270px;display:block;border-radius:6px;border:1px solid #3C3452}
   figcaption{padding:7px 2px 0}figcaption b{display:block;font-weight:650;font-size:14px}figcaption span{display:block;color:#C8C4D8;margin-top:2px}</style>
-  <h1>airglow · add-ons</h1><p class="s">Mocks at 960 x 540 (rendered 2x). Tue 27 Oct 2026, 21:10 on the owner's TV (Reykjavik time). Real add-on answers (Cinemeta, OpenSubtitles v3, WatchHub, Public Domain Movies, the Stremio API) fetched 27 Oct; Northlight, Kestrel, Courtside and the provider's copies are illustrative. Spec: SPEC.md.</p>${groups}`;
+  <h1>airglow · add-ons</h1><p class="s">Mocks at 960 x 540 (rendered 2x). Tue 27 Oct 2026, 21:10 on the owner's TV (Reykjavik time). Real add-on answers (Cinemeta, OpenSubtitles v3, WatchHub, Public Domain Movies, the Stremio API) fetched 27 Oct; Northlight, Kestrel and the provider's copies are illustrative; copy order follows design/ui-v1/copies/RANKING.md. Spec: SPEC.md.</p>${groups}`;
   const tmp = path.join(root, 'tools', '_contact.html'); fs.writeFileSync(tmp, html);
   const p = await b.newPage({ viewport: { width: 28 * 2 + 4 * 480 + 3 * 20, height: 800 }, deviceScaleFactor: 1 });
   await p.goto('file://' + tmp); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(400);

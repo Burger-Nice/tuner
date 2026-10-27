@@ -26,19 +26,31 @@
  {
   "file": "detail-which-film.html",
   "title": "Subtitles: which film is it?",
-  "note": "v1.1 (M3, S7, S9): only asked when nothing else can decide. \"EN| The Lion King\" has no year; two IMDb films have that name; and this copy couldn't be checked (its provider refuses partial reads), so its length can't pick one. With a checked length, a single candidate within 5% is accepted without asking. A dubbed copy is never asked about: its subtitles default to off.",
+  "note": "Only asked when nothing else decides (Unsure, RANKING.md 4). \"EN| The Lion King\" has no year and two IMDb films have the name. v1.2 (review 2, S1): this copy is an MP4 with its index at the end on a provider that refuses partial reads, so its length is unknown (an MKV would still give it). English sound on a United States film is not a dub (M1), so it asks.",
   "group": "On the title page"
  },
  {
   "file": "detail-match.html",
   "title": "Which film is this?",
-  "note": "Rows: title / year · length · director (real Cinemeta meta, one /meta call per row; S9). With a checked length the closest row is focused; with none, as here, the first result is, and the header says the length is unknown. \"None of these\" turns OpenSubtitles off for this title. The add-ons design uses this same menu.",
+  "note": "Rows: title / year · length · director (real Cinemeta meta, one /meta call per row). With a checked length the closest row is focused; with none, as here, the first result is, and the header says so. v1.2: one \"None of these\" line for both designs (review 2, S4). The add-ons design uses this same menu.",
   "group": "On the title page"
  },
  {
   "file": "detail-subs-down.html",
   "title": "Subtitles: OpenSubtitles isn't answering",
   "note": "The add-on is down (or slow: 8 s). The pill row says so and when it tries again; nothing to press. Play still works: subtitles that come in later appear in the player, which says so once (SPEC 7.6). Lists already fetched are kept for 2 days.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-resume.html",
+  "title": "Title page: Resume, the slot shows the time left",
+  "note": "v1.2 (review 2, M2): one slot after the pills, at most to x 912 with an ellipsis, and one text in it, by priority: 1 the time left (as today's detail.js), 2 the add-ons' \"Still asking …\", 3 the subtitles text. Here the time left wins; \"From OpenSubtitles · Icelandic ready too\" is still in the Subtitles sheet. The SIDE check fails a slot that is cut.",
+  "group": "On the title page"
+ },
+ {
+  "file": "detail-addon-asking.html",
+  "title": "Title page: an add-on asking, OpenSubtitles down",
+  "note": "Both designs have something to say: the add-ons' \"Still asking Kestrel\" (priority 2) wins the slot over \"OpenSubtitles isn't answering\" (3). The subtitles state isn't lost: the pill itself says \"none yet\", dashed, and the sheet says why. When Kestrel answers, the slot goes back to the subtitles text.",
   "group": "On the title page"
  },
  {
@@ -56,7 +68,7 @@
  {
   "file": "account-languages.html",
   "title": "Account: Languages",
-  "note": "The one place for the defaults. v1.1 (S14): \"Subtitles with sounds\", not \"Sound descriptions\" (which reads like narration for blind viewers). Today's \"Auto\" becomes \"Only when the sound isn't in your language\" until the owner picks (S24). A dubbed copy in one of your languages gets no subtitles in another language (S7).",
+  "note": "The one place for the defaults. \"Subtitles with sounds\" (v1.1). v1.2 (review 2, S5): today's \"Auto\" would mean no subtitles on English films after the update, so the owner is asked before release (SPEC 14.2). A dub (sound in another language than the film's) gets no subtitles by default (M1).",
   "group": "Around the app"
  },
  {

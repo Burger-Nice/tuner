@@ -61,9 +61,9 @@
   "min": 100,
   "ring": [
    508,
-   125,
+   133,
    896,
-   195
+   203
   ],
   "safe": 16
  },
@@ -119,6 +119,40 @@
   "safe": -3.3
  },
  {
+  "f": "detail-resume.html",
+  "el": ".btn.fx",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   243.6,
+   261.4,
+   300.4
+  ],
+  "safe": -3.3
+ },
+ {
+  "f": "detail-addon-asking.html",
+  "el": ".btn.fx",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   243.6,
+   173.2,
+   300.4
+  ],
+  "safe": -3.3
+ },
+ {
   "f": "detail-series.html",
   "el": ".th.f",
   "inset": false,
@@ -156,11 +190,11 @@
   "f": "account-languages.html",
   "el": ".arow.fx",
   "inset": false,
-  "top": 100,
+  "top": 31,
   "bottom": 100,
   "left": 100,
-  "right": 100,
-  "min": 100,
+  "right": 0,
+  "min": 0,
   "ring": [
    267,
    187,

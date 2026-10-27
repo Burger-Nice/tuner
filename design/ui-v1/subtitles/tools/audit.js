@@ -1,5 +1,6 @@
 // node tools/audit.js [--quiet] [--inject-st] [page ...]
-// design/ui-v1/subtitles: the diagnosis audit plus the subtitles checks ONE, TICK, BEST, STEP, SOURCE, JARGON, CLOCK, HUE, and in v1.1 RINGTEXT, RAILFOCUS, TICKGAP (SPEC 12).
+// design/ui-v1/subtitles: the diagnosis audit plus the subtitles checks ONE, TICK, BEST, STEP, SOURCE, JARGON, CLOCK, HUE, and in v1.1 RINGTEXT, RAILFOCUS, TICKGAP, and in v1.2 SIDE (SPEC 12).
+// node tools/audit.js --quiet --inject-v11   puts the v1.1 fault back (two texts in the pill-row slot), to prove SIDE fires.
 // node tools/audit.js --quiet --inject-v10   puts the v1.0 faults back, to prove the v1.1 checks fire.
 // design/ui-v1/catchup/tools/audit.js (itself from nba-pages), run on the diagnosis mocks. Originally adapted to the catch-up mocks (cu- classes and the player's timeline), plus SPOILER:
 // on a mock marked <meta name="shield" content="unseen">, no visible score (\d{2,3}–\d{2,3}), remaining time (−m:ss) or
@@ -56,6 +57,8 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       document.head.insertAdjacentHTML('beforeend', '<style>.sheet.st-sheet .sec{margin-bottom:0}.lr.st-two .b .st-tk,.nv-row .b .st-tk{margin-right:0;vertical-align:-6px}</style>');
       const rt = document.querySelector('.rowtitle'), rl = rt && rt.nextElementSibling; if (rt && rl && rl.classList.contains('rail')) { rt.style.top = '392px'; rl.style.top = '426px'; }
     });
+    // --inject-v11: put back the v1.1 fault review 2 found: the slot with two texts (time left + the subtitles line)
+    if (process.argv.includes('--inject-v11')) await p.evaluate(() => { const sd = document.querySelector('.st-side'); if (sd) sd.insertAdjacentHTML('beforeend', '<span class="dot-sep"></span>1 h 12 min left<span class="dot-sep"></span>OpenSubtitles isn\'t answering · trying again at 21:31'); });
     // --inject-st: put in one fault per subtitles check, to prove each fires (SPEC 12)
     if (process.argv.includes('--inject-st')) await p.evaluate(() => {
       const s = document.querySelector('.screen');
@@ -365,6 +368,10 @@ const { chromium } = require('playwright'); const path = require('path'); const 
           const lift = c.classList.contains('f') ? 0 : (q.height * 0.04) / 2;   // a lift grows the card ~4%
           if (q.bottom + lift > 513.5 || q.bottom + lift + 5 > 519.5) { issues.safe.push(`RAILFOCUS: ${short(c)} would sit at y ${(q.bottom + lift).toFixed(0)} focused (ring ${(q.bottom + lift + 5).toFixed(0)}), past 513`); break; } }
       }
+      // v1.2 SIDE (review 2, M2): the pill row's one slot ends by x 912 and isn't cut (the mocks show the priority winner whole)
+      for (const sd of document.querySelectorAll('.st-side')) { const q = sd.getBoundingClientRect();
+        if (q.right > 912.5) issues.safe.push(`SIDE: the pill-row slot ends at x ${q.right.toFixed(0)}`);
+        if (sd.scrollWidth > sd.clientWidth + 1) issues.clip.push(`SIDE: the pill-row slot is cut ("${sd.textContent.trim().slice(0, 30)}…"): show one text, by priority`); }
       // v1.1 TICKGAP (review S18): a tick is centred on its text line and 4 px or more from the text after it
       for (const tk of document.querySelectorAll('.st-tk')) {
         const q = tk.getBoundingClientRect(); let n = tk.nextSibling; while (n && n.nodeType === 3 && !n.textContent.trim()) n = n.nextSibling;
@@ -384,7 +391,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       // STEP: timing moves in 0.5 s steps
       for (const m of allText.matchAll(/(\d+(?:\.\d+)?) s (earlier|later)/g)) if (Math.abs(+m[1] * 2 - Math.round(+m[1] * 2)) > 1e-6) issues.overlap.push(`STEP: "${m[0]}" is not a 0.5 s step`);
       // SOURCE: a surface that offers downloaded subtitles names where they come from
-      for (const c of document.querySelectorAll('.nv-panel,.sheet,.nv-chip,.st-src,.menu')) { const t = c.textContent; if (/Timing (fixed|fits|not checked)|from (the )?internet|downloaded/i.test(t) && !/OpenSubtitles/.test(t)) issues.overlap.push(`SOURCE: "${t.trim().slice(0, 30)}" offers downloaded subtitles without naming OpenSubtitles`); }
+      for (const c of document.querySelectorAll('.nv-panel,.sheet,.nv-chip,.st-src,.menu')) { const t = c.textContent; if (/Timing (fixed|fits|not checked)|from (the )?internet|(?<!no )downloaded/i.test(t) && !/OpenSubtitles/.test(t)) issues.overlap.push(`SOURCE: "${t.trim().slice(0, 30)}" offers downloaded subtitles without naming OpenSubtitles`); }
       // JARGON: plain words: no codec, container or hash words on screen
       { const j = allText.match(/\b(HEVC|AVC|H\.?26[45]|x26[45]|codec|moviehash|hash|SRT|fps|remux|bitrate|tt\d{6,})\b/i); if (j) issues.overlap.push(`JARGON: "${j[0]}" on screen`); }
       // CLOCK: 24 h times

@@ -167,3 +167,4 @@
 .tag.ad-name{background:rgba(21,19,29,.78);border:1px dashed var(--a-border-strong);color:var(--a-text-2)}
 .menu .ad-grp2{padding:8px 12px 2px;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
 .t-cap .ic.xs{vertical-align:-3px}
+.tag.ad-ok,.tag.ad-name{text-transform:none}   /* v1.2 (subtitles 15): tags keep their case: 1080p, not 1080P */
