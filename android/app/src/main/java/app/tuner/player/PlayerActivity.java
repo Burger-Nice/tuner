@@ -2010,7 +2010,7 @@ public class PlayerActivity extends AppCompatActivity {
                     if (open == channels && channels != null) channels.render();
                     break;
                 }
-                case "versions": versions = new JSONObject(arg); if (open instanceof ListPanel && "Quality".contentEquals(((ListPanel) open).title.getText())) openQuality(qualityFromOptions); break;
+                case "versions": versions = new JSONObject(arg); if (vod != null && vod.visible()) fillWhat(vod); if (open instanceof ListPanel && "Quality".contentEquals(((ListPanel) open).title.getText())) openQuality(qualityFromOptions); break;
                 case "subs": if (subs != null) subs.command(arg); break;
                 case "pinned": pinned = arg == null || arg.isEmpty() ? null : new JSONObject(arg); break;
                 case "games": liveGames = new JSONArray(arg); if (banner.getVisibility() == View.VISIBLE) hintsChanged(); break;
