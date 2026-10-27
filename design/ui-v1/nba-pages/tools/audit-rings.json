@@ -1,0 +1,359 @@
+[
+ {
+  "f": "nba-entry.html",
+  "el": ".chip.lg",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   561.7,
+   77,
+   691.4,
+   123
+  ],
+  "safe": 50
+ },
+ {
+  "f": "nba-card-menu.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   360,
+   357,
+   588,
+   415
+  ],
+  "safe": 98
+ },
+ {
+  "f": "standings-top.html",
+  "el": ".chip.lg",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   123,
+   137.1,
+   169
+  ],
+  "safe": -5
+ },
+ {
+  "f": "standings-row.html",
+  "el": ".nb-tr.mine",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   48,
+   290,
+   900,
+   322
+  ],
+  "safe": 0
+ },
+ {
+  "f": "standings-scrolled.html",
+  "el": ".nb-tr.f-in",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   48,
+   456,
+   900,
+   488
+  ],
+  "safe": 0
+ },
+ {
+  "f": "standings-shield.html",
+  "el": ".pillbtn.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   768.7,
+   123,
+   917,
+   169
+  ],
+  "safe": -5
+ },
+ {
+  "f": "leaders.html",
+  "el": ".nb-cat.sel",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   123,
+   253,
+   167
+  ],
+  "safe": -5
+ },
+ {
+  "f": "leaders-row.html",
+  "el": ".nb-tr.mine",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   272,
+   296,
+   912,
+   326
+  ],
+  "safe": 0
+ },
+ {
+  "f": "teamstats.html",
+  "el": ".nb-cat.sel",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   237,
+   253,
+   281
+  ],
+  "safe": -5
+ },
+ {
+  "f": "news.html",
+  "el": ".nb-nrow.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   123,
+   445,
+   193
+  ],
+  "safe": -5
+ },
+ {
+  "f": "news-shield.html",
+  "el": ".nb-nrow.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   187,
+   445,
+   257
+  ],
+  "safe": -5
+ },
+ {
+  "f": "team-top.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   67.7,
+   250.6,
+   251,
+   307.4
+  ],
+  "safe": 19.7
+ },
+ {
+  "f": "team-schedule.html",
+  "el": ".nb-gt.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   481.8,
+   352.1,
+   700.2,
+   471.9
+  ],
+  "safe": 41.1
+ },
+ {
+  "f": "team-ranks.html",
+  "el": ".nb-rk.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   382.9,
+   84.7,
+   557.2,
+   183.4
+  ],
+  "safe": 57.7
+ },
+ {
+  "f": "team-shield-news.html",
+  "el": ".nb-rk.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   382.9,
+   84.7,
+   557.2,
+   183.4
+  ],
+  "safe": 57.7
+ },
+ {
+  "f": "team-roster.html",
+  "el": ".nb-tr.f-in",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   48,
+   472,
+   900,
+   504
+  ],
+  "safe": 0
+ },
+ {
+  "f": "team-player.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   507.7,
+   441.6,
+   783.9,
+   498.4
+  ],
+  "safe": 14.6
+ },
+ {
+  "f": "team-shield.html",
+  "el": ".nb-gt.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   481.8,
+   352.1,
+   700.2,
+   471.9
+  ],
+  "safe": 41.1
+ },
+ {
+  "f": "team-other.html",
+  "el": ".pillbtn.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   288.3,
+   77,
+   427.9,
+   123
+  ],
+  "safe": 50
+ },
+ {
+  "f": "state-down.html",
+  "el": ".pillbtn.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   777,
+   123,
+   917,
+   169
+  ],
+  "safe": -5
+ },
+ {
+  "f": "state-loading.html",
+  "el": ".chip.lg",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   547.1,
+   77,
+   691.9,
+   123
+  ],
+  "safe": 50
+ }
+]

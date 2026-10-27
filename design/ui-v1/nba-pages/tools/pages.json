@@ -1,0 +1,112 @@
+[
+ {
+  "file": "nba-entry.html",
+  "title": "Entry: the NBA tab",
+  "note": "The NBA tab with its new section row; the Grizzlies chip is focused. The hero stays at y 128; the day chips move under it."
+ },
+ {
+  "file": "nba-card-menu.html",
+  "title": "Entry: hold OK on a game card",
+  "note": "Hold OK on any game card: both team pages are one press away."
+ },
+ {
+  "file": "standings-top.html",
+  "title": "Standings: top",
+  "note": "West first (your conference). Rows 1 to 9 whole, the scroll bar says there is more."
+ },
+ {
+  "file": "standings-row.html",
+  "title": "Standings: your row focused",
+  "note": "Inset ring on the Grizzlies row (team bar, surface-1 highlight). OK opens the team page."
+ },
+ {
+  "file": "standings-scrolled.html",
+  "title": "Standings: scrolled",
+  "note": "Past the last visible row the bar and the chips slide away; the column names stay at y 52."
+ },
+ {
+  "file": "standings-shield.html",
+  "title": "Standings: shield on",
+  "note": "Shield on, the Kings game unseen: the West is shown as it was before it, and says so."
+ },
+ {
+  "file": "leaders.html",
+  "title": "Leaders: points",
+  "note": "Category column (focus switches after 250 ms), the leader on their team plate, 2 to 10 below."
+ },
+ {
+  "file": "leaders-row.html",
+  "title": "Leaders: a row focused",
+  "note": "Rebounds, Cameron Boozer (your team) focused. OK opens his team page on his roster row."
+ },
+ {
+  "file": "teamstats.html",
+  "title": "Team stats: assists",
+  "note": "The column shows your team's rank in each; the list scrolls so your team is in view (19th)."
+ },
+ {
+  "file": "news.html",
+  "title": "News: list and preview",
+  "note": "Headlines on the left, the focused story's photo, headline and summary on the right."
+ },
+ {
+  "file": "news-shield.html",
+  "title": "News: shield on",
+  "note": "Stories about a Grizzlies result you haven't seen are covered: no photo, no headline."
+ },
+ {
+  "file": "news-article.html",
+  "title": "News: the article sheet",
+  "note": "OK on a story: a reading sheet with the full text from ESPN. ▲▼ scroll it, Back closes."
+ },
+ {
+  "file": "team-top.html",
+  "title": "Team: top",
+  "note": "Your team: plate, record and seed, the next game with Remind me (focused), the schedule rail."
+ },
+ {
+  "file": "team-schedule.html",
+  "title": "Team: schedule rail",
+  "note": "Left from the next game: results. The focused tile stays in the third slot while there is more."
+ },
+ {
+  "file": "team-ranks.html",
+  "title": "Team: ranks and news",
+  "note": "Down from the schedule: the page slides up, the bar steps away. Rank tiles, then the team's news, then the roster."
+ },
+ {
+  "file": "team-shield-news.html",
+  "title": "Team: shield on, news",
+  "note": "Shield on: ranks hidden, stories about the unseen game covered (no photo, no headline), PTS and FG% hidden."
+ },
+ {
+  "file": "team-roster.html",
+  "title": "Team: roster scrolled",
+  "note": "Roster with season averages; column names stay at y 92; long names and players who haven't played."
+ },
+ {
+  "file": "team-player.html",
+  "title": "Team: player sheet",
+  "note": "OK on a roster row: the player's card. Its one button jumps to the leaders list he is in."
+ },
+ {
+  "file": "team-shield.html",
+  "title": "Team: shield on",
+  "note": "Shield on, the Kings game unseen: record as of before it, the tile and the ranks hidden."
+ },
+ {
+  "file": "team-other.html",
+  "title": "Team: another team",
+  "note": "Any team (from standings, leaders, game cards): the same page in its colours, with Make my team."
+ },
+ {
+  "file": "state-down.html",
+  "title": "State: ESPN down",
+  "note": "ESPN not answering: the last copy stays on screen with its time; Try again is the one thing to do."
+ },
+ {
+  "file": "state-loading.html",
+  "title": "State: loading",
+  "note": "First visit, nothing cached: flat blocks in the final layout, focus stays on the chip."
+ }
+]
