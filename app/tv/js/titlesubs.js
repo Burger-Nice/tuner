@@ -81,7 +81,7 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
     refreshPlayable();
     // the IMDb match learns the length from the default copy's check (Likely -> Sure, or dropped)
     const v = ts.version(), len = v && checkedFor(v)?.len;
-    if (movie && len && (!k || probeKey(v) === k)) noteLength(t, len / 60).then((r) => { if (r === 'drop') { ts.dropNote = 'These subtitles were for another film.'; changed(); } });
+    if (movie && len) noteLength(t, len / 60).then((r) => { if (r === 'drop') { ts.dropNote = 'These subtitles were for another film.'; changed(); } });
     changed();
   }));
   offs.push(on('subs', (key) => { if (sent.has(key)) changed(); }));
@@ -227,7 +227,7 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
         else if (act === 'cur') { ov.close(); onDone?.(); }
         else if (act === 'off') { mem?.setPick(key, { source: 'off' }); ov.close(); changed(); onDone?.(); }
         else if (act === 'retry') { ov.close(); if (!retryNow(key)) { sent.delete(key); ts.sync(); } changed(); onDone?.(); }
-        else if (act === 'others') { ov.close(false); othersMenu(key, st.others, onDone); }
+        else if (act === 'others') othersMenu(key, st.others, onDone, ov);   // (over the sheet: Back returns to it)
         else if (act === 'match') { ov.close(false); ts.match(onDone); }
       },
     });
@@ -235,7 +235,7 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
     return ov;
   };
   // Other languages: by English name; a pick is fetched for this title and remembered as his
-  function othersMenu(key, others, onDone) {
+  function othersMenu(key, others, onDone, sheet) {
     const list = [...others].sort((a, b) => a.localeCompare(b));
     const cur = subMemory()?.pick(key)?.lang;
     const ov = openOverlay(`<div class="sheet st-sheet"><h3>Other languages</h3><div class="t-cap" style="margin-top:-4px">From OpenSubtitles · ${list.length}</div><div class="sheet-body"><div class="inner" data-col>${list.map((l) => `<div class="lr fx" tabindex="-1" data-act="pick" data-v="${esc(l)}"><span class="rd${l === cur ? ' on' : ''}"></span><span class="grow ellipsis">${esc(l)}</span></div>`).join('')}</div></div><div class="st-note">Picking one keeps it for this ${movie ? 'film' : 'episode'}.</div></div>`, {
@@ -243,7 +243,7 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
       onClick: (act, el) => {
         if (act !== 'pick') return;
         const lang = el.dataset.v;
-        ov.close();
+        ov.close(false); sheet?.close();
         subMemory()?.setPick(key, { source: 'opensubtitles', id: '', lang });
         ts.also.set(key, lang);
         want(movie ? reqFor() : reqFor(playEp()));

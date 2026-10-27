@@ -383,7 +383,7 @@ export default {
     on('progress', () => { if (!el.hidden) draw(); });
     on('copies', () => { if (!el.hidden) draw(); });
     // the match changed (a check's length made it Sure or dropped it, his pick): the copies and subtitles follow
-    on('imdb', (k) => { if (!el.hidden && t && k === keyOf(t)) tc?.rematch(info || {}); });
+    on('imdb', (k) => { if (!el.hidden && t && k === `${t.kind}:${t.key || t.id}`) tc?.rematch(info || {}); });   // (imdb.js's own key)
   },
   // Back while Play waits stops the wait (RANKING.md 3.2)
   back() { if (tc?.waiting()) { tc.stopWait(); draw(); focus(el.querySelector('[data-act="play"]')); return true; } return false; },

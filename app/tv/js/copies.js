@@ -210,6 +210,6 @@ export function copyLine(c) {
   const k = c.checked;
   const res = (k && k.res) || c.claim.res || '';
   const range = k ? (k.dv ? 'Dolby Vision' : k.hdr === 'HDR10+' ? 'HDR10' : k.hdr || '') : (c.claim.dv && !(c.claim.kind === 'bluray' || c.claim.remux) ? 'Dolby Vision' : c.claim.dv || c.claim.hdr ? 'HDR10' : '');
-  return [res, range, KIND_WORD[c.claim.kind] || '', k && k.mbps ? `${(Math.round(k.mbps * 10) / 10).toFixed(1)} Mb/s` : ''].filter(Boolean).join(' · ');
+  return [res, range, KIND_WORD[c.claim.kind] || '', k && k.mbps ? `${Math.round(k.mbps * 10) / 10} Mb/s` : ''].filter(Boolean).join(' · ');
 }
 export const sizeText = (b) => (!b ? '' : b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.round(b / 1e6)} MB`);
