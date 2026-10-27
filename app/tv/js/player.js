@@ -228,7 +228,9 @@ const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scor
 function vodEntry(it, restart) {
   const p = progressOf(it);
   const ep = it.kind === 'episode';
-  return { id: `${it.kind}:${it.id}`, url: it.url, title: ep ? it.seriesName : it._title || it.name, sub: ep ? `S${it.season} · E${it.ep} · ${it.name}` : '', startAt: restart ? 0 : inProgress(p) ? p.t : 0 };
+  // (_entry: an add-on copy's or a ranked copy's extra fields for the player: headers, mime, source, the next copies
+  // as identities, binge, key, runtime; design/ui-v1/addons/PORT-NATIVE.md. Non-enumerable, so never saved.)
+  return { id: `${it.kind}:${it.id}`, url: it.url, title: ep ? it.seriesName : it._title || it.name, sub: ep ? `S${it.season} · E${it.ep} · ${it.name}` : '', startAt: restart ? 0 : inProgress(p) ? p.t : 0, ...(it._entry || {}) };
 }
 // More episodes after the one playing (Up next), when the series' list arrives after playback started.
 export function queueAfter(item, more) {
@@ -241,7 +243,7 @@ export async function playVod(item, { queue, restart } = {}) {
   const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
   const entries = list.map((it, i) => vodEntry(it, i === 0 && restart));
   setWatching(null, null);   // a film or an episode: no game on screen (its final buzzer isn't yours to see)
-  if (!native) { toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
+  if (!native) { if (window.TUNER_TEST) window.__lastVod = entries; toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
   const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua, ...playerSettings() }).catch((e) => ({ ok: false, error: e?.message }));
   if (!r?.ok) { toast(r?.error || 'This video would not play.', 4000); return; }
   sfx.zone('player');
