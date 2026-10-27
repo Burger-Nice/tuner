@@ -39,6 +39,7 @@ function askAddons() {
       for (const m of x.metas) {
         if (seen.has(m.id) || (m.year && m.year > yr) || (m.released && Date.parse(m.released) > now)) continue;
         if ((m.type === 'series' ? provS : provM).has(m.id)) continue;
+        if (videoMask({ kind: 'movie', id: m.id, name: m.name })) continue;   // (the shield: SPEC 10)
         seen.add(m.id); st.items.push({ ...m, from: AD.label(x.a) });
       }
       draw();

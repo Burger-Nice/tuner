@@ -185,6 +185,7 @@ export default function lib(kind) {
       const t = prov.get(m.id);
       if (t) { if (!st.items.includes(t)) { st.items.push(t); st.mine.add(t); } continue; }
       if (st.onlyMine) continue;
+      if (videoMask({ kind, id: m.id, name: m.name })) continue;   // an add-on video naming a hidden game's teams (SPEC 10): left out, never its name or art
       st.items.push({ kind, key: m.id, id: m.id, name: m.name, poster: m.poster, year: m.year ? String(m.year) : '', versions: [], _qs: new Set(), _langs: new Set(), _genres: m.genres, _ir: parseFloat(m.imdbRating) || 0, _s: window.Titles.norm(m.name), addon: { key: st.a.key, type: m.type || kind }, released: m.released, releaseInfo: m.releaseInfo });
     }
     // it stops when a page is empty or brings only titles already shown (Cinemeta sends 49 or 50: SPEC 4.2)

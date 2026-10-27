@@ -4,7 +4,7 @@
 // link that isn't an add-on, the confirm, the email fallback's errors, and signing out (logout is called).
 // Run: node tests/tv/drive.js <out> addons-account   (mocks: design/ui-v1/addons/png/acct-*.png, add-*.png)
 const C = require('./addons-common.js');
-module.exports = async ({ p, shot, key }) => {
+const flows = async ({ p, shot, key }) => {
   const { ok, check, hold, H } = C;
   const ev = (f, a) => p.evaluate(f, a);
   await C({ p, key }, {});
@@ -75,4 +75,30 @@ module.exports = async ({ p, shot, key }) => {
   check('unknown email: under the field', await ev(() => /No Stremio account uses this email/.test([...document.querySelectorAll('.ad-full')].pop().innerText)));
   await ev(() => { document.querySelector('#adEmail').value = 'demo@example.com'; document.querySelector('#adPass').value = 'demo'; });
   await key('ArrowDown', 2, 200); await key('Enter', 1, 2500); await ok(p, 'email: signed in, found', (w) => /Done|Add/.test(w));
+};
+// the states (state-addon-down): Kestrel timed out 3 times (Not answering, tries again later), Archivio's manifest is a
+// web page now (Not an add-on any more), learnt on opening Add-ons
+module.exports = async (ctx) => {
+  await flows(ctx);
+  const { p, shot } = ctx;
+  const ev = (f, a) => p.evaluate(f, a);
+  await ev((H) => {
+    const acc = JSON.parse(localStorage.getItem('tuner.accounts') || '[]')[0];
+    const k = `tuner.a:${acc.id}:addons`, l = JSON.parse(localStorage.getItem(k) || '[]');
+    const now = Date.now();
+    const kes = l.find((a) => a.manifest?.name === 'Kestrel');
+    if (kes) kes.health = { fails: [now - 25 * 60e3, now - 12 * 60e3, now - 8 * 60e3], downSince: now - 30 * 60e3, downUntil: now + 30 * 60e3 };
+    l.push({ key: 'adarchivio', url: `${H}/addon/archivio/manifest.json`, manifest: { id: 'org.archivio', name: 'Archivio', version: '0.9.0', resources: ['catalog', 'meta'], types: ['movie'], catalogs: [] }, at: 0, on: true, catalogs: {}, from: 'typed', kind: {}, health: { lastOk: Date.parse('2026-10-24T20:00:00Z') } });
+    localStorage.setItem(k, JSON.stringify(l));
+  }, C.H);
+  await p.reload(); await p.waitForTimeout(2500);
+  await ev(() => window.__tunerTest.go('account')); await p.waitForTimeout(900);
+  await ev(() => document.querySelector('[data-g="addons"]').click()); await p.waitForTimeout(2500);
+  await ev(() => document.querySelector('[data-screen="account"] [data-ad="adarchivio"]')?.focus());
+  await ev(() => document.querySelector('[data-screen="account"] [data-ad="adarchivio"]')?.dispatchEvent(new CustomEvent('tvfocus', { bubbles: true })));
+  await p.waitForTimeout(500); await shot('state-addon-down');
+  const rows = await ev(() => [...document.querySelectorAll('[data-screen="account"] .ad-row')].map((r) => r.innerText.replace(/\s+/g, ' ')));
+  console.log(rows.join('\n'));
+  C.check('Kestrel: Not answering, tries again', rows.some((r) => /Kestrel/.test(r) && /No answer in 10 s, 3 times since/.test(r) && /Not answering/.test(r)));
+  C.check('Archivio: Not an add-on any more', rows.some((r) => /Archivio/.test(r) && /Opens a web page now · last worked/.test(r) && /Not an add-on any more/.test(r)));
 };

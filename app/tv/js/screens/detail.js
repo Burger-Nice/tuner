@@ -134,7 +134,7 @@ function draw() {
   const backdrop = d.backdrop || t.poster;
   let below = '';
   if (movie) {
-    const more = moreLikeThis();
+    const more = withDetailLinks(moreLikeThis());
     below = more.length ? `<div class="abs rowtitle" style="left:48px;top:366px;font-size:20px">More like this</div><div class="rail abs" style="top:400px;left:0;right:0"><div class="track" data-row data-more>${more.map((x, i) => wideCard(x, i)).join('')}</div></div>` : '';
     el._more = more;
   } else if (seasonsList().length) {
@@ -169,6 +169,24 @@ function draw() {
 </div>${below}`);
   fitCol(movie);
   placeTracks();
+}
+// stremio:///detail links from add-ons (Watch Next) are cards in More like this: at most 10, the title itself and
+// duplicates dropped, each opening airglow's own page for that id (SPEC 5.6). Their details come once, then a redraw.
+function withDetailLinks(more) {
+  const ds = tc?.active ? tc.details() : [];
+  if (!ds.length) return more;
+  const key = ds.map((d) => d.id).join();
+  if (el._dlKey !== key) {
+    el._dlKey = key; el._dl = [];
+    const mine = t;
+    Promise.all(ds.map((d) => AD.meta(d.type, d.id))).then((ms) => {
+      if (t !== mine) return;
+      el._dl = ms.filter(Boolean).map((m) => ({ kind: m.type === 'series' ? 'series' : 'movie', key: m.id, id: m.id, name: m.name, poster: m.background || m.poster, year: m.year ? String(m.year) : '', versions: [], _qs: new Set(), _langs: new Set(), _genres: m.genres, addon: { type: m.type } }));
+      if (el._dl.length) draw();
+    });
+  }
+  const names = new Set(el._dl.map((x) => x.name.toLowerCase()));
+  return [...el._dl, ...more.filter((x) => !names.has(String(x.name).toLowerCase()))].slice(0, 10);
 }
 // A title only add-ons have (SPEC 5.7): its details from the first add-on with meta for its id (4.3)
 async function addonInfo(t) {

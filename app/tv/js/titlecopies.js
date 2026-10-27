@@ -32,7 +32,7 @@ const KIND_SHORT = { bluray: 'Blu-ray', web: 'web', tv: 'TV', dvd: 'DVD', cinema
 // t: a provider title (versions) or an add-on title (t.addon); info: the provider's details (tmdb, imdb)
 export function titleCopies(t, onChange) {
   const tc = {
-    t, active: anyStreamAddon() && t.kind !== 'live', match: null, meta: null, q: null, eps: null,
+    t, active: (anyStreamAddon() || !!t.addon) && t.kind !== 'live', match: null, meta: null, q: null, eps: null,
     wait: null, dead: false, epQ: new Map(),
   };
   const changed = () => { if (!tc.dead) onChange?.(tc); };
@@ -88,6 +88,7 @@ export function titleCopies(t, onChange) {
     if (!tc.q || tc.asking().length || tc.copies().length) return '';
     const order = (r) => (r.dropped.torrent ? 0 : r.state === 'timeout' || r.state === 'failed' || r.state === 'down' ? 1 : 2);
     const bits = [...tc.q.results.values()].sort((a, b) => order(a) - order(b)).map((r) => r.dropped.torrent ? `${AD.label(r.a)} has it only as a torrent, which airglow doesn't play.` : r.state === 'timeout' || r.state === 'failed' || r.state === 'down' ? `${AD.label(r.a)} isn't answering.` : r.ext.length || r.info.length ? '' : `${AD.label(r.a)} found nothing.`).filter(Boolean);
+    if (!tc.q.results.size) return 'No copy to play. None of your add-ons gives copies of films: add one in Account > Add-ons.';
     return `No copy to play. ${bits.join(' ')}`.trim();
   };
   tc.others = () => (tc.q ? [...tc.q.results.values()].flatMap((r) => r.ext) : []);
