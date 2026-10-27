@@ -418,11 +418,13 @@ export async function whichFilm(tc, onDone, { query = '' } = {}) {
 }
 // Search by another name: a field on the TV keyboard (OK opens it, Enter searches), then the same menu for that name
 function searchName(tc, onDone, was) {
-  const ov = openOverlay(`<div class="menu ad-match"><h3>Search by another name</h3><div class="ad-qq">The title as Cinemeta might know it, in English or in its own language</div><div data-col><div class="fld" data-row style="padding:0 8px 6px"><input class="field fx" tabindex="-1" id="wfName" type="text" placeholder="${esc(was)}" readonly spellcheck="false" autocomplete="off" style="width:100%"></div></div><div class="ad-foot">OK opens the keyboard · Enter searches · Back returns</div></div>`);
+  let sent = false;
+  // (Back returns to the picker it came from)
+  const ov = openOverlay(`<div class="menu ad-match"><h3>Search by another name</h3><div class="ad-qq">The title as Cinemeta might know it, in English or in its own language</div><div data-col><div class="fld" data-row style="padding:0 8px 6px"><input class="field fx" tabindex="-1" id="wfName" type="text" placeholder="${esc(was)}" readonly spellcheck="false" autocomplete="off" style="width:100%"></div></div><div class="ad-foot">OK opens the keyboard · Enter searches · Back returns</div></div>`, { onClose: () => { if (!sent) setTimeout(() => whichFilm(tc, onDone, { query: was === tc.t.name ? '' : was }), 0); } });
   const f = ov.el.querySelector('#wfName');
   fieldKeys(ov.el, ['wfName'], () => {
     const v = f.value.trim();
-    if (v) setTimeout(() => { ov.close(false); whichFilm(tc, onDone, { query: v }); }, 0);
+    if (v) { sent = true; setTimeout(() => { ov.close(false); whichFilm(tc, onDone, { query: v }); }, 0); }
     return f;
   });
   focus(f);

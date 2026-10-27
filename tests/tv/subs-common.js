@@ -105,22 +105,27 @@ module.exports = async ({ p, key }, opts = {}) => {
     r.fulfill({ status: 404, headers: hdr, body: '' });
   });
   await C({ p, key }, { at: opts.at || '2026-10-27T21:30:00Z' });
-  // his settings (SPEC 14): Always, Icelandic then English; Shown first English, Icelandic
+  await fakes(p, opts);
+  return state;
+};
+// his settings (SPEC 14): Always, Icelandic then English; Shown first English, Icelandic; the fake check and TV.
+// over: { stream id: what its check finds } in place of PROBES' entries
+async function fakes(p, opts = {}, over = {}) {
   await p.evaluate(({ PROBES, delay, patch }) => {
     const s = JSON.parse(localStorage.getItem('tuner.settings') || '{}');
     Object.assign(s, { langs: ['English', 'Icelandic'], subMode: 'always', subLangs: ['Icelandic', 'English'], subOnline: true }, patch || {});
     localStorage.setItem('tuner.settings', JSON.stringify(s));
     window.__probeLog = [];
+    window.__probes = PROBES;   // (a script can change what a copy is)
     window.__probeEngine = (job) => new Promise((res) => {
       const id = +job.url.split('/').pop().split('.')[0];
       window.__probeLog.push(id);
-      const r = PROBES[id];
+      const r = window.__probes[id];
       setTimeout(() => res(r ? { status: 'ok', etag: '', hash: '', ...r } : { status: 'couldnt', why: 'no fake' }), window.__probeDelay ?? delay);
     });
     window.__playable = async ({ copies }) => Object.fromEntries(copies.map((c) => [c.id, { video: true, audio: !(c.formats.audio || []).every((a) => /dts/.test(a.mime)), reason: '' }]));
-  }, { PROBES, delay: opts.delay ?? 300, patch: opts.settings });
-  return state;
-};
+  }, { PROBES: { ...PROBES, ...over }, delay: opts.delay ?? 300, patch: opts.settings });
+}
 // helpers
 module.exports.open = (p, kind, name, year) => p.evaluate(async ({ kind, name, year }) => {
   const a = await import('/tv/js/actions.js'), c = await import('/tv/js/catalog.js');
@@ -136,4 +141,16 @@ module.exports.forget = (p) => p.evaluate(async () => {   // a clean start for s
   for (const k of Object.keys(localStorage)) if (k.startsWith(pre + 'submem') || k.startsWith(pre + 'probeBudget')) localStorage.removeItem(k);
   await window.Core.cache.set(`probes:${acc.id}`, null);
 });
+// forget the IMDb answers and some copies' kept checks, and start the app again (the match and the checks run again)
+module.exports.unlearn = async (p, ids, over = {}, opts = {}) => {
+  await p.evaluate(async (ids) => {
+    const acc = JSON.parse(localStorage.getItem('tuner.accounts') || '[]')[0];
+    localStorage.removeItem(`tuner.a:${acc.id}:imdb`);
+    const k = `probes:${acc.id}`, c = (await window.Core.cache.get(k)) || {};
+    for (const x of Object.keys(c)) if (ids.some((id) => x.endsWith(`:movie:${id}`))) delete c[x];
+    await window.Core.cache.set(k, c);
+  }, ids);
+  await p.reload(); await p.waitForTimeout(4000);
+  await fakes(p, opts, over);
+};
 module.exports.C = C;
