@@ -1,4 +1,4 @@
-/* airglow TV: playback diagnosis v1.0 (design/ui-v1/diagnosis/SPEC.md). New classes only, prefix dg-.
+/* airglow TV: playback diagnosis v1.1 (design/ui-v1/diagnosis/SPEC.md). New classes only, prefix dg-.
    Built on tv/brand/tokens.css + tv/ui.css + tv/app.css. The player parts are native views (PlayerActivity, Ui): they are
    drawn here as HTML for measuring, in dp = CSS px on the 960 x 540 canvas. The Account sheet (dg-sheet) is web and is
    meant to be appended to app/tv/app.css. Only transform and opacity animate.
@@ -77,7 +77,7 @@
 .nv-h .dg-at{margin-left:auto;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
 
 /* ---------- the stutter chip (bottom right, the action chip) ---------- */
-.nv-chip.dg-chip{max-width:440px}
+.nv-chip.dg-chip{max-width:420px}
 .nv-chip.dg-chip .grow{min-width:0}
 
 /* ---------- Account > Provider > Check the connection (web sheet, right, 480) ---------- */
@@ -92,3 +92,18 @@
 .dg-sheet .sheet-foot{flex-direction:row;align-items:center;gap:16px;margin-top:auto}
 .dg-sheet .sheet-foot .t-cap{margin-left:auto}
 .dg-wait{font:500 15px/20px var(--a-font-text);color:var(--a-text-3)}
+
+/* ---------- v1.1 ---------- */
+/* S16: the problem link carries its own badge where the ticks sit: an ink disc with a chalk "!" (tick = fine, ! = problem) */
+.dg-c i.bang{background:var(--a-ink);box-shadow:0 0 0 2px #1E1B28,inset 0 0 0 1.5px var(--a-text-1)}
+.dg-c i.bang svg{stroke:var(--a-text-1);stroke-width:3.2}
+/* M9: the puck shows the refill (6 s of picture) as a ring while bytes are arriving; the spinner only while nothing arrives */
+.dg-puck svg.dg-fill{width:32px;height:32px}
+/* S12: the kit's chip, unchanged (max 420); the offline chip's glyph sits where the countdown ring would */
+.nv-chip .dg-gl{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--a-surface-2);color:var(--a-text-1)}
+.nv-chip .dg-gl svg.ic{width:22px;height:22px}
+/* M10: the VOD "loading ahead" bar inside the card */
+.dg-load{position:relative;height:6px;border-radius:999px;background:var(--a-surface-3)}
+.dg-load i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--a-grad)}
+.dg-load b{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;background:var(--a-text-1);border-radius:1px}
+.dg-c i.bang svg{width:12px;height:12px}

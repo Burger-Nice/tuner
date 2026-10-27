@@ -1,122 +1,152 @@
 [
  {
   "file": "stall-puck.html",
-  "title": "Stalled 1 to 3 s: the puck",
-  "note": "A blip. From 1 s of a stall a 56 dp spinner puck at the card's anchor (bottom centre), instead of PlayerView's spinner in the middle of the picture. Gone the moment it plays.",
+  "title": "A routine stall: the puck refills",
+  "note": "v1.1 (M9): the player waits for 6 s of picture after every stall, so most .ts hiccups freeze for 6 s. While it's refilling at full speed the puck fills toward it (here 3.7 of 6 s); no card, no words.",
   "group": "While it loads"
  },
  {
   "file": "stall-checking.html",
-  "title": "Stalled 3 s: checking",
-  "note": "At 3 s the puck opens into the card and the checks run (about 2 s). Each link fills with the pink progress as its answer comes back, left to right.",
+  "title": "Not recovering: checking",
+  "note": "The card opens only when the refill is too slow to finish in time (SPEC 3.1). Each link fills with the pink progress as its check answers. ▲▼ Zap says he isn't stuck.",
   "group": "While it loads"
  },
  {
   "file": "stall-provider-slow.html",
   "title": "Cause: the provider is slow",
-  "note": "The owner's question answered: not you, them. The two numbers side by side are the evidence. OK switches to the game's other feed (its own score delay; never automatic). No score anywhere.",
+  "note": "Not you, them. One pair of numbers (3 of 9 Mbps); the internet just reads Fast (S2: the test can't see past about 60 Mbps). OK switches to the game's other feed, which keeps its own score delay. No score anywhere.",
   "group": "While it loads"
  },
  {
   "file": "stall-wifi-weak.html",
   "title": "Cause: weak Wi-Fi",
-  "note": "Wi-Fi 1 of 4 bars and the stream starving: the link from the TV to the router is the problem. OK steps down to the stream's 720p level (needs 5 Mbps).",
+  "note": "v1.1 (M3, S6): blamed on the Wi-Fi only when the bars, the TV's link speed and the speed test agree. Nothing past the bottleneck is ticked: it can't be judged. OK plays the provider's HD copy (live .ts has no 720p level).",
   "group": "While it loads"
  },
  {
   "file": "stall-internet-slow.html",
   "title": "Cause: slow internet",
-  "note": "On a network cable, so it isn't Wi-Fi; a 3 s speed sample says the line itself is short. OK plays the provider's HD copy of the channel (needs 9 Mbps).",
+  "note": "On a network cable, so it isn't Wi-Fi; the speed test (plus what the stream got in the same 3 s, S1) says the line is short. OK plays the HD copy (needs 9 Mbps).",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-home-slow.html",
+  "title": "Cause: home network or line, can't split",
+  "note": "v1.1 (M3): strong bars and a fast Wi-Fi link, but a slow test: busy airwaves or the line itself, which a TV can't tell apart. Both links get the \"!\"; Details says how a cable would tell (SPEC 4.1 C3h).",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-offline-chip.html",
+  "title": "Wi-Fi dropped, picture still playing",
+  "note": "v1.1 (S15): the network went but there's still picture in hand. A chip, no action, no countdown; it goes when the network's back, and turns into the card only if the picture actually stops.",
   "group": "While it loads"
  },
  {
   "file": "stall-offline.html",
   "title": "Cause: the TV is offline",
-  "note": "Android says there is no network: shown at once (no 3 s wait, no checks). It tunes again the moment the network is back. OK opens the TV's network settings.",
+  "note": "The picture has stopped and Android says there is no network: no checks. It tunes again once the network has been back and working for 2 s (S8).",
   "group": "While it loads"
  },
  {
   "file": "stall-provider-down.html",
   "title": "Cause: the provider isn't answering",
-  "note": "Google answers, the provider doesn't: it's them, and nothing on this TV can fix it. airglow keeps reconnecting by itself (1, 2, 4… s); the countdown says when.",
+  "note": "v1.1 (M1, M2): \"Provider\" is the server the stream really comes from (after redirects). Only that server failing its own check, with the Wi-Fi fine, makes this card; a timeout on weak Wi-Fi is the Wi-Fi card.",
   "group": "While it loads"
  },
  {
   "file": "stall-limit.html",
-  "title": "Cause: every stream is in use",
-  "note": "A 403 or 401 with the provider's own count full (active_cons = max_connections). The same card as catch-up's player-connlimit, with the path added.",
+  "title": "Cause: this TV's last stream still counted",
+  "note": "v1.1 (M5): a limit answer within 60 s of this TV closing a stream is this TV's own old stream. airglow backs off 10, 20, 30 s; \"by other devices\" only if the count stays full after that.",
   "group": "While it loads"
  },
  {
   "file": "stall-stutter.html",
   "title": "Keeps pausing: the chip",
-  "note": "Short pauses that each got under 3 s, but the third in 5 minutes: the action chip's slot and timing (10 s, any key dismisses), the cause in one line, the action on OK.",
+  "note": "v1.1 (S12): the kit's chip exactly (8 s, max 420), one line of cause. \"Your team is live\" wins the slot; this one waits, or is dropped after 30 s.",
   "group": "While it loads"
  },
  {
   "file": "stall-vod.html",
   "title": "A movie: slow internet",
-  "note": "Movies and episodes get the same card; the last node reads Movie. A film can wait, so the best action is to pause and fill the buffer (the card then counts what's loaded); the 1080p copy is in Details.",
+  "note": "Movies and episodes: the last node reads Movie. A film can wait, so the best action is to pause and load ahead (next mock). With the controls up, OK stays play/pause and the card shows no keys (S13).",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-vod-loading.html",
+  "title": "A movie: loading ahead",
+  "note": "v1.1 (M10): paused by this action, the player lets the buffer grow far past its usual 50 s (to disk). The line says what the loaded part is worth, not just its length: loaded ÷ (1 − 7/16).",
   "group": "While it loads"
  },
  {
   "file": "fail-channel-off.html",
   "title": "Stopped: the channel is off",
-  "note": "A 404 twice in a row while the provider's own server answers: the channel is down at their end. Replaces \"This channel stopped · The provider may be down\".",
+  "note": "v1.1 (S5): a 404 twice while the stream's own server answers. A stale channel list is a common reason on Xtream, so Refresh channels is one row down.",
   "group": "When it stops"
  },
  {
   "file": "fail-game-feed.html",
   "title": "Stopped: a game feed is off",
-  "note": "A game channel: the other feeds first, as today, one OK away; each keeps its own score delay. No score or clock on the card.",
+  "note": "A game channel: the other feeds first, one OK away; each keeps its own score delay. No score or clock. v1.1: titles without \"US:\".",
   "group": "When it stops"
  },
  {
   "file": "fail-decoder.html",
   "title": "Stopped: the TV can't decode it",
-  "note": "A decoder error: the only cause on the TV itself, said plainly so nobody restarts the router. The provider's other copy first.",
+  "note": "v1.1 (M4, S17): only a format beyond the TV (checked against its decoder table), or a decoder that fails twice. The ticks stand: the picture's data arrived through every link. No codec names.",
+  "group": "When it stops"
+ },
+ {
+  "file": "fail-broken.html",
+  "title": "Stopped: the picture is broken at the source",
+  "note": "v1.1 (M4): DECODING_FAILED on a format inside the TV's decoder table is the stream, not the TV.",
   "group": "When it stops"
  },
  {
   "file": "opt-connection.html",
   "title": "Options: the Connection row",
-  "note": "◀ in the player. Connection sits under Quality; its value is the live verdict (Good, Slow, Weak Wi-Fi, Offline, Checking…) and its line the one number that matters.",
+  "note": "◀ in the player, any time. Connection sits under Quality; its value is the live verdict, its line the one number that matters (\"about\": a .ts stream doesn't say its rate, S4).",
+  "group": "When you're curious"
+ },
+ {
+  "file": "opt-during-stall.html",
+  "title": "Options while the card shows",
+  "note": "v1.1 (S10): Hold OK stays Last channel. Details is ◀ then OK: while a card or chip shows, Options opens with Connection first and focused, then Other feeds.",
   "group": "When you're curious"
  },
  {
   "file": "opt-panel-good.html",
   "title": "The Connection panel: all good",
-  "note": "Options > Connection: the same five links, upright, each with its reading. Opening it runs the quick checks (under 2 s); the speed test only on Check again.",
+  "note": "Options > Connection. \"Checked\" is the time of the last check, not of opening. 60+: the test's ceiling (S2). Provider is the stream's own server (M1).",
   "group": "When you're curious"
  },
  {
   "file": "opt-panel-slow.html",
   "title": "The Connection panel: during the stall",
-  "note": "Hold OK on the card (or Options > Connection) during the stall: every reading, then every action in order, the best one focused. No score; the game is named only by its feed.",
+  "note": "v1.1 (M8, S6): .ts-real actions only (another feed, another copy, try again; no \"other stream type\"). \"1 s ahead\" moved to the problem row, so the TV's tick means only what was checked.",
   "group": "When you're curious"
  },
  {
   "file": "acct-provider.html",
   "title": "Account: Check the connection",
-  "note": "Account > Provider gets one row under Check the guide. The same test as the player's panel, from the sofa, without a channel stalling.",
+  "note": "Account > Provider gets one row under Check the guide. v1.1: the rows end at x 906 so the ring stays inside the safe line.",
   "group": "When you're curious"
  },
  {
   "file": "acct-check-running.html",
   "title": "The check, running",
-  "note": "OK on the row: the five links checked in order, about 10 s in all. Nothing to press while it runs; Back stops it.",
+  "note": "OK on the row: the five links in order, about 10 s. Nothing to press while it runs; Back stops it.",
   "group": "When you're curious"
  },
  {
   "file": "acct-check-done.html",
   "title": "The check: all good",
-  "note": "The result in one line, in what it means for him (4K, HD), over the readings. The last channel is sampled for 5 s only if a stream is free.",
+  "note": "The verdict in what it means for him (4K, HD). The last channel is sampled for 5 s only on a 2+ stream account, and \"done\" waits until the provider has let the stream go (S14).",
   "group": "When you're curious"
  },
  {
   "file": "acct-check-wifi.html",
-  "title": "The check: Wi-Fi is the weak link",
-  "note": "A finding: the speed is only as good as the Wi-Fi gives it. The advice is the one thing that fixes it for good, in plain words.",
+  "title": "The check: Wi-Fi is the limit",
+  "note": "v1.1 (M3): blamed on the Wi-Fi because three readings agree (1 bar, a 26 Mbps link, a 14 Mbps test near it). The internet past it isn't judged; the provider and the channel were checked directly.",
   "group": "When you're curious"
  }
 ]

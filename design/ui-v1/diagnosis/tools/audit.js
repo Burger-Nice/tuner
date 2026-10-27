@@ -34,6 +34,13 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const pos = document.querySelector('.cu-pos span'); if (pos && document.querySelector('meta[name="shield"]')) pos.textContent = 'Live is in Q2';
     });
     if (injectV10) await p.evaluate(() => { const c = document.querySelector('.cu-check'); if (!c) return; [...c.querySelectorAll('.btn2')].filter((b) => /Not sure/.test(b.textContent)).forEach((b) => b.remove()); });   // the v1.2 card had no Not sure
+    // --inject-v11: put back the v1.0 faults the review found, to prove the diagnosis checks fire
+    if (process.argv.includes('--inject-v11')) await p.evaluate(() => {
+      const s = document.querySelector('.screen');
+      s.insertAdjacentHTML('beforeend', '<div class="nv-chip dg-chip" style="width:440px;max-width:440px;bottom:300px"><div class="grow"><b>HEVC at 100 fps</b><span>US: ESPN HD</span></div><span class="kbd">Hold OK</span><span>Details</span></div>');
+      const b = document.querySelector('i.bang'); if (b) b.remove();
+      const cut = document.querySelector('.dg-l.cut'); if (cut) { const n = cut.nextElementSibling && cut.nextElementSibling.nextElementSibling && cut.nextElementSibling.nextElementSibling.nextElementSibling; if (n && n.classList.contains('dg-n')) { n.classList.replace('off', 'ok'); n.setAttribute('data-proof', 'x'); } }
+    });
     if (inject) await p.evaluate(() => { if (!document.querySelector('meta[name="shield"]')) return; const s = document.querySelector('.screen'); s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112 · −12:40</div><div style="position:absolute;left:300px;top:52px;font:500 16px Inter;color:#F3EFE6;z-index:30">Grizzlies vs Jazz 2026-10-26</div><div style="position:absolute;left:300px;top:74px;font:500 16px Inter;color:#F3EFE6;z-index:30">Jazz 118:112</div><span class="btn2 f" style="position:absolute;left:600px;top:470px;z-index:30">Reveal score</span>'); });
     const r = await p.evaluate(() => {
       const SAFE = { l: 48, r: 912, t: 27, b: 513 }, TOL = 1.5;
@@ -263,6 +270,40 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         const L1 = lum(fg), L2 = lum(bg); const cr = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
         if (cr < 4.5 && !(t.cs.opacity < 1) && !t.e.closest('.dis,.chip.dis,.nv-row.dis')) issues.contrast.push(`"${t.txt}" ${cr.toFixed(2)}:1`);
       }
+      // ---- diagnosis v1.1 (REVIEW-independent.md): checks for the review points that can be read off a mock
+      const DG = '.dg-card,.dg-panel,.nv-chip,.dg-sheet';
+      // BADGE (S16): every problem node carries the "!" badge
+      for (const c of document.querySelectorAll('.dg-n.bad>.dg-c,.dg-vn.bad>.dg-c')) if (!c.querySelector('i.bang')) issues.overlap.push('BADGE: a problem node without its "!" badge');
+      // TICK (S6): a tick names the check that proved it; nothing past a cut link is ticked; past a slow problem link the
+      // throughput nodes (Internet, Channel/Movie) are ticked only if measured directly (proof arrival / stream-bytes)
+      for (const pth of document.querySelectorAll('.dg-path,.dg-vpath')) {
+        const nodes = [...pth.querySelectorAll(':scope>.dg-n,:scope>.dg-vn')];
+        const linkInto = (n, i) => { if (n.classList.contains('dg-vn')) { const m = [...n.classList].find((k) => k.startsWith('in-')); return m ? m.slice(3) : 'ok'; } const l = n.previousElementSibling; return l && l.classList.contains('dg-l') ? ([...l.classList].find((k) => k !== 'dg-l') || 'ok') : 'ok'; };
+        let past = '';
+        nodes.forEach((n, i) => {
+          const lab = (n.querySelector('b') || {}).textContent || '', ok = n.classList.contains('ok'), pf = n.getAttribute('data-proof');
+          if (ok && !pf) issues.overlap.push(`TICK: "${lab}" is ticked without a proof`);
+          if (ok && past === 'cut') issues.overlap.push(`TICK: "${lab}" is ticked past a cut link`);
+          if (ok && past === 'slow' && /Internet|Channel|Movie|Episode/.test(lab) && !/arrival|stream-bytes/.test(pf || '')) issues.overlap.push(`TICK: "${lab}" is ticked past the slow link without being measured`);
+          const li = i ? linkInto(n, i) : 'ok';
+          if (n.classList.contains('bad') && (li === 'cut' || li === 'slow') && !past) past = li;
+        });
+      }
+      // CHIP (S12) and PANEL (UI-SPEC 7): the kit's sizes
+      for (const c of document.querySelectorAll('.nv-chip')) if (c.getBoundingClientRect().width > 420.5) issues.safe.push(`CHIP: ${c.getBoundingClientRect().width.toFixed(0)} wide (max 420)`);
+      for (const c of document.querySelectorAll('.nv-panel')) if (c.getBoundingClientRect().height > 453.5) issues.safe.push(`PANEL: ${c.getBoundingClientRect().height.toFixed(0)} tall (cap 453)`);
+      for (const c of document.querySelectorAll(DG)) {
+        const t = c.textContent.replace(/\s+/g, ' ');
+        // JARGON (S17): no codec, format or protocol words on a diagnosis surface
+        const j = t.match(/\b(HEVC|HLS|fps|bitrate|buffer\w*|dBm|codec|MPEG\S*|transport stream|AV1|H\.26\d|RSSI|DNS|timeout)\b/i); if (j) issues.overlap.push(`JARGON: "${j[0]}" on a diagnosis surface`);
+        // PAIR (2.5): at most one pair of Mbps figures per card or chip
+        if (c.matches('.dg-card,.nv-chip') && (t.match(/Mbps/g) || []).length > 2) issues.overlap.push(`PAIR: ${(t.match(/Mbps/g) || []).length} Mbps figures on one card`);
+        if (/US:\s/.test(t)) issues.overlap.push('TITLE: a channel title with its "US:" prefix');
+      }
+      // ELLIPSIS (v1.1): a reading cut short on a panel or path row says less than it should
+      for (const e of document.querySelectorAll('.nv-panel .a,.nv-panel .b,.dg-vn small,.dg-vn b,.dg-ver span,.dg-n small')) if (e.scrollWidth > e.clientWidth + 1) issues.clip.push(`ELLIPSIS: "${e.textContent.trim().slice(0, 30)}" is cut short`);
+      // KEYS (S10): Hold OK is Last channel, always
+      for (const k of document.querySelectorAll('.kbd')) if (/^Hold OK$/.test(k.textContent.trim())) { const nx = (k.nextSibling && k.nextSibling.textContent || '') + (k.nextElementSibling ? k.nextElementSibling.textContent : ''); if (!/^\s*Last/.test(nx)) issues.overlap.push(`KEYS: Hold OK bound to "${nx.trim().slice(0, 20)}" (it is Last channel)`); }
       const fr = focusEls.map((fe) => { const q = fe.getBoundingClientRect(), cs = getComputedStyle(fe); return { cls: short(fe), inset: cs.boxShadow.includes('inset') || fe.classList.contains('f-in'), x0: q.left, y0: q.top, x1: q.right, y1: q.bottom, rad: parseFloat(cs.borderTopLeftRadius) || 0, sc: q.width / (fe.offsetWidth || q.width) }; });
       const textFocus = [...document.querySelectorAll('.fx')].filter((e) => !e.matches(sel)).map(short);
       return { focus: focusEls.length, ui: all - art, small: [...new Set(small)], banned: banned.length, issues, fr, textFocus };

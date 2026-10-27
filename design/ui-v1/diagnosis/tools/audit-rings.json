@@ -10,11 +10,11 @@
   "min": 100,
   "ring": [
    217,
-   295,
+   239,
    743,
-   347
+   291
   ],
-  "safe": 166
+  "safe": 169
  },
  {
   "f": "fail-game-feed.html",
@@ -51,6 +51,23 @@
   "safe": 166
  },
  {
+  "f": "fail-broken.html",
+  "el": ".nv-row.f",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   217,
+   295,
+   743,
+   347
+  ],
+  "safe": 166
+ },
+ {
   "f": "opt-connection.html",
   "el": ".nv-row.g",
   "inset": true,
@@ -64,6 +81,23 @@
    288,
    377,
    336
+  ],
+  "safe": 11
+ },
+ {
+  "f": "opt-during-stall.html",
+  "el": ".nv-row.g",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   80,
+   377,
+   128
   ],
   "safe": 11
  },
@@ -113,10 +147,10 @@
   "ring": [
    267,
    379,
-   917,
+   911,
    445
   ],
-  "safe": -5
+  "safe": 1
  },
  {
   "f": "acct-check-done.html",
