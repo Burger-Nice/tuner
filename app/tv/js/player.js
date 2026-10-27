@@ -321,21 +321,37 @@ async function prepareFor(it, extra = {}) {
 }
 on('subs', (key) => { const it = playingVod(); if (it && subsKey(it) === key) sendSubs(); });
 
-// ---------- Skip intro / recap, the credits (design/ui-v1/skip/SPEC.md) ----------
+// ---------- Skip intro / recap, the credits (design/ui-v1/skip/SPEC.md 9) ----------
 // The item's IMDb id (an add-on item has it; a provider film or episode: its title's match, Sure or Likely), then its
-// segments; sent once per item. Off in Account > Playback: nothing is asked.
+// segments, sent once per item with the match level, the setting and whether a recap may be skipped by itself (the
+// episode before was watched in the last 3 days). Asked with the setting Off too: Up next at the credits and the seek
+// bar's gaps use the times. The next episode's are asked for at once, so its recap is known before its first frame.
+async function imdbOf(it) {
+  const ep = it.kind === 'episode';
+  const own = ep ? it.imdbSeries : /^tt\d+$/.test(String(it.id)) ? String(it.id) : '';
+  if (own) return { imdb: own, level: 'sure' };
+  const t = ep ? seriesOf(it) : titleOf(it);
+  const m = t ? await matchTitle(t).catch(() => null) : null;
+  return m?.id && m.level !== 'unsure' ? { imdb: m.id, level: m.level === 'sure' ? 'sure' : 'likely' } : null;
+}
+const segQuery = (it, imdb) => ({ imdb, ...(it.kind === 'episode' ? { season: +it.season, episode: +it.ep } : {}) });
+// the episode before this one, watched in the last 3 days (S.progress)
+function watchedBefore(it) {
+  if (it.kind !== 'episode') return false;
+  const prev = Object.values(S.progress || {}).find((p) => p?.item?.kind === 'episode' && String(p.item.seriesId) === String(it.seriesId)
+    && ((+p.item.season === +it.season && +p.item.ep === +it.ep - 1) || (+p.item.season === +it.season - 1 && +it.ep === 1)));
+  return !!prev && Date.now() - (prev.at || 0) < 3 * 864e5;
+}
 async function sendSegments(it) {
-  if (!it || settings().skipIntro === 'off' || !native?.info?.()?.segments) return;
-  const c = ctx.cur, ep = it.kind === 'episode';
-  let imdb = ep ? it.imdbSeries : /^tt\d+$/.test(String(it.id)) ? String(it.id) : '';
-  if (!imdb) {
-    const t = ep ? seriesOf(it) : titleOf(it);
-    const m = t ? await matchTitle(t).catch(() => null) : null;
-    if (m?.id && m.level !== 'unsure') imdb = m.id;
-  }
-  if (!imdb) return;
-  const seg = await segmentsFor({ imdb, ...(ep ? { season: +it.season, episode: +it.ep } : {}) });
-  if (seg && ctx.cur === c && playingVod() === it) cmd('segments', { id: `${it.kind}:${it.id}`, ...seg });
+  if (!it || !native?.info?.()?.segments) return;
+  const c = ctx.cur;
+  const id = await imdbOf(it);
+  if (!id) return;
+  const seg = await segmentsFor(segQuery(it, id.imdb));
+  if (seg && ctx.cur === c && playingVod() === it) cmd('segments', { id: `${it.kind}:${it.id}`, ...seg, level: id.level, recapAuto: watchedBefore(it), mode: settings().skipIntro || 'button' });
+  // the next one, ahead (kept, so the track event's ask answers at once)
+  const next = c?.items?.[c.items.indexOf(it) + 1];
+  if (next && next.kind === 'episode') imdbOf(next).then((n) => n && segmentsFor(segQuery(next, n.imdb))).catch(() => {});
 }
 
 // ---------- Options > Quality: the copies of the film with what their checks found (SPEC 7.7, RANKING.md) ----------
@@ -536,6 +552,7 @@ native?.player.onEvent((e) => {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {
     if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
+    if (e.key === 'skipIntro' && ['button', 'auto', 'off'].includes(e.value)) saveSettings({ skipIntro: e.value });   // (the player's Options > Skip intros)
     if (e.key === 'sub') { const n = subName(String(e.value)); if (n) saveSettings({ subLang: n }); }   // picked in the player: the same choice everywhere (a language the app doesn't list stays the player's own)
     // subtitles: his Early or late steps (each saved as he makes it) and his pick, per title (PORT-NATIVE.md 2.4)
     if (e.key === 'subtime' && e.title) { const it = playingVod(); const sr = it && seriesOf(it); subMemory()?.setOffset(e.title, e.copy || '', e.sub, +e.value || 0, { series: sr ? keyOf(sr) : undefined, release: e.release }); }
