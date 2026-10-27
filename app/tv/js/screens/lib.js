@@ -203,8 +203,10 @@ export default function lib(kind) {
     list = ad.items;
     setHtml(el.querySelector('[data-head]'), header());
     const inGrid = el.querySelector('.lib-grid').contains(document.activeElement);
+    const onChip = document.activeElement?.dataset?.chip === ad.key;
     drawGrid();
-    if (!inGrid && !el.contains(document.activeElement) && mayFocus()) focus(el.querySelector('.lib-chips .chip.sel'));
+    if (ad.state === 'down' && onChip) focus(el.querySelector('[data-act="adretry"]'));   // (the card's Try again, SPEC 4.2)
+    else if (!inGrid && !el.contains(document.activeElement) && mayFocus()) focus(el.querySelector('.lib-chips .chip.sel'));
   }
   function genreMenu() {
     const opts = AD.genreOf(ad.c)?.options || [], req = AD.genreOf(ad.c)?.isRequired;

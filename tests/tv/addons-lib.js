@@ -29,18 +29,18 @@ module.exports = async ({ p, shot, key }) => {
   check('▼ tried again: page 2 is in', n > 50, `last index ${n}`);
   await key('ArrowDown', 6, 400); await p.waitForTimeout(800); await shot('movies-addon-end');
   // hold OK on the chip
-  await key('ArrowUp', 20, 60); await p.waitForTimeout(500); await key('ArrowUp', 1, 400);
+  for (let i = 0; i < 14; i++) { const w = await C.where(p); if (/chip/.test(w)) break; await key('ArrowUp', 1, 250); }
   await ok(p, 'back on the chip', 'PopularCinemeta');
   await hold(p); await ok(p, 'chip menu: Hide this chip', 'Hide this chip'); await shot('movies-chip-menu'); await key('Escape', 1, 400);
   // the first page fails
   await fetch(`${H}/_addons/fail?what=catalog`);
-  await key('ArrowRight', 1, 200); await ok(p, 'the New Cinemeta chip', 'NewCinemeta'); await key('Enter', 1, 12000); await shot('movies-addon-down');
+  await key('ArrowRight', 1, 200); await ok(p, 'the New Cinemeta chip', 'NewCinemeta'); await key('Enter', 1, 1500); await shot('movies-addon-down');
   await ok(p, 'down: Try again', 'adretry');
   await fetch(`${H}/_addons/ok`);
   await key('Enter', 1, 2500); await shot('movies-addon-new');
   check('New opens on its first year (2026)', await ev(() => /2026/.test(document.querySelector('[data-screen="movie"] [data-head]').innerText)));
   // Hide this chip
-  await key('ArrowUp', 1, 300); await hold(p); await key('Enter', 1, 800);
+  await ok(p, 'after Try again: the chip', 'NewCinemeta'); await hold(p); await key('Enter', 1, 800);
   const chips2 = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].map((c) => c.textContent));
   check('the New chip is hidden', !chips2.includes('NewCinemeta'), chips2.slice(-3).join(' | '));
   await ok(p, 'focus back on a chip', 'chip');

@@ -46,7 +46,7 @@ async function getJSON(url, { ms = 10000, body, raw } = {}) {
     let text;
     try { text = await r.text(); } catch (e) { throw new AddonError(e.name === 'AbortError' ? 'timeout' : 'down'); }
     if (raw) return { status: r.status, type: r.headers.get('content-type') || '', text };
-    if (!r.ok && !/^\s*[{[]/.test(text)) throw new AddonError('http', r.status);
+    if (!r.ok) throw new AddonError('http', r.status);
     try { return JSON.parse(text); } catch { throw new AddonError('notjson', r.status); }
   } finally { clearTimeout(t); free(); }
 }
@@ -133,7 +133,7 @@ export function setCatalog(a, c, v) { a.catalogs = { ...defaultCatalogs(a.manife
 // The chips for Movies or Series: every switched-on catalog of every enabled add-on, in add-on order (SPEC 4.2)
 export function chipCatalogs(type) {
   const out = [];
-  for (const a of enabled()) for (const c of a.manifest.catalogs || []) if (c.type === type && catalogRole(c) === 'chip' && catalogOn(a, c)) out.push({ a, c, key: `${a.key}:${catalogKey(c)}`, name: catalogName(a, c), by: label(a) });
+  for (const a of enabled()) for (const c of a.manifest.catalogs || []) if (c.type === type && catalogRole(c) === 'chip' && catalogOn(a, c)) out.push({ a, c, key: `${a.key}:${catalogKey(c)}`, name: catalogName(a, c), by: c.name ? label(a) : '' });
   return out;
 }
 // Is there an enabled stream add-on that covers this catalog's type and id prefix (SPEC S10)?
