@@ -1016,14 +1016,21 @@ public class PlayerActivity extends AppCompatActivity {
 
     // Match the clock: clocks only. The list opens on the stored delay's clock; newer clocks are collapsed behind one row.
     private long syncSeenAt;
+    // (if the app doesn't answer in time, say so: Sync must never look like nothing happened)
+    private final Runnable syncSlow = () -> showText("The game clocks didn't come in. Try Sync again in a moment.", 5000);
     void openSync() {
         syncSeenAt = System.currentTimeMillis();
+        handler.removeCallbacks(syncSlow);
+        handler.postDelayed(syncSlow, 8000);
+        showText("Getting the game clocks…", 8000);
         JSObject e = event("need");
         e.put("what", "clocks");
         e.put("seenAt", syncSeenAt);
         TunerPlayerPlugin.emit(e);
     }
     private void showClocks(JSONObject d, boolean expanded) {
+        handler.removeCallbacks(syncSlow);
+        if (toast.getVisibility() == View.VISIBLE) toast.setVisibility(View.GONE);
         JSONArray list = d.optJSONArray("list");
         if (list == null || list.length() == 0) { showText("No game clocks yet to match", 3000); return; }
         long seenAt = d.optLong("seenAt", syncSeenAt);
@@ -1489,7 +1496,8 @@ public class PlayerActivity extends AppCompatActivity {
     void command(String what, String arg) {
         try {
             switch (what) {
-                case "show-text": showText(arg, 4000); break;
+                case "show-text": handler.removeCallbacks(syncSlow); showText(arg, 4000); break;
+                case "lag-reset": lagMs = 0; if (stallAt > 0) stallAt = SystemClock.uptimeMillis(); sentLag = -1; sendLag(); break;
                 case "linked": {
                     gameLinked = "true".equals(arg);
                     if (!gameLinked) { game = null; if (open instanceof GamePanel) closeOverlay(); }
@@ -1569,6 +1577,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (card.getVisibility() == View.VISIBLE) card.setVisibility(View.GONE);
         toast.setText(text);
         toast.setVisibility(View.VISIBLE);
+        toast.bringToFront();   // over any open panel (Sync is asked from one)
         handler.removeCallbacks(hideToast);
         handler.postDelayed(hideToast, ms);
     }

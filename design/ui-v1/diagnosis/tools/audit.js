@@ -41,6 +41,13 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const b = document.querySelector('i.bang'); if (b) b.remove();
       const cut = document.querySelector('.dg-l.cut'); if (cut) { const n = cut.nextElementSibling && cut.nextElementSibling.nextElementSibling && cut.nextElementSibling.nextElementSibling.nextElementSibling; if (n && n.classList.contains('dg-n')) { n.classList.replace('off', 'ok'); n.setAttribute('data-proof', 'x'); } }
     });
+    // --inject-v12: put back the v1.1 faults review 2 found (ink dot, "◀ Details" on a chip, the panel opening on a switch)
+    if (process.argv.includes('--inject-v12')) await p.evaluate(() => {
+      document.querySelectorAll('i.bang svg circle').forEach((c) => { c.style.fill = '#14101F'; });
+      const ln = document.querySelector('.dg-card .dg-head span'); if (ln) ln.textContent += ' Restarting the router usually helps, and so does waiting a little.';
+      if (document.querySelector('.nv-chip')) for (const k of document.querySelectorAll('.nv-hint .kbd')) if (k.textContent === '◀ ▼') k.textContent = '◀';
+      const pr = document.querySelectorAll('.dg-panel .nv-row'); if (pr.length > 1) { pr.forEach((x) => x.classList.remove('f')); pr[0].classList.add('f'); }
+    });
     if (inject) await p.evaluate(() => { if (!document.querySelector('meta[name="shield"]')) return; const s = document.querySelector('.screen'); s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112 · −12:40</div><div style="position:absolute;left:300px;top:52px;font:500 16px Inter;color:#F3EFE6;z-index:30">Grizzlies vs Jazz 2026-10-26</div><div style="position:absolute;left:300px;top:74px;font:500 16px Inter;color:#F3EFE6;z-index:30">Jazz 118:112</div><span class="btn2 f" style="position:absolute;left:600px;top:470px;z-index:30">Reveal score</span>'); });
     const r = await p.evaluate(() => {
       const SAFE = { l: 48, r: 912, t: 27, b: 513 }, TOL = 1.5;
@@ -302,11 +309,18 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       }
       // ELLIPSIS (v1.1): a reading cut short on a panel or path row says less than it should
       for (const e of document.querySelectorAll('.nv-panel .a,.nv-panel .b,.dg-vn small,.dg-vn b,.dg-ver span,.dg-n small')) if (e.scrollWidth > e.clientWidth + 1) issues.clip.push(`ELLIPSIS: "${e.textContent.trim().slice(0, 30)}" is cut short`);
+      // LINE (v1.2, 2.5): a stall card's title and its line are one line each
+      for (const e of document.querySelectorAll('.dg-card .dg-head b,.dg-card .dg-head span,.nv-chip b,.nv-chip .grow span')) { const lh = parseFloat(getComputedStyle(e).lineHeight); if (e.getBoundingClientRect().height > lh * 1.5) issues.overlap.push(`LINE: "${e.textContent.trim().slice(0, 30)}" wraps to two lines`); }
+      // CHIPKEYS (v1.2, N-M9): while a chip shows, Options keeps Sync first, so Details is ◀ ▼, never ◀ alone
+      if (document.querySelector('.nv-chip')) for (const k of document.querySelectorAll('.nv-hint .kbd,.nv-chip .kbd')) if (k.textContent.trim() === '◀' && /Details/.test(k.parentElement.textContent)) issues.overlap.push('CHIPKEYS: a chip offers "◀ Details" (◀ OK OK is the Sync habit; it is ◀ ▼)');
+      // PANELFOCUS (v1.2, N-M9): the Connection panel never opens on a feed or copy switch
+      for (const r of document.querySelectorAll('.dg-panel .nv-row.f')) if (/Same game|Watch the|copy|feed/i.test(r.textContent)) issues.overlap.push(`PANELFOCUS: the panel opens on a switch ("${r.textContent.trim().slice(0, 24)}")`);
       // KEYS (S10): Hold OK is Last channel, always
       for (const k of document.querySelectorAll('.kbd')) if (/^Hold OK$/.test(k.textContent.trim())) { const nx = (k.nextSibling && k.nextSibling.textContent || '') + (k.nextElementSibling ? k.nextElementSibling.textContent : ''); if (!/^\s*Last/.test(nx)) issues.overlap.push(`KEYS: Hold OK bound to "${nx.trim().slice(0, 20)}" (it is Last channel)`); }
       const fr = focusEls.map((fe) => { const q = fe.getBoundingClientRect(), cs = getComputedStyle(fe); return { cls: short(fe), inset: cs.boxShadow.includes('inset') || fe.classList.contains('f-in'), x0: q.left, y0: q.top, x1: q.right, y1: q.bottom, rad: parseFloat(cs.borderTopLeftRadius) || 0, sc: q.width / (fe.offsetWidth || q.width) }; });
       const textFocus = [...document.querySelectorAll('.fx')].filter((e) => !e.matches(sel)).map(short);
-      return { focus: focusEls.length, ui: all - art, small: [...new Set(small)], banned: banned.length, issues, fr, textFocus };
+      const bangs = [...document.querySelectorAll('i.bang')].map((g) => { const c = g.querySelector('circle').getBoundingClientRect(), pa = g.querySelector('path').getBoundingClientRect(); return { dot: [c.left + c.width / 2, c.top + c.height / 2], bar: [pa.left + pa.width / 2, pa.top + pa.height / 2] }; });
+      return { bangs, focus: focusEls.length, ui: all - art, small: [...new Set(small)], banned: banned.length, issues, fr, textFocus };
     });
     const iss = r.issues; const n = iss.overlap.length + iss.clip.length + iss.safe.length + iss.contrast.length + (r.banned ? 1 : 0) + r.small.length;
     bad += n;
@@ -331,6 +345,15 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       rings.push({ f, el: g.cls, inset: g.inset, top: pc('t'), bottom: pc('b'), left: pc('l'), right: pc('r'), min, ring: ringBox.map((v) => +v.toFixed(1)), safe: +safe.toFixed(1) });
       lines.push(`    RING     ${g.cls} ${g.inset ? 'inset' : 'outer'} white t${pc('t')} b${pc('b')} l${pc('l')} r${pc('r')} %  ring ${ringBox.map((v) => v.toFixed(0)).join(',')}  to safe edge ${safe.toFixed(1)} px`);
       if (min < 90) { bad++; lines.push(`    FAILRING ${g.cls} only ${min}% of one side is white`); }
+    }
+    // ---- BADGE pixels (v1.2, N-M1): the "!" must show a chalk bar AND a chalk dot (v1.1's dot was ink on ink)
+    if (r.bangs.length) {
+      const q = await b.newPage(); await q.setContent('<canvas></canvas>');
+      const res = await q.evaluate(async ({ shot, bangs }) => { const im = new Image(); im.src = 'data:image/png;base64,' + shot; await im.decode(); const c = document.querySelector('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        const lit = ([cx, cy]) => { let n = 0; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const d = x.getImageData(Math.round(cx * 2) + dx, Math.round(cy * 2) + dy, 1, 1).data; if (d[0] > 190 && d[1] > 190 && d[2] > 180) n++; } return n; };
+        return bangs.map((g) => ({ dot: lit(g.dot), bar: lit(g.bar) })); }, { shot, bangs: r.bangs });
+      await q.close();
+      res.forEach((v, i) => { if (v.dot < 3 || v.bar < 3) { bad++; lines.push(`    BADGEPX  badge ${i + 1}: the "!" ${v.dot < 3 ? 'dot' : 'bar'} isn't visible (${v.dot}/9 dot, ${v.bar}/9 bar chalk pixels)`); } });
     }
     // ---- DIVIDER: no 1 px row line (#3C3452) drawn against a highlighted (.mine) or focused row, top or bottom
     const rowsHL = await p.evaluate(() => [...document.querySelectorAll('.nb-tr.mine,.nb-tr.f-in')].map((e) => { const q = e.getBoundingClientRect(); return [q.left + q.width / 2, q.top, q.bottom]; }));

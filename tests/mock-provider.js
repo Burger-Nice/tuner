@@ -79,7 +79,16 @@ http.createServer((req, res) => {
   if (u.pathname === '/_reports') { res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify(reports)); return; }
   if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams))); }
   if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');
-  if (u.pathname === '/espn/summary') return sendFile(req, res, path.join(ESPN, `summary-${u.searchParams.get('event')}.json`), 'application/json');
+  if (u.pathname === '/espn/summary') {
+    // the plays as if happening now (the newest 75 s ago), so Sync score has clocks to match
+    const f = path.join(ESPN, `summary-${u.searchParams.get('event')}.json`);
+    if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); }
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const last = Math.max(...(d.plays || []).map((p) => Date.parse(p.wallclock) || 0));
+    if (last > 0) { const shift = Date.now() - 75000 - last; for (const p of d.plays) if (p.wallclock) p.wallclock = new Date(Date.parse(p.wallclock) + shift).toISOString(); }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(d));
+  }
   // The team and league pages (real ESPN answers from Oct 2026, trimmed; one team's set, served for any team)
   const tm = u.pathname.match(/^\/espn\/teams\/\d+\/(schedule|roster|athletes\/statistics)$/);
   if (tm) return sendFile(req, res, path.join(ESPN, `${{ schedule: 'schedule', roster: 'roster', 'athletes/statistics': 'athletes' }[tm[1]]}-29.json`), 'application/json');

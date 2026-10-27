@@ -14,7 +14,7 @@
  {
   "file": "stall-provider-slow.html",
   "title": "Cause: the provider is slow",
-  "note": "Not you, them. One pair of numbers (3 of 9 Mbps); the internet just reads Fast (S2: the test can't see past about 60 Mbps). OK switches to the game's other feed, which keeps its own score delay. No score anywhere.",
+  "note": "Not you, them. v1.2: the \"!\" badge drawn in chalk (N-M1). One pair of numbers (3 of 9 Mbps); the internet just reads Fast (S2: the test can't see past about 60 Mbps). OK switches to the game's other feed, which keeps its own score delay. No score anywhere.",
   "group": "While it loads"
  },
  {
@@ -54,15 +54,27 @@
   "group": "While it loads"
  },
  {
+  "file": "stall-no-internet.html",
+  "title": "Cause: the internet line is down",
+  "note": "v1.2 (N-M3, N-M4, S-N5): both internet checks get no answer at all, the stream server neither, but the router does: it's the line. Above the Wi-Fi rows, so an outage never reads as weak Wi-Fi. No router answer: \"The TV can't reach your router\", Wi-Fi cut.",
+  "group": "While it loads"
+ },
+ {
+  "file": "stall-moment.html",
+  "title": "Cause: everything looks fine",
+  "note": "v1.2 (nit): every check passed and the stream still stopped. The Channel is being re-checked (no tick: it isn't arriving), so the TICK audit covers C10 now.",
+  "group": "While it loads"
+ },
+ {
   "file": "stall-limit.html",
   "title": "Cause: this TV's last stream still counted",
-  "note": "v1.1 (M5): a limit answer within 60 s of this TV closing a stream is this TV's own old stream. airglow backs off 10, 20, 30 s; \"by other devices\" only if the count stays full after that.",
+  "note": "v1.2 (N-M2): only with evidence of a limit (the account shows 2 of 2 in use, or the provider says so); the title takes the real maximum. Within 60 s of a zap one of them is this TV's last channel: it backs off 10, 20, 30 s.",
   "group": "While it loads"
  },
  {
   "file": "stall-stutter.html",
   "title": "Keeps pausing: the chip",
-  "note": "v1.1 (S12): the kit's chip exactly (8 s, max 420), one line of cause. \"Your team is live\" wins the slot; this one waits, or is dropped after 30 s.",
+  "note": "The kit's chip (8 s, max 420), one line of cause. v1.2 (N-M9): while a chip shows, Options keeps Sync score first, so ◀ OK OK still syncs; Details is ◀ ▼ OK.",
   "group": "While it loads"
  },
  {
@@ -122,7 +134,7 @@
  {
   "file": "opt-panel-slow.html",
   "title": "The Connection panel: during the stall",
-  "note": "v1.1 (M8, S6): .ts-real actions only (another feed, another copy, try again; no \"other stream type\"). \"1 s ahead\" moved to the problem row, so the TV's tick means only what was checked.",
+  "note": ".ts-real actions only (another feed, another copy, try again). v1.2 (N-M9): the panel always opens on Check again; a feed switch is one ▲ away, never at the end of the ◀ OK OK Sync habit.",
   "group": "When you're curious"
  },
  {

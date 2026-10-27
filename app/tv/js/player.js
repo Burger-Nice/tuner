@@ -5,7 +5,7 @@
 import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
 import { busy, catalog, versionLabel, pickVersion } from './catalog.js';
 import { native } from './native.js';
-import { gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
+import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
 import { guideFor, guideNow, onNow, nextUp } from './guide.js';
 import { teamPalette, hm } from './util.js';
 import { toast } from './ui.js';
@@ -290,14 +290,18 @@ native?.player.onEvent((e) => {
     else if (e.what === 'clocks') {
       const g = watch.gameId && gameById(watch.gameId);
       if (!g) { cmd('show-text', 'No NBA game found on this channel'); return; }
+      // the plays fresh from ESPN: the ones kept may be minutes old (the app's own polling slows down behind the player)
+      fetchSummary(g.id).then(() => {
       const clocks = recentClocks(g.id, e.seenAt);
-      if (!clocks.length) { cmd('show-text', 'No game clocks yet to match'); return; }
+      window.__lastClocks = clocks.length;   // (the emulator test reads it)
+      if (!clocks.length) { cmd('show-text', nba.sums.has(g.id) ? 'ESPN has no plays from the last few minutes to match yet' : 'Couldn’t get the game clocks from ESPN. Try again in a moment'); return; }
       // the list opens on the clock the stored delay points at
       const target = e.seenAt - delayFor(watch.chId) * 1000;
       let current = 0;
       clocks.forEach((x, k) => { if (Math.abs(x.at - target) < Math.abs(clocks[current].at - target)) current = k; });
       const ch = chOf(watch.chId);
       cmd('clocks', { seenAt: e.seenAt, list: clocks, current, note: `Stored for ${ch?.name || 'this channel'}. Scores everywhere follow it.` });
+      });
     }
   } else if (e.type === 'group') {
     const name = ringGroups().find((g) => g.key === e.key)?.name || 'All channels';
@@ -326,9 +330,11 @@ native?.player.onEvent((e) => {
     sent.game = '';
     push();
   } else if (e.type === 'sync') {
-    // what you matched is the channel's delay plus whatever a stall has added since you tuned: only the first is kept
+    // what you matched is kept whole, and the stall lag counted so far starts again from 0 (a stall can drop picture,
+    // so "measured minus lag" could come out short and let scores run ahead after the next reconnect)
     const sec = Math.max(0, Math.min(600, Math.round((e.seenAt - e.at) / 1000) - 1));
-    if (watch.chId) setDelay(watch.chId, Math.max(0, sec - (watch.lag || 0)));
+    if (watch.chId) setDelay(watch.chId, sec);
+    setLag(0); cmd('lag-reset', '');
     cmd('show-text', `Synced · ${sec} s behind live`);
     sent.game = '';
     push();

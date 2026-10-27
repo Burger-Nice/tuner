@@ -150,6 +150,18 @@ async function sumTick() {
   sumTimer = setTimeout(sumTick, live ? 10000 : 60000);
 }
 export const summaryOf = (id) => nba.sums.get(id) || null;
+// One game's box score and plays now, whatever the polling is doing (Sync score; 6 s at most). Resolves either way.
+export async function fetchSummary(id) {
+  try {
+    const s = await Promise.race([NBA.summary(id), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 6000))]);
+    s.at = Date.now();
+    nba.sums.set(id, s);
+    const g = gameById(id);
+    if (g) { merge(g); remember(g); }
+    nba.sumFail.delete(id);
+    emit('summary', id);
+  } catch {}
+}
 
 // ---------- score delay: per channel ----------
 // IPTV streams run behind the real game. While you watch a game, every surface shows it as it was `delay` seconds ago.

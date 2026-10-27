@@ -77,6 +77,12 @@ window.TUNER_TEST = true;
       await press(['DPAD_LEFT'], 'player-options');
       await press(['BACK'], 'player-options-closed');
       await press(['DPAD_RIGHT'], 'player-right', 800);
+      // Sync score from the game panel's Sync tab: the clock list comes up
+      window.__lastClocks = -1;
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'player-sync-tab', 600);
+      await press(['DPAD_CENTER'], 'player-sync', 4000);
+      check('sync score lists the game clocks', window.__lastClocks > 0);
+      await press(['BACK'], 'player-sync-closed');
       await press(['BACK'], 'player-right-closed');
       check('still in the player', state()?.watching);
       await press(['BACK'], 'player-closed', 1500);

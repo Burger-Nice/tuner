@@ -24,7 +24,7 @@ const P = {
   pic: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 9.5V8h2M17 14.5V16h-2"/>',
   quality: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 15V9M7 12h3.5M10.5 9v6M14 9v6h1.5a3 3 0 0 0 0-6z"/>',
   starO: '<path d="M12 3.2l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.2 6.6 20.1l1-6.1L3.2 9.7l6.1-.9z"/>',
-  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', bang: '<path d="M12 6.5v7"/><circle cx="12" cy="18" r="1.2" fill="currentColor" stroke="none"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', bang: '<path d="M12 5v8.5"/><circle cx="12" cy="18.6" r="2" stroke="none"/>',
   list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.4"/>',
   tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
   wifi: '<path d="M2.6 9.2a14 14 0 0 1 18.8 0M5.6 12.5a9.6 9.6 0 0 1 12.8 0M8.7 15.8a5 5 0 0 1 6.6 0"/><circle cx="12" cy="19.2" r="1.4" fill="currentColor" stroke="none"/>',
@@ -116,7 +116,7 @@ page('stall-provider-slow.html', 'Cause: the provider is slow', `${video('arena'
   title: 'Your provider is slow with this channel', sub: 'Your Wi-Fi and internet are fine. It\'s their server, or the way to it.',
   path: hpath([N.tv(), N.wifi(), N.net('ok', 'Fast', '', 'sample'), N.prov(), N.ch('bad', '3 of 9 Mbps')], ['ok', 'ok', 'ok', 'slow']),
   keys: KEYS('Same game on ESPN'),
-})}`, 'Not you, them. One pair of numbers (3 of 9 Mbps); the internet just reads Fast (S2: the test can\'t see past about 60 Mbps). OK switches to the game\'s other feed, which keeps its own score delay. No score anywhere.', { group: G1, shield: true });
+})}`, 'Not you, them. v1.2: the "!" badge drawn in chalk (N-M1). One pair of numbers (3 of 9 Mbps); the internet just reads Fast (S2: the test can\'t see past about 60 Mbps). OK switches to the game\'s other feed, which keeps its own score delay. No score anywhere.', { group: G1, shield: true });
 
 page('stall-wifi-weak.html', 'Cause: weak Wi-Fi', `${video('pitch', 'pitch')}${card({
   title: 'Your Wi-Fi is weak', sub: 'This channel needs 12 Mbps. Over this Wi-Fi it\'s getting 4.',
@@ -136,7 +136,7 @@ page('stall-home-slow.html', 'Cause: home network or line, can\'t split', `${vid
   keys: KEYS('Watch the HD copy'),
 })}`, 'v1.1 (M3): strong bars and a fast Wi-Fi link, but a slow test: busy airwaves or the line itself, which a TV can\'t tell apart. Both links get the "!"; Details says how a cable would tell (SPEC 4.1 C3h).', { group: G1 });
 
-page('stall-offline-chip.html', 'Wi-Fi dropped, picture still playing', `${video('pitch', 'pitch')}<div class="nv-chip dg-chip"><span class="dg-gl">${ic('wifiOff')}</span><div class="grow"><b>The Wi-Fi dropped</b><span>Playing what's loaded</span></div></div>`,
+page('stall-offline-chip.html', 'Wi-Fi dropped, picture still playing', `${video('pitch', 'pitch')}<div class="nv-chip dg-chip"><div class="dg-gl">${ic('wifiOff')}</div><div class="grow"><b>The Wi-Fi dropped</b><span>Playing what's loaded</span></div></div>`,
   'v1.1 (S15): the network went but there\'s still picture in hand. A chip, no action, no countdown; it goes when the network\'s back, and turns into the card only if the picture actually stops.', { group: G1 });
 
 page('stall-offline.html', 'Cause: the TV is offline', `${video('pitch', 'pitch')}${card({
@@ -151,15 +151,27 @@ page('stall-provider-down.html', 'Cause: the provider isn\'t answering', `${vide
   keys: [['OK', 'Try again now', 1], ['◀', 'Details']], right: 'Next try in 8 s',
 })}`, 'v1.1 (M1, M2): "Provider" is the server the stream really comes from (after redirects). Only that server failing its own check, with the Wi-Fi fine, makes this card; a timeout on weak Wi-Fi is the Wi-Fi card.', { group: G1, shield: true });
 
+page('stall-no-internet.html', 'Cause: the internet line is down', `${video('pitch', 'pitch')}${card({
+  title: 'Your internet isn\'t working', sub: 'Your router answers, but nothing gets past it. Restart it.',
+  path: hpath([N.tv(), N.wifi('ok', '', 'wifi', '', 'gateway'), N.net('bad', 'No answer'), N.prov('off'), N.ch('off')], ['ok', 'cut', 'off', 'off']),
+  keys: [['OK', 'Try again now', 1], ['◀', 'Details']], right: 'Next try in 8 s',
+})}`, 'v1.2 (N-M3, N-M4, S-N5): both internet checks get no answer at all, the stream server neither, but the router does: it\'s the line. Above the Wi-Fi rows, so an outage never reads as weak Wi-Fi. No router answer: "The TV can\'t reach your router", Wi-Fi cut.', { group: G1 });
+
+page('stall-moment.html', 'Cause: everything looks fine', `${video('studio', 'studio')}${card({
+  title: 'This channel stopped for a moment', sub: 'Your internet and your provider look fine. Reconnecting.',
+  path: hpath([N.tv(), N.wifi(), N.net(), N.prov(), N.ch('run')], ['ok', 'ok', 'ok', 'run']),
+  keys: [['OK', 'Try again now', 1], ['◀', 'Details']], right: 'Try 1 of 6',
+})}`, 'v1.2 (nit): every check passed and the stream still stopped. The Channel is being re-checked (no tick: it isn\'t arriving), so the TICK audit covers C10 now.', { group: G1 });
+
 page('stall-limit.html', 'Cause: this TV\'s last stream still counted', `${video('arena2', 'arena')}${card({
-  title: 'Your provider allows 1 stream', sub: 'It still counts this TV\'s last one. That clears within a minute.',
-  path: hpath([N.tv(), N.wifi(), N.net(), N.prov('bad', '1 of 1 in use'), N.ch('off')], ['ok', 'ok', 'ok', 'off']),
+  title: 'Your provider allows 2 streams', sub: 'One is this TV\'s last channel, which clears within a minute.',
+  path: hpath([N.tv(), N.wifi(), N.net(), N.prov('bad', '2 of 2 in use'), N.ch('off')], ['ok', 'ok', 'ok', 'off']),
   keys: [['OK', 'Try again now', 1], ['◀', 'Details']], right: 'Next try in 10 s',
-})}`, 'v1.1 (M5): a limit answer within 60 s of this TV closing a stream is this TV\'s own old stream. airglow backs off 10, 20, 30 s; "by other devices" only if the count stays full after that.', { group: G1, shield: true });
+})}`, 'v1.2 (N-M2): only with evidence of a limit (the account shows 2 of 2 in use, or the provider says so); the title takes the real maximum. Within 60 s of a zap one of them is this TV\'s last channel: it backs off 10, 20, 30 s.', { group: G1, shield: true });
 
 const ring = (sec, total = 8) => { const r = 15, cc = 2 * Math.PI * r, off = cc * (1 - sec / total); return `<svg width="40" height="40" viewBox="0 0 40 40" style="flex:none"><circle cx="20" cy="20" r="${r}" fill="none" stroke="#3D3B45" stroke-width="4"/><circle cx="20" cy="20" r="${r}" fill="none" stroke="#F95BAC" stroke-width="4" stroke-dasharray="${cc.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 20 20)"/></svg>`; };
-page('stall-stutter.html', 'Keeps pausing: the chip', `${video('pitch', 'pitch')}<div class="nv-chip dg-chip">${ring(6)}<div class="grow"><b>This keeps pausing</b><span>Weak Wi-Fi for this channel</span></div>${kbd('OK')}<span class="t-cap" style="color:var(--a-text-1);white-space:nowrap">HD copy</span></div>${hint([['OK', 'Watch the HD copy'], ['◀', 'Details'], ['Back', 'Dismiss'], ['▲ ▼', 'Zap']])}`,
-  'v1.1 (S12): the kit\'s chip exactly (8 s, max 420), one line of cause. "Your team is live" wins the slot; this one waits, or is dropped after 30 s.', { group: G1 });
+page('stall-stutter.html', 'Keeps pausing: the chip', `${video('pitch', 'pitch')}<div class="nv-chip dg-chip">${ring(6)}<div class="grow"><b>This keeps pausing</b><span>Weak Wi-Fi for this channel</span></div>${kbd('OK')}<span class="t-cap" style="color:var(--a-text-1);white-space:nowrap">HD copy</span></div>${hint([['OK', 'Watch the HD copy'], ['◀ ▼', 'Details'], ['Back', 'Dismiss'], ['▲ ▼', 'Zap']])}`,
+  'The kit\'s chip (8 s, max 420), one line of cause. v1.2 (N-M9): while a chip shows, Options keeps Sync score first, so ◀ OK OK still syncs; Details is ◀ ▼ OK.', { group: G1 });
 
 page('stall-vod.html', 'A movie: slow internet', `${video('coast')}${card({
   title: 'Your internet is slow for this movie', sub: 'It needs 16 Mbps and gets 7. Pausing lets it load ahead.',
@@ -224,8 +236,8 @@ page('opt-panel-good.html', 'The Connection panel: all good', `${video('pitch', 
 page('opt-panel-slow.html', 'The Connection panel: during the stall', `${video('arena', 'arena')}<div class="nv-panel left dg-panel"><div class="nv-h">Connection<span class="dg-at">Checked 01:52</span></div>
   <div class="dg-ver"><b>Your provider is slow with this channel</b><span>Your Wi-Fi and internet have room. 3 pauses in 5 min.</span></div>
   ${vpath([N.tv('ok', 'Plays this channel fine'), N.wifi('ok', 'Strong signal', 'wifi', '3 of 4 bars'), N.net('ok', 'Answers in 38 ms', '60+ Mbps', 'sample'), N.prov('ok', 'Answers in 310 ms · 1 of 2 streams in use'), N.ch('bad', 'Getting 3 of the 9 Mbps it needs', 'Channel', '1 s ahead')], ['ok', 'ok', 'ok', 'slow'])}
-  <div class="dg-acts">${prow('tv', 'Same game on ESPN', 'Feed 2 of 3 · HD', { f: 1 })}${prow('refresh', 'Check again', 'Includes a 3 s speed test')}</div></div>${hint([['OK', 'Same game on ESPN'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
-  'v1.1 (M8, S6): .ts-real actions only (another feed, another copy, try again; no "other stream type"). "1 s ahead" moved to the problem row, so the TV\'s tick means only what was checked.', { group: G3, shield: true });
+  <div class="dg-acts">${prow('tv', 'Same game on ESPN', 'Feed 2 of 3 · HD')}${prow('refresh', 'Check again', 'Includes a 3 s speed test', { f: 1 })}</div></div>${hint([['OK', 'Check again'], ['▲', 'Same game on ESPN'], ['Back', 'Close']])}`,
+  '.ts-real actions only (another feed, another copy, try again). v1.2 (N-M9): the panel always opens on Check again; a feed switch is one ▲ away, never at the end of the ◀ OK OK Sync habit.', { group: G3, shield: true });
 
 // ---- Account (web) ----
 function topbar(sel) {
