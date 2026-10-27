@@ -13,9 +13,49 @@ import { focus } from '../focus.js';
 import { openDetail, playMasked } from '../actions.js';
 import { videoMask } from '../catchup.js';
 import { ringFor, ringName } from './home.js';
+import * as AD from '../addons.js';
+import { providerByImdb } from '../imdb.js';
+import { SPIN } from './addons.js';
 
 const KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
 let el, q = '', keptAt = 0, res = null;
+// From add-ons (design/ui-v1/addons/SPEC.md 6): every enabled catalog with a search extra, after 3 letters and a 600 ms
+// pause, one request each. { q, asks: [{ a, c, state: 'asking' | 'done' | 'failed', metas }], items }
+let ads = null, adT = 0;
+function askAddons() {
+  clearTimeout(adT);
+  const qq = q.trim();
+  if (qq.length < 3 || !AD.searchCatalogs().length) { ads = null; return; }
+  if (ads?.q === qq) return;
+  adT = setTimeout(async () => {
+    const st = { q: qq, asks: AD.searchCatalogs().map((x) => ({ ...x, state: 'asking', metas: [] })), items: [] };
+    ads = st; draw();
+    const provM = await providerByImdb('movie'), provS = await providerByImdb('series');
+    await Promise.all(st.asks.map(async (x) => {
+      try { x.metas = await AD.catalogPage(x.a, x.c, { search: qq }); x.state = 'done'; } catch { x.state = 'failed'; }
+      if (ads !== st) return;
+      // left out: titles not out yet, titles the provider has (they stay in the provider's block)
+      const now = Date.now(), yr = new Date().getFullYear(), seen = new Set(st.items.map((i) => i.id));
+      for (const m of x.metas) {
+        if (seen.has(m.id) || (m.year && m.year > yr) || (m.released && Date.parse(m.released) > now)) continue;
+        if ((m.type === 'series' ? provS : provM).has(m.id)) continue;
+        seen.add(m.id); st.items.push({ ...m, from: AD.label(x.a) });
+      }
+      draw();
+    }));
+  }, 600);
+}
+const adTitle = (m) => ({ kind: m.type === 'series' ? 'series' : 'movie', key: m.id, id: m.id, name: m.name, poster: m.poster, year: m.year ? String(m.year) : '', versions: [], _qs: new Set(), _langs: new Set(), _genres: m.genres || [], _ir: parseFloat(m.imdbRating) || 0, addon: { type: m.type } });
+function addonBlock() {
+  if (!ads) return '';
+  const asking = ads.asks.filter((x) => x.state === 'asking'), failed = ads.asks.filter((x) => x.state === 'failed');
+  const who = [...new Set(ads.asks.map((x) => AD.label(x.a)))].join(', ');
+  if (!asking.length && !ads.items.length && !failed.length) return '';   // no results: no heading
+  const mini = (m) => `<div class="mini2" style="height:40px;width:28px"><div class="art">${m.poster ? `<img src="${esc(sized(m.poster, 92))}" alt="">` : ''}</div></div>`;
+  const shown = ads.items.slice(0, 12);
+  const cap = asking.length && !ads.items.length ? `${SPIN}${esc(who)}…` : failed.length && !ads.items.length ? `${esc([...new Set(failed.map((x) => AD.label(x.a)))].join(', '))} didn't answer` : `${esc(who)}${shown.length > 2 ? `${dot}${shown.length - 2} more below` : ''}`;
+  return `<div class="ad-rh t-label">From add-ons<small style="display:inline-flex;align-items:center;gap:6px">${cap}</small></div>${shown.map((m) => `<div class="rrow fx" tabindex="-1" data-res="a:${esc(m.type === 'series' ? 'series' : 'movie')}:${esc(m.id)}" data-key="sa:${esc(m.id)}">${mini(m)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(m.name)}</div><div class="t-cap ellipsis">${m.type === 'series' ? 'Series' : 'Movie'}${m.year ? dot + esc(m.releaseInfo && m.type === 'series' ? m.releaseInfo : m.year) : ''}${m.director?.[0] ? dot + esc(m.director[0]) : m.genres?.[0] ? dot + esc(m.genres[0]) : ''}</div></div></div>`).join('')}`;
+}
 const recentKey = 'searchRecent';
 
 function results() {
@@ -39,7 +79,8 @@ function results() {
   }
   const chans = res.live.slice(0, 3);
   const rest = [...res.movie, ...res.series].filter((t) => t !== top).slice(0, 4);
-  if (!top && !onTv.length && !chans.length && !rest.length) return `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b style="overflow-wrap:anywhere">No results for “${esc(q.length > 24 ? q.slice(0, 23) + '…' : q)}”</b><p>Check the spelling, or try fewer letters. Search covers channels, programmes, movies and series.</p><div data-row style="display:flex;justify-content:center"><span class="btn2 sm fx" tabindex="-1" data-act="clear">Clear</span></div></div>`;
+ const adb = addonBlock();
+  if (!top && !onTv.length && !chans.length && !rest.length && !adb) return `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b style="overflow-wrap:anywhere">No results for “${esc(q.length > 24 ? q.slice(0, 23) + '…' : q)}”</b><p>Check the spelling, or try fewer letters. Search covers channels, programmes, movies and series.</p><div data-row style="display:flex;justify-content:center"><span class="btn2 sm fx" tabindex="-1" data-act="clear">Clear</span></div></div>`;
   const mini = (t) => `<div class="mini2" style="height:40px;width:28px"><div class="art">${t.poster ? `<img src="${esc(sized(t.poster, 92))}" alt="">` : ''}</div></div>`;
   let html = '<div data-col>';
   if (top) html += `<div class="t-label" style="margin-bottom:8px">Top result</div><div class="rrow fx" tabindex="-1" data-res="${top.kind === 'movie' ? 'p' : 't'}:${top.kind}:${top.id}" style="height:84px"><div class="mini2"><div class="art">${top.poster ? `<img src="${esc(sized(top.poster, 154))}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
@@ -48,8 +89,8 @@ function results() {
     html += onTv.slice(0, 2).map(({ ch, p }) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(p.title)}</div><div class="t-cap ellipsis">${esc(ch.name)}${dot}${hm(p.start)} to ${hm(p.end)}</div></div></div>`).join('');
     html += chans.filter((c) => !onTv.some((o) => o.ch === c)).slice(0, 2).map((ch) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(ch.name)}</div><div class="t-cap">Channel ${ch.num}</div></div></div>`).join('');
   }
-  if (rest.length) html += `<div class="t-label" style="margin:14px 0 8px">Movies and series</div>${rest.map((t) => `<div class="rrow fx" tabindex="-1" data-res="t:${t.kind}:${t.id}">${mini(t)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(t.name)}</div><div class="t-cap">${t.kind === 'movie' ? 'Movie' : 'Series'}${t.year ? dot + esc(t.year) : ''}${t._genres?.[0] ? dot + esc(t._genres[0]) : ''}</div></div></div>`).join('')}`;
-  return html + '</div>';
+  if (rest.length) html += `<div class="t-label" style="margin:14px 0 8px">Movies and series</div>${(adb ? rest.slice(0, 2) : rest).map((t) => `<div class="rrow fx" tabindex="-1" data-res="t:${t.kind}:${t.id}">${mini(t)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(t.name)}</div><div class="t-cap">${t.kind === 'movie' ? 'Movie' : 'Series'}${t.year ? dot + esc(t.year) : ''}${t._genres?.[0] ? dot + esc(t._genres[0]) : ''}</div></div></div>`).join('')}`;
+  return html + adb + '</div>';
 }
 function suggestions() {
   if (q.length < 2 || !res) return '<div style="height:44px"></div>';
@@ -75,6 +116,7 @@ function type(k) {
   else if (k === 'clr') q = '';
   else q = (q + k.toLowerCase()).slice(0, 40);
   keptAt = Date.now();
+  askAddons();
   draw();
 }
 function remember() {
@@ -85,6 +127,7 @@ function openRes(v) {
   remember();
   const [kind, a, b] = v.split(':');
   if (kind === 'c') { const ch = catalog.live?.byId.get(a); if (ch) playLive(ch, ringFor(ch), ringName(ch)); return; }
+  if (kind === 'a') { const m = ads?.items.find((x) => x.id === b); if (m) openDetail(adTitle(m)); return; }
   const t = catalog[a]?.titleById?.get(b) || catalog[a]?.titles?.find((x) => x.id === b);
   if (!t) return;
   // the top result's Play plays (your language and best quality, from where you stopped); everything else opens its page
@@ -97,7 +140,18 @@ export default {
   name: 'search',
   mount(root) {
     el = root;
-    root.innerHTML = '<div class="abs" data-left style="left:48px;top:90px;width:352px"></div><div class="abs" data-right style="left:432px;top:90px;width:480px"></div>';
+    root.innerHTML = '<div class="abs" data-left style="left:48px;top:90px;width:352px"></div><div class="abs" data-right style="left:432px;top:90px;width:480px;transition:transform 200ms var(--a-ease)"></div>';
+    // the results slide up when a focused row would pass the safe edge (the add-on block can run below it)
+    root.addEventListener('tvfocus', (e) => {
+      const r = el.querySelector('[data-right]');
+      if (!r.contains(e.target)) { r.style.transform = ''; return; }
+      const cur = -(parseFloat((r.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0);
+      const b = e.target.getBoundingClientRect(), H = el.getBoundingClientRect().height / 540 || 1;
+      const bottom = b.bottom / H + 0, top = b.top / H;
+      let y = cur;
+      if (bottom > 500) y = cur + (bottom - 500); else if (top < 100) y = Math.max(0, cur - (100 - top));
+      r.style.transform = y ? `translateY(${-y}px)` : '';
+    });
     root.addEventListener('click', (e) => {
       const k = e.target.closest('[data-key]'); if (k) return type(k.dataset.key);
       const s = e.target.closest('[data-sugg]'); if (s) { q = s.dataset.sugg.toLowerCase(); draw(); focus(el.querySelector('[data-right] .rrow')); return; }

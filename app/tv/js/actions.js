@@ -6,6 +6,7 @@ import { push } from './router.js';
 import { gameById } from './games.js';
 import { resumeGame, watchFromTipoff, playProgramme, openVideoGame, chooseVideo, playVideoFor } from './replay.js';
 import { videoMask } from './catchup.js';
+import { resumeAddonItem } from './titlecopies.js';
 
 // Series episode lists, kept for a while so the next resume has Up next at once.
 const seriesCache = new Map();   // seriesId -> { at, eps }
@@ -22,6 +23,7 @@ export function episodesOf(it) {
 // the series' list arrives (at once when it was looked up recently).
 export async function resumeItem(it, { restart } = {}) {
   if (it.kind === 'rp') return resumeReplay(it, { restart });
+  if (it.copy && it.copy.source !== 'provider') return resumeAddonItem(it, { restart });   // an add-on copy: asked for again (add-ons SPEC 8.3)
   if (it.kind === 'movie' && playMasked(it)) return;   // a hidden game's video: the hidden-end timeline (catch-up 5.8)
   if (it.kind !== 'episode') return playVod(it, { restart });
   const hit = seriesCache.get(it.seriesId);
@@ -41,6 +43,15 @@ function resumeReplay(it, { restart } = {}) {
 }
 export async function openTitle(it) {
   if (it.kind === 'rp') { if (it.game) push('game', { id: it.game.id }); return; }
+  if (it.copy && it.copy.source !== 'provider') {
+    // an add-on copy's title: the provider's page when the provider has it, else the add-on title's own
+    const kind = it.copy.kind || (it.kind === 'episode' ? 'series' : 'movie');
+    const c = catalog[kind] || await ensure(kind).catch(() => null);
+    const t = c?.titleById?.get(it.copy.tid) || c?.titles?.find((x) => x.id === it.copy.tid);
+    if (t) return openDetail(t);
+    const id = it.kind === 'episode' ? it.imdbSeries || it.seriesId : it.id;
+    return push('detail', { title: { kind, key: id, id, name: it.copy.title || it._title || it.name, poster: it.poster, year: it.year, versions: [], _qs: new Set(), _langs: new Set(), _genres: [], addon: { type: kind } } });
+  }
   const kind = it.kind === 'episode' ? 'series' : it.kind;
   const id = it.kind === 'episode' ? it.seriesId : it.id;
   const c = catalog[kind] || await ensure(kind).catch(() => null);
