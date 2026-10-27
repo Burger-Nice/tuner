@@ -53,6 +53,9 @@ module.exports = async (ctx) => {
   await p.waitForTimeout(800);
   console.log('A now panel:', await ev(() => document.querySelector('.g-now')?.innerText.replace(/\s+/g, ' ')), '| live pill', await ev(() => !!document.querySelector('.g-now [class*="live"]')));
   await shot('A-guide');
+  await ev(async () => { const r = await import('./tv/js/router.js'); r.push('team', { abbr: 'MEM' }); });
+  await p.waitForTimeout(4000);
+  await snap('A team page (live)'); await shot('A-team');
 
   // B. 02:40, the game is final on ESPN (still inside tip-off + 3 h 30): does anything change?
   await setup(ctx, { at: '2026-10-27T02:40:00Z', state: 'post' }); await restore();
