@@ -1,0 +1,176 @@
+[
+ {
+  "file": "live-archive.html",
+  "title": "Guide: today, kept channels",
+  "note": "Today's guide at 10:40. Kept channels carry the history mark; the Now panel says ◀ goes to earlier programmes, kept 3 days.",
+  "group": "Guide"
+ },
+ {
+  "file": "live-past.html",
+  "title": "Guide: back in time",
+  "note": "Hold ◀ to go back. Kept programmes look normal with the history mark; ESPN and CNN aren't kept (outlined). OK resumes Coastline.",
+  "group": "Guide"
+ },
+ {
+  "file": "live-past-game.html",
+  "title": "Guide: last night's game",
+  "note": "Shield on. Last night's Grizzlies game: description hidden, OK plays it from tip-off (not from the pre-game). The day pill marks the date.",
+  "group": "Guide"
+ },
+ {
+  "file": "live-past-gone.html",
+  "title": "Guide: a channel that isn't kept",
+  "note": "Back in time on a channel the provider doesn't keep: one outlined cell, still focusable so ▲▼ keep the time. OK tunes it live.",
+  "group": "Guide"
+ },
+ {
+  "file": "home-replay.html",
+  "title": "Home: the morning after",
+  "note": "10:40, shield My team. Last night's game is unseen and kept, so Home opens on it: Watch from tip-off is focused. No score, no record past the seen games.",
+  "group": "NBA"
+ },
+ {
+  "file": "home-replay-resume.html",
+  "title": "Home: resume the replay",
+  "note": "You stopped in Q3 last time. Resume (focused), From tip-off, Game page. The slab shows where you stopped; the card says \"Stopped in Q3\", never minutes left.",
+  "group": "NBA"
+ },
+ {
+  "file": "home-live-tipoff.html",
+  "title": "Home: live, from tip-off",
+  "note": "01:52, live. Watch live stays first; From tip-off sits next to it (one ▶). With three buttons the channel name moves to the status row.",
+  "group": "NBA"
+ },
+ {
+  "file": "nba-hub-replay.html",
+  "title": "NBA: yesterday, replays",
+  "note": "A provider with no archive: the replay is a video in its Movies (matched by teams and date). Cards with a replay say so; the Grizzlies card stays hidden.",
+  "group": "NBA"
+ },
+ {
+  "file": "nba-card-menu-replay.html",
+  "title": "NBA: hold OK on a final",
+  "note": "Hold OK on a final with a replay: Watch from tip-off first and focused. Reveal names its game and comes last. The menu opens above the card (it would cover it below).",
+  "group": "NBA"
+ },
+ {
+  "file": "game-replay-shield.html",
+  "title": "Game page: hidden, replay",
+  "note": "Shield on: the card in the body offers the replay first (focused). Reveal names the game and is a move away. Plays is dropped while hidden.",
+  "group": "NBA"
+ },
+ {
+  "file": "game-replay-seen.html",
+  "title": "Game page: seen, watch again",
+  "note": "Sun's game, seen: the box score as today, and Watch again at the right of the tab row. (Box score figures are illustrative.)",
+  "group": "NBA"
+ },
+ {
+  "file": "game-noreplay.html",
+  "title": "Game page: no replay",
+  "note": "Neither an archive nor a video: say so plainly, keep looking every hour, and let you pick a video yourself. Look again is focused, never Reveal.",
+  "group": "NBA"
+ },
+ {
+  "file": "choose-video.html",
+  "title": "Choose a video",
+  "note": "Choose a video: only videos naming either team, nearest date first. Unseen games get airglow's own names (the provider's can carry the score).",
+  "group": "NBA"
+ },
+ {
+  "file": "sources-sheet.html",
+  "title": "Where to watch it from",
+  "note": "Hold OK on Watch from tip-off: every source airglow found, best first and focused. OK plays it from tip-off.",
+  "group": "NBA"
+ },
+ {
+  "file": "team-schedule-replay.html",
+  "title": "Team page: schedule, replays",
+  "note": "The schedule rail: finals you can still watch carry the history mark at the end of the result line. The Warriors game has dropped out of the 3-day archive.",
+  "group": "NBA"
+ },
+ {
+  "file": "team-tile-menu.html",
+  "title": "Team page: hold OK on a tile",
+  "note": "Hold OK on a tile with a replay: Watch from tip-off is first and focused; Reveal comes last. OK on the tile still opens the game page.",
+  "group": "NBA"
+ },
+ {
+  "file": "player-tipoff.html",
+  "title": "Player: from tip-off, game live",
+  "note": "Watch from tip-off on a live game. The bar is a fixed 3½ h window; the live edge is the red dot, the part not yet played is outlined. Focus on the thumb.",
+  "group": "Player"
+ },
+ {
+  "file": "player-halftime.html",
+  "title": "Player: skip halftime",
+  "note": "▲ to the buttons at halftime: the skip reads \"Skip halftime\" and OK lands on the Q3 tip. The hint bar says what OK does.",
+  "group": "Player"
+ },
+ {
+  "file": "player-replay.html",
+  "title": "Player: replay, shield on",
+  "note": "A finished game under the shield: the bar never shows where the game ends (no remaining time, no end mark, no OT tick ahead). It becomes seen at the final buzzer.",
+  "group": "Player"
+ },
+ {
+  "file": "player-scrub.html",
+  "title": "Player: scrubbing a replay",
+  "note": "Holding ▶ scrubs faster every second (×2 up to ×32, as movies). The bubble shows the quarter and the time since tip-off, never a score.",
+  "group": "Player"
+ },
+ {
+  "file": "player-replay-panel.html",
+  "title": "Player: quarters panel",
+  "note": "▶ in a replay: the game as it stood at this moment (the same reveal rule as live), and the quarters to jump to. No box score, no OT row ahead.",
+  "group": "Player"
+ },
+ {
+  "file": "player-options-live.html",
+  "title": "Player: Options, live game",
+  "note": "◀ on a live game on a kept channel: Watch from tip-off is the second row (Sync score stays first), Rewind and pause the third. Two more rows below.",
+  "group": "Player"
+ },
+ {
+  "file": "player-golive.html",
+  "title": "Player: the game ended live",
+  "note": "You are behind live and the game ends live: Back to live would show the result, so it asks. Stay is focused; Back stays too.",
+  "group": "Player"
+ },
+ {
+  "file": "player-programme.html",
+  "title": "Player: an archived programme",
+  "note": "OK on a kept programme in the guide: the movie bar, with the programme's own times. At the end, Up next offers the next programme on the channel.",
+  "group": "Player"
+ },
+ {
+  "file": "player-paused.html",
+  "title": "Player: live TV paused",
+  "note": "Pause on a kept channel: the bar shows the programme, the live edge and how far behind you are. ⏮ starts the programme over; Back to live returns.",
+  "group": "Player"
+ },
+ {
+  "file": "player-paused-local.html",
+  "title": "Player: paused, not kept",
+  "note": "A channel the provider doesn't keep: pause and rewind work inside what the TV holds in memory (2 min here; measured on the TV). Past that it goes back to live.",
+  "group": "Player"
+ },
+ {
+  "file": "player-video-replay.html",
+  "title": "Player: a full-game video",
+  "note": "A provider video, not the archive: no quarter marks (the video's timing is unknown), the same hidden end. Elapsed time only.",
+  "group": "Player"
+ },
+ {
+  "file": "player-replay-failed.html",
+  "title": "Player: the replay didn't start",
+  "note": "If the archive fails, the other source is one OK away (here the video in Movies), focused. No score anywhere on the card.",
+  "group": "Player"
+ },
+ {
+  "file": "player-panel-live.html",
+  "title": "Player: game panel, from tip-off",
+  "note": "▶ while watching a live game on a kept channel: the panel (the reveal you asked for, as today) gets a From tip-off button at its foot, ▼ from the table. (Figures illustrative.)",
+  "group": "Player"
+ }
+]

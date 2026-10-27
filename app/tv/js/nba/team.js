@@ -41,7 +41,8 @@ const OWN_CATS = [
 ];
 const TILE_ORDER = ['Points', 'Points allowed', 'Rebounds', '3-point %', 'Blocks', 'Assists', 'Field goal %', 'Steals', 'Turnovers'];
 const rankCats = () => {
-  const cats = statsMod.TEAM_CATS?.length ? statsMod.TEAM_CATS : OWN_CATS;
+  const theirs = statsMod.TEAM_CATS?.length ? statsMod.TEAM_CATS : [];
+  const cats = [...theirs, ...OWN_CATS.filter((c) => !theirs.some((t) => String(t.label).toLowerCase() === c.label.toLowerCase()))];
   const at = (c) => { const i = TILE_ORDER.findIndex((l) => l.toLowerCase() === String(c.label).toLowerCase()); return i < 0 ? 99 : i; };
   return cats.filter((c) => at(c) < 99).sort((a, b) => at(a) - at(b));
 };
@@ -349,6 +350,7 @@ export function teamPage({ pushed = false } = {}) {
     if (fromFocus && body.contains(a)) st.area = a.closest('[data-area]')?.dataset.area || 'top';
     const area = SHIFT[st.area] != null ? st.area : 'top', shift = SHIFT[area];
     body.style.setProperty('--sy', `${shift}px`);
+    body.classList.toggle('at-roster', area === 'roster');
     cover.hidden = ctxLine.hidden = !shift;
     const count = body.querySelectorAll('.tp-roster>.nb-tr').length;
     if (shift) setHtml(ctxLine, `NBA${dot}<b>${esc(names(abbr).name)}</b>${dot}${AREA[area]}${area === 'roster' && count ? `${dot}${count} players` : ''}`, false);

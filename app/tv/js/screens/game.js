@@ -27,7 +27,7 @@ function table(s, abbr, g) {
   return `<table class="box"><thead><tr><th>Player</th>${COLS.map((c) => `<th>${c === '3PT' ? '3P' : c}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table>${teamRow(side)}`;
 }
 // Under the box score's Team totals: that team's page (SPEC 1; OK on a tab never navigates).
-const teamRow = (t) => `<div data-row style="padding:14px 0 6px"><span class="pillbtn fx gd-tp" tabindex="-1" data-act="teampage" data-abbr="${esc(t.abbr)}">${crest(t, 's24')}${esc(t.full || t.name)} page ›</span></div>`;
+const teamRow = (t) => `<div data-row style="padding:14px 0 6px 6px"><span class="pillbtn fx gd-tp" tabindex="-1" data-act="teampage" data-abbr="${esc(t.abbr)}">${crest(t, 's24')}${esc(t.full || t.name)} page ›</span></div>`;
 function plays(s, g) {
   if (!s?.plays.length) return '<div class="t-body" style="padding:24px 0">No plays yet.</div>';
   return `<div class="plays">${s.plays.slice(0, 40).map((p) => `<div class="play"><span class="clk">${esc(ordinal(p.period))} ${esc(p.clock)}</span><span class="tm">${esc(p.team)}</span><span class="tx${p.scoring ? ' sc' : ''}">${p.scoring ? '<i></i>' : ''}${esc(p.text)}</span><span class="sco">${p.scoring ? `${esc(p.away)}–${esc(p.home)}` : ''}</span></div>`).join('')}</div>`;

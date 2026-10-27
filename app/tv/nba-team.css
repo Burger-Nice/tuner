@@ -40,3 +40,4 @@ html.rep .tp-b,html.rep .tp-tr,html.rep .tp-roster>.nb-tr{transition:none!import
 .tp-pk.mine::after{content:"";position:absolute;left:10px;top:10px;width:6px;height:6px;border-radius:50%;background:var(--a-pink)}
 .tp-pk.cur{border-color:var(--a-border-strong)}
 .tp-pk.fx:focus{background:var(--a-surface-3);box-shadow:var(--a-focus-ring);z-index:3}
+.tp-body:not(.at-roster) .tp-pill{visibility:hidden}                        /* Sort shows once you're in the roster */

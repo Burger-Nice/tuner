@@ -1,0 +1,82 @@
+/* airglow TV: catch-up v1.0 (design/ui-v1/catchup/SPEC.md). New classes only, prefix cu-.
+   Built on tv/brand/tokens.css + tv/ui.css + tv/app.css + tv/nba.css; meant to be appended to app/tv/app.css when ported.
+   Canvas 960 x 540, safe area x 48-912 / y 27-513. Only transform and opacity animate. The mocks mark focus with
+   .f / .f-ring / .f-in (ui.css); the app uses :focus on .fx (SPEC 2.4 lists the selectors). The player part (cu-t*)
+   is drawn here as HTML for measuring; the native views take the same sizes in dp (SPEC 6). */
+
+.ic.xs{width:16px;height:16px}
+
+/* ---------- a neutral badge (never red: red is LIVE only) ---------- */
+.cu-badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:var(--a-surface-2);color:var(--a-text-1);font:650 14px/1 var(--a-font-text);white-space:nowrap;flex:none}
+.cu-badge .ic{width:16px;height:16px}
+
+/* ---------- the guide (SPEC 4) ---------- */
+.cu-day{position:absolute;left:0;top:2px;height:24px;padding:0 10px;border-radius:999px;background:var(--a-surface-2);color:var(--a-text-1);font:650 14px/24px var(--a-font-text);white-space:nowrap;z-index:3}
+.cu-nowr{position:absolute;right:4px;top:2px;height:24px;padding:0 6px 0 10px;border-radius:999px;background:var(--a-grad);color:var(--a-ink);font:700 14px/24px var(--a-font-text);display:inline-flex;align-items:center;gap:2px;white-space:nowrap;z-index:3}
+.cu-nowr .ic{width:16px;height:16px;stroke-width:2.6}
+.g-cell.cu-rp .sb .ic{width:16px;height:16px;margin-right:5px;color:var(--a-text-2);stroke-width:2.2}
+.g-cell.cu-gone{background:transparent;border-color:var(--a-border)}
+.g-cell.cu-gone b{color:var(--a-text-3);font-weight:500}
+.g-cell.cu-gone.f-in b{color:var(--a-text-1)}
+.g-cell.cu-load{background:var(--a-bg-1)}
+.g-cell.cu-load b{color:var(--a-text-3);font-weight:500}
+.g-cell .cu-wp{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(21,19,29,.55)}
+.g-cell .cu-wp i{display:block;height:100%;background:var(--a-grad)}
+.g-cell.f-in .cu-wp{left:3px;right:3px;bottom:3px}
+.g-ch .num.cu-n{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:3px;line-height:1}
+.g-ch .cu-arc{display:flex;color:var(--a-text-1)}
+.g-ch .cu-arc svg{width:16px;height:16px;stroke-width:2.2}
+.g-nowline{position:absolute;top:-34px;bottom:-4px;width:2px;margin-left:-1px;background:var(--a-pink);z-index:0}
+.pvtile .cu-cor{position:absolute;right:6px;bottom:6px;width:26px;height:26px;border-radius:50%;background:rgba(21,19,29,.86);display:grid;place-items:center;color:var(--a-text-1)}
+.pvtile .cu-cor svg{width:16px;height:16px}
+.cu-hint{text-align:right;line-height:20px;white-space:nowrap}
+
+/* ---------- NBA surfaces (SPEC 5) ---------- */
+.gc .st .cu-rpl{margin-left:auto;display:inline-flex;align-items:center;gap:5px;color:var(--a-text-1);letter-spacing:.02em;text-transform:none;font-weight:650;white-space:nowrap}
+.gc .st .cu-rpl .ic{width:16px;height:16px}
+.nb-gt .r .cu-g{margin-left:auto;display:flex;color:var(--a-text-1)}
+.nb-gt .r .cu-g svg{width:18px;height:18px}
+.cu-srcs .lr{height:64px;align-items:center}
+.cu-srcs .lr .grow{min-width:0}
+.cu-srcs .lr .a{display:block;font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cu-srcs .lr .b{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cu-srcs .lr .ico{display:flex;color:var(--a-text-2);flex:none}
+.cu-srcs .lr .ico svg{width:22px;height:22px}
+.cu-srcs .lr small{font:650 14px/18px var(--a-font-text);color:var(--a-pink-text);flex:none}
+.cu-match{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:100%;background:var(--a-surface-2)}
+.cu-state{width:680px}
+.cu-state .row-flex{justify-content:center;gap:20px}
+.cu-state .t-cap{margin-top:14px}
+
+/* ---------- the player's timeline (SPEC 6), drawn in dp ---------- */
+.cu-tbar{position:absolute;left:48px;right:48px;bottom:64px;padding:16px 20px 10px;border-radius:16px;background:rgba(30,27,40,.92);z-index:7}
+.cu-btns{display:flex;align-items:center;gap:10px;height:44px}
+.cu-btns .grow{flex:1}
+.cu-btns .btn2.sm{height:40px;padding:0 16px;gap:6px}
+.cu-btns .btn2.sm.f-ring,.cu-btns .btn2.sm.f{border-color:var(--a-bg-0)}
+.vb .ic{width:22px;height:22px}
+.vb.t{font:700 15px/1 var(--a-font-text);color:var(--a-text-1)}
+.cu-trk{position:relative;height:22px;margin-top:14px}
+.cu-trk .seek{position:absolute;left:0;right:0;top:8px}
+.cu-ahead{position:absolute;top:0;bottom:0;right:0;border-radius:999px;background:#1E1B28;border:1px dashed var(--a-border-strong)}
+.cu-tk{position:absolute;top:-4px;width:2px;height:14px;margin-left:-1px;border-radius:1px;background:var(--a-text-2);z-index:1}
+.cu-edge{position:absolute;top:-4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--a-live);border:2px solid #1E1B28;z-index:2}
+.cu-chap{position:relative;height:24px;margin-top:4px}
+.cu-chap>span{position:absolute;top:3px;transform:translateX(-50%);font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap}
+.cu-chap>span.on{color:var(--a-text-1);font-weight:650}
+.cu-chap>span.l{transform:none;left:0}
+.cu-chap>span.r{transform:none;left:auto;right:0;display:inline-flex;align-items:center;gap:6px}
+.cu-chap>span.r .ic{width:16px;height:16px}
+.cu-chap>.a-live{position:absolute;top:1px;transform:none}
+.cu-pos{margin-left:auto;text-align:right;white-space:nowrap}
+.cu-pos b{display:block;font:650 18px/22px var(--a-font-text);color:var(--a-text-1)}
+.cu-pos span{display:block;font:500 15px/20px var(--a-font-text);color:var(--a-text-2)}
+.cu-pos .row-flex{justify-content:flex-end;gap:6px}
+.cu-speed{position:absolute;top:-46px;height:28px;padding:0 10px;border-radius:var(--a-radius-sm);background:var(--a-bg-1);border:1px solid var(--a-border-strong);font:700 15px/26px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
+.nv-panel .cu-qrow .a{font:650 16px/20px var(--a-font-text)}
+.nv-panel .cu-qrow .t-cap{margin-left:auto}
+.nv-card .cu-cbtns{display:flex;gap:12px;justify-content:center}
+.nv-card.cu-wide{width:500px}
+.ctxmenu.cu-w{width:292px}
+.seek .bub.cu-up{top:-120px}
+.cu-speed.cu-up{top:-120px}
