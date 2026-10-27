@@ -1,7 +1,7 @@
-/* airglow TV: the NBA Team and League pages (design/ui-v1/nba-pages/SPEC.md). New classes only, prefix nb-.
+/* airglow TV: the NBA Team and League pages v1.1 (design/ui-v1/nba-pages/SPEC.md). New classes only, prefix nb-.
    Built on tv/brand/tokens.css + tv/ui.css + tv/app.css; meant to be appended to app/tv/app.css when ported.
    Canvas 960 x 540, safe area x 48-912 / y 27-513. Only transform and opacity animate. Mocks mark focus with
-   .f / .f-ring / .f-in (ui.css); the app uses :focus on .fx, see SPEC 2.4 for the selector list to add. */
+   .f / .f-ring / .f-in (ui.css); the app uses :focus on .fx, see SPEC 2.5 for the selector list to add. */
 
 /* ---------- shared ---------- */
 .team.s24{width:24px;height:24px;border-width:1px}.team.s24 img{width:20px;height:20px}
@@ -122,7 +122,7 @@
 .nb-read p.lede{color:var(--a-text-2)}
 .nb-read .vp{position:absolute;left:0;right:0;top:0;bottom:44px;overflow:hidden}
 .nb-read .foot{position:absolute;left:0;right:0;bottom:0;height:44px;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 40px;border-top:1px solid var(--a-border);background:var(--a-bg-1);font:650 14px/18px var(--a-font-text);color:var(--a-text-2);z-index:3}
-.nb-read .foot span{margin-right:auto;font-weight:500;color:var(--a-text-3)}
+.nb-read .foot span{margin-right:auto;font-weight:500;color:var(--a-text-3);display:inline-flex;align-items:center;gap:6px}
 .nb-read .fade{position:absolute;left:0;right:0;bottom:44px;height:40px;background:linear-gradient(180deg,rgba(30,27,40,0),var(--a-bg-1) 70%);z-index:2}
 .nb-read .rbar{position:absolute;right:14px;top:24px;bottom:60px;width:4px;border-radius:999px;background:var(--a-surface-2);z-index:3}
 .nb-read .rbar i{position:absolute;left:0;right:0;border-radius:999px;background:var(--a-text-3)}
@@ -131,21 +131,21 @@
 .nb-head{position:absolute;left:48px;right:48px;top:128px;height:184px;border-radius:16px;background:var(--a-surface-1);border:1px solid var(--a-border);overflow:hidden}
 .nb-head .st{position:absolute;left:24px;top:12px;height:24px;display:flex;align-items:center;gap:12px;white-space:nowrap}
 .nb-head .st .r{position:fixed}
-.nb-plate{position:absolute;left:0;top:44px;height:72px;width:392px;display:flex;align-items:center;gap:16px;padding-left:24px}
+.nb-plate{position:absolute;left:0;top:44px;height:72px;width:372px;display:flex;align-items:center;gap:16px;padding-left:24px}
 .nb-plate::before{content:"";position:absolute;inset:0 0 0 -40px;background:var(--tp);border-bottom:4px solid var(--ta);transform:skewX(var(--a-skew));transform-origin:0 100%;border-radius:0 var(--a-radius-sm) var(--a-radius-sm) 0}
 .nb-plate>*{position:relative}
 .nb-plate .loc{font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--tc);opacity:.9}
 .nb-plate .nk{font:700 30px/34px var(--a-font-display);color:var(--tc);white-space:nowrap}
-.nb-rec{position:absolute;left:412px;top:44px;height:72px;display:flex;align-items:center;gap:14px}
+.nb-rec{position:absolute;left:392px;top:44px;height:72px;display:flex;align-items:center;gap:14px}
 .nb-rec .big{font:italic 800 56px/52px var(--a-font-live);color:var(--a-text-1);white-space:nowrap}
 .nb-rec .l1{font:650 17px/22px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
 .nb-rec .l2{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
-.nb-next{position:absolute;left:660px;right:20px;top:44px;height:72px;padding-left:16px;border-left:1px solid var(--a-border)}
+.nb-next{position:absolute;left:640px;right:20px;top:44px;height:72px;padding-left:16px;border-left:1px solid var(--a-border)}
 .nb-next .t-label{display:block}
 .nb-next .mu{display:flex;align-items:center;gap:8px;margin-top:4px;height:28px;font:650 17px/22px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;min-width:0}
 .nb-next .mu span:last-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .nb-next .tv{margin-top:4px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nb-btns{position:absolute;left:24px;right:24px;top:128px;height:44px;display:flex;align-items:center;gap:16px}
+.nb-btns{position:absolute;left:24px;right:24px;top:128px;height:44px;display:flex;align-items:center;gap:20px}
 .nb-btns .t-cap{line-height:18px;min-width:0;flex:1;margin-left:4px}
 .nb-btns .btn.f:first-child,.nb-btns .btn2.f:first-child{transform-origin:0 50%}
 .nb-rail{position:absolute;left:0;right:0;display:flex;gap:24px;padding:10px 0 10px 48px}
@@ -197,3 +197,16 @@
 .nb-noph{position:absolute;inset:0;display:flex;align-items:flex-start;padding-top:16px;justify-content:center;gap:18px;background:var(--a-surface-2)}
 .nb-noph .team{width:64px;height:64px}.nb-noph .team img{width:54px;height:54px}
 .nb-noph i{font:italic 800 24px/1 var(--a-font-live);color:var(--a-text-3);font-style:italic}
+
+/* ---------- v1.1 ---------- */
+.nb-tb>.nb-tr,.nb-tb>.nb-band{position:absolute;left:0;right:0}          /* rows are siblings: .mine + .nb-tr drops the divider */
+.c.k{font-size:16px;font-weight:650}                                       /* W, L, PCT lead */
+.c.s{font-size:14px;color:var(--a-text-3)}                                 /* GB, HOME, ROAD recede by size, not only colour */
+.nb-tr .a-live{flex:none}
+.nb-rp{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}  /* a record counted from seen games: the eye-off says more are hidden */
+.nb-gt.pk>*,.nb-rk.pk>*,.nb-nc.pk>*{visibility:hidden}                   /* a tile peeking past x 912 shows its surface, never sliced text */
+.nb-lead .nm.long{font-size:20px;line-height:30px}                         /* names over 18 characters (Gilgeous-Alexander, Antetokounmpo) */
+.nb-cue{position:absolute;left:48px;display:flex;align-items:center;gap:6px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap}
+.nb-cue .ic{width:18px;height:18px}
+.nb-read p.hidp{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:var(--a-surface-1);font:500 15px/20px var(--a-font-text);color:var(--a-text-2)}
+.nb-next .t-label{white-space:nowrap}

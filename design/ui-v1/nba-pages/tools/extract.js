@@ -42,8 +42,8 @@ const sched = (f, me) => J(B, f).events.map((e) => {
   return { id: g.id, date: g.date, state: g.state, home, opp: home ? g.away.abbr : g.home.abbr, us: home ? g.home.score : g.away.score, them: home ? g.away.score : g.home.score, win: home ? g.home.win : g.away.win, tv: [...new Set(g.tv)], detail: g.detail };
 });
 fs.copyFileSync(path.join(A, 'schedule29.json'), path.join(B, 'sched29.json'));
-out.sched = { MEM: sched('sched29.json', 'MEM'), UTAH: sched('sched26.json', 'UTAH') };
-out.standing = { MEM: J(B, 'sched29.json').team.standingSummary, UTAH: J(B, 'sched26.json').team.standingSummary };   // "1st in Southwest Division"
+out.sched = { MEM: sched('sched29.json', 'MEM'), UTAH: sched('sched26.json', 'UTAH'), SAC: sched('sched23.json', 'SAC') };
+out.standing = { MEM: J(B, 'sched29.json').team.standingSummary, UTAH: J(B, 'sched26.json').team.standingSummary, SAC: J(B, 'sched23.json').team.standingSummary };   // "1st in Southwest Division"
 
 // ---- rosters and per-player averages (teams/{id}/roster, teams/{id}/athletes/statistics)
 const roster = (d) => d.athletes.map((a) => ({ id: a.id, jersey: a.jersey || '', name: a.displayName, short: a.shortName, pos: a.position?.abbreviation || '', posName: a.position?.displayName || '', age: a.age, ht: a.displayHeight, wt: a.displayWeight, exp: a.experience?.years ?? null, college: a.college?.name || '', injury: a.injuries?.[0]?.status || '', born: a.birthPlace ? [a.birthPlace.city, a.birthPlace.state || a.birthPlace.country].filter(Boolean).join(', ') : '' }));
@@ -78,8 +78,9 @@ out.teamStats = METRICS.map(([key, label, high, dp]) => {
 });
 
 // ---- news (news?limit=25, &team=29, &team=26): videos (type Media) are dropped: the TV can't play them
-// (the NBA feed also carries WNBA stories: league category 59; they are dropped too)
-const news = (f) => J(B, f).articles.filter((a) => a.type !== 'Media' && !(a.categories || []).some((c) => c.type === 'league' && +c.leagueId === 59)).map((a) => ({
+// v1.1 (owner): videos, WNBA (league 59), fantasy (3090) and betting (22000) stories are dropped; newest first
+const DROP = new Set([59, 3090, 22000]);
+const news = (f) => J(B, f).articles.filter((a) => a.type !== 'Media' && !(a.categories || []).some((c) => c.type === 'league' && DROP.has(+c.leagueId))).sort((x, y) => Date.parse(y.published) - Date.parse(x.published)).map((a) => ({
   id: String(a.id), type: a.type, headline: a.headline, description: a.description || '', published: a.published, byline: a.byline || '', premium: !!a.premium,
   image: (a.images || []).find((i) => i.type === 'header')?.url || (a.images || []).find((i) => i.url && !/stitcher/.test(i.url))?.url || '',
   stitch: (a.images || []).find((i) => /16x9/.test(i.name || ''))?.url || '',

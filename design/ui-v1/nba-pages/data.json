@@ -3090,11 +3090,962 @@
     ],
     "detail": "4/11 - 8:30 PM EDT"
    }
+  ],
+  "SAC": [
+   {
+    "id": "401909842",
+    "date": "2026-10-22T02:30Z",
+    "state": "post",
+    "home": false,
+    "opp": "LAC",
+    "us": "96",
+    "them": "121",
+    "win": false,
+    "tv": [
+     "NBA League Pass",
+     "KTLA",
+     "ClipperVision"
+    ],
+    "detail": "Final"
+   },
+   {
+    "id": "401909852",
+    "date": "2026-10-24T02:00Z",
+    "state": "post",
+    "home": true,
+    "opp": "POR",
+    "us": "120",
+    "them": "128",
+    "win": false,
+    "tv": [
+     "NBA League Pass",
+     "KUNP 16",
+     "BlazerVision"
+    ],
+    "detail": "Final"
+   },
+   {
+    "id": "401909867",
+    "date": "2026-10-26T01:00Z",
+    "state": "post",
+    "home": true,
+    "opp": "MEM",
+    "us": "112",
+    "them": "123",
+    "win": false,
+    "tv": [
+     "NBA League Pass",
+     "DAZN MEM"
+    ],
+    "detail": "Final"
+   },
+   {
+    "id": "401909879",
+    "date": "2026-10-28T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "SA",
+    "win": false,
+    "tv": [
+     "NBA League Pass"
+    ],
+    "detail": "10/27 - 8:00 PM EDT"
+   },
+   {
+    "id": "401909894",
+    "date": "2026-10-30T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "NO",
+    "win": false,
+    "tv": [
+     "NBA League Pass",
+     "GCSEN",
+     "Pelicans.com"
+    ],
+    "detail": "10/29 - 8:00 PM EDT"
+   },
+   {
+    "id": "401909899",
+    "date": "2026-11-01T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "MEM",
+    "win": false,
+    "tv": [
+     "NBA League Pass",
+     "DAZN MEM"
+    ],
+    "detail": "10/31 - 8:00 PM EDT"
+   },
+   {
+    "id": "401909913",
+    "date": "2026-11-03T01:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "DAL",
+    "win": false,
+    "tv": [
+     "NBA League Pass",
+     "KFAA-TV",
+     "MavsTV"
+    ],
+    "detail": "11/2 - 8:00 PM EST"
+   },
+   {
+    "id": "401909934",
+    "date": "2026-11-05T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "LAL",
+    "win": false,
+    "tv": [
+     "Spectrum Sports Net",
+     "Spectrum Sports Net +"
+    ],
+    "detail": "11/4 - 10:00 PM EST"
+   },
+   {
+    "id": "401909295",
+    "date": "2026-11-07T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "SA",
+    "win": false,
+    "tv": [
+     "DAZN SAS"
+    ],
+    "detail": "11/6 - 10:00 PM EST"
+   },
+   {
+    "id": "401909951",
+    "date": "2026-11-09T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "MIA",
+    "win": false,
+    "tv": [],
+    "detail": "11/8 - 9:00 PM EST"
+   },
+   {
+    "id": "401909964",
+    "date": "2026-11-11T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "ORL",
+    "win": false,
+    "tv": [],
+    "detail": "11/10 - 10:00 PM EST"
+   },
+   {
+    "id": "401909303",
+    "date": "2026-11-14T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "POR",
+    "win": false,
+    "tv": [
+     "KUNP 16",
+     "BlazerVision"
+    ],
+    "detail": "11/13 - 10:00 PM EST"
+   },
+   {
+    "id": "401909993",
+    "date": "2026-11-16T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "OKC",
+    "win": false,
+    "tv": [
+     "KSBI",
+     "Thunder App"
+    ],
+    "detail": "11/15 - 9:00 PM EST"
+   },
+   {
+    "id": "401910018",
+    "date": "2026-11-19T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "PHX",
+    "win": false,
+    "tv": [
+     "Suns Live",
+     "Arizona's Family 3TV"
+    ],
+    "detail": "11/18 - 10:00 PM EST"
+   },
+   {
+    "id": "401909313",
+    "date": "2026-11-21T03:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "LAL",
+    "win": false,
+    "tv": [
+     "Spectrum Sports Net",
+     "Spectrum Sports Net +"
+    ],
+    "detail": "11/20 - 10:00 PM EST"
+   },
+   {
+    "id": "401910028",
+    "date": "2026-11-22T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "BOS",
+    "win": false,
+    "tv": [
+     "NBA TV"
+    ],
+    "detail": "11/21 - 10:00 PM EST"
+   },
+   {
+    "id": "401910045",
+    "date": "2026-11-24T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "SA",
+    "win": false,
+    "tv": [
+     "DAZN SAS"
+    ],
+    "detail": "11/23 - 10:00 PM EST"
+   },
+   {
+    "id": "401909324",
+    "date": "2026-11-26T03:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "GS",
+    "win": false,
+    "tv": [],
+    "detail": "11/25 - 10:00 PM EST"
+   },
+   {
+    "id": "401910060",
+    "date": "2026-11-30T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "MIN",
+    "win": false,
+    "tv": [
+     "DAZN MIN"
+    ],
+    "detail": "11/29 - 9:00 PM EST"
+   },
+   {
+    "id": "401910067",
+    "date": "2026-12-01T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "NO",
+    "win": false,
+    "tv": [
+     "GCSEN",
+     "Pelicans.com"
+    ],
+    "detail": "11/30 - 10:00 PM EST"
+   },
+   {
+    "id": "401910083",
+    "date": "2026-12-03T02:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "PHX",
+    "win": false,
+    "tv": [
+     "Arizona's Family 3TV",
+     "Suns Live"
+    ],
+    "detail": "12/2 - 9:00 PM EST"
+   },
+   {
+    "id": "401910103",
+    "date": "2026-12-14T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "NO",
+    "win": false,
+    "tv": [
+     "GCSEN",
+     "Pelicans.com"
+    ],
+    "detail": "12/13 - 9:00 PM EST"
+   },
+   {
+    "id": "401910127",
+    "date": "2026-12-17T01:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "OKC",
+    "win": false,
+    "tv": [
+     "KSBI",
+     "Thunder App"
+    ],
+    "detail": "12/16 - 8:00 PM EST"
+   },
+   {
+    "id": "401910143",
+    "date": "2026-12-19T01:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "NO",
+    "win": false,
+    "tv": [
+     "GCSEN",
+     "Pelicans.com"
+    ],
+    "detail": "12/18 - 8:00 PM EST"
+   },
+   {
+    "id": "401910153",
+    "date": "2026-12-20T23:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "MIA",
+    "win": false,
+    "tv": [],
+    "detail": "12/20 - 6:00 PM EST"
+   },
+   {
+    "id": "401910161",
+    "date": "2026-12-22T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "ORL",
+    "win": false,
+    "tv": [],
+    "detail": "12/21 - 7:00 PM EST"
+   },
+   {
+    "id": "401910185",
+    "date": "2026-12-24T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "DAL",
+    "win": false,
+    "tv": [
+     "KFAA-TV",
+     "MavsTV"
+    ],
+    "detail": "12/23 - 10:00 PM EST"
+   },
+   {
+    "id": "401910200",
+    "date": "2026-12-27T23:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "UTAH",
+    "win": false,
+    "tv": [
+     "KJZZ-TV",
+     "Jazz+"
+    ],
+    "detail": "12/27 - 6:00 PM EST"
+   },
+   {
+    "id": "401910218",
+    "date": "2026-12-30T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "PHI",
+    "win": false,
+    "tv": [],
+    "detail": "12/29 - 10:00 PM EST"
+   },
+   {
+    "id": "401910231",
+    "date": "2026-12-31T23:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "BKN",
+    "win": false,
+    "tv": [
+     "DAZN (YES)"
+    ],
+    "detail": "12/31 - 6:00 PM EST"
+   },
+   {
+    "id": "401910249",
+    "date": "2027-01-03T02:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "PHX",
+    "win": false,
+    "tv": [
+     "Suns Live",
+     "Arizona's Family 3TV"
+    ],
+    "detail": "1/2 - 9:00 PM EST"
+   },
+   {
+    "id": "401910258",
+    "date": "2027-01-04T01:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "OKC",
+    "win": false,
+    "tv": [
+     "KSBI",
+     "Thunder App"
+    ],
+    "detail": "1/3 - 8:00 PM EST"
+   },
+   {
+    "id": "401910273",
+    "date": "2027-01-06T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "DET",
+    "win": false,
+    "tv": [],
+    "detail": "1/5 - 10:00 PM EST"
+   },
+   {
+    "id": "401910290",
+    "date": "2027-01-08T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "CHI",
+    "win": false,
+    "tv": [],
+    "detail": "1/7 - 10:00 PM EST"
+   },
+   {
+    "id": "401910298",
+    "date": "2027-01-09T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "NY",
+    "win": false,
+    "tv": [],
+    "detail": "1/8 - 10:00 PM EST"
+   },
+   {
+    "id": "401910312",
+    "date": "2027-01-11T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "CHA",
+    "win": false,
+    "tv": [
+     "DAZN CHA"
+    ],
+    "detail": "1/10 - 9:00 PM EST"
+   },
+   {
+    "id": "401910326",
+    "date": "2027-01-13T04:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "GS",
+    "win": false,
+    "tv": [
+     "NBC"
+    ],
+    "detail": "1/12 - 11:00 PM EST"
+   },
+   {
+    "id": "401910342",
+    "date": "2027-01-15T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "LAC",
+    "win": false,
+    "tv": [
+     "ClipperVision"
+    ],
+    "detail": "1/14 - 10:00 PM EST"
+   },
+   {
+    "id": "401910349",
+    "date": "2027-01-16T03:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "POR",
+    "win": false,
+    "tv": [
+     "KUNP 16",
+     "BlazerVision"
+    ],
+    "detail": "1/15 - 10:00 PM EST"
+   },
+   {
+    "id": "401910361",
+    "date": "2027-01-17T22:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "UTAH",
+    "win": false,
+    "tv": [
+     "KJZZ-TV",
+     "Jazz+"
+    ],
+    "detail": "1/17 - 5:00 PM EST"
+   },
+   {
+    "id": "401910374",
+    "date": "2027-01-20T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "LAL",
+    "win": false,
+    "tv": [
+     "Spectrum Sports Net",
+     "Spectrum Sports Net +"
+    ],
+    "detail": "1/19 - 10:00 PM EST"
+   },
+   {
+    "id": "401910384",
+    "date": "2027-01-21T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "MIL",
+    "win": false,
+    "tv": [
+     "MyMi",
+     "Bucks App"
+    ],
+    "detail": "1/20 - 10:00 PM EST"
+   },
+   {
+    "id": "401910398",
+    "date": "2027-01-23T03:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "LAL",
+    "win": false,
+    "tv": [
+     "Spectrum Sports Net",
+     "Spectrum Sports Net +"
+    ],
+    "detail": "1/22 - 10:00 PM EST"
+   },
+   {
+    "id": "401910420",
+    "date": "2027-01-26T02:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "DEN",
+    "win": false,
+    "tv": [
+     "NBCSN"
+    ],
+    "detail": "1/25 - 9:30 PM EST"
+   },
+   {
+    "id": "401910429",
+    "date": "2027-01-28T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "PHI",
+    "win": false,
+    "tv": [],
+    "detail": "1/27 - 7:00 PM EST"
+   },
+   {
+    "id": "401910440",
+    "date": "2027-01-29T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "WSH",
+    "win": false,
+    "tv": [],
+    "detail": "1/28 - 7:00 PM EST"
+   },
+   {
+    "id": "401910459",
+    "date": "2027-01-31T20:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "DET",
+    "win": false,
+    "tv": [],
+    "detail": "1/31 - 3:00 PM EST"
+   },
+   {
+    "id": "401910497",
+    "date": "2027-02-05T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "MIN",
+    "win": false,
+    "tv": [
+     "DAZN MIN"
+    ],
+    "detail": "2/4 - 10:00 PM EST"
+   },
+   {
+    "id": "401910512",
+    "date": "2027-02-07T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "PHX",
+    "win": false,
+    "tv": [
+     "Suns Live",
+     "Arizona's Family 3TV"
+    ],
+    "detail": "2/6 - 10:00 PM EST"
+   },
+   {
+    "id": "401910520",
+    "date": "2027-02-08T03:30Z",
+    "state": "pre",
+    "home": true,
+    "opp": "HOU",
+    "win": false,
+    "tv": [],
+    "detail": "2/7 - 10:30 PM EST"
+   },
+   {
+    "id": "401910534",
+    "date": "2027-02-10T01:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "MIL",
+    "win": false,
+    "tv": [
+     "MyMi",
+     "Bucks App"
+    ],
+    "detail": "2/9 - 8:00 PM EST"
+   },
+   {
+    "id": "401910549",
+    "date": "2027-02-12T01:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "HOU",
+    "win": false,
+    "tv": [],
+    "detail": "2/11 - 8:30 PM EST"
+   },
+   {
+    "id": "401910560",
+    "date": "2027-02-13T19:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "IND",
+    "win": false,
+    "tv": [
+     "DAZN IND"
+    ],
+    "detail": "2/13 - 2:00 PM EST"
+   },
+   {
+    "id": "401910567",
+    "date": "2027-02-14T18:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "ATL",
+    "win": false,
+    "tv": [],
+    "detail": "2/14 - 1:00 PM EST"
+   },
+   {
+    "id": "401910594",
+    "date": "2027-02-18T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "IND",
+    "win": false,
+    "tv": [
+     "DAZN IND"
+    ],
+    "detail": "2/17 - 10:00 PM EST"
+   },
+   {
+    "id": "401910600",
+    "date": "2027-02-26T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "CLE",
+    "win": false,
+    "tv": [
+     "DAZN CLE"
+    ],
+    "detail": "2/25 - 7:00 PM EST"
+   },
+   {
+    "id": "401910620",
+    "date": "2027-02-28T01:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "MEM",
+    "win": false,
+    "tv": [
+     "DAZN MEM"
+    ],
+    "detail": "2/27 - 8:00 PM EST"
+   },
+   {
+    "id": "401910627",
+    "date": "2027-03-01T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "CHA",
+    "win": false,
+    "tv": [
+     "DAZN CHA"
+    ],
+    "detail": "2/28 - 7:00 PM EST"
+   },
+   {
+    "id": "401910645",
+    "date": "2027-03-03T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "WSH",
+    "win": false,
+    "tv": [],
+    "detail": "3/2 - 10:00 PM EST"
+   },
+   {
+    "id": "401910660",
+    "date": "2027-03-05T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "OKC",
+    "win": false,
+    "tv": [
+     "KSBI",
+     "Thunder App"
+    ],
+    "detail": "3/4 - 10:00 PM EST"
+   },
+   {
+    "id": "401910674",
+    "date": "2027-03-07T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "LAC",
+    "win": false,
+    "tv": [
+     "ClipperVision"
+    ],
+    "detail": "3/6 - 10:00 PM EST"
+   },
+   {
+    "id": "401910687",
+    "date": "2027-03-09T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "DEN",
+    "win": false,
+    "tv": [],
+    "detail": "3/8 - 10:00 PM EST"
+   },
+   {
+    "id": "401910702",
+    "date": "2027-03-11T03:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "GS",
+    "win": false,
+    "tv": [],
+    "detail": "3/10 - 10:00 PM EST"
+   },
+   {
+    "id": "401910716",
+    "date": "2027-03-13T02:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "UTAH",
+    "win": false,
+    "tv": [
+     "KJZZ-TV",
+     "Jazz+"
+    ],
+    "detail": "3/12 - 9:30 PM EST"
+   },
+   {
+    "id": "401910730",
+    "date": "2027-03-14T22:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "CLE",
+    "win": false,
+    "tv": [
+     "DAZN CLE"
+    ],
+    "detail": "3/14 - 6:00 PM EDT"
+   },
+   {
+    "id": "401910740",
+    "date": "2027-03-16T23:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "BOS",
+    "win": false,
+    "tv": [],
+    "detail": "3/16 - 7:30 PM EDT"
+   },
+   {
+    "id": "401910750",
+    "date": "2027-03-17T23:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "NY",
+    "win": false,
+    "tv": [],
+    "detail": "3/17 - 7:30 PM EDT"
+   },
+   {
+    "id": "401910766",
+    "date": "2027-03-19T23:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "TOR",
+    "win": false,
+    "tv": [],
+    "detail": "3/19 - 7:30 PM EDT"
+   },
+   {
+    "id": "401910780",
+    "date": "2027-03-21T19:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "BKN",
+    "win": false,
+    "tv": [
+     "NBA TV",
+     "DAZN (YES)"
+    ],
+    "detail": "3/21 - 3:00 PM EDT"
+   },
+   {
+    "id": "401910788",
+    "date": "2027-03-23T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "CHI",
+    "win": false,
+    "tv": [],
+    "detail": "3/22 - 8:00 PM EDT"
+   },
+   {
+    "id": "401910809",
+    "date": "2027-03-25T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "ATL",
+    "win": false,
+    "tv": [],
+    "detail": "3/24 - 10:00 PM EDT"
+   },
+   {
+    "id": "401910830",
+    "date": "2027-03-28T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "TOR",
+    "win": false,
+    "tv": [],
+    "detail": "3/27 - 10:00 PM EDT"
+   },
+   {
+    "id": "401910847",
+    "date": "2027-03-30T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "DEN",
+    "win": false,
+    "tv": [],
+    "detail": "3/29 - 10:00 PM EDT"
+   },
+   {
+    "id": "401910860",
+    "date": "2027-04-01T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "MIN",
+    "win": false,
+    "tv": [
+     "DAZN MIN"
+    ],
+    "detail": "3/31 - 8:00 PM EDT"
+   },
+   {
+    "id": "401910873",
+    "date": "2027-04-03T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "DAL",
+    "win": false,
+    "tv": [
+     "KFAA-TV",
+     "MavsTV"
+    ],
+    "detail": "4/2 - 8:00 PM EDT"
+   },
+   {
+    "id": "401910892",
+    "date": "2027-04-04T22:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "GS",
+    "win": false,
+    "tv": [],
+    "detail": "4/4 - 6:00 PM EDT"
+   },
+   {
+    "id": "401910903",
+    "date": "2027-04-07T00:00Z",
+    "state": "pre",
+    "home": false,
+    "opp": "SA",
+    "win": false,
+    "tv": [
+     "DAZN SAS"
+    ],
+    "detail": "4/6 - 8:00 PM EDT"
+   },
+   {
+    "id": "401910915",
+    "date": "2027-04-08T00:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "HOU",
+    "win": false,
+    "tv": [],
+    "detail": "4/7 - 8:30 PM EDT"
+   },
+   {
+    "id": "401910936",
+    "date": "2027-04-10T02:00Z",
+    "state": "pre",
+    "home": true,
+    "opp": "DAL",
+    "win": false,
+    "tv": [
+     "KFAA-TV",
+     "MavsTV"
+    ],
+    "detail": "4/9 - 10:00 PM EDT"
+   },
+   {
+    "id": "401910950",
+    "date": "2027-04-12T00:30Z",
+    "state": "pre",
+    "home": false,
+    "opp": "LAC",
+    "win": false,
+    "tv": [
+     "ClipperVision"
+    ],
+    "detail": "4/11 - 8:30 PM EDT"
+   }
   ]
  },
  "standing": {
   "MEM": "1st in Southwest Division",
-  "UTAH": "5th in Northwest Division"
+  "UTAH": "5th in Northwest Division",
+  "SAC": "4th in Pacific Division"
  },
  "roster": {
   "MEM": [
@@ -6429,6 +7380,24 @@
  "news": {
   "league": [
    {
+    "id": "50290179",
+    "type": "HeadlineNews",
+    "headline": "OKC's Jalen Williams (ankle), Cason Wallace (shoulder) to undergo surgery",
+    "description": "Thunder guards Jalen Williams and Cason Wallace will both be sidelined indefinitely after undergoing ankle and shoulder surgery, respectively.",
+    "published": "2026-10-26T23:17:38Z",
+    "byline": "Tim MacMahon",
+    "premium": false,
+    "image": "https://a.espncdn.com/photo/2026/1026/r1736470_600x400_3-2.jpg",
+    "stitch": "",
+    "teams": [
+     "OKC"
+    ],
+    "events": [],
+    "athletes": [
+     "4593803"
+    ]
+   },
+   {
     "id": "50287191",
     "type": "Story",
     "headline": "Jalen Williams, Cason Wallace injured: What's next for the OKC Thunder?",
@@ -6448,40 +7417,18 @@
     ]
    },
    {
-    "id": "49960162",
-    "type": "Story",
-    "headline": "Fantasy basketball points league rankings update: George, Jerome on the rise",
-    "description": "Updated fantasy basketball rankings for points leagues, with Ty Jerome, Paul George and Davion Mitchell among the biggest risers.",
-    "published": "2026-10-26T22:21:47Z",
-    "byline": "Andre Snellings",
+    "id": "50288053",
+    "type": "HeadlineNews",
+    "headline": "U.S. senators call on NBA to reevaluate Rwanda partnership",
+    "description": "Two U.S. senators called on the NBA to reevaluate a partnership with Rwanda and its dictator Paul Kagame, citing the American government's changing policy toward the small African nation.",
+    "published": "2026-10-26T22:08:25Z",
+    "byline": "Mark Fainaru-Wada",
     "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1026/r1736711_2_1296x729_16-9.jpg",
+    "image": "https://a.espncdn.com/photo/2026/1025/r1736092_600x400_3-2.jpg",
     "stitch": "",
     "teams": [],
     "events": [],
-    "athletes": [
-     "4065733",
-     "4251",
-     "4278053"
-    ]
-   },
-   {
-    "id": "50290179",
-    "type": "HeadlineNews",
-    "headline": "OKC's Jalen Williams (ankle), Cason Wallace (shoulder) to undergo surgery",
-    "description": "Thunder guards Jalen Williams and Cason Wallace will both be sidelined indefinitely after undergoing ankle and shoulder surgery, respectively.",
-    "published": "2026-10-26T23:17:38Z",
-    "byline": "Tim MacMahon",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1026/r1736470_600x400_3-2.jpg",
-    "stitch": "",
-    "teams": [
-     "OKC"
-    ],
-    "events": [],
-    "athletes": [
-     "4593803"
-    ]
+    "athletes": []
    },
    {
     "id": "50289397",
@@ -6499,107 +7446,6 @@
     "events": [],
     "athletes": [
      "4432165"
-    ]
-   },
-   {
-    "id": "50288219",
-    "type": "Story",
-    "headline": "Monday's fantasy basketball adds and bets to make in the NBA",
-    "description": "Andre Snellings breaks down Monday's nine-game slate, highlighting the fantasy streamers to add and bets to make.",
-    "published": "2026-10-26T17:38:26Z",
-    "byline": "Andre Snellings",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1026/r1736543_1296x729_16-9.jpg",
-    "stitch": "",
-    "teams": [],
-    "events": [],
-    "athletes": [
-     "4278053",
-     "4900671",
-     "4397077",
-     "5112087",
-     "4433247"
-    ]
-   },
-   {
-    "id": "50287760",
-    "type": "Story",
-    "headline": "Fantasy risers and fallers: Time to trade away Ty Jerome, drop Draymond Green?",
-    "description": "Ty Jerome's fantasy stock is seemingly on a rocket ship, but should fantasy basketball managers keep the faith in Myles Turner and Onyeka Okongwu?",
-    "published": "2026-10-26T16:37:08Z",
-    "byline": "Steve Alexander",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1026/r1736521_1296x729_16-9.jpg",
-    "stitch": "",
-    "teams": [],
-    "events": [],
-    "athletes": [
-     "4065733",
-     "4397189",
-     "3032979",
-     "6589",
-     "3133628",
-     "4431680"
-    ]
-   },
-   {
-    "id": "50288053",
-    "type": "HeadlineNews",
-    "headline": "U.S. senators call on NBA to reevaluate Rwanda partnership",
-    "description": "Two U.S. senators called on the NBA to reevaluate a partnership with Rwanda and its dictator Paul Kagame, citing the American government's changing policy toward the small African nation.",
-    "published": "2026-10-26T22:08:25Z",
-    "byline": "Mark Fainaru-Wada",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1025/r1736092_600x400_3-2.jpg",
-    "stitch": "",
-    "teams": [],
-    "events": [],
-    "athletes": []
-   },
-   {
-    "id": "50028196",
-    "type": "Story",
-    "headline": "NBA buzz: Latest on trades, news, roster moves and intel",
-    "description": "The NBA is back. The buzz never left. Bookmark this page for the latest news, rumblings and analysis from ESPN's insiders.",
-    "published": "2026-10-26T14:54:51Z",
-    "byline": "ESPN staff",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/0301/r1621468_608x342_16-9.jpg",
-    "stitch": "",
-    "teams": [],
-    "events": [],
-    "athletes": []
-   },
-   {
-    "id": "50280364",
-    "type": "HeadlineNews",
-    "headline": "NBA partners with Kalshi and Polymarket amid regulation fight",
-    "description": "The NBA announced Monday that it's partnering with prediction markets Kalshi and Polymarket and expanding its DraftKings deal to include a prediction market offering.",
-    "published": "2026-10-26T14:31:29Z",
-    "byline": "David Purdum",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1025/r1736092_1296x729_16-9.jpg",
-    "stitch": "",
-    "teams": [],
-    "events": [],
-    "athletes": []
-   },
-   {
-    "id": "50259828",
-    "type": "Story",
-    "headline": "How Payton Pritchard became Boston's unlikely iso king",
-    "description": "The sixth man supreme doggedly sharpens his game in brutal summer practices. That's an edge the C's will need.",
-    "published": "2026-10-26T16:43:01Z",
-    "byline": "Hallie Grossman",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1022/r1734715_1296x729_16-9.jpg",
-    "stitch": "",
-    "teams": [
-     "BOS"
-    ],
-    "events": [],
-    "athletes": [
-     "4066354"
     ]
    },
    {
@@ -6644,6 +7490,38 @@
      "ATL",
      "DET"
     ],
+    "events": [],
+    "athletes": []
+   },
+   {
+    "id": "50259828",
+    "type": "Story",
+    "headline": "How Payton Pritchard became Boston's unlikely iso king",
+    "description": "The sixth man supreme doggedly sharpens his game in brutal summer practices. That's an edge the C's will need.",
+    "published": "2026-10-26T16:43:01Z",
+    "byline": "Hallie Grossman",
+    "premium": false,
+    "image": "https://a.espncdn.com/photo/2026/1022/r1734715_1296x729_16-9.jpg",
+    "stitch": "",
+    "teams": [
+     "BOS"
+    ],
+    "events": [],
+    "athletes": [
+     "4066354"
+    ]
+   },
+   {
+    "id": "50028196",
+    "type": "Story",
+    "headline": "NBA buzz: Latest on trades, news, roster moves and intel",
+    "description": "The NBA is back. The buzz never left. Bookmark this page for the latest news, rumblings and analysis from ESPN's insiders.",
+    "published": "2026-10-26T14:54:51Z",
+    "byline": "ESPN staff",
+    "premium": false,
+    "image": "https://a.espncdn.com/photo/2026/0301/r1621468_608x342_16-9.jpg",
+    "stitch": "",
+    "teams": [],
     "events": [],
     "athletes": []
    },
@@ -6921,6 +7799,23 @@
     "athletes": []
    },
    {
+    "id": "50263923",
+    "type": "HeadlineNews",
+    "headline": "Warriors implode late as Grizzlies' 17-0 run caps stunning comeback",
+    "description": "The Warriors appeared to be in control before \"pretty much everything went wrong\" in the final four minutes, when the Grizzlies rallied from 12 down to win 111-108.",
+    "published": "2026-10-24T16:49:44Z",
+    "byline": "Anthony Slater",
+    "premium": false,
+    "image": "https://a.espncdn.com/photo/2026/1024/r1735346_600x400_3-2.jpg",
+    "stitch": "",
+    "teams": [
+     "GS",
+     "MEM"
+    ],
+    "events": [],
+    "athletes": []
+   },
+   {
     "id": "50263937",
     "type": "Preview",
     "headline": "Memphis heads to Sacramento for conference showdown",
@@ -6937,23 +7832,6 @@
     "events": [
      "401909867"
     ],
-    "athletes": []
-   },
-   {
-    "id": "50263923",
-    "type": "HeadlineNews",
-    "headline": "Warriors implode late as Grizzlies' 17-0 run caps stunning comeback",
-    "description": "The Warriors appeared to be in control before \"pretty much everything went wrong\" in the final four minutes, when the Grizzlies rallied from 12 down to win 111-108.",
-    "published": "2026-10-24T16:49:44Z",
-    "byline": "Anthony Slater",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1024/r1735346_600x400_3-2.jpg",
-    "stitch": "",
-    "teams": [
-     "GS",
-     "MEM"
-    ],
-    "events": [],
     "athletes": []
    },
    {
@@ -7059,51 +7937,6 @@
     "athletes": []
    },
    {
-    "id": "50230164",
-    "type": "Story",
-    "headline": "NBA championship and MVP odds: Spurs, Thunder tied entering season; Wemby ahead of SGA",
-    "description": "Each team's odds to win the NBA title, conference and division, plus MVP odds.",
-    "published": "2026-10-20T19:59:17Z",
-    "byline": "Doug Greenberg",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1020/r1733499_1296x729_16-9.jpg",
-    "stitch": "",
-    "teams": [
-     "NY",
-     "SA",
-     "OKC",
-     "PHI",
-     "CLE",
-     "HOU",
-     "BOS",
-     "SAC",
-     "GS",
-     "LAL",
-     "LAC",
-     "PHX",
-     "POR",
-     "UTAH",
-     "DAL",
-     "NO",
-     "ORL",
-     "MIA",
-     "ATL",
-     "WSH",
-     "CHA",
-     "BKN",
-     "IND",
-     "MIN",
-     "CHI",
-     "MIL",
-     "DEN",
-     "DET",
-     "TOR",
-     "MEM"
-    ],
-    "events": [],
-    "athletes": []
-   },
-   {
     "id": "50225215",
     "type": "Preview",
     "headline": "Memphis hosts Utah to tip off season",
@@ -7142,14 +7975,14 @@
     ]
    },
    {
-    "id": "49998634",
+    "id": "50216358",
     "type": "Story",
-    "headline": "2026-27 NBA season preview: Rankings, predictions, odds",
-    "description": "Here's everything you need to know for all 30 NBA teams for the season, including storylines, stats and predictions ahead of opening night.",
-    "published": "2026-10-19T18:31:10Z",
-    "byline": "ESPN staff",
+    "headline": "How to Watch the NBA in Australia 2026-27 | ESPN on Disney+",
+    "description": "Watch the 2026-27 NBA season live on ESPN via Disney+. Opening week schedule in AEDT, prices, Prime Video, League Pass and every Aussie in the NBA.",
+    "published": "2026-10-19T23:08:08Z",
+    "byline": "ESPN",
     "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1017/nba_mega_preview_cr_16x9.jpg",
+    "image": "https://a.espncdn.com/photo/2026/1007/r1727528_1296x729_16-9.jpg",
     "stitch": "",
     "teams": [
      "ATL",
@@ -7187,14 +8020,14 @@
     "athletes": []
    },
    {
-    "id": "50216358",
+    "id": "49998634",
     "type": "Story",
-    "headline": "How to Watch the NBA in Australia 2026-27 | ESPN on Disney+",
-    "description": "Watch the 2026-27 NBA season live on ESPN via Disney+. Opening week schedule in AEDT, prices, Prime Video, League Pass and every Aussie in the NBA.",
-    "published": "2026-10-19T23:08:08Z",
-    "byline": "ESPN",
+    "headline": "2026-27 NBA season preview: Rankings, predictions, odds",
+    "description": "Here's everything you need to know for all 30 NBA teams for the season, including storylines, stats and predictions ahead of opening night.",
+    "published": "2026-10-19T18:31:10Z",
+    "byline": "ESPN staff",
     "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1007/r1727528_1296x729_16-9.jpg",
+    "image": "https://a.espncdn.com/photo/2026/1017/nba_mega_preview_cr_16x9.jpg",
     "stitch": "",
     "teams": [
      "ATL",
@@ -7665,51 +8498,6 @@
     "athletes": []
    },
    {
-    "id": "50230164",
-    "type": "Story",
-    "headline": "NBA championship and MVP odds: Spurs, Thunder tied entering season; Wemby ahead of SGA",
-    "description": "Each team's odds to win the NBA title, conference and division, plus MVP odds.",
-    "published": "2026-10-20T19:59:17Z",
-    "byline": "Doug Greenberg",
-    "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1020/r1733499_1296x729_16-9.jpg",
-    "stitch": "",
-    "teams": [
-     "NY",
-     "SA",
-     "OKC",
-     "PHI",
-     "CLE",
-     "HOU",
-     "BOS",
-     "SAC",
-     "GS",
-     "LAL",
-     "LAC",
-     "PHX",
-     "POR",
-     "UTAH",
-     "DAL",
-     "NO",
-     "ORL",
-     "MIA",
-     "ATL",
-     "WSH",
-     "CHA",
-     "BKN",
-     "IND",
-     "MIN",
-     "CHI",
-     "MIL",
-     "DEN",
-     "DET",
-     "TOR",
-     "MEM"
-    ],
-    "events": [],
-    "athletes": []
-   },
-   {
     "id": "50225215",
     "type": "Preview",
     "headline": "Memphis hosts Utah to tip off season",
@@ -7729,14 +8517,14 @@
     "athletes": []
    },
    {
-    "id": "49998634",
+    "id": "50216358",
     "type": "Story",
-    "headline": "2026-27 NBA season preview: Rankings, predictions, odds",
-    "description": "Here's everything you need to know for all 30 NBA teams for the season, including storylines, stats and predictions ahead of opening night.",
-    "published": "2026-10-19T18:31:10Z",
-    "byline": "ESPN staff",
+    "headline": "How to Watch the NBA in Australia 2026-27 | ESPN on Disney+",
+    "description": "Watch the 2026-27 NBA season live on ESPN via Disney+. Opening week schedule in AEDT, prices, Prime Video, League Pass and every Aussie in the NBA.",
+    "published": "2026-10-19T23:08:08Z",
+    "byline": "ESPN",
     "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1017/nba_mega_preview_cr_16x9.jpg",
+    "image": "https://a.espncdn.com/photo/2026/1007/r1727528_1296x729_16-9.jpg",
     "stitch": "",
     "teams": [
      "ATL",
@@ -7774,14 +8562,14 @@
     "athletes": []
    },
    {
-    "id": "50216358",
+    "id": "49998634",
     "type": "Story",
-    "headline": "How to Watch the NBA in Australia 2026-27 | ESPN on Disney+",
-    "description": "Watch the 2026-27 NBA season live on ESPN via Disney+. Opening week schedule in AEDT, prices, Prime Video, League Pass and every Aussie in the NBA.",
-    "published": "2026-10-19T23:08:08Z",
-    "byline": "ESPN",
+    "headline": "2026-27 NBA season preview: Rankings, predictions, odds",
+    "description": "Here's everything you need to know for all 30 NBA teams for the season, including storylines, stats and predictions ahead of opening night.",
+    "published": "2026-10-19T18:31:10Z",
+    "byline": "ESPN staff",
     "premium": false,
-    "image": "https://a.espncdn.com/photo/2026/1007/r1727528_1296x729_16-9.jpg",
+    "image": "https://a.espncdn.com/photo/2026/1017/nba_mega_preview_cr_16x9.jpg",
     "stitch": "",
     "teams": [
      "ATL",

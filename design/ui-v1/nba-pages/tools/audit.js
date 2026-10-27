@@ -136,6 +136,10 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         }
         if (!fe.closest('.rail') && !fe.closest('.bleed') && !fe.closest('.hintbar,.nv-hint') && (ring.l < SAFE.l - 6 || ring.r > SAFE.r + 6 || ring.t < SAFE.t - 6 || ring.b > SAFE.b + 6)) issues.safe.push(`focus ${short(fe)} ring ${ring.l.toFixed(0)},${ring.t.toFixed(0)}-${ring.r.toFixed(0)},${ring.b.toFixed(0)}`);
       }
+      // ---- v1.1 (review): floating boxes stay inside y 27-513 and x 48-912; Reveal is never the focused default; no text in a tile peeking past x 912
+      for (const m of document.querySelectorAll('.ctxmenu,.menu,.sheet,.nb-read')) { const q = m.getBoundingClientRect(); if (q.bottom > 513.5 || q.top < 26.5 || q.left < 47.5 || q.right > 912.5) issues.safe.push(`${short(m)} box ${q.left.toFixed(0)},${q.top.toFixed(1)}-${q.right.toFixed(0)},${q.bottom.toFixed(1)} crosses the safe area`); }
+      for (const fe of focusEls) if (/reveal/i.test(fe.textContent)) issues.overlap.push(`SHIELD: the focused element is a Reveal ("${fe.textContent.trim().slice(0, 30)}")`);
+      for (const t of texts) if (t.e.closest('.nb-rail') && t.x1 > 913) issues.safe.push(`peek text "${t.txt}" past x 912`);
       // ---- contrast on flat backgrounds
       const parse = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return { r: v[0], g: v[1], b: v[2], a: v[3] == null || isNaN(v[3]) ? 1 : v[3] }; };
       const lum = ({ r, g, b }) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
@@ -224,6 +228,15 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       rings.push({ f, el: g.cls, inset: g.inset, top: pc('t'), bottom: pc('b'), left: pc('l'), right: pc('r'), min, ring: ringBox.map((v) => +v.toFixed(1)), safe: +safe.toFixed(1) });
       lines.push(`    RING     ${g.cls} ${g.inset ? 'inset' : 'outer'} white t${pc('t')} b${pc('b')} l${pc('l')} r${pc('r')} %  ring ${ringBox.map((v) => v.toFixed(0)).join(',')}  to safe edge ${safe.toFixed(1)} px`);
       if (min < 90) { bad++; lines.push(`    FAILRING ${g.cls} only ${min}% of one side is white`); }
+    }
+    // ---- DIVIDER: no 1 px row line (#3C3452) drawn against a highlighted (.mine) or focused row, top or bottom
+    const rowsHL = await p.evaluate(() => [...document.querySelectorAll('.nb-tr.mine,.nb-tr.f-in')].map((e) => { const q = e.getBoundingClientRect(); return [q.left + q.width / 2, q.top, q.bottom]; }));
+    if (rowsHL.length) {
+      const q = await b.newPage(); await q.setContent('<canvas></canvas>');
+      const hits = await q.evaluate(async ({ shot, rows }) => { const im = new Image(); im.src = 'data:image/png;base64,' + shot; await im.decode(); const c = document.querySelector('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        const out = []; for (const [cx, y0, y1] of rows) for (const yy of [Math.round(y0 * 2) - 1, Math.round(y0 * 2), Math.round(y1 * 2), Math.round(y1 * 2) + 1]) { const d = x.getImageData(Math.round(cx * 2) - 300, yy, 1, 1).data; if (Math.abs(d[0] - 0x3C) < 5 && Math.abs(d[1] - 0x34) < 5 && Math.abs(d[2] - 0x52) < 5) out.push(yy / 2); } return out; }, { shot, rows: rowsHL });
+      await q.close();
+      for (const h of hits) { bad++; lines.push(`    DIVIDER  a row line at y ${h} touches a highlighted or focused row`); }
     }
     if (!r.fr.length) lines.push(`    RING     none: the focused element is a text body (${r.textFocus.join(' ') || 'no .fx'}), scrolled with up/down, as the Full description sheet`);
     await p.close();

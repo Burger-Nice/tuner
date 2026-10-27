@@ -9,12 +9,29 @@
   "right": 100,
   "min": 100,
   "ring": [
-   561.7,
+   148.3,
    77,
-   691.4,
+   278,
    123
   ],
   "safe": 50
+ },
+ {
+  "f": "nba-entry-shield.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   67.7,
+   254.6,
+   300.1,
+   311.4
+  ],
+  "safe": 19.7
  },
  {
   "f": "nba-card-menu.html",
@@ -27,11 +44,11 @@
   "min": 100,
   "ring": [
    360,
-   357,
+   355,
    588,
-   415
+   413
   ],
-  "safe": 98
+  "safe": 100
  },
  {
   "f": "standings-top.html",
@@ -86,7 +103,7 @@
  },
  {
   "f": "standings-shield.html",
-  "el": ".pillbtn.f-ring",
+  "el": ".chip.lg",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -94,12 +111,29 @@
   "right": 100,
   "min": 100,
   "ring": [
-   768.7,
+   43,
    123,
-   917,
+   137.1,
    169
   ],
   "safe": -5
+ },
+ {
+  "f": "standings-cover.html",
+  "el": ".btn2.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   268.6,
+   386.7,
+   444.9,
+   443.3
+  ],
+  "safe": 69.7
  },
  {
   "f": "leaders.html",
@@ -136,6 +170,40 @@
   "safe": 0
  },
  {
+  "f": "leaders-player.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   507.7,
+   441.6,
+   717.8,
+   498.4
+  ],
+  "safe": 14.6
+ },
+ {
+  "f": "leaders-shield.html",
+  "el": ".nb-cat.sel",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   123,
+   253,
+   167
+  ],
+  "safe": -5
+ },
+ {
   "f": "teamstats.html",
   "el": ".nb-cat.sel",
   "inset": false,
@@ -163,9 +231,9 @@
   "min": 100,
   "ring": [
    43,
-   123,
+   187,
    445,
-   193
+   257
   ],
   "safe": -5
  },
@@ -187,6 +255,23 @@
   "safe": -5
  },
  {
+  "f": "news-covered.html",
+  "el": ".btn2.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   245.7,
+   292.6,
+   423.4,
+   349.4
+  ],
+  "safe": 163.6
+ },
+ {
   "f": "team-top.html",
   "el": ".btn.f",
   "inset": false,
@@ -198,7 +283,7 @@
   "ring": [
    67.7,
    250.6,
-   251,
+   300.1,
    307.4
   ],
   "safe": 19.7
@@ -222,23 +307,6 @@
  },
  {
   "f": "team-ranks.html",
-  "el": ".nb-rk.f",
-  "inset": false,
-  "top": 100,
-  "bottom": 100,
-  "left": 100,
-  "right": 100,
-  "min": 100,
-  "ring": [
-   382.9,
-   84.7,
-   557.2,
-   183.4
-  ],
-  "safe": 57.7
- },
- {
-  "f": "team-shield-news.html",
   "el": ".nb-rk.f",
   "inset": false,
   "top": 100,
@@ -306,6 +374,40 @@
   "safe": 41.1
  },
  {
+  "f": "team-shield-news.html",
+  "el": ".nb-rk.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   382.9,
+   84.7,
+   557.2,
+   183.4
+  ],
+  "safe": 57.7
+ },
+ {
+  "f": "team-opponent-shield.html",
+  "el": ".nb-gt.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   481.8,
+   352.1,
+   700.2,
+   471.9
+  ],
+  "safe": 41.1
+ },
+ {
   "f": "team-other.html",
   "el": ".pillbtn.f-ring",
   "inset": false,
@@ -324,7 +426,7 @@
  },
  {
   "f": "state-down.html",
-  "el": ".pillbtn.f-ring",
+  "el": ".chip.lg",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -332,9 +434,9 @@
   "right": 100,
   "min": 100,
   "ring": [
-   777,
+   43,
    123,
-   917,
+   137.1,
    169
   ],
   "safe": -5
@@ -349,9 +451,9 @@
   "right": 100,
   "min": 100,
   "ring": [
-   547.1,
+   133.7,
    77,
-   691.9,
+   278.5,
    123
   ],
   "safe": 50

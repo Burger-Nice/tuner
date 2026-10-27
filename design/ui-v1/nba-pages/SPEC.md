@@ -1,65 +1,238 @@
-# airglow TV: the NBA Team and League pages
+# airglow TV: the NBA Team and League pages, v1.1
 
-Design spec for the engineer. It extends `design/ui-v1/UI-SPEC.md` v1.2 (layout system, type, focus, Sharp/Soft split,
-team-colour safeguards, spoiler shield), and everything not said here follows that spec. The mocks are real HTML at the
-960 x 540 canvas. They link the app's own `app/tv/brand/tokens.css`, `ui.css` and `app.css`, plus `pages.css` (the new
-classes, all prefixed `nb-`, written so they can be appended to `app/tv/app.css`). The data is real ESPN data fetched on
-Mon 26 Oct 2026 at 23:37, shown as the owner's TV would show it at 23:40 Reykjavik time (UTC all year).
+This is the design spec for the engineer. It extends `design/ui-v1/UI-SPEC.md` v1.2: the layout system, type, focus,
+the Sharp/Soft split, the team-colour safeguards and the spoiler shield. Everything not said here follows that spec.
+
+- **The mocks** are real HTML at the 960 x 540 canvas. They link the app's own `app/tv/brand/tokens.css`, `ui.css` and
+  `app.css`, plus `pages.css`. `pages.css` holds the new classes, all prefixed `nb-`, written to be appended to
+  `app/tv/app.css`.
+- **The data** is real ESPN data fetched on Mon 26 Oct 2026 at 23:37. It is shown as the owner's TV would show it at
+  23:40, Reykjavik time (UTC all year).
 
 | File | What it is |
 |---|---|
 | `SPEC.md` | this |
-| `*.html` (22) | the mocks; `png/*.png` are their 2x renders, `png/contact-sheet.png` shows all of them |
-| `pages.css` | the new CSS (tables, category column, leader card, news list and reader, team header, schedule and rank tiles, player sheet) |
-| `data.json` | the ESPN fields the pages use, extracted from the raw responses; `img/` holds logos, headshots and news photos at 2x display size |
-| `tools/extract.js` | raw ESPN JSON to `data.json` + `img/` (`node tools/extract.js <espn-dir> <espn2-dir>`) |
-| `tools/build.js` | `data.json` to the mocks; `tools/render.js` makes the PNGs and the contact sheet; `tools/audit.js` is the self-check (section 13) |
+| `*.html` (30) | the mocks; `png/*.png` are their 2x renders, and `png/contact-sheet.png` shows all of them |
+| `pages.css` | the new CSS |
+| `data.json`, `img/` | the ESPN fields the pages use; logos, headshots and news photos at 2x display size |
+| `tools/extract.js` | turns the raw ESPN JSON into `data.json` and `img/` |
+| `tools/build.js` | builds the mocks from `data.json`, including the shield model of section 8 |
+| `tools/render.js` | the PNGs and the contact sheet |
+| `tools/audit.js` | the self-check (section 13) |
+| `REVIEW-independent.md` | the review of v1.0 (6.8 / 10) that v1.1 answers |
+
+## v1.1 changes: an answer to every review point
+
+The coordinator passed on four owner decisions:
+- Revealed or watched games stay revealed across launches.
+- Fantasy and betting stories are filtered out.
+- The day chips moving under the hero is fine.
+- The slight darkening of the Memphis and Thunder plates for text contrast is the owner-approved rule in UI v1.2.
+
+### Must fix
+
+**1. Records on pre-game surfaces leaked the unseen result. Accepted.**
+- There is now one rule for the whole app, `recordFor(team)` in `games.js`. When the team has an unseen final in
+  scope, it returns the record counted from seen finals only, marked partial: `2-0` followed by an eye-off glyph.
+- Every surface that shows a record uses it: the Home and hub heroes, game cards, the game page header, the team header
+  and the leader card subtitle.
+- Seed, streak, L10 and home/road are dropped wherever the record is partial.
+- New mock: `nba-entry-shield.png`. The hub hero reads `Grizzlies 2-0 [eye-off]`, and the Jazz `1-2`: the Jazz aren't
+  in the unseen game.
+- See section 8.2.
+
+**2. In My team mode, the opponent's surfaces showed who won. Accepted.**
+- **The scope of an unseen final is both of its teams.** The Kings get the same treatment as the Grizzlies: header,
+  record, schedule tile, roster, player sheet and game cards on other days.
+- **Any table that contains either team** uses the copy pinned at tip-off, in both shield modes. Here that is the West
+  standings, the leaders and team stats. If the opponent were in the East, the East table would be pinned too.
+- **News rule 2** now covers stories tagged with *either* team, or with one of either roster's players, published after
+  tip-off and within 72 h.
+- New mock: `team-opponent-shield.png` (the Kings page: `0-2 [eye-off]`, `1 result hidden`, `Sun, vs Grizzlies`, the
+  tile hidden).
+- `news-shield.png` now shows a Kings-only preview ("Sacramento faces San Antonio on 3-game slide") covered by the
+  opponent rule.
+
+**3. "Reveal results" was focused by default. Accepted.**
+- No Reveal is ever the default focus. The audit now fails a mock if the focused element is a Reveal, and it does
+  catch one when injected (section 13).
+- Reveal buttons **name their game**: `Reveal Grizzlies at Kings`.
+- When more than one game is unseen, the button reads `Reveal 6 results` and opens the existing `confirmMenu`, with
+  Cancel focused.
+- In `standings-shield.png` focus is on West, and the Reveal pill is a button you move to.
+- New mock `standings-cover.png`, for when no copy exists: `Show the East` is focused, Reveal comes second.
+- `news-covered.png`: `Keep it hidden` is focused, `Reveal Grizzlies at Kings` comes second.
+
+**4. The player sheet, roster sort, leaders hook and ranks weren't shielded. Accepted, all four.**
+- **Player sheet.** For a player whose team is in scope, the sheet shows MIN, REB and AST only, counted over
+  `2 seen games`. It adds `Points and shooting are hidden: they include Grizzlies at Kings.` and has no leaders button
+  (`team-shield-player.png`).
+- **Roster sort.** The roster sorts by jersey number, and the pill reads `Sort Jersey`. Points, FG% and 3P% are disabled
+  rows in the Sort menu.
+- **Leaders menu item.** `In the league leaders` is dropped from the hold-OK menu.
+- **Season ranks** use the team-stats copy pinned at tip-off, labelled `as of tip-off, Grizzlies at Kings (Sun)`
+  (`team-shield-news.png`). This is the same behaviour as Standings, Leaders (`leaders-shield.png`) and Team stats.
+
+**5. Seen storage and kept copies failed in normal use. Accepted.**
+- **Seen storage is a watermark plus a short list:** `seen = { upTo: <time>, ids: [...] }`.
+  - Every game that tipped off before `upTo` is seen, and `ids` holds seen games after it.
+  - The watermark moves forward to the earliest unseen tip-off whenever it can.
+  - So there is no cap and nothing is ever evicted.
+  - "Reveal 6 results" sets `upTo` to now.
+- **One pinned snapshot per in-scope game.**
+  - When the scoreboard poll sees an in-scope game go from `pre` to `in`, airglow fetches standings, leaders and team
+    stats once. It stores that copy keyed by event id until the game is seen; there is no "newest 10".
+  - Because the owner's games tip at 01:00 to 03:00 Reykjavik time, often while airglow is closed, the same fetch is
+    also scheduled 10 minutes before each in-scope tip-off. It uses the exact-alarm mechanism the Reminders feature
+    (NEXT.md item 2) already needs, and runs without the app open.
+  - The cover card is the fallback for when both fail.
+- **Records never need a copy**: `recordFor` counts the schedule's seen finals.
+- See section 8.1.
+
+### Should fix
+
+**6. The covered-story reader and story bodies. Accepted.**
+- **OK on a covered story** opens a small card: `This story is about a game you haven't seen · Grizzlies at Kings, Sun
+  25 Oct`. It has `Keep it hidden` (focused) and `Reveal Grizzlies at Kings` (`news-covered.png`).
+- **The round-up exception is now written down** (rule 3): a story tagged with 6 or more teams is covered only if its
+  headline or summary names either team or one of their players.
+- **Every story body is scanned in both shield modes, before it shows.** A paragraph is replaced by `A result is hidden
+  here` if it:
+  - contains a score or record pattern, `\b\d{1,3}[-–]\d{1,3}\b`;
+  - contains a result word (`win|won|loss|lost|beat|fell|straight|streak|swept`) within 8 words of either team's names,
+    or of their players;
+  - or, in All games mode, contains any score.
+- `news-article-shield.png` shows All games mode: the first paragraph, with "108-101 win", is replaced, and the footer
+  says `Shield: 1 paragraph hidden`.
+
+**7. Down from the section row didn't land where the spec said. Accepted.**
+- The review is right about `neighbour()` scoring. The section row gets this exact hook (section 2.2):
+
+  ```js
+  secRow.navHook = (dir, cur, repeat) => {
+    if (dir !== 'down' || repeat) return undefined;          // everything else: the engine's default
+    const to = SECTIONS[currentSection].entry(screenEl);      // the selected category, conference chip, first story…
+    return to ? focus(to) : undefined;
+  };
+  ```
+
+- The Up wording is fixed. From the Standings body it takes 3 presses to reach the top bar: body, then conference chips,
+  then section row, then the top bar.
+- A `drive.js` check per section goes in the port checklist (section 12).
+
+**8. Presses on the owner's main destination. Accepted, all six.**
+- **Order:** the row is now `Games · [crest] Grizzlies · Standings · Leaders · Team stats · News`, so your team is 1
+  press from Games.
+- **OK on a leader** opens his player sheet over Leaders, with a `Grizzlies page` button (`leaders-player.png`). Back
+  returns to his row.
+- **OK on a game-page team tab** no longer navigates. The team page is in that tab's hold-OK menu, and on a
+  `Memphis Grizzlies page ›` row under the box score's Team totals.
+- **One Back rule:** Back from any section content focuses that section's chip. A second Back focuses the NBA tab.
+- **The hero** is your team's current or next game, whatever day is selected. The day chips drive only the grid under
+  them. On a past day with your team's final, that final is a card in the grid.
+- **One switching rule:** section chips and category rows both switch **on focus after 250 ms**. When the data isn't
+  cached they show the skeleton. They never switch on OK.
+
+**9. Brand and spec mismatches. Accepted, except team colours, which are kept by owner decision.**
+- **LIVE pill.** Standings rows and the legend use the standard 22 px pill, which BRAND v5.4 decision 4 requires
+  outside guide cells and the top-bar tab.
+- **Team colours (pushed back):**
+  - The darkened plates (Memphis `#4E6799`, Thunder `#006FB0`) are the owner-approved rule in UI-SPEC v1.2 item 1 and
+    3.4, also recorded in UI-SPEC section 12: real colours, with a primary darkened just enough for 4.5:1 text only
+    where neither chalk nor ink passes.
+  - `#5D76A9` with ink text is 3.9:1 and fails.
+  - The Grizzlies' navy `#12173F` is a real colour, but it isn't the team's primary. Using it would change which colour
+    reads as "Memphis" everywhere in the app.
+  - Unchanged, with this pointer added to section 2.4.
+- **One hero state table** now covers the Home hero, the hub hero and the team header (section 7.1). At 23:40 all three
+  say `Watch pre-game` + `Remind me`. The team header adds `Game page`.
+  - Before tip-off the destination is labelled `Game page`. From tip-off it is `Box score`.
+- **`state-down.png`** now has no LIVE pills, and focus stays on West: `Try again` is reachable, not taken.
+- **Dwell** is 250 ms everywhere, captions included. The CSS comment now points to section 2.5.
+
+**10. Long names and craft details. Accepted.**
+- **Leader names.** The name box is 252 px, measured as the review says. A name over 18 characters steps down to Outfit
+  700 20 px, which fits `Shai Gilgeous-Alexander` and `Giannis Antetokounmpo`, then ellipsizes.
+- **Next-game line.** The time moves to the label line (`NEXT · TONIGHT 01:00`, `NEXT · TUE NIGHT 00:00`), and the
+  opponent gets the full line: `vs Grizzlies` and `at Trail Blazers` both fit (`team-other.png`). The block is 252 px
+  wide now, at x 640.
+- **Divider lines.**
+  - Rows are now siblings placed by their own `top` (no wrapper), so `.mine + .nb-tr::before` and
+    `:focus + .nb-tr::before` work.
+  - The audit's new pixel check fails a mock if a `#3C3452` line touches a highlighted or focused row.
+  - It finds the review's line at y 322 when the old CSS is injected (section 13).
+- **The hold-OK menu** now ends at y 513: it is clamped by its measured height and opens upward when it must. The audit
+  now checks every floating box against y 27 to 513 and x 48 to 912.
+- **The lone "Season ranks" heading** is replaced by a cue, `⌄ Season ranks · News · Roster` (`team-top.png`).
+- **Peeking tiles.** A tile or card past x 912 shows only its surface (`.pk`, contents hidden). The audit fails any text
+  in an `nb-rail` past x 912.
+- **Standings hierarchy:**
+  - W, L and PCT are 16 px 650.
+  - STRK and L10 are 15 px.
+  - GB, HOME and ROAD are 14 px `text-3`, so they recede by size, not only by a colour that barely differs.
+- **News order:** newest first.
+- **Row-9 conflict: the margin rule wins.** In the top layout, the lowest row focus can sit on is row 8. Moving to row 9
+  switches to the scrolled layout.
+- **Night rule:** tiles read `THU 29 OCT · LATE` over `02:00`. The header reads `NEXT · TUE NIGHT 00:00`.
+- **State-down:** the section row says only `ESPN`, and the time shows once (`showing 22:51`).
+
+**11. Playoffs and "seen" semantics. Accepted.**
+- **Playoff series under the shield.** While any game of a series is unseen, the series shows games 1 to 7, with each
+  unplayed or unseen one as `Game 5 · if needed`, until the series is seen. The header and the hero keep the last game
+  until then, and never show "Next: none".
+- **Watched = seen** becomes permanent only when playback reaches the final buzzer (the final period's clock reaches
+  0:00 in the feed), or when you reveal explicitly. A tune-in, or a catch-up replay stopped early, stays seen for the
+  session only, as today.
+
+### Nits
+All are fixed as listed under 10. The `Sat 31 Oct / Sun 00:00` night-rule suggestion is adopted as `· LATE`.
 
 ---
 
 ## 1. Where the pages live (the IA decision)
 
-**The NBA tab gets a section row:** `Games · Standings · Leaders · Team stats · News · [crest] Grizzlies`.
+**The NBA tab gets a section row:**
 
-- It sits at **y 80 to 120**, where the hub's "NBA" title and day chips are now. The title goes because the top bar already says NBA.
-- The League page is four sections (Standings, Leaders, Team stats, News), not one long page. Each is a single screen
-  with one job, and each is one press from the row.
-- The last chip is **your team** (the crest plus its nickname). Its section *is* your team page.
-- **Games** is the hub you have now. It is the default on a cold start, because watching games is what the tab is for.
-  The app remembers the last section until it closes. Re-entering the tab from the top bar opens that section.
-- **Any other team's page is a screen pushed on top** (`push('team', { abbr })`), with the same layout. Back returns to
-  the row, card or story that opened it. You reach it from:
+`Games · [crest] Grizzlies · Standings · Leaders · Team stats · News`
+
+- The row sits at **y 80 to 120**, where the hub's "NBA" title and day chips are now. The title goes because the top
+  bar says NBA.
+- The League page is four sections (Standings, Leaders, Team stats, News), each a single screen one press from the row.
+- The second chip is **your team** (its crest and nickname), and its section *is* your team page.
+- **Games** is the hub. It is the default on a cold start, and the last section is remembered while the app runs.
+
+**Any other team's page is a pushed screen** (`push('team', { abbr })`) with the same layout. Back returns to whatever
+opened it.
 
 | From | How |
 |---|---|
 | Standings row | OK |
 | Team stats row | OK |
-| Leaders row or the leader card | OK opens the player's team, with focus on his roster row (the player sheet is hold OK) |
+| Leaders row or leader card | OK opens the player sheet over Leaders; its button is `<Team> page` |
 | Game card (hub grid, Home's Tonight row) | **hold OK** opens a menu: `<Away> page` (focused), `<Home> page`, `Remind me` (before tip-off only), `Open the game` (`nba-card-menu.png`) |
-| Game page | **OK on a team's box-score tab** (the tab is already selected by focus, so OK used to do nothing). The tab row's caption reads `OK Team page · ▼ scroll` while a team tab is focused |
-| Team page schedule tile | hold OK opens a menu: `<Opponent> page`, `Open the game`, `Remind me` |
-| News story | the reader's buttons at the end of the story: one `<Team> page` button per tagged team, up to 2 |
-| Pushed team page | `All teams` opens the team picker: 30 crests in a 6-column grid, by conference, your team first |
+| Game page | the hold-OK menu on a team's box-score tab, or the `<Team> page ›` row under the box score's Team totals (OK on a tab never navigates) |
+| Team page schedule tile | hold OK opens a menu: `<Opponent> page`, `Open the game`, `Remind me`, and on a hidden final `Reveal <game>` (never first) |
+| News story | the reader's buttons at the end of the story: one `<Team> page` per tagged team, up to 2 |
+| Pushed team page | `All teams` opens the team picker: 30 crests, a 6-column `[data-grid]`, by conference, your team first |
 
-**Why not one long League page:** standings alone are 30 rows. Leaders, ranks and news below them would sit 30+ presses
-down. A section row puts every list one press from the top, and Up always gets you out.
+**Why sections and not one long League page:** standings alone are 30 rows. **Why not a new top-bar tab:** the bar
+already has 7 destinations. **With team "None"**, the second chip reads `Teams` and opens the picker.
 
-**Why not a separate tab in the top bar:** the bar already has 7 destinations (Android TV's guidance is 3 to 7). The
-pages are NBA, so they belong under NBA.
+### 1.1 The Games section
 
-**No team set (team "None"):** the last chip reads `Teams` and opens the team picker. Picking a team pushes its page,
-and that page offers `Make the <team> my team`.
+- **The hero keeps its 192 px at y 128.** It shows your team's current or next game whatever day is selected, using the
+  hero state table in 7.1.
+- **The day chips sit under it**, at y 332 to 368, and drive only the grid, which starts at **y 380**. The first row's
+  ring reaches 512.
+- The "Tonight" title is gone. The selected chip says `Today · Mon 26 Oct`, and the counts sit at the right of the day row.
+- **With team "None"** there's no hero, and the day row sits at y 128.
+- **Up** from the grid goes to the day row, then the hero, then the section row, then the top bar.
+- **Entry** focus is the hero's primary button.
 
-### 1.1 The Games section (the one change to the existing hub)
-
-- The section row costs 44 px, so the **day chips move from above the hero to under it**. They sit at y 332 to 368.
-- The hero keeps its 192 px at **y 128** (where it is today).
-- The grid moves from y 368 to **380**. The first row's card bottom is at 504, and its scaled ring reaches 512, inside 513 (`nba-entry.png`).
-- The "Tonight · n games" title is dropped. The selected chip already says `Today · Mon 26 Oct`, and the counts move to the right end of the day row.
-- **The hero is always there when you have a team**, so the day row never jumps when you change day. On a day your
-  team doesn't play, the hero shows your team's *next* game (pre-game state with Remind me). With team "None" there's no
-  hero, and the day row sits at y 128 for good.
-- Focus moves **Up from the grid** to the day row, then to the hero buttons, then to the section row, then to the top bar. Entry focus is still the hero's primary button.
+**A note for the engineer:** the hero's buttons use a **20 px gap**. A lifted first button grows to the right, and at
+the app's current 16 px its ring touches the second button by 1.6 px. The audit found this in these mocks. The same
+16 px plus left-origin rule is in `app.css` (`.hero-btns>.fx:first-child:focus`) for Home and the hub today, so change
+the gap there too.
 
 ---
 
@@ -69,516 +242,530 @@ and that page offers `Make the <team> my team`.
 
 | What | Value |
 |---|---|
-| Section row | `.nb-sec` at x 48, y 80, h 40. Chips `.chip.lg` (36 high, 8 gap). Right end: `ESPN · 23:37` (when the data was fetched), or `Shield: My team` with the eye-off glyph when the shield is on |
-| Content top | **y 128** on every section, and on the pushed team page (which uses y 80 to 120 for its tools row, section 7.7) |
-| Sub-row (Standings' conference chips) | y 128 to 164 |
-| Table header | `.nb-th`, 24 high, Inter 650 14 caps +0.06em, `text-3`, opaque `bg-0` |
-| Table rows | `.nb-tr`, **32 high**, Inter 500 15 (numbers tabular). Leaders and Team stats rows are 30. A 1 px `--a-border` line between rows (inset 12 px); no line next to a highlighted or focused row |
-| Table width | x 48 to 900 (852). The **scroll bar** sits at x 906 to 910 (4 px, `surface-2` track, `text-3` thumb), inside the safe line |
-| Category column (Leaders, Team stats) | `.nb-cats` at x 48, w 200, rows 34 high with a 4 gap (10 rows fit y 128 to 504) |
-| Right panel next to the column | x 272 to 912 |
-| Nothing is drawn below y 513 | Long tables draw **whole rows only**. A row that doesn't fit isn't drawn; the scroll bar says there is more (`standings-top.png` shows rows 1 to 9 ending at y 510) |
+| Section row | `.nb-sec` at x 48, y 80, h 40; chips `.chip.lg` (36 high, 8 gap). At the right: `ESPN · 23:37` (when fetched), or `Shield: My team` / `Shield: All games` with the eye-off glyph |
+| Content top | **y 128** on every section and on the pushed team page (which has a tools row at y 80 to 120) |
+| Standings sub-row (conference chips) | y 128 to 164 |
+| Table header | `.nb-th`, 24 high, Inter 650 14 caps +0.06em `text-3`, opaque `bg-0` |
+| Table rows | `.nb-tr`, **32 high** (Leaders and Team stats rows: 30). Key figures 16 px 650 (`.c.k`); normal 15 px; secondary 14 px `text-3` (`.c.s`). A 1 px `--a-border` line between rows (inset 12); none next to a highlighted or focused row |
+| Table width | x 48 to 900; the **scroll bar** at x 906 to 910, inside the safe line |
+| Category column | `.nb-cats` at x 48, w 200, rows 34 high with a 4 gap (10 rows fit y 128 to 504); right panel x 272 to 912 |
+| Bottom edge | **Nothing is drawn below y 513**: tables draw whole rows only, and floating menus clamp to 513 |
+| Rails | tiles that peek past x 912 show their surface only (`.pk`) |
 
-### 2.2 Focus and keys (all on `focus.js` as it is)
+### 2.2 Focus and keys (on `focus.js` as it is, plus one hook)
 
 - **Containers:**
-  - the section row and every chip row: `[data-row]`
-  - category columns, table bodies and the news list: `[data-col]`
-  - schedule, rank and news rails: `[data-row]` (they slide)
-  - the team picker: `[data-grid][data-cols="6"]`
-- **Up from the first row of any section goes to the section row, and Up again to the top bar.** That's the engine's
-  nearest-container rule, with nothing extra to build. **Down from the section row** goes to the section's entry
-  (named per screen below).
+  - `[data-row]`: the section row, chip rows and the rails;
+  - `[data-col]`: category columns, table bodies and the news list;
+  - `[data-grid][data-cols="6"]`: the team picker.
+- **The one hook:** Down from the section row goes to the section's entry. `neighbour()` would otherwise pick the
+  leader card or the ranked list, because they overlap the chip and the column doesn't. The code is in the v1.1 list,
+  item 7. Each section's `entry()` is named below; for a pushed team page it's the header's primary button.
+- **Up:**
+  - From any section's first container, the nearest container above is taken. Standings: body, conference chips,
+    section row, top bar (3 Ups from the body). Other sections: content, section row, top bar.
+  - Up into the top bar never happens on a repeating key (as now).
 - **Rings:**
-  - Table rows (32 or 30 px, no gap) use the **inset ring** (`.f-in`: 3 px white inside the row, `surface-3` fill, no
-    scale). That is the approved dense variant (UI-SPEC 3.2): a ring that is inside the row can't be clipped by the
-    table's viewport or overlap the next row.
-  - Everything else uses the outer ring: chips, category rows, news rows and pills get the ring only; buttons, schedule
-    tiles, rank tiles and news cards get the ring plus the 1.05 lift.
-  - A lifted item in the first column grows to the right (`transform-origin: 0 50%`), as in the Home rails.
+  - Table rows use the **inset ring** (`.f-in`): 3 px white inside the row, `surface-3`, no scale. It can't be clipped
+    and can't overlap the next row.
+  - Chips, category rows, news rows and pills use the outer ring only.
+  - Buttons, schedule and rank tiles, and news cards use the ring plus the 1.05 lift. The first item of a row or rail
+    lifts from its left edge.
+  - Button rows have 20 px gaps.
 - **Scrolling a table:**
-  - The body moves in whole rows, 320 ms, 0 ms while a key repeats.
-  - The focused row always keeps **one whole row** (and so at least 14 px) between itself and the viewport edge
-    whenever there is more in that direction. This is the same rule as `ui.js scrollList`.
-  - Moving into a row that the top layout can't show switches the screen to its **scrolled layout**:
-    - the top bar and section row slide away (as Movies does);
-    - the context line `NBA · Standings · Western Conference · 2026-27` shows at y 27 (`.nb-ctx`) over the 84 px cover band (`.nb-cover`);
-    - the column names move to y 52, and the body runs from y 80 to 513 (`standings-scrolled.png`).
-  - Going Up past the first body row restores the top layout.
+  - It moves in whole rows (320 ms; 0 while a key repeats).
+  - **The margin rule wins:** the focused row keeps one whole row of margin to the viewport edge whenever there is
+    more. In the top layout that makes row 8 the lowest a focused row sits.
+  - Moving past it switches to the **scrolled layout**: the bar and section row slide away; the context line sits at
+    y 27 over the 84 px cover band; the column names move to y 52; the body runs y 80 to 513.
+  - Up past the first body row restores the top layout.
 - **Back:**
-  - Anywhere in a section's content, Back scrolls to the top and focuses that section's chip.
-  - Back on a section chip focuses the top bar's NBA tab (the global rule).
-  - On a pushed team page, Back returns to the opener (focus restored by `data-key`).
-  - A sheet closes with Back.
-- **Identity keys for `setHtml` focus restore:**
-  - `data-key="tm:<ABBR>"` on standings, team-stats and team-picker rows
-  - `pl:<id>` on leader and roster rows
-  - `g:<id>` on schedule tiles (already used by game cards)
-  - `n:<id>` on stories
-  - Live data never moves focus.
-- **Section chips switch on focus** after a 250 ms dwell, if the section is cached. Otherwise they switch on OK, the
-  top bar's rule. **Category rows** (Leaders, Team stats) switch the right panel on focus after 150 ms, like the game
-  page's tabs.
+  - Anywhere in a section's content, Back scrolls to the top and focuses **that section's chip**. A second Back focuses
+    the NBA tab.
+  - A pushed page returns to its opener (focus restored by `data-key`).
+  - A sheet or card closes.
+- **Switching:** section chips and category rows switch **on focus after 250 ms**, with the skeleton if the data isn't
+  cached. Conference chips switch the same way.
+- **Identity keys:** `tm:<ABBR>`, `pl:<id>`, `g:<id>`, `n:<id>`. Live data never moves focus.
 
 ### 2.3 Text, numbers and time
 
-- **Type:** nothing is below 14 px except badges. All figures are tabular. Big Sharp numbers (Barlow italic 800) are
-  used only for a record, a leader's value, a rank ordinal or a jersey number: three words or a number, as the brand rule allows.
+- **Sizes:** nothing is below 14 px except badges.
+- **Barlow italic 800** is only for a record, a leader's value, a rank ordinal or a jersey number.
 - **Team names:**
-  - Tables use `team.displayName` ("Minnesota Timberwolves").
-  - Tiles, cards and the header use `shortDisplayName` ("Timberwolves").
-  - A name that doesn't fit ends in an ellipsis on a block span, never on the flex row (UI-SPEC v1.1 rule).
-  - The team header splits the name: location as a 14 px caps eyebrow, nickname 30 px. "PORTLAND / Trail Blazers" and "MINNESOTA / Timberwolves" fit without shrinking.
-- **Number formats:**
-  - Win percentages are ESPN's displayValue (`.750`, `1.000`).
-  - Games behind: `–` for the leader, else ESPN's value (`0.5`).
-  - Averages have 1 decimal place; percentages have 1 decimal place and no % sign in tables (the column name says %).
-  - Ties in ranks show as `T-2nd`.
-  - Streaks are ESPN's (`W3`).
-  - A player who hasn't played shows `–` in every average and `Hasn't played` after his name. Players are sorted to the bottom, by name.
-- **Night rule** (new, for a European viewer):
-  - A tip-off between 00:00 and 06:00 local belongs to the evening before.
-  - Tonight's 01:00 game is `Tonight · 01:00`.
-  - A later one is dated by its evening, with the true day on the time: `THU 29 OCT` above `Fri 02:00`.
-  - Date = local date of (tip-off − 6 h).
-  - Times are 24-hour local (`hm()`).
-- **Relative times:** `In 1 h 20 min` before tip-off. News ages: `22 min ago`, `5 h ago`, `Yesterday`, then the date.
+  - tables: `displayName`;
+  - tiles and the header: `shortDisplayName`;
+  - the header splits location (14 px caps) and nickname (30 px);
+  - leader names over 18 characters step down to 20 px;
+  - ellipsis always goes on a block span.
+- **Numbers:**
+  - win % as ESPN gives it;
+  - GB `–` for the leader;
+  - one decimal place for averages;
+  - ties `T-2nd`;
+  - players who haven't played show `–` and `Hasn't played`, sorted to the bottom.
+- **Night rule:**
+  - A tip-off between 00:00 and 06:00 local belongs to the evening before: date = local date of (tip-off − 6 h).
+  - Tiles: `THU 29 OCT · LATE` over `02:00`.
+  - Header: `NEXT · TUE NIGHT 00:00`, or `NEXT · TONIGHT 01:00`.
+  - Times are 24-hour local.
 
-### 2.4 Team colour (UI-SPEC 3.4, owner decision: the teams' real colours)
+### 2.4 Team colour (UI-SPEC 3.4; owner decision in UI-SPEC v1.2 item 1)
 
-- **Plates** use the team's primary from `teamPalette()`, darkened where needed (Memphis `#4E6799`, Thunder `#006FB0`),
-  with a 4 px bar in the secondary.
-  - Plates appear on the team header, the leader card behind the headshot, and the player sheet.
+- **Plates:**
+  - Plates are the team's real primary, with a 4 px bar in its secondary.
   - Text on a plate is chalk or ink, whichever passes 4.5:1.
-- **The 4 px team bar** in the secondary (`.tedge`) marks your team's rows in standings, leaders and team stats. Your
-  team's row also gets a `surface-1` fill and a bold name.
-- **The safeguards hold:**
-  - No team colour within 8 px of a LIVE pill. In standings the pill sits after the name, ≥ 200 px from the bar.
-  - No team colour touches a ring, except a row's own bar inside its own inset ring.
-  - LIVE is always the dot plus the word.
-  - No team colour on buttons, rings or selected states.
-- **Crests** are the ESPN logo in the neutral disc: 24 in tables, 28/32 on tiles, 64 in the header. Sizes `.team.s24/.s28/.s32` are new.
+  - Where neither passes, the primary is darkened just enough. That gives Memphis `#4E6799` and Thunder `#006FB0`,
+    from `teamPalette()`. This is approved by the owner and recorded in UI-SPEC v1.2.
+- **Your team's rows** carry the team bar (`.tedge`), `surface-1` and a bold name.
+- **Safeguards:**
+  - No team colour within 8 px of a LIVE pill.
+  - No team colour touching a ring, except a row's own bar inside its own inset ring.
+  - LIVE is always the dot plus the word, in the **22 px pill** (compact only in guide cells and the top-bar tab).
+- **Crests:** the ESPN logo in the neutral disc, at 24, 28, 32 or 64 (`.team.s24/.s28/.s32`, new).
 
 ### 2.5 Port notes
 
-- The mocks mark focus with `.f` / `.f-ring` / `.f-in`. The app uses `:focus` on `.fx`, so add these to app.css:
-  - ring only: `.nb-cat.fx:focus, .nb-nrow.fx:focus, .nb-sec .chip.fx:focus`
-  - ring plus lift: `.nb-gt.fx:focus, .nb-rk.fx:focus, .nb-nc.fx:focus`
-  - inset ring: `.nb-tr.fx:focus` (with `background: var(--a-surface-3)`)
-  - first-in-rail lift origin: `.nb-rail .fx:first-child:focus { transform-origin: 0 50% }`
-- `.nb-lead` (the 640 px leader card) gets the ring only, no lift.
-- Hold OK uses the existing `data-hold` and `contextMenu()`.
+- **Focus selectors.** The mocks use `.f` / `.f-ring` / `.f-in`; the app uses `:focus` on `.fx`. Add:
+  - ring only: `.nb-cat.fx:focus, .nb-nrow.fx:focus`;
+  - ring plus lift: `.nb-gt.fx:focus, .nb-rk.fx:focus, .nb-nc.fx:focus`;
+  - inset: `.nb-tr.fx:focus` (with `surface-3`);
+  - no divider next to focus: `.nb-tr.fx:focus + .nb-tr::before { display: none }`;
+  - first-in-rail lift: `.nb-rail .fx:first-child:focus { transform-origin: 0 50% }`.
+- **`.nb-lead`** gets the ring only.
+- **Hold OK** uses `data-hold` and `contextMenu()`. Clamp the menu by its measured height:
+  `y = min(max(27, r.top + 24), 513 - menu.offsetHeight)`. When that would cover the anchor, open it above.
 
 ---
 
-## 3. Standings (`standings-top`, `standings-row`, `standings-scrolled`, `standings-shield`, `state-down`)
+## 3. Standings (`standings-top`, `standings-row`, `standings-scrolled`, `standings-shield`, `standings-cover`, `state-down`)
 
-**Layout (top):**
-- **y 128:** chips `West` / `East`. Your team's conference is first and selected. Right end: the legend
-  `1 to 6 make the playoffs · 7 to 10 play in · [LIVE] playing now` (14 px `text-3`).
-- **y 168 to 192:** column names: `#` · crest · `TEAM` · `W` · `L` · `PCT` · `GB` · `STRK` · `L10` · `HOME` · `ROAD`.
-- **y 194 to 513:** the body (`.nb-tb`).
-- **Column widths:** seed 24 (right, 650 `text-3`); crest 24 (margins 14 / 12); name flex (about 290); W 44 (bold); L 44;
-  PCT 64; GB 52 (`text-3`); STRK 60; L10 60; HOME 68 (`text-3`); ROAD 68 (`text-3`).
-- **Play-in lines:**
-  - Between seeds 6 and 7 a 28 px band (`.nb-band`) reads `PLAY-IN TOURNAMENT · 7 TO 10` with a dashed `border-strong` line.
-  - Between 10 and 11 another band reads `OUTSIDE THE PLAY-IN`.
-  - Bands are not focusable; focus steps over them.
-- **First screen:** rows 1 to 9 and the play-in band, ending at y 510.
-- **Scrolled layout:**
-  - context line at y 27, column names at y 52, body from y 80 to 513: 13 rows plus bands.
-  - The last row (15th) sits at y 456 to 488, with its inset ring fully inside (`standings-scrolled.png`).
-- **Playing now:** a compact LIVE pill after the team's name (from the scoreboard: teams in a game with state `in`).
-  It shows no score, so it is safe under the shield.
-- **Order:** ESPN's `playoffSeed`, then PCT. ESPN can give two teams the same seed (BOS and CLE are both 8 in the East
-  today): show it as given, in that order.
-
-**Focus and keys:**
+**Layout:**
+- **y 128:** the `West` / `East` chips. Your team's conference is first and selected. At the right, the legend
+  `1 to 6 make the playoffs · 7 to 10 play in · [LIVE] playing now`.
+- **y 168:** the column names.
+- **y 194 to 513:** the body.
+- **Columns:** seed 24 · crest 24 · name (about 290) · **W 44 · L 44 · PCT 64** (16 px 650) · GB 52 (14 `text-3`) ·
+  STRK 60 · L10 60 · HOME 68 · ROAD 68 (14 `text-3`).
+- **Bands:** a 28 px band after seed 6, `PLAY-IN TOURNAMENT · 7 TO 10`, and another after 10, `OUTSIDE THE PLAY-IN`.
+  Neither is focusable.
+- **First screen:** rows 1 to 9 and the play-in band. Focus can sit on rows 1 to 8.
+- **Scrolled:** 13 rows and the bands, from y 80.
+- **Playing now:** a 22 px LIVE pill after the name. It is never shown when the data is a copy.
+- **Order:** ESPN's `playoffSeed`, then PCT. ESPN can tie seeds; those are shown as given.
 
 | Element | Entry | ◀▶ | OK | Hold OK | Back |
 |---|---|---|---|---|---|
-| Conference chips | Down from the section row lands on the selected chip | move; focus switches the table (150 ms) | select | – | section chip |
-| Row | Down from the chips: your team's row if it is on screen, else row 1 | nothing (the row edge stops) | that team's page | menu: `<Team> page`, `Make the <team> my team` | scroll to top, chips |
+| Conference chips | Down from the section row (navHook): the selected chip | move; switches on focus (250 ms) | – | – | section chip |
+| Row | Down from the chips: your team's row if it shows, else row 1 | row edge stops | that team's page | `<Team> page`, `Make the <team> my team` | section chip |
 
 **States:**
-- **Loading** (nothing cached): flat `surface-1` blocks in the row shape; focus stays on the section chip.
-- **ESPN down** with a copy (`state-down.png`): the copy stays, with no LIVE pills. The legend is replaced by
-  `ESPN isn't answering · showing 22:51` plus a focusable `Try again` pill. The section-row time shows the copy's time.
-  It retries by itself every 60 s.
-- **ESPN down, nothing cached:** the existing state card (`wifiOff`, `Scores aren't reachable`, ESPN's error), with a
-  `Try again` button focused.
-- **Preseason** (no games played): every row shows 0-0, ordered alphabetically, with no seeds. The legend reads
-  `Season starts Tue 20 Oct`.
-- **Off-season:** last season's final table, titled `2025-26 final standings` in the legend. Seeds 1 to 6 get a small
-  `Playoffs` caption after the name. Once the bracket exists, a `Playoffs` chip (seeded pairs, series results) can be
-  added after East; it isn't designed here.
+- **Loading:** flat row blocks; focus stays on the chip.
+- **ESPN down with a copy** (`state-down.png`):
+  - the copy stays, with no LIVE pills;
+  - the legend becomes `ESPN isn't answering · showing 22:51` plus a `Try again` pill you can reach;
+  - focus stays where it was;
+  - the section row reads `ESPN`;
+  - it retries every 60 s.
+- **ESPN down with nothing cached:** the state card with `Try again` focused (nothing else to focus).
+- **Preseason:** 0-0 alphabetical, no seeds, `Season starts Tue 20 Oct`.
+- **Off-season:** `2025-26 final standings`.
 - **Shield:** section 8.
 
-## 4. Leaders (`leaders`, `leaders-row`)
+## 4. Leaders (`leaders`, `leaders-row`, `leaders-player`, `leaders-shield`)
 
 **Layout:**
-- **Category column** at x 48, y 128: `Points PTS`, `Rebounds REB`, `Assists AST`, `Steals STL`, `Blocks BLK`,
-  `3-pointers 3PM`, `Field goal % FG%`.
-  - The selected category is `surface-2` with a pink dot, chalk text and `pink-text` abbreviation.
-  - Below the column, from y 428: `Per game, 2026-27. ESPN's qualified players.`
-- **Leader card** `.nb-lead` at x 272, y 128, 640 x 96, radius 16, `surface-1`:
-  - the #1 player's team plate: a 210 px skewed parallelogram in the primary with a 4 px secondary edge;
-  - his ESPN headshot, 126 x 92, standing on the card's bottom edge, and the team crest (32) top-left;
-  - text from x +236: `1ST IN THE NBA` (14 caps `pink-text`), the name (Outfit 700 24), `Memphis Grizzlies · Guard` (14 `text-2`);
-  - at the right, the value in Barlow 56 (`34.7`) and `PTS PER GAME`.
-- **Rows 2 to 10** at x 272, y 236, 30 high: rank (ties repeat the rank) · crest 24 · name · team nickname (`text-3`,
-  150) · value (16 700, right).
-  - All 9 fit (to y 506), so there is no scroll.
-  - Your team's players get the team bar, `surface-1` and a bold name (Boozer, 4th in rebounds, `leaders-row.png`).
+- **Category column** at x 48, y 128: Points, Rebounds, Assists, Steals, Blocks, 3-pointers, Field goal %. Each row
+  shows its abbreviation at the right.
+- **Leader card** at x 272, y 128, 640 x 96:
+  - a 210 px team plate with the headshot standing on the bottom edge, and the crest;
+  - `1ST IN THE NBA`;
+  - the name (24 px, or 20 px past 18 characters; the box is 252 px);
+  - team · position;
+  - the value in Barlow 56.
+- **Rows 2 to 10** at y 236, 30 px each: rank (ties repeat), crest, name, team, value. Your team's players get the bar.
 
-**Focus and keys:**
-- **Entry:** the selected category.
-- **▶** from the column goes to the leader card. **▲▼** walk the card, then rows 2 to 10. **◀** goes back to the column.
-- **OK on a player:** his team page, with focus on his roster row.
-- **Hold OK:** menu `Player card` (the sheet in 7.6), `<Team> page`.
+**Keys:**
+- Entry: the selected category.
+- ▶ goes to the card. ▲▼ walk the card and the rows. ◀ goes back to the column.
+- **OK on a player** opens the player sheet (7.6) over Leaders, with a `<Team> page` button (`leaders-player.png`).
+- Hold OK: `<Team> page`.
 
-**States:**
-- **Loading:** column real, right side blocks.
-- **Empty** (preseason): `Leaders start after the first games` in the card's place.
-- **ESPN down:** cached with time, as in Standings.
-- **Shield:** section 8.
+**Shield** (`leaders-shield.png`):
+- If any player in the list is on a team in scope, the whole list is the **copy pinned at the unseen game's tip-off**.
+- Under the column: `As of tip-off, Grizzlies at Kings (Sun)`, plus a `Reveal it` pill, never focused by default.
+- In the mock: Jerome is `36.5` over two games (ESPN's own recap gives 36.5) and LaVine is `25.0`. The other rows are
+  today's, for illustration.
 
 ## 5. Team stats (`teamstats`)
 
 **Layout:**
-- **Category column** (10 rows, 34 high): Points · Points allowed · Rebounds · Assists · Field goal % · 3-point % ·
-  3-pointers made · Steals · Blocks · Turnovers.
-  - Each row shows **your team's rank** at the right (`9th`, `T-2nd`, `25th`). The column alone is the "how are we
-    doing" summary.
-  - Lower is better for Points allowed and Turnovers.
+- **Category column:** Points, Points allowed, Rebounds, Assists, Field goal %, 3-point %, 3-pointers made, Steals,
+  Blocks, Turnovers. Each row shows **your team's rank** at the right. Lower is better for Points allowed and Turnovers.
 - **Right side:**
-  - column names at y 128 (`# · TEAM · <STAT> A GAME`);
-  - 30 rows of 30 px from y 156, **11 visible**;
-  - each row: rank · crest · full name · a 200 px bar (`surface-2` track; the fill is `border-strong`, your team's is
-    the brand gradient, scaled from the worst value at 18% to the best at 100%) · value.
-- **When a category is shown, the list scrolls so your team's row is in the middle** (Assists: rows 14 to 24 with the
-  Grizzlies T-18th, `teamstats.png`).
+  - 30 rows of 30 px, 11 visible;
+  - each row: rank · crest · name · a 200 px bar · value;
+  - bar fill: `border-strong`, or the gradient for your team, scaled from 18 to 100%;
+  - the list opens centred on your team.
 
-**Focus and keys:**
-- **Entry:** the selected category. **▶** goes to the list, on your team's row.
-- **OK on a row:** that team's page.
-- **Back:** to the category, then to the section chip.
+**Keys:**
+- Entry: the selected category. ▶ goes to the list, on your team's row.
+- OK on a row opens that team's page. Back goes to the section chip.
 
-## 6. News (`news`, `news-shield`, `news-article`)
+**Shield:** the pinned copy, labelled, the same as Leaders.
 
-**Layout: a list on the left and a preview of the focused story on the right** (the guide's Now-panel idea: the
-preview is display only, so it adds no stops).
-- **List** `.nb-nlist` at x 48, y 128, w 392:
-  - 6 rows, 60 high, 4 gap, so the last ends at y 508;
-  - each row: the headline (Inter 650 15/18, 2 lines, ellipsis), and at y +41 the meta (`Thunder · 1 h ago`; `NBA`
-    when 4 or more teams are tagged);
-  - focus: ring plus `surface-2`;
-  - the list scrolls in whole rows with one row of margin, 25 stories.
-- **Preview** `.nb-prev` at x 464, y 128, w 448:
-  - photo 448 x 224 (radius 16);
-  - label row at y 364 (`STORY · 1 H AGO · NBA INSIDERS`, 14 caps);
-  - headline (Outfit 700 22/26, 2 lines);
-  - summary (`description`, 15/21 `text-2`, 3 lines, ends by y 509);
-  - updates 150 ms after focus settles.
-- **No photo:**
-  - previews and recaps show both teams' crests on `surface-2`, away first with `at` between them (`.nb-noph`);
-  - other stories show the first tagged team's crest;
-  - **never ESPN's "stitcher" graphic, which prints the final score.**
+## 6. News (`news`, `news-shield`, `news-covered`, `news-article`, `news-article-shield`)
+
+**Layout: a list on the left and a preview on the right.**
+- **List** at x 48, y 128, w 392:
+  - 6 rows of 60, newest first;
+  - each row: the headline (15/18, 2 lines) and the meta at y +41 (`Thunder · 1 h ago`; `NBA` when 4 or more teams are
+    tagged);
+  - it scrolls in whole rows, with a scroll bar at x 444 (25 stories).
+- **Preview** at x 464, w 448: a 224 px photo, a label row, the headline (22/26, 2 lines) and the summary (3 lines).
+  It updates 150 ms after focus settles and is display only.
+- **No photo:** both teams' crests, away first with `at` between them. Never ESPN's stitcher graphic, which prints the
+  score.
 - **Filtered out:**
-  - videos (`type: "Media"`): the TV can't play them;
-  - WNBA stories (league category 59) that ESPN's NBA feed carries;
-  - premium (`premium: true`) stories are kept but say `ESPN+` in the label, and their reader shows the summary only.
+  - videos (`type: "Media"`);
+  - WNBA (league 59);
+  - **fantasy (league 3090) and betting (league 22000)**, by owner decision.
+- **Premium stories** say `ESPN+`, and their reader shows the summary only.
 
-**The reader** (`news-article.png`): OK on a story opens a centred sheet.
-- **Size:** x 140 to 820 (680 wide), y 27 to 513, radius 24, `bg-1`, over the scrim. The list row loses its ring while
-  the sheet is up.
+**The reader:**
+- **Size:** x 140 to 820, y 27 to 513, radius 24, over the scrim. The list row loses its ring while it is open.
 - **Content:**
-  - photo 176 high, fading into the sheet;
-  - label (`[STORY] 1 H AGO · 6 MIN READ`);
-  - headline (Outfit 700 28/34);
-  - byline (`NBA Insiders · ESPN`, 14 `text-3`);
-  - the story in paragraphs (Inter 500 **17/27, chalk**; the first paragraph `text-2`). The text column is 600 px,
-    about 70 characters a line.
-- **Footer:** 44 px, opaque, `Back closes` on the left and `▼ More` on the right. The text never runs under it: the
-  viewport ends at y 469 with a 40 px fade. There is a scroll bar at the right edge.
-- **Keys:**
-  - Focus is the text body itself (`.inner.fx`, no ring), exactly as the title page's Full description sheet;
-    **▼▲ scroll 240 px** (about 9 lines, 320 ms) and hold repeats.
-  - At the end, **▼ moves to the action row**: one `<Team> page` button per tagged team (up to 2; not for round-ups
-    with 4 or more teams). `▼ More` becomes `▲ Back to the top`.
-  - Back closes and focus returns to the story's row.
-- **The text** comes from ESPN's content API (section 10). Strip it to paragraphs: drop `<script>`, `<iframe>`,
-  `<figure>`, `<aside>`, any element with `class*="inline"` or `ad`, and paragraphs under 30 characters. Decode the
-  entities.
-- **If the full text fails**, the reader shows the `description` and `ESPN only sent the summary of this story.`
-- Nothing opens a web browser.
+  - a 176 px photo;
+  - the label;
+  - the headline (28/34);
+  - the byline;
+  - paragraphs at 17/27 chalk, in a 600 px column.
+- **Footer:** a 44 px opaque footer, `Back closes` / `▼ More`. The viewport ends above it, with a 40 px fade.
+- **Focus** is the text body (no ring, as the Full description sheet). ▼▲ scroll 240 px. At the end, ▼ moves to the
+  `<Team> page` buttons.
+- **Text:** ESPN's content API, stripped to paragraphs (section 10).
+- **Shield:** in a shield mode the body is **scanned before it shows** (section 8.3). The footer then says
+  `Shield: n paragraphs hidden`.
 
-## 7. Your team page, and any team's (`team-top`, `team-schedule`, `team-ranks`, `team-roster`, `team-player`, `team-other`, `team-shield`, `team-shield-news`, `state-loading`)
+**A covered story** (`news-shield.png`):
+- The row reads `A Kings story · hidden by the shield`, with its age only.
+- The preview shows no photo and says `Hidden until you reveal Grizzlies at Kings`.
+- **OK opens a card**, `This story is about a game you haven't seen`, naming the game and day, with `Keep it hidden`
+  (focused) and `Reveal Grizzlies at Kings` (`news-covered.png`).
+- Reveal marks the game seen and opens the story. Back closes the card.
 
-One page, top to bottom: **header**, **Schedule** (one rail), **Season ranks** (rail), **News** (rail), **Roster** (table).
-The roster comes last because it is the only long part, so nothing waits behind its 18 rows.
+## 7. Your team page, and any team's
 
-### 7.1 Header (`.nb-head`, x 48 to 912, y 128 to 312, radius 16, `surface-1`)
+From the top: **header**, **Schedule** rail, then the cue `⌄ Season ranks · News · Roster`. Below the first screen come
+**Season ranks**, **News** and the **Roster** table.
+
+### 7.1 Header (x 48 to 912, y 128 to 312) and the one hero state table
 
 | Part | Position (in the card) | Content |
 |---|---|---|
-| Status row | x 24, y 12, h 24 | `YOUR TEAM` (pink-text label, your team only) · `2026-27 · REGULAR SEASON` (`text-2` label). When the team is live: `[LIVE] Q2 4:12 at Jazz` here; it ends ≥ 8 px above the plate (the plate starts at y 44) |
-| Plate | x 0 to 392 (bleeding off the card's left), y 44 to 116 | team plate: crest 64 at x 24, then `MEMPHIS` (14 caps) over `Grizzlies` (Outfit 700 30), text chalk or ink by `teamPalette().fg` |
-| Record | x 412, y 44, h 72 | `3-0` Barlow italic 56, then `4th in the West` (Inter 650 17) over `W3 · 1st in Southwest` (14 `text-2`; ESPN's `standingSummary` minus "Division") |
-| Next game | x 660 to 892, 1 px `--a-border` on its left | `NEXT · TONIGHT` (label), crest 28 + `01:00 at Jazz` (650 17, ellipsis), the best TV name (`NBA League Pass`; national networks first, then League Pass, never "DAZN", "+" or "App" feeds) |
-| Buttons | x 24, y 128, h 44 (`data-row`) | primary + secondary as below; caption on the right: `Tips off in 1 h 20 min` / `Also on KJZZ-TV and Jazz+` |
+| Status row | x 24, y 12 | `YOUR TEAM` (your team only) · `2026-27 · REGULAR SEASON`. When live: `[LIVE] Q2 4:12 at Jazz`, ending ≥ 8 px above the plate |
+| Plate | x 0 to 372, y 44 to 116 | crest 64, `MEMPHIS` over `Grizzlies` (30), chalk or ink |
+| Record | x 392 | `3-0` in Barlow 56, then `4th in the West` over `W3 · 1st Southwest`. **Partial** (section 8.2): `2-0`, `1 result hidden` over `[eye-off] Sun, at Kings` |
+| Next game | x 640 to 892, 1 px border on its left | `NEXT · TONIGHT 01:00`, crest 28 + `at Jazz` (the full line), the best TV name |
+| Buttons | x 24, y 128, gap 20 | from the table below; caption at the right |
 
-**Buttons by the next game's state** (the primary is the entry focus):
+**The hero state table.** One table drives the Home hero, the hub hero and this header. The primary button is the
+entry focus.
 
-| When | Primary | Secondary | Caption |
-|---|---|---|---|
-| More than 30 min to tip-off | `🔔 Remind me` (toggle: `✓ Reminder set`, OK again removes it, toast `Reminder removed`) | `Game page` | `Tips off in 1 h 20 min` / other channels |
-| 30 min to tip-off, channel known | `▶ Watch pre-game` | `Remind me` / `Reminder set` | `On <channel>` / `Hold OK for n more channels` |
-| No channel known | `Choose channel` (the existing sheet) | `Game page` | `No channel found yet` / `Your pick is remembered` |
-| Live | `▶ Watch live` (hold OK lists the other feeds) | `Box score` (shield: `Reveal score`, a button you move to, never the default) | `Q2 4:12 · 48–51` (shield: `Score hidden`) |
-| Final, within 12 h | `Box score` | none | `Final · W 123–112` (shield: `Ended · result hidden`) |
-| Off-season | none: the button row holds `Season starts Tue 20 Oct` or `Off-season · the schedule comes out in August` | – | – |
+| When | Primary | Secondary | Team header adds | Caption |
+|---|---|---|---|---|
+| Up to 3 h before tip-off, channel known | `▶ Watch pre-game` | `🔔 Remind me` / `✓ Reminder set` | `Game page` | `Tips off in 1 h 20 min` / the channel |
+| More than 3 h before tip-off, or no channel | `🔔 Remind me` | `Game page` (Home: `Choose channel` if none) | – | `Tips off in …` / the best TV name |
+| Live | `▶ Watch live` | `Box score` (shield: `Reveal score`, moved to) | – | `Q2 4:12 · 48–51` (shield: `Score hidden`) |
+| Final, within 12 h | `Box score` | – | – | `Final · W 123–112` (shield: `Ended · result hidden`) |
+| Off-season | none | – | – | `Season starts Tue 20 Oct` / `Off-season · schedule out in August` |
 
-`Remind me` uses the Reminders feature (NEXT.md item 2, which ships before these pages). Until it exists, the
-secondary moves up to primary and Remind me is not drawn.
+Until the Reminders feature exists, Remind me isn't drawn, and the next button moves up. Before tip-off the
+destination is always called `Game page`. From tip-off it is `Box score` (the same page, opened on the box score).
 
 ### 7.2 Schedule (title y 324, rail y 360 to 464)
 
-- **The title** reads `Schedule  3-0 · 77 to go · ◀ results · ▶ coming up`.
-- **One rail for the whole season, oldest on the left.** It opens with the **next game in the third slot** (x 492) and
-  the last two results to its left, so the first screen answers "how did we do, and when's the next one"
-  (`team-top.png`).
-- **The focused tile stays in the third slot** while the rail can scroll, and moves to slots 1 and 2 at the start of
-  the season (`team-schedule.png`: focus on at Kings, with vs Jazz and at Warriors to its left).
-- **CH+ / CH−** jump a month. 82 games, virtualised: 8 tiles mounted.
-- **Tile** `.nb-gt` 198 x 104, radius 16, `surface-1`, 24 gap:
-  - date label (`FRI 23 OCT`, 14 caps `text-3`; the next game reads `TONIGHT` in pink-text and `NEXT`);
-  - crest 32 and `at Warriors` / `vs Jazz` (650 16);
-  - a result row: `W 111–108` (both chalk 700/650) or `L 123–132` (`text-2`; the letter carries the meaning, never
-    green or red), or `01:00 · League Pass` / `Fri 02:00 · League Pass`, or `[LIVE] Q3 7:29`;
-  - the next game's tile is `surface-2`.
-- **OK on a tile:** the game page (finals, live) or the pre-game page.
-- **Hold OK:** menu `<Opponent> page`, `Open the game`, `Remind me` (upcoming), and **`Reveal result`** on a hidden final.
+- **One rail, oldest on the left.** It opens with the next game in the third slot, and the last two results to its
+  left. The focused tile stays in the third slot while the rail can scroll.
+- **The rail needs a `navHook('left'/'right')`.** The engine's row would otherwise move focus inside a fixed list; the
+  hook moves the window instead. 8 tiles are mounted, and CH± jumps a month.
+- **Tile** (198 x 104):
+  - the date (`FRI 23 OCT · LATE`; the next game reads `TONIGHT NEXT`);
+  - crest + `at Warriors`;
+  - `W 111–108`, `L 123–132` (`text-2`), `01:00 · League Pass` or `[LIVE] Q3 7:29`.
+  - A hidden final shows `[eye-off] Result hidden`.
+  - The tile past x 912 shows its surface only.
+- **OK** opens the game page. **Hold OK** opens `<Opponent> page`, `Open the game`, `Remind me`, and
+  `Reveal <game>` (listed last, never focused first).
 
-### 7.3 Season ranks (title y 480; on scroll, y 52 with tiles at y 92)
+### 7.3 Season ranks · 7.4 News · 7.5 Roster
 
-- **9 tiles** `.nb-rk`, 156 x 84, 16 gap: the stat name (14 `text-3`), the ordinal in Barlow italic 32 (`T-2nd`), and
-  `52.0 a game` / `38.1%`.
-- **Order:** Points, Points allowed, Rebounds, 3-point %, Blocks, Assists, Field goal %, Steals, Turnovers.
-- **OK:** the Team stats section with that category selected and the list on this team's row.
+- **Season ranks:** 9 tiles of 156 x 84: the stat, the ordinal in Barlow 32, the value. OK opens Team stats on that
+  category.
+  - Shield: the pinned team-stats copy, labelled `as of tip-off, Grizzlies at Kings (Sun)`.
+- **News:** a rail of 272 x 153 cards from the team's feed, newest first, with the same filters and shield as section 6.
+- **Roster:**
+  - **Columns:** `#` · player (name, position, injury `⊞ Day-to-day` in `text-2`, `Hasn't played`) · GP · MIN ·
+    **PTS** · REB · AST · FG% · 3P%.
+  - **Sort pill:** Points, Rebounds, Assists, Minutes, Jersey number, Name.
+  - **Scrolled:** the context line at y 27, the title at y 52, the column names at y 92, 12 rows from y 120.
+  - **Shield** (either team of an unseen game): sorted by jersey, the pill reads `Sort Jersey`, the Points, FG% and
+    3P% sorts are disabled, and those columns show the eye-off glyph.
+- **Keys:** OK on a row opens the player sheet. Hold OK opens `Player card`.
 
-### 7.4 News (y 196 when scrolled)
+### 7.6 Player sheet (right sheet, 420)
 
-- **Rail of cards** `.nb-nc`, 272 x 153 (16:9): the photo (or the crest fallback), a bottom scrim, the headline (650 15/19,
-  2 lines) and `Recap · 19 h ago`.
-- This is ESPN's team feed (`news?team=<id>`), with videos and WNBA dropped.
-- OK opens the reader.
+- **Top:** a 112 px band with the team plate, headshot, `#2`, crest and team.
+- **Then:**
+  - the name and `Guard · 6' 5" · 29 years · 9th season`;
+  - `2026-27 · 3 GAMES`;
+  - a 3 x 2 grid of averages;
+  - College, From;
+  - the injury, if any.
+- **Button:**
+  - from the roster: `☆ 1st in the NBA in points`, only when he's in a top 10;
+  - from Leaders: `<Team> page`.
+- **Shield** (his team is in scope):
+  - MIN, REB and AST only, over `2 seen games`;
+  - the line `Points and shooting are hidden: they include Grizzlies at Kings.`;
+  - **no leaders button**.
+  - Focus is then the sheet body, with no ring (`team-shield-player.png`).
 
-### 7.5 Roster (`team-roster.png`)
+### 7.7 Another team's page (`team-other`, `team-opponent-shield`)
 
-- **Title** `Roster  Season averages · sorted by points`, with a `⇅ Sort Points` pill at its right. The pill opens a
-  radio menu: Points, Rebounds, Assists, Minutes, Jersey number, Name.
-- **Columns:** `#` (jersey, 36) · `PLAYER` (name 650 16, position `text-3`, an injury note `⊞ Day-to-day` /
-  `⊞ Out` in `text-2` with the cross glyph, never red, and `Hasn't played`) · `GP` 44 · `MIN` · `PTS` (bold) · `REB` ·
-  `AST` · `FG%` · `3P%` (58 each).
-- **Rows** are 32 px with the inset ring.
-- **Scrolled layout:** context line `NBA · Grizzlies · Roster · 18 players` at y 27, title at y 52, column names at y 92,
-  body from y 120 with **12 rows**. Prosper, 17th of 18, is focused with one row below him.
-- **Sorting:** players with games by the chosen stat, then players who haven't played, by name.
-- **OK on a row:** the player sheet. **Hold OK:** `Player card`, `In the league leaders` (only if he is top 10 in a
-  category).
-
-### 7.6 Player sheet (`team-player.png`)
-
-The right sheet (420, x 492 to 912).
-- **Top:** a 112 px band with his team plate, his headshot (154 x 112) and, right of the plate, `#2` in Barlow 56 over
-  crest 28 and `Grizzlies`.
-- **Then:** the name (title 22), `Guard · 6' 5" · 29 years · 9th season`, `2026-27 · 3 GAMES`, and a 3 x 2 grid of
-  averages (Barlow 28 values over 14 caps labels: PTS, REB, AST / MIN, FG%, 3P%).
-- **Facts:** College, From.
-- **Status:** the injury, if any (`Day-to-day · 26 Oct`).
-- **Its one button** (focused) appears when he's in a top 10: `☆ 1st in the NBA in points` opens Leaders on that
-  category with his row focused.
-- **Without a button**, focus is the sheet body (no ring), as in the Full description sheet.
-- Back closes.
-
-### 7.7 Another team's page (`team-other.png`)
-
-The same page, pushed.
-- **y 80 to 120** is a tools row: `☆ Make the Jazz my team` (asks to confirm, then becomes Account > NBA > Your team),
-  `All teams` (the team picker), and the caption `Opened from Standings · Back returns there`.
-- **No `YOUR TEAM` label.** The header in Utah's colours (`#002B5C` navy, `#F9A01B` bar) reads `1-2`,
-  `11th in the West`, `L1 · 5th in Northwest`, `NEXT · TONIGHT 01:00 vs Grizzlies`.
-- **Entry focus:** the header's primary button. Up goes to the tools row, then to the top bar.
+- **Tools row** at y 80 to 120: `☆ Make the <team> my team` (confirms), `All teams` and `Opened from … · Back returns
+  there`.
+- **No `YOUR TEAM` label.**
+- **Entry:** the header's primary button. Up goes to the tools row, then the top bar.
+- **The shield applies when the team played an unseen game against yours:** the Kings show `0-2 [eye-off]`, `1 result
+  hidden`, `Sun, vs Grizzlies`, and the Grizzlies tile is hidden.
 
 ### 7.8 Scrolling the team page
 
-- The header and the schedule are the first screen.
-- **Down from the schedule** slides the page so the focused section's title sits at **y 52**, under the context line
-  (`team-ranks.png`). The bar and section row step away; the 84 px cover band fades the content under it.
-- **Up from the first rail below the header** restores the top. Up from the header buttons goes to the section row.
+- Down from the schedule slides the page so the focused section's title sits at y 52. The bar and section row step away.
+- Up from the first rail below the header restores the top.
 
 ## 8. The spoiler shield on these pages
 
-The shield exists so that you can watch a game later without knowing the result. On these pages the problem is bigger
-than a score: a 3-0 record, a W3 streak, a 34.7 scoring average, a seed, a news headline ("aim for 4th straight win")
-all tell you who won. So the rule is about **results you haven't seen**, not just scores.
+### 8.1 Seen, unseen, and the pinned copies
 
-**Seen, and the one change it needs (owner decision, section 14):**
-- Today a reveal lasts the session, and every shielded final is hidden again at the next launch.
-- For season pages that would hide everything forever. So **a game you watched or revealed stays seen**: its id is
-  stored in settings, capped at 300.
-- An **unseen final** is a final (or live game) in the shield's scope that isn't seen.
-- Turning the shield on still clears the seen list (the existing `setShield` behaviour).
-- `Reveal results` marks every final in scope up to now as seen.
+- **Seen** is stored as `{ upTo, ids }`, with no cap:
+  - every game that tipped off before `upTo` is seen;
+  - `ids` holds seen games after it;
+  - `upTo` advances to the earliest unseen tip-off whenever possible.
+- **A game becomes seen** when:
+  - you reveal it (a button you move to, naming the game);
+  - `Reveal n results` is confirmed, which sets `upTo` to now;
+  - or playback reaches its final buzzer.
+- **Tuning in briefly**, or stopping a catch-up replay early, only reveals it for the session, as today.
+- **Turning the shield on** clears `ids`, the way `setShield` clears session reveals today. The first time it is
+  switched on, `upTo` is set to 12 h before that moment: last night's games start unseen, older ones count as seen.
+- **An unseen final** is a final, or live game, in scope that isn't seen:
+  - in mode `My team`, games with your team;
+  - in `All games`, every game.
+- **Its scope is both of its teams.**
+- **Pinned copies:**
+  - For each in-scope game, airglow keeps one copy of standings, leaders and team stats, fetched at tip-off and keyed
+    by event id.
+  - The fetch is triggered by the scoreboard poll's `pre` to `in` change, and also by an exact alarm 10 minutes before
+    tip-off (the Reminders mechanism), so it works with airglow closed.
+  - The copy is deleted once the game is seen.
+- **Records** come from the schedule's seen finals, so they never need a copy.
 
-**Per surface, when a team in scope has an unseen final (mode `My team`: your team; mode `All games`: every team):**
+### 8.2 Per surface (when a team in scope has an unseen final)
 
 | Surface | Under the shield |
 |---|---|
-| Team header | record counted from **seen** finals only (`2-0`); `1 result hidden` / `Kings game unseen`; no seed, no streak (`team-shield.png`) |
-| Schedule tile of an unseen final | `👁̸ Result hidden`; no W/L. OK opens the game page, which shows its existing Reveal card. Hold OK offers `Reveal result` |
-| Season ranks | each tile `Hidden` / `Reveal to see` |
-| Roster | MIN, REB and AST stay (as in the player's hidden game panel); **PTS, FG% and 3P% show the eye-off glyph**, because they add up to the score |
-| Standings | **the copy airglow kept from before the unseen game** (it saves the standings it fetches, keyed by fetch time, and uses the newest copy fetched before the earliest unseen tip-off), labelled `As of before Grizzlies at Kings · 1 result hidden · [Reveal results]` (`standings-shield.png`). With no such copy, or one older than 7 days, the conference is covered by a state card (`Standings include a result you haven't seen`, `Reveal results` focused, `Show the East` second). In `All games` mode both conferences follow this rule |
-| Leaders, Team stats | the same rule: the kept copy from before, labelled, or the cover card |
-| News | a story is **covered** (eye-off, no photo, headline `A Grizzlies story, hidden by the spoiler shield`, only its age; the preview says `Hidden until you reveal Grizzlies at Kings`) when any of these is true: it is tagged with the unseen game's event id; **or** it is tagged with the team (or with one of its players, by roster athlete id) and was published after the unseen game's tip-off; **or** it is a round-up tagged with 6+ teams whose headline or summary names the team or one of its players (`news-shield.png`, `team-shield-news.png`) |
-| Reader, `All games` mode | paragraphs that contain a score (`\b\d{2,3}[-–]\d{2,3}\b`) are replaced by `· a result is hidden here ·` |
-| Standings LIVE pills, schedule times, rosters' names, injuries | never hidden: they don't tell a result |
+| Any record (Home and hub hero, game cards, game page header, team header, leader card) | `recordFor`: counted from seen finals, followed by an eye-off (`2-0 [eye-off]`). No seed, streak, L10, home or road next to it |
+| Team header | the partial record, `1 result hidden`, `[eye-off] Sun, at Kings` (`team-shield.png`) |
+| Opponent's page | the same, from its side (`team-opponent-shield.png`) |
+| Schedule tile of an unseen final | `[eye-off] Result hidden`; OK opens the game page and its Reveal card; hold OK lists `Reveal <game>` last |
+| Standings, Leaders, Team stats, Season ranks | **any table containing either team**: the copy pinned at that game's tip-off, labelled `As of tip-off, Grizzlies at Kings`, with `Reveal Grizzlies at Kings` as a button you move to (`standings-shield.png`, `leaders-shield.png`). No copy: a cover card, with `Show the East` (or Back) focused and Reveal second (`standings-cover.png`) |
+| Roster | sorted by jersey; PTS, FG% and 3P% show the eye-off; MIN, REB and AST stay |
+| Player sheet | MIN, REB and AST only, over seen games; no leaders button |
+| Hold-OK `In the league leaders` | not offered |
+| News | section 8.3 |
+| Reveal buttons | never the default focus; they name their game; with more than one unseen, `Reveal 6 results` opens `confirmMenu` with Cancel focused |
+| Never hidden | LIVE pills, schedule times, names, injuries, rosters: they don't tell a result |
 
-Tested against today's data: the Preview `Grizzlies play the Jazz, aim for 4th straight win` and its summary
-`(3-0, fourth in the Western Conference)`, the Kings recap, and the two fantasy stories naming Ty Jerome are all
-covered. The OKC injury story and the 30-player round-up stay.
+### 8.3 News and story text
 
-## 9. States (every screen)
+**A story is covered** (`news-shield.png`) when any of these is true:
+1. It is tagged with an unseen game's event id.
+2. It is tagged with either team of that game, or with a player on either roster, and was published between its
+   tip-off and 72 h after.
+3. It is a round-up (6 or more teams tagged) whose headline or summary names either team or a player on either
+   roster. Otherwise a round-up stays, as the 30-player breakout story does.
+
+OK on a covered story opens the card in section 6.
+
+**Story bodies** are scanned in both modes, before they show. A paragraph is replaced by `A result is hidden here` if:
+- it contains `\b\d{1,3}[-–]\d{1,3}\b` (scores and records);
+- it contains a result word (`win|won|loss|lost|beat|fell|straight|streak|swept|clinch`) within 8 words of either
+  team's name, nickname, city or players;
+- or, in All games mode, it contains any score (`news-article-shield.png`).
+
+Today's data, tested in the mocks:
+- covered: the Grizzlies preview ("aim for 4th straight win"), the Kings preview ("on 3-game slide"), and the Kings
+  recap;
+- kept: the OKC injury stories and the breakout round-up;
+- dropped: the fantasy stories naming Jerome (now filtered).
+
+### 8.4 Playoffs
+
+While any game of a series is unseen:
+- the series shows games 1 to 7, each unplayed or unseen one as `Game 5 · if needed`;
+- series scores are hidden;
+- the header and the hero keep the last game.
+
+## 9. States
 
 | State | What shows | Focus |
 |---|---|---|
-| Loading, nothing cached (`state-loading.png`) | flat `surface-1`/`surface-2` blocks in the final layout (no shimmer), section row time `Loading…` | stays on the section chip |
-| Loading, cached | the copy at once; it refreshes in place (setHtml: no jump, focus kept by key) | unchanged |
-| ESPN down, cached (`state-down.png`) | the copy, its time in the section row, the notice and `Try again` pill in the sub-row (Standings) or the title row (others); no LIVE pills | unchanged; `Try again` is reachable, not taken |
-| ESPN down, nothing cached | state card `Scores aren't reachable` + ESPN's error + `Try again` | `Try again` |
-| A part fails (roster but not schedule) | that section's title says `Couldn't load from ESPN · trying again`; the rest works | – |
-| Empty: preseason | records 0-0, leaders `Leaders start after the first games`, ranks hidden, schedule opens on the opener | – |
-| Empty: no news | `No ESPN stories in the last week` in the news rail's place | – |
-| Long names | ellipsis on block spans; header splits location and nickname; leader card name ellipsis at 280 px; the next-game line ellipsises (`01:00 vs Grizzlies`) | – |
-| Off-season | header `Off-season`, standings `2025-26 final standings`, leaders and ranks from last season labelled `2025-26`, schedule rail ends on the last game with `Schedule out in August` as an end tile | – |
-| Playoffs | season-type 3 in the schedule: tiles carry `Game 3 · MEM leads 2-1` (shield: `Game 3`), header `Playoffs · First round` | – |
-| Team "None" | no hero in Games; last chip `Teams` opens the picker | – |
-| Shield | section 8 | – |
+| Loading, nothing cached (`state-loading.png`) | flat blocks in the final layout, section row `Loading…` | stays on the chip |
+| Loading, cached | the copy at once, refreshed in place | unchanged |
+| ESPN down, cached (`state-down.png`) | the copy, no LIVE pills, the time once, a `Try again` pill you can reach | unchanged |
+| ESPN down, nothing | `Scores aren't reachable` card | `Try again` |
+| One part fails | that section's title says `Couldn't load from ESPN · trying again` | – |
+| Preseason | 0-0, `Leaders start after the first games`, ranks hidden | – |
+| No news | `No ESPN stories in the last week` | – |
+| Long names | 2.3 rules; `vs Grizzlies` and `at Trail Blazers` have full lines | – |
+| Off-season | `Off-season`, last season's tables labelled `2025-26`, schedule end tile `Schedule out in August` | – |
+| Playoffs | `Game 3 · MEM leads 2-1` (shield: section 8.4), header `Playoffs · First round` | – |
+| Team "None" | no hero; second chip `Teams` | – |
 
-## 10. Data (ESPN's public JSON; paths are into the files in the brief)
+## 10. Data (ESPN's public JSON; most of it is already in `app/nba.js`, commit 568759b)
 
-Most of this is already in `app/nba.js` (commit `568759b`: `standings`, `leaders`, `teamPlayers`, `teamStats`,
-`schedule`, `roster`, `news`). Additions are marked **new**.
-
-| Need | Endpoint (`base` = site.api.espn.com/apis/site/v2/sports/basketball/nba, `web` = site.web.api.espn.com/apis) | Fields |
+| Need | Endpoint | Fields |
 |---|---|---|
-| Standings | `web/v2/sports/basketball/nba/standings` (`standings.json`) | `children[].name`; `children[].standings.entries[].team.{abbreviation,displayName,shortDisplayName,location}`; `entries[].stats[]` by `name`: `playoffSeed.value`, `wins.value`, `losses.value`, `winPercent.displayValue`, `gamesBehind.displayValue`, `streak.displayValue`, `"Last Ten Games".displayValue`, `Home`, `Road`; `season.displayName` |
-| Team schedule | `base/teams/{id}/schedule` (`schedule29.json`) | `team.recordSummary`, **`team.standingSummary`** ("1st in Southwest Division"), `events[].id/date`, `competitions[0].competitors[].{homeAway,team.abbreviation,score.displayValue,winner}`, `competitions[0].status.type.{state,shortDetail}`, **`competitions[0].broadcasts[].media.shortName`** (each `{type, market, media}`; national first), `seasonType.type` (2 regular, 3 playoffs) |
-| Roster | `base/teams/{id}/roster` (`roster29.json`) | `athletes[].{id,jersey,displayName,position.abbreviation,age,displayHeight,experience.years,college.name,birthPlace.{city,state,country},injuries[0].{status,date},headshot.href}` |
-| Player averages | `base/teams/{id}/athletes/statistics` (the brief's `byteam.json` is the *league* list, ESPN ignores its team filter; the per-team one used for the mocks is `scratchpad/espn2/mem-athletes.json`) | `results[0].leaders[].athlete.{id,displayName,position.abbreviation}`; `statistics[].stats[]` by `name`: `gamesPlayed`, `avgMinutes`, `avgPoints`, `avgRebounds`, `avgAssists`, `fieldGoalPct`, `threePointFieldGoalPct` |
-| League leaders | per category: `web/common/v3/sports/basketball/nba/statistics/byathlete?sort=<cat>.<stat>:desc&limit=10` (`lpts.json`; as `NBA.leaders`, **limit 10**) — `athletes[].athlete.{id,displayName,teamShortName,position,headshot.href}` + `categories[].values` against the top-level `categories[].names`. The mocks used the one-request `leaders2.json` shape: `leaders.categories[name=pointsPerGame\|reboundsPerGame\|assistsPerGame\|stealsPerGame\|blocksPerGame\|3PointsMadePerGame\|fieldGoalPercentage].leaders[].{displayValue, athlete.{id,displayName,position}, team.abbreviation}` (its 3P% category is a fraction, 1.0, unlike the others: don't use it). FG% leaders include low-volume players this early (Kessler 82.1): ESPN's qualification, labelled as such |
-| Team stats | `web/common/v3/sports/basketball/nba/statistics/byteam?limit=30` (`byteamlg.json`) | names from top-level `categories[].names`; `teams[].team.abbreviation`; `teams[].categories[]` with `splitId` `"0"` (own) and `"900"` (opponent: points allowed = opponent `avgPoints`); `values[]`. **Rank in the app** (ESPN's `ranks` are mostly "-"): rank = 1 + teams strictly better; equal values share it and show `T-` (`NBA.teamStats` already does this; add opponent `avgPoints` as `opp_avgPoints` and lower-is-better for it) |
-| News list | `base/news?limit=25[&team={id}]` (`news.json`, `news29.json`) | `articles[].{id,type,headline,description,published,byline,premium}`, `images[]` (`type` `header` first; skip `stitcher`), `categories[]`: `type` `league` (**`leagueId` 59 = WNBA, drop**), `team` (`teamId`, `team.abbreviation`), **`athlete` (`athlete.id`)**, **`event` (`eventId`)**; drop `type: "Media"`. **New** in `NBA.news()`: return `events`, `athletes`, `leagues` |
-| Story text **new** | `content.core.api.espn.com/v1/sports/news/{id}` (`articles[].links.api.self.href`) | `headlines[0].{headline,byline,published,story}` (HTML, stripped as in section 6) |
-| Today's games | the existing scoreboard | LIVE pills in Standings, the hub |
-| Images | `a.espncdn.com/combiner/i?img=<path>&w=<2x>&h=<2x>` (ESPN's resizer) | logos `/i/teamlogos/nba/500-dark/scoreboard/<abbr>.png` at 48/64/128; headshots `/i/headshots/nba/players/full/<id>.png` at 252 x 184 (card) and 308 x 224 (sheet); news `images[].url` path at 896 x 504 (preview, cards) and 1360 x 352 (reader). Fits the "decoded at display size" rule (UI-SPEC 9) |
+| Standings | `site.web.api.espn.com/apis/v2/sports/basketball/nba/standings` | `children[].name`; `entries[].team.{abbreviation,displayName,shortDisplayName,location}`; `entries[].stats[]` by `name`: `playoffSeed`, `wins`, `losses`, `winPercent`, `gamesBehind`, `streak`, `"Last Ten Games"`, `Home`, `Road` |
+| Schedule | `site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/{id}/schedule` | `team.{recordSummary,standingSummary}`; `events[].id/date`; `competitions[0].competitors[].{homeAway,team.abbreviation,score.displayValue,winner}`; `status.type.{state,shortDetail}`; `broadcasts[].media.shortName`; `seasonType.type` |
+| Roster | `…/teams/{id}/roster` | `athletes[].{id,jersey,displayName,position.abbreviation,age,displayHeight,experience.years,college.name,birthPlace,injuries[0].status,headshot.href}` |
+| Player averages | `…/teams/{id}/athletes/statistics` (the brief's `byteam.json` is the league list; ESPN ignores its team filter) | `results[0].leaders[].athlete`; `statistics[].stats[]`: `gamesPlayed`, `avgMinutes`, `avgPoints`, `avgRebounds`, `avgAssists`, `fieldGoalPct`, `threePointFieldGoalPct` |
+| Leaders | `site.web.api.espn.com/apis/common/v3/sports/basketball/nba/statistics/byathlete?sort=<cat>.<stat>:desc&limit=10` (as `NBA.leaders`, with limit 10) | the mocks used the `leaders2.json` shape, `leaders.categories[].leaders[].{displayValue,athlete,team.abbreviation}`. Its 3P% is a fraction: don't use it |
+| Team stats | `…/statistics/byteam?limit=30` | top-level `categories[].names`; `teams[].categories[]` with `splitId` 0 (own) and 900 (opponent); ranks computed in the app, with ties as `T-` |
+| News | `…/news?limit=25[&team={id}]` | `articles[].{id,type,headline,description,published,byline,premium,images[]}`; `categories[]`: `league.leagueId` (drop 59, 3090, 22000), `team.teamId`, `athlete.athlete.id`, `event.eventId`. **New in `NBA.news()`**: return events, athletes, leagues, and sort newest first |
+| Story text (new) | `content.core.api.espn.com/v1/sports/news/{id}` | `headlines[0].story` (HTML): keep the `<p>` text; drop script, iframe, figure, aside and paragraphs under 30 characters; then scan it (section 8.3) |
+| Images | `a.espncdn.com/combiner/i?img=<path>&w=&h=` | logos, headshots and photos at 2x display size |
 
-## 11. Refresh and cache (IndexedDB, stale-while-revalidate; nothing refreshes under the player)
+## 11. Refresh and cache (stale-while-revalidate; nothing refreshes under the player)
 
-| Data | Fetch when | Then every | Cache kept | Also |
-|---|---|---|---|---|
-| Standings | entering Standings or a team page, if older than 10 min | 10 min while shown | 7 days; **plus the shield copies** (one per fetch, newest 10) | 2 min after any game goes final (scoreboard state change) |
-| Team schedule | entering the team page, if older than 10 min | 10 min while shown; live tiles take the scoreboard's 15 s | 7 days | – |
-| Player averages, team stats, leaders | entering, if older than 1 h | 1 h while shown | 7 days (+ shield copies) | 5 min after your team's final |
-| Roster | entering, if older than 12 h | – | 7 days | – |
-| News lists | entering, if older than 10 min | 10 min while shown | 1 day | – |
-| Story text | opening it | – | 24 h, 30 stories | – |
-| Logos, headshots, photos | as shown (Coil/Glide via the image interceptor) | – | disk cache | – |
+| Data | Fetch when | Then every | Kept |
+|---|---|---|---|
+| Standings | entering, if older than 10 min; 2 min after any final | 10 min while shown | 7 days |
+| **Pinned copies** (standings, leaders, team stats) | at each in-scope tip-off (scoreboard poll, and an exact alarm 10 min before) | – | until that game is seen |
+| Schedule | entering, if older than 10 min | 10 min (live tiles: the scoreboard's 15 s) | 7 days |
+| Player averages, team stats, leaders | entering, if older than 1 h; 5 min after your team's final | 1 h | 7 days |
+| Roster | entering, if older than 12 h | – | 7 days |
+| News | entering, if older than 10 min | 10 min | 1 day |
+| Story text | on open | – | 24 h, 30 stories |
+| Seen | on every reveal or finished watch | – | settings (`upTo` + ids) |
 
 ## 12. Port checklist
 
-1. `pages.css` into `app/tv/app.css`, plus the `:focus` selectors in 2.5.
-2. NBA screen:
-   - the section row, the sections as sub-screens with their own `_last` focus memory;
+1. **CSS:** `pages.css` into `app.css`, plus the selectors in 2.5. Change the 16 px hero button gap to 20.
+2. **The NBA screen:**
+   - the section row and its Down `navHook`;
+   - the sections as sub-screens with their own focus memory;
    - the day row under the hero;
-   - `entry` per section (named above).
-3. `team` screen: one renderer for the section and the pushed page; `data-key` everywhere.
-4. Hold-OK menus on `.gc` cards and schedule tiles; OK on a game page team tab opens the team.
-5. `NBA.news()` additions; the story fetch and HTML stripping.
-6. The shield:
-   - seen persistence;
+   - one Back rule.
+3. **The `team` screen:** one renderer for the section and the pushed page; the schedule rail's left/right `navHook`.
+4. **Menus:** hold-OK menus on `.gc` cards, schedule tiles and game-page tabs, plus the `<Team> page ›` row under the
+   box score. Clamp `contextMenu()` to y 513.
+5. **`games.js`:**
+   - `recordFor`;
+   - the `{ upTo, ids }` seen store;
+   - the finished-watch rule;
+   - pinned copies, with their alarm;
    - `covered(story)`;
-   - copies of season data;
-   - `Reveal results`.
-7. `tests/tv/drive.js` scripts for the mocks' paths, and the fake ESPN in `tests/tv` serving these endpoints from `data.json`-shaped fixtures.
+   - the body scan;
+   - Reveal buttons that name their game.
+6. **`NBA.news()`:** the additions and the filters; the story fetch.
+7. **`tests/tv/drive.js`:** one script per section checking where Down from the chip lands and where Back goes, plus a
+   shield script that walks every surface in section 8.2 and fails on any visible record or score of the unseen game.
 
-## 13. Self-check (`node tools/audit.js`, results in `tools/audit-rings.json`)
+## 13. Self-check (`node tools/audit.js`; ring data in `tools/audit-rings.json`)
 
-The v1.2 audit (`design/ui-v1/tools/audit.js`) was adapted for these pages. It runs these checks on every mock:
-- one focus ring per screen;
+**The checks.** The v1.2 audit is adapted for these pages:
+- one ring;
 - text under 14 px;
-- overlaps of text with text, and of text with boxes;
-- text and rings clipped by any `overflow` ancestor;
+- text overlaps;
+- clipping of text and rings;
 - the safe area;
 - contrast;
 - team colour near LIVE or touching a ring;
-- plate text contrast.
+- plate contrast.
 
-The new **RING** check reads the 2x screenshot. It samples pixels all round each focused element: 3.6 px outside it
-for an outer ring, 1.5 px inside for an inset one, every 3 px, skipping the corner radii. It fails if under 90% of any
-side is white. This catches a ring that geometry says is fine but that a band, a sheet or a sibling paints over.
+It also does the **RING** pixel check: the focus ring is read back from the 2x screenshot all round the element, and a
+mock fails if any side is under 90% white.
 
-**Result: 22 pages, 0 findings.** Before the fixes it found 14:
-- the ring of the news row left showing under the open reader;
-- the leader value touching its label;
-- a team plate within 5 px of a category ring;
-- crests over a headline in a photo-less card;
-- `#2` touching the crest on the player sheet;
-- a floating menu's text overlapping (now exempt: the hold-OK menu floats over the page by design, as `contextMenu()` does).
+**v1.1 adds four checks:**
+- **SAFE box:** every floating menu, sheet or reader must sit inside y 27 to 513 and x 48 to 912.
+- **SHIELD:** a mock fails if the focused element is a Reveal.
+- **DIVIDER:** a mock fails if a `#3C3452` line touches a highlighted or focused row. This is read from pixels.
+- **Peek:** a mock fails if a rail has text past x 912.
 
-| Mock | Focused | Ring white (t / b / l / r %) | Ring box (x0, y0, x1, y1) | To the safe edge |
+**Tested by injecting the v1.0 faults.** Each check fires:
+- the v1.0 divider CSS gives `DIVIDER at y 290, 322`;
+- the v1.0 menu position gives `ctxmenu box … 515.0 crosses the safe area`;
+- a focused Reveal gives `SHIELD: the focused element is a Reveal`.
+
+**Result: 30 pages, 0 findings.**
+
+**Fixed during v1.1, from the audit's findings:**
+- a hero ring touching its neighbour at a 16 px gap (now 20);
+- the Kings' next-game label overflowing its block;
+- a record caption touching the next block.
+
+| Mock | Focused | Ring white, all sides | Ring box | To the safe edge |
 |---|---|---|---|---|
-| nba-entry | Grizzlies chip | 100 / 100 / 100 / 100 | 562, 77, 691, 123 | 50 px |
-| nba-card-menu | menu row | 100 all | 360, 357, 588, 415 | 98 |
-| standings-top | West chip | 100 all | 43, 123, 137, 169 | −5 (ring in the 5 px margin; text and box inside) |
-| standings-row | Grizzlies row (inset) | 100 all | 48, 290, 900, 322 | 0 |
-| standings-scrolled | Kings row (inset) | 100 all | 48, 456, 900, 488 | 0 |
-| standings-shield | Reveal results | 100 all | 769, 123, 917, 169 | −5 |
-| leaders | Points | 100 all | 43, 123, 253, 167 | −5 |
-| leaders-row | Boozer row (inset) | 100 all | 272, 296, 912, 326 | 0 |
-| teamstats | Assists | 100 all | 43, 237, 253, 281 | −5 |
-| news | first story | 100 all | 43, 123, 445, 193 | −5 |
-| news-shield | covered story | 100 all | 43, 187, 445, 257 | −5 |
-| news-article | text body (no ring, by design) | – | – | – |
-| team-top | Remind me (lifted) | 100 all | 68, 251, 251, 307 | 19.7 |
-| team-schedule | at Kings tile (lifted) | 100 all | 482, 352, 700, 472 | 41.1 |
-| team-ranks | Rebounds tile | 100 all | 383, 85, 557, 183 | 57.7 |
-| team-shield-news | Rebounds tile | 100 all | 383, 85, 557, 183 | 57.7 |
-| team-roster | Prosper row (inset) | 100 all | 48, 472, 900, 504 | 0 |
-| team-player | sheet button | 100 all | 508, 442, 784, 498 | 14.6 |
-| team-shield | hidden Kings tile | 100 all | 482, 352, 700, 472 | 41.1 |
-| team-other | All teams | 100 all | 288, 77, 428, 123 | 50 |
-| state-down | Try again | 100 all | 777, 123, 917, 169 | −5 |
-| state-loading | Grizzlies chip | 100 all | 547, 77, 692, 123 | 50 |
+| nba-entry | Grizzlies chip | 100% | 148, 77, 278, 123 | 50 px |
+| nba-entry-shield | Watch pre-game | 100% | 68, 255, 300, 311 | 19.7 |
+| nba-card-menu | menu row | 100% | 360, 355, 588, 413 | 100 |
+| standings-top | West | 100% | 43, 123, 137, 169 | −5 (ring in the margin) |
+| standings-row | Grizzlies row (inset) | 100% | 48, 290, 900, 322 | 0 |
+| standings-scrolled | Kings row (inset) | 100% | 48, 456, 900, 488 | 0 |
+| standings-shield | West | 100% | 43, 123, 137, 169 | −5 |
+| standings-cover | Show the East | 100% | 269, 387, 445, 443 | 69.7 |
+| leaders, leaders-shield | Points | 100% | 43, 123, 253, 167 | −5 |
+| leaders-row | Boozer row (inset) | 100% | 272, 296, 912, 326 | 0 |
+| leaders-player | Grizzlies page | 100% | 508, 442, 718, 498 | 14.6 |
+| teamstats | Assists | 100% | 43, 237, 253, 281 | −5 |
+| news, news-shield | second story | 100% | 43, 187, 445, 257 | −5 |
+| news-covered | Keep it hidden | 100% | 246, 293, 423, 349 | 163.6 |
+| news-article, news-article-shield | text body (no ring, by design) | – | – | – |
+| team-top | Watch pre-game | 100% | 68, 251, 300, 307 | 19.7 |
+| team-schedule, team-shield, team-opponent-shield | at/vs Kings tile | 100% | 482, 352, 700, 472 | 41.1 |
+| team-ranks, team-shield-news | Rebounds tile | 100% | 383, 85, 557, 183 | 57.7 |
+| team-roster | Prosper row (inset) | 100% | 48, 472, 900, 504 | 0 |
+| team-player | leaders button | 100% | 508, 442, 784, 498 | 14.6 |
+| team-shield-player | sheet body (no ring: no button under the shield) | – | – | – |
+| team-other | All teams | 100% | 288, 77, 428, 123 | 50 |
+| state-down | West | 100% | 43, 123, 137, 169 | −5 |
+| state-loading | Grizzlies chip | 100% | 134, 77, 279, 123 | 50 |
 
-**Notes on the table:**
-- **"−5"** is the 5 px outer ring of an item that sits on the x 48 or x 912 safe line. Its text and box are inside. The
-  v1.2 audit allows a ring up to 6 px past the line, the convention every existing screen uses (Movies' first column, the guide).
-- **Nothing is drawn below y 513.** The lowest ring is at 512 (the hub grid).
-- **Node counts are 42 to 227.**
+**Notes:**
+- **"−5"** is the 5 px ring of an item on the x 48 safe line. Its box and text are inside, and the v1.2 rule allows a
+  ring up to 6 px past the line.
+- **The lowest ring** is at 512.
+- **Illustrative data:** the pinned-copy values are illustrative where noted (the West copy differs only in the
+  Grizzlies' and Kings' rows; in the leaders copy, only Jerome and LaVine).
 
-**What I couldn't verify:**
-- how the real TV renders: Ambilight, picture modes, the ring on OLED;
-- ESPN's story HTML on more than two stories;
-- the leaders endpoint behind `leaders2.json` (the brief's files carry only response headers);
-- frame times of the table scroll on the TV's chip.
+**Couldn't verify:**
+- the real TV (ring on OLED, plate colours, 15 to 16 px table text from the sofa);
+- scroll frame rates;
+- ESPN's story HTML beyond two stories;
+- the URL behind `leaders2.json`;
+- whether an exact alarm fires and gets network while the Philips is in standby (the same open question as Reminders
+  in NEXT.md).
 
-## 14. Decisions for the owner
+## 14. Decisions
 
-1. **Seen games stay seen** (section 8). This is needed for the shield to work on season pages; it changes today's
-   reveal-per-session. My recommendation is yes.
-2. **The hub's day chips move under the hero** (1.1). This is the only visible change to a screen he already uses.
-3. **Fantasy and betting stories:** ESPN's NBA feed has several a day (4 of 25 today). They could be dropped like
-   videos. I kept them; it's one filter (`categories[].leagueId` 3090 Fantasy, 22000 Betting) if he says so.
+**Settled by the owner:**
+- seen games stay seen (storage as in 8.1);
+- fantasy and betting stories are filtered;
+- the day chips go under the hero;
+- the plate darkening is kept (2.4).
+
+**Open, for the owner:** whether the finished-watch rule (seen at the final buzzer) is right, or whether watching from
+the start of Q4 should already count.
