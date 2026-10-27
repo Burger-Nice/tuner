@@ -207,7 +207,7 @@ final class Replay implements Timeline.Model {
         e.put("link", li);
         TunerPlayerPlugin.emit(e);
     }
-    private String fromUrl = "";
+    private String fromUrl = "";   // the link from a minute that plays now (offset > 0)
     private boolean waitingNet;
     /** The network is back (2 s after it validated): the same place again, on the same link. */
     void netBack() {
@@ -216,7 +216,7 @@ final class Replay implements Timeline.Model {
         opening = false;
         playingUrl = "";
         openAt(target >= 0 ? target : played);
-    }   // the link from a minute that plays now (offset > 0)
+    }
     /** The start of the minute t falls in, as a window position (the archive's links start on whole minutes). */
     private long minuteFrom(long t) {
         long ws = src().windowStart;
@@ -310,7 +310,9 @@ final class Replay implements Timeline.Model {
             if (now - lastReopen < 20000) { atLive(); return; }
             lastReopen = now;
             li = 0;
-            play(link(0)[0], 0, played);
+            opening = false;
+            playingUrl = "";
+            openAt(played);
             return;
         }
         windowEnded();
