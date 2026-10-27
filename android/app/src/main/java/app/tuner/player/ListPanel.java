@@ -37,7 +37,7 @@ class ListPanel extends Overlay {
         return new Source() { public int count() { return list.size(); } public Item get(int i) { return list.get(i); } };
     }
 
-    final LinearLayout box, rows;
+    final LinearLayout box, rows, extra;
     final TextView title, count, caption, foot;
     final ImageView backIcon;
     final List<Item> fixed = new ArrayList<>();   // rows above the scrolling list (the pinned game)
@@ -73,6 +73,10 @@ class ListPanel extends Overlay {
         caption.setPadding(Ui.dp(10), Ui.dp(2), Ui.dp(10), Ui.dp(6));
         caption.setVisibility(View.GONE);
         box.addView(caption);
+        extra = new LinearLayout(c);   // the diagnosis' verdict and path, above the rows
+        extra.setOrientation(LinearLayout.VERTICAL);
+        extra.setVisibility(View.GONE);
+        box.addView(extra);
         fixedBox = new LinearLayout(c);
         fixedBox.setOrientation(LinearLayout.VERTICAL);
         box.addView(fixedBox);
@@ -95,6 +99,14 @@ class ListPanel extends Overlay {
         return this;
     }
     void setCaption(String s) { caption.setText(s); caption.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE); }
+    private int extraDp;
+    /** Something above the rows that isn't a row (the Connection panel's verdict and path), heightDp tall. */
+    void setExtra(View v, int heightDp) {
+        extra.removeAllViews();
+        if (v != null) extra.addView(v);
+        extra.setVisibility(v == null ? View.GONE : View.VISIBLE);
+        extraDp = v == null ? 0 : heightDp;
+    }
     void setFoot(String s) { foot.setText(s); foot.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE); }
     void setCount(String s) { count.setText(s == null ? "" : s); }
     void showBack(boolean on) { backIcon.setVisibility(on ? View.VISIBLE : View.GONE); }
@@ -109,6 +121,7 @@ class ListPanel extends Overlay {
         int h = Ui.dp(MAX_H) - Ui.dp(24) - Ui.dp(36);
         if (caption.getVisibility() == View.VISIBLE) h -= Ui.dp(44);
         if (foot.getVisibility() == View.VISIBLE) h -= Ui.dp(30);
+        h -= Ui.dp(extraDp);
         for (Item it : fixed) h -= Ui.dp(it.height + 10);
         return h;
     }

@@ -40,6 +40,8 @@ final class Ui {
     static final int PINK = 0xFFF95BAC, ORCHID = 0xFFD540F5, PINK_TEXT = 0xFFFFB4D4;
     static final int LIVE = 0xFFFF4B4B, LIVE_TEXT = 0xFFFF8F8F, LIVE_TEXT_ON_S3 = 0xFFFFBABA;
     static final int FOCUS = 0xFFFFFFFF;
+    /** "Checked and fine" (the diagnosis path's tick badge), always with its icon. */
+    static final int OK = 0xFF47D394;
     /** Panels sit on the picture at 92 to 94%. */
     static final int PANEL = 0xF01E1B28, BANNER = 0xEB1E1B28, SCRIM = 0xD915131D;
 
@@ -206,8 +208,8 @@ final class Ui {
     }
 
     static final class Icon extends Drawable {
-        private final Path path = new Path();
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path(), dots = new Path(), faint = new Path();   // dots are filled; faint is drawn at 30 %
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG), dotP = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final boolean fill;
         private final int size;
         Icon(String name, int color, int sizeDp) {
@@ -241,12 +243,29 @@ final class Ui {
                 case "frames": rect(3, 4, 18, 16, 2.5f); d("M3 9h18M3 15h18"); break;
                 case "quality": rect(3, 5, 18, 14, 3); d("M7 9.5v5M7 12h3.2M10.2 9.5v5M13.5 9.5v5h1.3a2.5 2.5 0 0 0 0-5z"); break;
                 case "info": path.addCircle(12, 12, 9, Path.Direction.CW); d("M12 11v5.5M12 7.8v.2"); break;
+                // the diagnosis path (design/ui-v1/diagnosis/SPEC.md 2.3)
+                case "wifi": sw(2); d(ARCS); dot(12, 19.2f, 1.4f); break;
+                case "wifiWeak": sw(2); faint(ARCS2); d("M8.7 15.8a5 5 0 0 1 6.6 0"); dot(12, 19.2f, 1.4f); break;
+                case "wifiOff": sw(2); faint(ARCS); d("M4 4l16 16"); break;
+                case "cable": sw(2); d("M9 3v4.5M15 3v4.5M6.5 7.5h11v3.5a5.5 5.5 0 0 1-11 0zM12 16.5V21"); break;
+                case "globe": sw(2); path.addCircle(12, 12, 9, Path.Direction.CW); d("M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z"); break;
+                case "server": sw(2); rect(4, 4, 16, 7, 2); rect(4, 13, 16, 7, 2); dot(8, 7.5f, 1.5f); dot(8, 16.5f, 1.5f); break;
+                case "stream": sw(2); dot(12, 12, 2); d("M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"); break;
+                case "signal": sw(2.6f); d("M5 19v-3M10 19v-6.5M15 19V9M20 19V5"); break;
+                case "list": sw(2.2f); d("M8 6h12M8 12h12M8 18h12"); dot(4, 6, 1.3f); dot(4, 12, 1.3f); dot(4, 18, 1.3f); break;
+                case "check": sw(3.6f); d("M5 12.5l4.5 4.5L19 7.5"); break;
+                case "bang": sw(3.2f); d("M12 5v8.5"); dot(12, 18.6f, 2); break;
                 default: break;
             }
             fill = f;
             if (fill) paint.setStyle(Paint.Style.FILL);
+            dotP.setColor(color);
             setBounds(0, 0, size, size);
         }
+        private static final String ARCS = "M2.6 9.2a14 14 0 0 1 18.8 0M5.6 12.5a9.6 9.6 0 0 1 12.8 0M8.7 15.8a5 5 0 0 1 6.6 0", ARCS2 = "M2.6 9.2a14 14 0 0 1 18.8 0M5.6 12.5a9.6 9.6 0 0 1 12.8 0";
+        private void sw(float w) { paint.setStrokeWidth(w); }
+        private void dot(float x, float y, float r) { dots.addCircle(x, y, r, Path.Direction.CW); }
+        private void faint(String s) { try { faint.addPath(PathParser.createPathFromPathData(s)); } catch (Exception ignored) {} }
         private void d(String s) { try { path.addPath(PathParser.createPathFromPathData(s)); } catch (Exception ignored) {} }
         private void rect(float x, float y, float w, float h, float r) { path.addRoundRect(new RectF(x, y, x + w, y + h), r, r, Path.Direction.CW); }
         @Override public void draw(@NonNull Canvas c) {
@@ -255,12 +274,14 @@ final class Ui {
             c.translate(getBounds().left, getBounds().top);
             c.scale(s, s);
             c.drawPath(path, paint);
+            if (!dots.isEmpty()) c.drawPath(dots, dotP);
+            if (!faint.isEmpty()) { int a = paint.getAlpha(); paint.setAlpha(a * 3 / 10); c.drawPath(faint, paint); paint.setAlpha(a); }
             c.restore();
         }
         @Override public int getIntrinsicWidth() { return size; }
         @Override public int getIntrinsicHeight() { return size; }
-        @Override public void setAlpha(int a) { paint.setAlpha(a); }
-        @Override public void setColorFilter(ColorFilter f) { paint.setColorFilter(f); }
+        @Override public void setAlpha(int a) { paint.setAlpha(a); dotP.setAlpha(a); }
+        @Override public void setColorFilter(ColorFilter f) { paint.setColorFilter(f); dotP.setColorFilter(f); }
         @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
     }
 
