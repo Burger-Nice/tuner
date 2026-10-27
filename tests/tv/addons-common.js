@@ -37,7 +37,7 @@ module.exports = async ({ p, key }, opts = {}) => {
   await p.reload(); await p.waitForTimeout(3500);
 };
 module.exports.H = H;
-module.exports.where = (p) => p.evaluate(() => { const a = document.activeElement; return `${a.className} ${a.dataset.key || a.dataset.act || ''} "${(a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50)}"`; });
+module.exports.where = (p) => p.evaluate(() => { const a = document.activeElement; return `${a.className} ${a.dataset.key || a.dataset.act || a.dataset.res || ''} "${(a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50)}"`; });
 module.exports.ok = async (p, label, want) => { const w = await module.exports.where(p); const good = typeof want === 'function' ? want(w) : w.includes(want); console.log((good ? 'OK   ' : 'FAIL ') + label.padEnd(34), w); return good; };
 module.exports.check = (label, good, detail = '') => { console.log((good ? 'OK   ' : 'FAIL ') + label.padEnd(34), detail); return good; };
 module.exports.hold = async (p) => { await p.keyboard.down('Enter'); await p.waitForTimeout(650); await p.keyboard.up('Enter'); await p.waitForTimeout(400); };

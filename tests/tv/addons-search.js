@@ -21,7 +21,7 @@ module.exports = async ({ p, shot, key }) => {
   check('Dune: Part Three (2027) left out', !/Part Three/.test(txt));
   // into the results, then ▼ into the add-on block
   await key('ArrowRight', 6, 100); await ok(p, 'in the results', 'rrow');
-  await key('ArrowUp', 1, 300); await ok(p, 'the add-on block: Dune', 'sa:tt9000012'); await shot('search-addons-focus');
+  await key('ArrowUp', 1, 300); await ok(p, 'the add-on block: Dune', 'a:movie:tt9000012'); await shot('search-addons-focus');
   await key('Enter', 1, 2500); await shot('search-open-dune');
   check('Dune\'s page: details from Cinemeta', await ev(() => /Not on your provider · details from Cinemeta/.test(document.querySelector('[data-screen="detail"]')?.innerText || '')));
   await key('Escape', 1, 800);
