@@ -20,6 +20,8 @@ import { openPlayer, seasonOf, ordinalOf, posName } from './player.js';
 import { pickerHtml, openPicker, confOf } from './picker.js';
 import * as newsMod from './news.js';
 import * as statsMod from './teamstats.js';
+import { heroRow, findReplays, replaysOf, sourceCaption } from '../catchup.js';
+import { watchFromTipoff, resumeGame, backToLive, sourcesSheet } from '../replay.js';
 
 const svg = (p) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
 const INJ = svg('<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M12 8v8M8 12h8"/>');
@@ -125,6 +127,17 @@ export function teamPage({ pushed = false } = {}) {
     if (!sched() && failed(`schedule:${abbr}`)) return { btns: [['retry', `${ic('refresh')}Try again`]], cap: 'ESPN isn’t answering<br>airglow tries again every minute' };
     if (!g) return { btns: [], cap: '' };   // (off-season: the next-game block says so)
     const v = show(g), s = sideOf(v.g, abbr);
+    // the hero state table's catch-up rows (catch-up 5.1)
+    const row = heroRow(g);
+    if (row) {
+      const k = row.kind;
+      if (k === 'live-tipoff') return { btns: [['watch', `${ic('play')}Watch live`], ['rp:tipoff', `${ic('tipoff')}From tip-off`], v.hidden ? ['reveal', `${ic('eyeOff', 'sm')}Reveal ${esc(gameName(g))}`] : ['game', 'Box score']], cap: '' };
+      if (k === 'behind') return { btns: [['rp:resume', `${ic('play')}Resume`], ['rp:golive', 'Back to live'], ['game', 'Game page']], cap: '' };
+      if (k === 'resume') return { btns: [['rp:resume', `${ic('play')}Resume`], ['rp:tipoff', `${ic('tipoff')}From tip-off`], ['game', 'Game page']], cap: '' };
+      if (k === 'morning') return { btns: [['rp:tipoff', `${ic('play')}Watch from tip-off`], ['game', 'Game page']], cap: sourceCaption(row.src) };
+      if (k === 'looking') return { btns: [['game', 'Game page']], cap: 'No replay yet<br>airglow keeps looking' };
+      if (k === 'seen') return { btns: [['game', `${ic('score')}Box score`], ['rp:again', `${ic('play')}Watch again`]], cap: `Final${dot}${s.won ? 'W' : 'L'} ${esc(s.me.score)}–${esc(s.op.score)}` };
+    }
     if (g.state === 'pre') {
       const ch = bestChannel(g), soon = g.date - Date.now() <= 3 * 3600e3;
       if (soon && ch) return { btns: [['watch', `${ic('play')}Watch pre-game`], ['game', 'Game page']], cap: `${esc(tipsIn(g.date))}<br>On ${esc(ch.name)}` };
@@ -162,7 +175,7 @@ export function teamPage({ pushed = false } = {}) {
     if (nx) { const ns = sideOf(nx, abbr); next = `<div class="nb-next"><span class="t-label">Next${dot}${esc(whenWord(nx.date))} ${hm(nx.date)}</span><div class="mu">${tc(ns.op, 's28')}<span>${ns.word} ${esc(ns.op.name)}</span></div><div class="tv">${esc(nx.tv[0] || '')}</div></div>`; }
     else if (data) next = '<div class="nb-next"><span class="t-label">Next</span><div class="tv">Schedule out in August</div></div>';   // (the status row says Off-season)
     const parts = heroParts(hero);
-    const btns = parts.btns.map(([act, label], i) => `<span class="${i ? 'btn2' : 'btn'} fx" tabindex="-1" data-act="${act}"${act === 'reveal' ? ` data-g="${esc(hero.id)}"` : ''}>${label}</span>`).join('');
+    const btns = parts.btns.map(([act, label], i) => `<span class="${i ? 'btn2' : 'btn'} fx" tabindex="-1" data-act="${act}"${act === 'reveal' ? ` data-g="${esc(hero.id)}"` : ''}${/^rp:(tipoff|resume|again)$/.test(act) ? ' data-hold' : ''}>${label}</span>`).join('');
     return `<div class="nb-head tp-b" data-area="top">
   <div class="st">${status}</div>
   <div class="nb-plate" style="${teamVars(abbr)}">${tc(abbr, 'xl')}<div><div class="loc">${esc(n.city)}</div><div class="nk">${esc(n.name)}</div></div></div>
@@ -181,6 +194,7 @@ export function teamPage({ pushed = false } = {}) {
     if (g.state === 'post') r = v.hidden ? `<span class="nb-hid">${ic('eyeOff')}Result hidden</span>` : `<b class="${s.won ? '' : 'l'}">${s.won ? 'W' : 'L'}</b><b class="${s.won ? '' : 'l'}" style="font-weight:650">${esc(s.me.score)}–${esc(s.op.score)}</b>`;
     else if (g.state === 'in') r = `${liveP()}<span>${esc(clockText(v.g))}</span>`;
     else r = `<span>${hm(g.date)}${g.tv[0] ? `${dot}${esc(shortTv(g.tv[0]))}` : ''}</span>`;
+    if (g.state !== 'pre' && replaysOf(g)?.length) r += `<span class="cu-g">${ic('hist')}</span>`;   // (catch-up 5.3: a replay)
     return `<div class="nb-gt${g === next ? ' next' : ''}${pk ? ' pk' : ' fx'}${k === 3 ? ' edge' : ''}"${pk ? '' : ' tabindex="-1" data-hold'} data-key="g:${esc(g.id)}" data-g="${esc(g.id)}"><div class="d">${d}</div><div class="o">${tc(s.op, 's32')}<span>${s.word} ${esc(s.op.name)}</span></div><div class="r">${r}</div></div>`;
   }
   const clampWs = (fi, n) => Math.max(0, Math.min(fi - 2, n - 4));
@@ -203,7 +217,7 @@ export function teamPage({ pushed = false } = {}) {
     if (fail && !sched()) return `<div class="nb-title tp-b" style="top:${Y.sched}px">Schedule<small>Couldn’t load from ESPN · trying again</small></div>`;
     const small = fail ? 'Couldn’t load from ESPN · trying again'
       : !games.length ? (sched() ? 'No games on the schedule yet' : 'Loading…')
-      : [un.length ? `${seen} seen${dot}${un.length} hidden` : esc(rec.text), `${left} to go`, '◀ results', '▶ coming up'].filter(Boolean).join(dot);
+      : [un.length ? `${seen} seen${dot}${un.length} hidden` : esc(rec.text), un.length ? '' : `${left} to go`, games.some((g) => g.state !== 'pre' && replaysOf(g)?.length) ? `${ic('hist', 'xs')}&nbsp;replay` : '', '◀ results', '▶ coming up'].filter(Boolean).join(dot);
     const tiles = sched() ? railTiles(games, hero) : Array.from({ length: 5 }, (_, k) => `<div class="nb-gt${k >= 4 ? ' pk' : ''}" style="background:var(--a-surface-1)"></div>`).join('');
     const entry = games[st.fi] ? ` data-entry='[data-key="g:${esc(games[st.fi].id)}"]'` : '';
     return `<div class="nb-title tp-b" style="top:${Y.sched}px">Schedule<small>${small}</small></div>
@@ -297,6 +311,8 @@ export function teamPage({ pushed = false } = {}) {
     if (!root || !abbr || !ctx?.visible() || body.parentElement.hidden) return;   // (the section's picker is showing instead)
     if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
     const games = list(), hero = heroOf(games);
+    // the finals of the last 3 days (and a live game): their replays, for the tiles' mark (catch-up 5.3)
+    for (const g of games) if ((g.state === 'post' || g.state === 'in') && Date.now() - g.date < 3 * 864e5 && !replaysOf(g)) findReplays(g);
     // each part is redrawn only when it changed, so a tick of the clock doesn't replace the tile you're holding OK on
     let changed = false;
     changed = setHtml(part('head'), headHtml(games, hero)) || changed;
@@ -418,6 +434,9 @@ export function teamPage({ pushed = false } = {}) {
     if (!g) return;
     if (act === 'game' || act === 'box') return push('game', { id: g.id });
     if (act === 'reveal') return reveal(b, () => draw());
+    if (act === 'rp:tipoff' || act === 'rp:again') return watchFromTipoff(g);
+    if (act === 'rp:resume') return resumeGame(g);
+    if (act === 'rp:golive') return backToLive(g);
     if (act === 'watch') {
       const ch = bestChannel(g);
       if (ch) return playLive(ch, ringFor(ch), ringName(ch));
@@ -433,13 +452,20 @@ export function teamPage({ pushed = false } = {}) {
   function tileMenu(tile) {
     const g = list().find((x) => x.id === tile.dataset.g);
     if (!g) return;
-    const s = sideOf(g, abbr), v = show(g);
+    const s = sideOf(g, abbr), v = show(g), rp = g.state !== 'pre' && replaysOf(g)?.length;
     const rows = [
       { icon: 'chevR', label: `${s.op.name} page`, run: () => push('team', { abbr: s.op.abbr }) },
       { icon: 'score', label: 'Open the game', run: () => push('game', { id: g.id }) },
     ];
     if (v.hidden) rows.push({ icon: 'eyeOff', label: `Reveal ${gameName(g)}`, run: () => reveal({ dataset: { g: g.id } }, () => draw()) });
-    contextMenu(tile, rows);
+    if (!rp) return contextMenu(tile, rows);
+    // with a replay (catch-up 5.4): Watch from tip-off first (live: Watch live, From tip-off), the opponent's crest
+    rows[0].lead = tc(s.op, 's24');
+    if (g.state === 'in') {
+      const ch = bestChannel(g);
+      rows.unshift({ icon: 'play', label: 'Watch live', run: () => (ch ? playLive(ch, ringFor(ch), ringName(ch)) : push('game', { id: g.id })) }, { icon: 'tipoff', label: 'From tip-off', run: () => watchFromTipoff(g) });
+    } else rows.unshift({ icon: 'play', label: 'Watch from tip-off', run: () => watchFromTipoff(g) });
+    contextMenu(tile, rows, { cls: 'cu-w' });
   }
   function sortMenu() {
     const shield = unseenFor(abbr).length > 0;
@@ -488,6 +514,8 @@ export function teamPage({ pushed = false } = {}) {
         if (row) return openPlayer(playerOf(row), { from: 'roster' });
       });
       root.addEventListener('tvhold', (e) => {
+        const hb = e.target.closest('.nb-btns [data-act^="rp:"]');
+        if (hb) { const g = heroOf(list()); if (g) sourcesSheet(g); return; }
         const tile = e.target.closest('.nb-gt.fx');
         if (tile) return tileMenu(tile);
         const row = e.target.closest('.nb-tr.fx');
@@ -496,7 +524,7 @@ export function teamPage({ pushed = false } = {}) {
       root.addEventListener('tvfocus', (e) => { if (body.contains(e.target)) place(); });
       const redraw = () => { if (abbr && ctx.visible()) draw(); };
       on('league', (k) => { if (k === 'pin' || keys().includes(k) || k.startsWith('schedule:')) redraw(); });
-      on('nba', redraw); on('feeds', redraw);
+      on('nba', redraw); on('feeds', redraw); on('replays', redraw); on('progress', redraw);
       on('player-closed', () => { if (behind) { behind = false; redraw(); } });
       // every minute: want() fetches what's older than its age (schedule and news 10 min, stats 1 h), or what failed
       setInterval(() => { if (!abbr || !ctx.visible()) return; for (const k of keys()) if (!loading(k)) want(k); draw(); }, 60000);
