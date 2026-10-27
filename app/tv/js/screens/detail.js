@@ -10,15 +10,18 @@ import { focus } from '../focus.js';
 import { openDetail } from '../actions.js';
 import { openOverlay, radioMenu, toast } from '../ui.js';
 import { titleCopies, copiesMenu, slotHooks, PUZZLE } from '../titlecopies.js';
+import { titleSubs } from '../titlesubs.js';
+import { keyOf } from '../util.js';
 import * as AD from '../addons.js';
 import { SPIN } from './addons.js';
 
 let el, t = null, ver = null, info = null, season = null, epFocus = null, my = 0;
 // tc: this title's copies from every source (titlecopies.js; design/ui-v1/addons/SPEC.md 5). Inert with no stream add-on.
 let tc = null, epT = 0;
+// ts: this title's subtitles and quality checks (titlesubs.js; design/ui-v1/subtitles/SPEC.md 4)
+let ts = null;
+slotHooks.subtitles = () => ts?.slot() || '';
 const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" decoding="async">` : '');
-const SUBS = [['auto', 'Auto'], ['off', 'Off'], ['English', 'English'], ['Spanish', 'Spanish'], ['French', 'French'], ['German', 'German']];
-const subLabel = () => SUBS.find(([v]) => v === (settings().subLang || 'auto'))?.[1] || 'Auto';
 
 const infoCache = new Map();   // kind:id:version -> details, the last 30
 // Seasons as shown: the provider's, or with add-ons the union with Cinemeta's (SPEC 5.8): provider episodes stay the
@@ -114,7 +117,7 @@ function draw() {
   const meta = [rating ? `<span class="star">${ic('star')}${esc(rating)}</span>` : '', d.year || t.year ? `<span>${esc(d.year || t.year)}</span>` : '', movie && d.duration ? `<span>${esc(d.duration)}</span>` : '', !movie && seasons ? `<span>${seasons} season${seasons > 1 ? 's' : ''}</span>` : '']
     .filter(Boolean).join(dot);
   const on = !!tc?.active, best = on && movie ? tc.best() : null;
-  const tags = on && best ? tc.tags(best) : [ver?._q === '4K' ? tag('4K', 'q') : ver?._q === 'Full HD' ? tag('HD', 'q') : '', ver?._hdr ? tag('HDR', 'q') : '', ver?._lang ? tag(ver._lang.slice(0, 2).toUpperCase()) : ''].join('');
+  const tags = on && best ? tc.tags(best) : !movie && ts ? ts.epTags() : [ver?._q === '4K' ? tag('4K', 'q') : ver?._q === 'Full HD' ? tag('HD', 'q') : '', ver?._hdr ? tag('HDR', 'q') : '', ver?._lang ? tag(ver._lang.slice(0, 2).toUpperCase()) : ''].join('');
   const p = movie ? resumePoint() : null;
   const resume = movie && inProgress(p);
   let play = '';
@@ -127,9 +130,15 @@ function draw() {
   const saved = isFav(t);
   const credits = [d.director ? `Directed by <span class="t-2">${esc(d.director)}</span>` : '', d.cast ? `<span class="t-2">${esc(d.cast)}</span>` : ''].filter(Boolean).join(dot);
   // the pill-row slot, one text by priority (SPEC 5.1): 1 the time left, 2 who is still asking, 3 the subtitles' text
-  const slot = resume ? leftText(p.d - p.t) : on ? tc.slot() || slotHooks.subtitles?.(t, info) || tc.matchNote() : '';
-  const vpill = on ? (tc.pillShows() ? `<span class="pillbtn fx" tabindex="-1" data-act="version">${tc.pillHtml()}</span>` : '') : t.versions.length > 1 ? `<span class="pillbtn fx" tabindex="-1" data-act="version">${ic('film')}${esc(versionLabel(ver))} ${ic('chevD')}</span>` : '';
-  const pills = `${vpill}<span class="pillbtn fx" tabindex="-1" data-act="subs">${ic('cc')}Subtitles: ${esc(subLabel())}</span>${slot ? `<span class="st-side">${slot}</span>` : ''}`;
+  const taken = resume ? leftText(p.d - p.t) : on ? tc.slot() : '';
+  const slot = taken || slotHooks.subtitles?.(t, info) || (on ? tc.matchNote() : '');
+  // the Version pill: dashed while this page's copies are checked ("Checking copies · 2 of 4") or while checks wait
+  // ("4K · not checked"), then the best real copy (subtitles SPEC 4.2)
+  const ck = movie ? ts?.checking() : null, b0 = on && movie ? best : null;
+  const vtext = !b0 ? '' : ck?.state === 'checking' ? `${ic('film')}Checking copies · ${Math.min(ck.of, ck.done + 1)} of ${ck.of}` : ck?.state === 'paused' && !b0.checked && b0.source === 'provider' ? `${ic('film')}${esc(b0.claim.res || 'Quality')} · not checked${ic('chevD')}` : '';
+  const vpill = on ? (tc.pillShows() ? (vtext ? `<span class="pillbtn fx st-wait" tabindex="-1" data-act="version">${vtext}</span>` : `<span class="pillbtn fx" tabindex="-1" data-act="version">${tc.pillHtml()}</span>`) : '') : t.versions.length > 1 ? `<span class="pillbtn fx" tabindex="-1" data-act="version">${ic('film')}${esc(versionLabel(ver))} ${ic('chevD')}</span>` : '';
+  const subsPill = ts ? ts.pillHtml({ slotTaken: !!taken }) : `<span class="pillbtn fx st-wait" tabindex="-1" data-act="subs">${ic('cc')}Subtitles: looking…</span>`;
+  const pills = `${vpill}${subsPill}${slot ? `<span class="st-side">${slot}</span>` : ''}`;
   const wcap = wait ? '<span class="ad-wcap">Looking for a better copy · <b>OK</b> plays this one now · <b>Back</b> stops</span>' : '';
   const backdrop = d.backdrop || t.poster;
   let below = '';
@@ -164,7 +173,7 @@ function draw() {
   ${movie && credits ? `<div class="t-cap ellipsis" style="margin-top:8px;width:500px">${credits}</div>` : ''}
   ${t.addon ? `<div class="t-cap" style="margin-top:8px;display:flex;align-items:center;gap:6px">${PUZZLE.replace('class="ic"', 'class="ic xs"')}Not on your provider · details from ${esc(info?.from || 'Cinemeta')}</div>` : ''}
   ${nothing ? `<div class="t-body" style="margin-top:8px;width:640px;color:var(--a-text-2)">${esc(nothing)}</div>` : ''}
-  <div class="row-flex" data-row style="gap:20px;margin-top:${movie ? 20 : 16}px;height:44px;padding-left:2px">${play}<span class="btn2 fx" tabindex="-1" data-act="save">${ic(saved ? 'check' : 'saved')}${saved ? 'Saved' : 'Save'}</span>${wcap}${movie ? '' : seriesPill() || `<span class="pillbtn fx" tabindex="-1" data-act="subs">${ic('cc')}Subtitles: ${esc(subLabel())}</span>`}</div>
+  <div class="row-flex" data-row style="gap:20px;margin-top:${movie ? 20 : 16}px;height:44px;padding-left:2px">${play}<span class="btn2 fx" tabindex="-1" data-act="save">${ic(saved ? 'check' : 'saved')}${saved ? 'Saved' : 'Save'}</span>${wcap}${movie ? '' : `${seriesPill()}${subsPill}`}</div>
   ${movie ? `<div class="row-flex" data-row style="gap:10px;margin-top:12px;height:36px;width:864px">${pills}</div>` : ''}
 </div>${below}`);
   fitCol(movie);
@@ -198,8 +207,12 @@ async function addonInfo(t) {
   return { plot: m.description, genre: m.genres.join(', '), cast: m.cast.join(', '), director: m.director.join(', '), year: m.year ? String(m.year) : '', duration: mins ? (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`) : '', rating: m.imdbRating, backdrop: m.background || m.poster, seasons: [], from: m.from };
 }
 // A copy's resume point: the provider version's, or (an add-on copy played before) the title's IMDb key (SPEC 8.3)
+// (a film part-watched in one copy resumes that copy, even when the checks now rank another first: SPEC 5.4, a check
+// changes the default for the next fresh Play)
+const resumeVer = () => (t.versions || []).map((v) => [v, progressOf(v)]).filter(([, x]) => inProgress(x)).sort((a, b) => b[1].at - a[1].at)[0]?.[0] || null;
 function resumePoint() {
-  const a = ver ? progressOf(ver) : null;
+  const rv = resumeVer() || ver;
+  const a = rv ? progressOf(rv) : null;
   const id = tc?.match?.id || (t.addon ? t.id : '');
   const b = id ? progressOf({ kind: 'movie', id }) : null;
   return a && b ? (a.at >= b.at ? a : b) : a || b;
@@ -223,7 +236,8 @@ function seriesPill() {
 function synLine(e) {
   const row = rowOf.get(e), best = row && tc?.active ? tc.episodeCopies(row)[0] : null;
   const right = best && best.source !== 'provider' ? `<span class="ad-r">${esc([best.claim.res, best.claim.dv ? 'Dolby Vision' : best.claim.hdr ? 'HDR10' : ''].filter(Boolean).join(' ') || 'Copy')} · ${esc(best.source)}</span>` : row?.soon ? `<span class="ad-r">Not out yet</span>` : '';
-  return `${right}<b>${epLine(e)}</b>${e.plot ? `${dot}${esc(e.plot)}` : ''}`;
+  const subs = ts?.epText(e) || '';
+  return `${right}<b>${epLine(e)}</b>${subs ? `${dot}${esc(subs)}` : ''}${e.plot ? `${dot}${esc(e.plot)}` : ''}`;
 }
 // The text column never runs into what's below it (More like this for a film, the seasons for a series): a long plot
 // goes to one line, then a long title gets smaller, and the last few pixels move the row below down a little.
@@ -293,7 +307,10 @@ function placeTracks() {
 }
 
 function play(restart) {
+  ts?.beforePlay();
   if (t.kind === 'movie') {
+    const rv = !restart && resumeVer();
+    if (rv && inProgress(resumePoint()) && progressOf(rv) === resumePoint() && !tc?.waiting()) return playVod(rv);
     if (tc?.active) { if (tc.waiting()) { tc.stopWait(); return tc.play({ now: true, restart }); } return tc.play({ restart }); }   // (OK during the wait plays the best so far)
     return playVod(ver, { restart });
   }
@@ -303,6 +320,7 @@ function play(restart) {
 // An episode: the provider's, or the best copy of it from every source (SPEC 5.8). Not out yet: its date.
 function playEpisode(e) {
   if (notOut(e)) return toast(`${epName(e) || `Episode ${e.ep}`} isn't out yet`);
+  ts?.beforePlay(e);
   const row = rowOf.get(e);
   const rows = episodes().map((x) => rowOf.get(x) || { prov: x, season: x.season, ep: x.ep, name: x.name, vid: null }).filter((x) => !x.soon);
   if (tc?.active && row) { tc.askEpisode(row); if (tc.playEpisode(row, rows.slice(rows.indexOf(row)))) return; }
@@ -322,13 +340,9 @@ function versionSheet() {
     onPick: (id) => { ver = vs.find((v) => v.id === id) || ver; pickVersion(t, ver); draw(); focus(el.querySelector('[data-act="version"]')); },
   });
 }
+// The Subtitles sheet, or "Which film is this?" when the pill asks (subtitles SPEC 4.4, 4.5)
 function subsMenu() {
-  radioMenu({
-    title: 'Subtitles', value: settings().subLang || 'auto', style: 'left:48px;top:150px;width:360px',
-    rows: SUBS.map(([v, l]) => ({ v, l })),
-    extra: '<div class="t-cap" style="padding:8px 8px 2px">Used when the file has them. Change it in the player with ▼.</div>',
-    onPick: (v) => { saveSettings({ subLang: v }); draw(); focus(el.querySelector('[data-act="subs"]')); },
-  });
+  ts?.sheet(() => { draw(); focus(el.querySelector('[data-act="subs"]') || el.querySelector('[data-act="play"]')); });
 }
 
 export default {
@@ -363,32 +377,38 @@ export default {
         clearTimeout(epT);
         const row = rowOf.get(epFocus), was = epFocus;
         if (row?.vid && tc?.active) epT = setTimeout(() => { if (epFocus === was && !el.hidden) { tc.askEpisode(row); } }, 1000);
+        ts?.focusEp(epFocus);   // (its subtitles, after the same 1 s)
       }
     });
     on('progress', () => { if (!el.hidden) draw(); });
     on('copies', () => { if (!el.hidden) draw(); });
+    // the match changed (a check's length made it Sure or dropped it, his pick): the copies and subtitles follow
+    on('imdb', (k) => { if (!el.hidden && t && k === keyOf(t)) tc?.rematch(info || {}); });
   },
   // Back while Play waits stops the wait (RANKING.md 3.2)
   back() { if (tc?.waiting()) { tc.stopWait(); draw(); focus(el.querySelector('[data-act="play"]')); return true; } return false; },
-  leave() { tc?.stopWait(); },
+  leave() { tc?.stopWait(); ts?.leave(); },
   async enter(root, params, { fresh }) {
     if (params.title && (fresh || params.title !== t)) {
       t = params.title; ver = t.versions?.length ? defaultVersion(t) : null; season = null; epFocus = null;
-      tc?.destroy();
+      tc?.destroy(); ts?.destroy();
       tc = titleCopies(t, (x, why) => {
-        if (!tc || x !== tc || el.hidden) return;
+        if (!tc || x !== tc) return;
         const w = tc.waiting(), b = el.querySelector('[data-act="play"]');
-        if (why === 'tick' && w && b) { b.innerHTML = `${ringSvg(w)}Playing in ${w.left()} s`; return; }
-        if (t.kind === 'movie') ver = t.versions.length ? defaultVersion(t) : null;
-        draw();
+        if (why === 'tick' && w && b && !el.hidden) { b.innerHTML = `${ringSvg(w)}Playing in ${w.left()} s`; return; }
+        if (t.kind === 'movie') { const bb = tc.best(); ver = bb?.source === 'provider' ? bb.v : t.versions.length ? defaultVersion(t) : null; }
+        ts?.sync();
+        if (!el.hidden) draw();
       });
+      const myTc = tc;
+      ts = titleSubs(t, tc, { playEp: () => (info && !info.error && episodes().length ? seriesResume()?.ep || null : null), onChange: () => { if (tc === myTc && !el.hidden) draw(); } });
       // Details seen this session are kept (Back through More like this doesn't load each page again, and the router
       // can put focus back on the card you opened).
       const ck = `${t.kind}:${t.id}:${ver?.id || ''}`;
       info = infoCache.get(ck) || null;
       const mine = ++my;
       draw();
-      if (info) { tc.start(info); return; }
+      if (info) { tc.start(info); ts.open(info); return; }
       try {
         const d = t.addon ? await addonInfo(t) : t.kind === 'movie' ? await S.src.movieInfo(ver) : await S.src.seriesInfo({ id: t.id, name: t.name, poster: t.poster });
         if (mine !== my) return;
@@ -397,10 +417,11 @@ export default {
         if (infoCache.size > 30) infoCache.delete(infoCache.keys().next().value);
       } catch (e) { if (mine !== my) return; info = { error: e.message, seasons: [] }; }
       tc.start(info);
+      ts.open(info);
       const inside = root.contains(document.activeElement);
       draw();   // (keeps focus on the same control)
       if (!inside || !root.contains(document.activeElement)) focus(root.querySelector('[data-act="play"]') || root.querySelector('.btn'));
-    } else draw();
+    } else { ts?.open(info || {}); draw(); }
   },
   entry: (root) => root.querySelector('[data-act="play"]') || root.querySelector('.btn'),
 };
