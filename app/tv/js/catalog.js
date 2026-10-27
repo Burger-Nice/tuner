@@ -428,6 +428,9 @@ export const IMDB_MIN = [['6+', 6], ['7+', 7], ['8+', 8]];
 // A filter set: { lang: 'mine' | 'all' | <language>, genre: 'Comedy' | ['Comedy', 'Action'] (any of them),
 // q: 'hd' | '4K', sub: true, imdb: 7, decade: '2010s' }
 export const genresOf = (f) => (f.genre ? [].concat(f.genre) : []);
+// The real quality's say in the 4K chip and the Quality filter (quality.js sets it): true / false from the checks a
+// title's copies have had, null when none has been checked (then the names decide, as here)
+export const qualityHook = { q: null };
 let L = ['English'];   // your languages, read once per browse() / optionCounts() call
 function match(t, f, skip) {
   if (skip !== 'lang' && f.lang && f.lang !== 'all') {
@@ -435,7 +438,7 @@ function match(t, f, skip) {
     else if (!t._langs.has(f.lang)) return false;
   }
   if (skip !== 'genre' && f.genre && !(Array.isArray(f.genre) ? f.genre.some((g) => t._genres?.includes(g)) : t._genres?.includes(f.genre))) return false;
-  if (skip !== 'q' && f.q && !(f.q === '4K' ? t._qs.has('4K') : t._qs.has('4K') || t._qs.has('Full HD') || t._qs.has('HD'))) return false;
+  if (skip !== 'q' && f.q && !(qualityHook.q?.(t, f.q) ?? (f.q === '4K' ? t._qs.has('4K') : t._qs.has('4K') || t._qs.has('Full HD') || t._qs.has('HD')))) return false;
   if (skip !== 'sub' && f.sub && !t._sub) return false;
   if (skip !== 'imdb' && f.imdb && !((t._ir || 0) >= f.imdb)) return false;
   if (skip !== 'decade' && f.decade) { const d = DECADES.find((x) => x[0] === f.decade), y = +t.year || 0; if (!d || y < d[1] || y > d[2]) return false; }

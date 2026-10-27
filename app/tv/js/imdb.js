@@ -78,6 +78,14 @@ async function run(t, info) {
       if (!out) out = { id: '', level: 'unsure', via: 'search', cands: res.slice(0, 6) };
     } else out = { id: '', level: 'unsure', via: res ? 'none' : 'offline', cands: [] };
   }
+  // two or more films of the name, and the copy's checked length known: exactly one within 5% and the others more than
+  // 10% away is accepted without asking (subtitles SPEC v1.1 S9)
+  if (kind === 'movie' && out.level === 'unsure' && len && (out.cands || []).length >= 2) {
+    const ms = (await Promise.all(out.cands.slice(0, 6).map((c) => meta(kind, c.id)))).filter((m) => m?.runtime);
+    const off = (m) => Math.abs(len - m.runtime) / m.runtime;
+    const inside = ms.filter((m) => off(m) <= 0.05);
+    if (inside.length === 1 && ms.every((m) => m === inside[0] || off(m) > 0.1)) out = { id: inside[0].id, level: 'sure', via: 'length', meta: inside[0], cands: out.cands };
+  }
   // the series' own ids: TMDB or TVDB agreeing make it Sure (RANKING.md 4.3)
   if (kind === 'series' && out.id && out.level !== 'sure') {
     const m = out.meta || await meta(kind, out.id);
@@ -94,8 +102,11 @@ export function pickMatch(t, id) { save(t, id ? { id, level: 'sure', via: 'picke
 // The subtitles check's hook: the provider copy's checked length (minutes). A Likely film becomes Sure within 8%, and is
 // dropped when more than 8% off (RANKING.md 4.2). Returns 'sure' | 'drop' | 'keep'.
 export async function noteLength(t, lenMin) {
+  const was = lengths.get(keyOf(t));
   lengths.set(keyOf(t), lenMin);
   const a = savedMatch(t);
+  // an Unsure film between several of its name: the length may decide it (run(), above)
+  if (a && !a.picked && !a.none && a.level === 'unsure' && t.kind === 'movie' && !was) { emit('imdb', keyOf(t)); return 'keep'; }
   if (!a || a.picked || a.level !== 'likely' || t.kind !== 'movie' || !a.id) return 'keep';
   const m = await meta('movie', a.id);
   const v = recheck(lenMin, m?.runtime || 0);

@@ -6,6 +6,7 @@ import { nba, show, clockText, isMine, mySide, ordinal, recordFor, behindReplay,
 import { tipsIn } from './nba/common.js';
 import { heroRow, replaysOf, sourceCaption, nightLabel, videoMask, programmeView } from './catchup.js';
 import { catalog } from './catalog.js';
+import { posterTag } from './quality.js';
 
 const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" decoding="async" loading="lazy">` : '');
 const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
@@ -15,7 +16,8 @@ const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
 export function poster(t, i, { sm = false, mine = false } = {}) {
   const mk = videoMask(t);
   if (mk) return maskedPoster(t, i, mk, sm);
-  const tl = t._qs?.has('4K') ? tag('4K', 'q') : '';
+  // the real quality (subtitles SPEC 6.1): filled once a check found it, dashed while only a name says so
+  const tl = t.kind === 'movie' || t.kind === 'series' ? posterTag(t) : t._qs?.has('4K') ? tag('4K', 'q') : '';
   const lang = t._lang && !prefLangs().includes(t._lang) ? LANG_SHORT[t._lang] || '' : '';
   const tr = t.versions?.length > 1 ? tag('+' + (t.versions.length - 1)) : lang ? tag(lang) : '';
   const p = t.kind === 'movie' ? progressOf(t.versions?.[0] || t) : null;

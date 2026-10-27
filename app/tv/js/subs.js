@@ -51,6 +51,7 @@ const TP = () => (ANDROID ? window.Capacitor?.Plugins?.TunerPlayer : null);
 // the walkthrough) the fingerprint reads run over fetch, with no formats.
 const nativeProbe = () => !!native?.info?.().probe && !!TP();
 const engine = async (job, signal) => {
+  if (window.TUNER_TEST && window.__probeEngine) return window.__probeEngine(job, signal);   // (browser tests: a fake native check)
   if (nativeProbe()) {
     const p = TP();
     const stop = () => p.probeCancel?.().catch(() => {});
@@ -110,15 +111,19 @@ export const probeStatus = () => probeQueue()?.status() || null;
 // left out, and copies.js counts them as playing. Kept 60 s (the soundbar can go off).
 let playCache = { at: 0, m: new Map() };
 export async function playable(versions) {
-  if (!nativeProbe()) return new Map();
+  const tp = window.TUNER_TEST && window.__playable ? { playable: window.__playable } : nativeProbe() ? TP() : null;   // (browser tests: a fake TV)
+  if (!tp) return new Map();
   if (Date.now() - playCache.at > 60e3) playCache = { at: Date.now(), m: new Map() };
   const ask = versions.filter((v) => !playCache.m.has(probeKey(v)) && checkFor(v)?.formats).map((v) => ({ id: probeKey(v), formats: checkFor(v).formats }));
-  if (ask.length) { try { const r = await TP().playable({ copies: ask }); for (const [k, x] of Object.entries(r || {})) playCache.m.set(k, x); } catch { /* not there yet */ } }
+  if (ask.length) { try { const r = await tp.playable({ copies: ask }); for (const [k, x] of Object.entries(r || {})) playCache.m.set(k, x); } catch { /* not there yet */ } }
   return new Map(versions.filter((v) => playCache.m.has(probeKey(v))).map((v) => [v.id, playCache.m.get(probeKey(v))]));
 }
 export const noteStart = (v, facts) => probeQueue()?.noteStart(probeKey(v), facts);
 // Play cancels a check in flight; the player closing lets the queue go on
 export const cancelChecks = () => probeQueue()?.cancel();
+// The checks kept from before, read once so posters can show them (posters never ask: PORT-UI.md 1); 'probed' redraws.
+let loaded = '';
+export function loadChecks() { const q = probeQueue(); if (!q || loaded === S.acc.id) return; loaded = S.acc.id; q.ready().then(() => emit('probed', '')); }
 on('player-closed', () => probes?.poke());
 on('session', () => { probes = null; probesAcc = ''; });
 

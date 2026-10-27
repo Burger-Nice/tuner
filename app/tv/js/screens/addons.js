@@ -243,7 +243,7 @@ function stremioEmail() {
   draw(); focus(step.querySelector('#adEmail'));
 }
 // Text fields open the TV keyboard on OK (as on the sign-in screen); Enter on it moves on, Back closes it.
-function fieldKeys(root, order, after) {
+export function fieldKeys(root, order, after) {
   let opening = false;
   root.addEventListener('click', (e) => {
     const f = e.target.closest('input.field'); if (!f || !f.readOnly) return;
