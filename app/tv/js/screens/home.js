@@ -15,7 +15,7 @@ import { resumeItem, openTitle } from '../actions.js';
 import { launchOpen, launchDone } from '../launch.js';
 import { gameMenu } from '../nba/hub.js';
 import { heldLive } from '../games.js';
-import { morningGame, WINDOW } from '../catchup.js';
+import { morningGame, WINDOW, findReplays, replaysOf } from '../catchup.js';
 import { heroAct, heroHold, resumeGame, watchFromTipoff, playProgramme } from '../replay.js';
 
 let el, page, heroKind = null, heroLockUntil = 0, rows = [], railItems = {};
@@ -74,6 +74,7 @@ function draw() {
     const searching = !feedsKnown(g) && !teamChannel(mySide(g).abbr);
     if (!feedsKnown(g) && catalog.live) findFeeds(g);
     const ch = channelFor(g);
+    if (g.state !== 'pre' && !replaysOf(g) && catalog.live) findReplays(g);   // (its replays: From tip-off, catch-up 5.1)
     hero = gameHero(g, { channel: ch, feeds: feedsNow(g).length, searching });
   }
   else if (kind === 'resume' && cont[0]) hero = resumeHero(cont[0]);
