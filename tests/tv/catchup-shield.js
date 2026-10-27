@@ -54,7 +54,8 @@ module.exports = async (ctx) => {
   await p.waitForTimeout(1500);
   console.log('watching live reveals for the session:', await ev(async () => { const m = await import('./tv/js/games.js'); return m.revealed.has('401909875'); }));
   await go('home', 2000);
-  await key('ArrowRight', 1, 400); console.log('focus:', await focused());
+  for (let i = 0; i < 4 && !(await focused()).includes('From tip-off'); i++) await key((await focused()).includes('Watch live') ? 'ArrowRight' : 'ArrowLeft', 1, 400);
+  console.log('focus:', await focused());
   await key('Enter', 1, 3000);   // From tip-off
   console.log('after From tip-off, revealed:', await ev(async () => { const m = await import('./tv/js/games.js'); return m.revealed.has('401909875'); }));
   const g = await ev(() => { window.__replayTest.event({ type: 'position', played: 24 * 60e3 }); return window.__replayTest.state(); });
