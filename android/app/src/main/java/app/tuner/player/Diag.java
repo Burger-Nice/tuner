@@ -271,6 +271,8 @@ final class Diag {
             return fin(c, r, what);
         }
         boolean weak = r.wifiWeak(), starving = r.starving();
+        // Google failing while the stream host answers: the internet check is ignored and the table carries on (M6)
+        boolean netOk = r.inet == 204 || (r.inet == -1 && r.host == 1);
         double ratio = !r.wifi ? -1 : r.linkMax > 0 && cap >= 0 ? cap / r.linkMax : r.bars == 1 ? 1 : -1;
         // C2: weak Wi-Fi, when the readings agree (or with no test: on bars and link alone, S20; a timeout counts)
         if (weak && (r.timedOut || (starving && (cap < 0 ? r.speedState >= 2 || r.bars == 1 : cap < 1.3 * need && ratio >= 0.35)))) {
@@ -284,7 +286,7 @@ final class Diag {
             c.details = "A network cable, or the router closer, fixes it for good.";
             return fin(c, r, what);
         }
-        if (r.host == -2 && r.inet == 204) {
+        if (r.host == -2 && netOk) {
             c = new Cause("not-found");
             c.title = "Your internet can't find your provider";
             c.line = "Their address doesn't work from here. Your internet company may block it.";
@@ -295,7 +297,7 @@ final class Diag {
             c.details = "Private DNS in the TV's network settings may get around it.";
             return fin(c, r, what);
         }
-        if (r.host == -1 && r.inet == 204 && !weak) {
+        if (r.host == -1 && netOk && !weak) {
             c = new Cause("provider-down");
             long n = r.hostOkAt > 0 ? (SystemClock.uptimeMillis() - r.hostOkAt) / 1000 : 0;
             c.title = "Your provider isn't answering";
@@ -351,7 +353,7 @@ final class Diag {
                 return fin(c, r, what);
             }
         }
-        if (r.inet == 204 && r.host == 1 && (r.stalled || r.http > 0 || r.timedOut)) {
+        if (netOk && r.host == 1 && (r.stalled || r.http > 0 || r.timedOut)) {
             c = new Cause("moment");
             c.title = "This " + what + " stopped for a moment";
             c.line = "Your internet and your provider look fine. Reconnecting.";
@@ -360,15 +362,7 @@ final class Diag {
             c.verdict = "Checking…"; c.brief = "It stopped for a moment"; c.chip = "Your provider's stream is uneven";
             return fin(c, r, what);
         }
-        if (r.inet == 204 && r.host == 1 && !r.stalled) {
-            c = new Cause("good");
-            c.title = "All good";
-            c.line = need > 0 ? "This " + what + " needs about " + needS + " Mbps." + (cap >= 3 * need ? " Your internet has plenty of room." : "") : "Everything answered.";
-            c.path.nodes(OK, OK, OK, OK, OK).links(L_OK, L_OK, L_OK, L_OK);
-            c.verdict = "Good"; c.brief = need > 0 ? (r.needAbout ? "Steady · about " : "Steady · ") + needS + " Mbps" : "Steady"; c.spin = false;
-            c.chip = "Your provider's stream is uneven";
-            return fin(c, r, what);
-        }
+        if (netOk && r.host == 1 && !r.stalled) return good(r, what);
         c = new Cause("unknown");
         c.title = "Something between this TV and your provider isn't answering";
         c.shortLine = "The readings are in Details.";
@@ -376,6 +370,18 @@ final class Diag {
         c.path.nodes(OK, OK, BAD, OFF, OFF).links(L_OK, L_CUT, L_OFF, L_OFF);
         c.actions = new String[] { "retry" };
         c.verdict = "Checking…"; c.brief = "Something isn't answering"; c.chip = "Something on the way isn't answering";
+        return fin(c, r, what);
+    }
+    /** Playing, and nothing says otherwise. */
+    static Cause good(Readings r, String what) {
+        Cause c = new Cause("good");
+        double need = r.need, cap = r.capacity();
+        c.title = "All good";
+        c.line = need > 0 ? "This " + what + " needs about " + mbps(need) + " Mbps." + (cap >= 3 * need ? " Your internet has plenty of room." : "") : "Everything answered.";
+        c.path.nodes(OK, r.connected ? OK : BAD, r.inet == 204 ? OK : OFF, r.host == 1 ? OK : OFF, r.playing || r.frames ? OK : OFF)
+                .links(L_OK, r.inet == 204 ? L_OK : L_OFF, r.host == 1 ? L_OK : L_OFF, r.playing ? L_OK : L_OFF);
+        c.verdict = "Good"; c.brief = need > 0 ? (r.needAbout ? "Steady · about " : "Steady · ") + mbps(need) + " Mbps" : "Steady"; c.spin = false;
+        c.chip = "Your provider's stream is uneven";
         return fin(c, r, what);
     }
     /** The short title C11 uses when the long one doesn't fit one line. */

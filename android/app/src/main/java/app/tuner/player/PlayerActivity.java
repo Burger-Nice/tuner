@@ -364,7 +364,7 @@ public class PlayerActivity extends AppCompatActivity {
                 JSObject ev = event("failed");
                 ev.put("error", error);
                 TunerPlayerPlugin.emit(ev);
-                if (live) showFailed(error); else showText(error, 6000);
+                showText(error, 6000);
             }
             @Override public void onTracksChanged(@NonNull Tracks tracks) {
                 textTracks = count(tracks, C.TRACK_TYPE_TEXT);
@@ -2008,6 +2008,716 @@ public class PlayerActivity extends AppCompatActivity {
     }
     private final Runnable lagTick = new Runnable() { @Override public void run() { if (stallAt > 0 && player != null) { sendLag(); handler.postDelayed(this, 1000); } } };
     private void resetLag() { lagMs = 0; stallAt = 0; sendLag(); }
+
+    // ---------- playback diagnosis (design/ui-v1/diagnosis/SPEC.md) ----------
+    // A routine stall shows only the puck; one that isn't recovering gets the card with its cause (checked, never
+    // guessed); a channel that can't come back gets the failure card; Options > Connection shows every reading.
+    // No score, clock or result anywhere here: games are named by title, feeds by channel.
+
+    static final int CHIP_TEAM = 1, CHIP_UPNEXT = 2, CHIP_STUTTER = 3, CHIP_OFFLINE = 4;
+    private int chipKind;
+    private FrameLayout chipGlyph;
+    private TextView chipKbd;
+    private String chipAct = "";
+    private Runnable chipRun;
+    private Diag.Cause waitingStutter;   // the team chip has the slot: shown after it, if it's under 30 s old
+    private long waitingStutterAt;
+    private final java.util.Set<String> stutterBacked = new java.util.HashSet<>();
+    private final Map<String, Long> stutterAt = new HashMap<>();
+    private final List<Long> stalls = new ArrayList<>();
+    private boolean stutterWanted;
+
+    private LinearLayout dcard, dKeys;
+    private TextView dTitle, dLine, dOk, dOkKey, dLeftKey, dDetails, dRight;
+    private Ui.Spinner dSpin;
+    private PathView dPath;
+    private PathView.Puck puck;
+    private final Diag.Readings rd = new Diag.Readings();
+    private Diag.Cause cause;
+    private String pendingId;
+    private boolean cardUp, forced;
+    private long cardAt, actionAt, steadyAt;
+    private String act = "", actLabel = "";
+    private Runnable actRun;
+    private final Map<String, Long> hiddenUntil = new HashMap<>();   // "channel:cause" → hidden until (Back on the card)
+    private long stallStart;
+    private int notRec;
+    private boolean versionsAsked, stallSlowStart;
+    private boolean reconnecting, droppedWhilePaused, decoderRetried, stopped, netBackPending, wasOffline;
+    private int limitTries, notFound, broken;
+    private long nextTryAt, lastNetTune;
+    private String apiUrl = "";
+    private int optOrder;
+    private int checkSeq;
+    private boolean checkRunning;
+    private long lastCheckAt = -600000;
+    private ListPanel connPanel;
+    private TextView connTitle, connLine;
+    private PathView connPath;
+
+    private String what() { return live ? "channel" : cur != null && cur.id.startsWith("episode:") ? "episode" : "movie"; }
+    private String title() { return cur == null ? "" : cur.title; }
+
+    // ----- what arrives (10.2): bytes from a TransferListener on the loader threads, read once a second here -----
+    private final AtomicLong bytesIn = new AtomicLong();
+    private volatile Uri streamUri;
+    private volatile boolean streamRedirected;
+    private volatile String streamType = "";
+    private final TransferListener health = new TransferListener() {
+        @Override public void onTransferInitializing(@NonNull DataSource s, @NonNull DataSpec d, boolean net) {}
+        @Override public void onTransferStart(@NonNull DataSource s, @NonNull DataSpec d, boolean net) {
+            if (!net) return;
+            Uri u = s.getUri();   // after redirects: the server the stream really comes from
+            Uri at = u != null ? u : d.uri;
+            String a = d.uri.getHost(), b = at.getHost();
+            streamRedirected = a != null && b != null && !a.equalsIgnoreCase(b);
+            String t = "";
+            try { for (Map.Entry<String, List<String>> h : s.getResponseHeaders().entrySet()) if (h.getKey() != null && "content-type".equalsIgnoreCase(h.getKey()) && !h.getValue().isEmpty()) t = h.getValue().get(0); } catch (Exception ignored) {}
+            streamType = t;
+            streamUri = at;
+        }
+        @Override public void onBytesTransferred(@NonNull DataSource s, @NonNull DataSpec d, boolean net, int n) { if (net) bytesIn.addAndGet(n); }
+        @Override public void onTransferEnd(@NonNull DataSource s, @NonNull DataSpec d, boolean net) {}
+    };
+    private final long[] perSec = new long[10];
+    private int perSecN, aheadN;
+    private long bytesSeen;
+    private final double[] aheadHist = new double[3];
+    private long needAt, needBytes;
+    private double needMedia, needMeasured;
+
+    /** The 1 s sample (rides the tick): arrival over the last 3 s, the refill rate over 2 s, the need, the Wi-Fi. */
+    private void sample() {
+        long b = bytesIn.get(), d = b - bytesSeen;
+        bytesSeen = b;
+        perSec[perSecN++ % perSec.length] = d;
+        if (forced) return;
+        long sum = 0;
+        int n = Math.min(3, perSecN);
+        for (int k = 1; k <= n; k++) sum += perSec[(perSecN - k) % perSec.length];
+        rd.arrival = n == 0 ? -1 : sum * 8.0 / n / 1e6;
+        double ahead = player.getTotalBufferedDuration() / 1000.0;
+        rd.refill = aheadN >= 2 ? (ahead - aheadHist[(aheadN + 1) % 3]) / 2 : -1;
+        aheadHist[aheadN++ % 3] = ahead;
+        rd.ahead = ahead;
+        long now = SystemClock.uptimeMillis();
+        rd.playing = player.isPlaying();
+        // a stall: buffering after the first frame, or a slow start (no first frame 6 s after a tune)
+        rd.stalled = player.getPlaybackState() == Player.STATE_BUFFERING && player.getPlayWhenReady() && (played || (live && tunedAt > 0 && now - tunedAt > 6000));
+        Format f = player.getVideoFormat(), af = player.getAudioFormat();
+        int vb = f == null ? 0 : f.bitrate > 0 ? f.bitrate : Math.max(f.averageBitrate, f.peakBitrate);
+        int ab = af == null ? 0 : af.bitrate > 0 ? af.bitrate : Math.max(af.averageBitrate, af.peakBitrate);
+        if (f != null) { rd.height = f.height; rd.fps = f.frameRate; }
+        // a .ts stream doesn't say its rate: bytes ÷ media seconds gained over 10 s of steady play
+        double media = (player.getCurrentPosition() + player.getTotalBufferedDuration()) / 1000.0;
+        if (rd.playing) {
+            if (needAt == 0) { needAt = now; needBytes = b; needMedia = media; }
+            else if (now - needAt >= 10000) { double gain = media - needMedia; if (gain >= 5) needMeasured = (b - needBytes) * 8 / gain / 1e6; needAt = 0; }
+        } else needAt = 0;
+        if (vb > 0) { rd.need = (vb + Math.max(ab, 0)) / 1e6; rd.needAbout = false; }
+        else if (needMeasured > 0) { rd.need = needMeasured; rd.needAbout = true; }
+        else { rd.need = Diag.typical(rd.height, rd.fps); rd.needAbout = true; }
+        if (rd.stalled || cardUp || (connPanel != null && open == connPanel)) wifiNow();
+    }
+    private void wifiNow() {
+        if (!rd.wifi) return;
+        int[] w = Diag.wifi(this);
+        rd.rssi = w[0]; rd.bars = Diag.bars(w[0]); rd.link = w[1]; rd.linkMax = Math.max(rd.linkMax, w[1]);
+    }
+
+    /** The stall timeline (3.1) against the real load control: the puck from 1 s; from 3 s the card once two seconds in a
+     * row aren't recovering (refill ≥ 0.8 s per second and done within 4 s more); at 12 s at the latest. */
+    private void timeline() {
+        if (forced) return;
+        long now = SystemClock.uptimeMillis();
+        if (rd.stalled) {
+            if (stallStart == 0) { stallStart = now; notRec = 0; stallSlowStart = !played; }
+            long el = now - stallStart;
+            float target = live ? 6f : 5f;
+            if (chipUp && chipKind == CHIP_OFFLINE && !rd.connected) { hideChip(); showCause(Diag.decide(rd, what(), title())); }   // the picture stopped: the chip becomes the card
+            if (el >= 1000 && !cardUp) { puck.set(rd.arrival > 0.02 && rd.refill > 0 ? (float) (rd.ahead / target) : -1); puck.setVisibility(View.VISIBLE); }
+            if (el >= 1000 && !versionsAsked && live) { versionsAsked = true; if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions"); }
+            if (el >= 3000 && el < 12000) { boolean rec = rd.refill >= 0.8 && (target - rd.ahead) / rd.refill <= 4; notRec = rec ? 0 : notRec + 1; }
+            if (!cardUp && (notRec >= 2 || el >= 12000 || stallSlowStart)) { if (stallSlowStart) zap.setVisibility(View.GONE); openCheck(); }
+        } else {
+            if (stallStart > 0) { stallEnded(now - stallStart); stallStart = 0; notRec = 0; }
+            puck.setVisibility(View.GONE);
+            if (!cardUp && reconnecting && open == null && cause != null && !hidden(cause)) showCause(cause);
+        }
+        if (cardUp) {
+            if (player.isPlaying()) { if (steadyAt == 0) steadyAt = now; else if (now - steadyAt >= 1000) hideCard(true); }
+            else steadyAt = 0;
+            if (!live) dKeys.setVisibility(vod != null && vod.visible() ? View.GONE : View.VISIBLE);   // (S13: with the controls up OK stays play/pause)
+            updateRight();
+            // at most once per 15 s while it lasts
+            if (!checkRunning && now - lastCheckAt >= 15000 && (rd.stalled || reconnecting)) runChecks(false);
+        }
+    }
+    private void openCheck() {
+        if (open != null || cardUp || cur == null) return;
+        Diag.Cause c = cause != null && !"good".equals(cause.id) ? cause : Diag.checking(rd, what());
+        if (!hidden(c)) showCause(c);
+        if (!checkRunning && (cause == null || "checking".equals(cause.id) || SystemClock.uptimeMillis() - lastCheckAt >= 15000)) runChecks(false);
+    }
+    /** "This keeps pausing": the third stall of half a second or more in 5 min while playing (not in the first 10 s after a
+     * tune), once per channel per 15 min (30 after Back). */
+    private void stallEnded(long dur) {
+        if (!live || dur < 500 || stallSlowStart || cur == null) return;
+        long now = SystemClock.uptimeMillis();
+        if (now - tunedAt < 10000) return;
+        stalls.add(now);
+        while (!stalls.isEmpty() && now - stalls.get(0) > 300000) stalls.remove(0);
+        rd.pauses5m = stalls.size();
+        if (stalls.size() < 3 || open != null || cardUp) return;
+        Long at = stutterAt.get(cur.id);
+        if (at != null && now - at < (stutterBacked.contains(cur.id) ? 1800000 : 900000)) return;
+        stutterAt.put(cur.id, now);
+        stutterWanted = true;
+        runChecks(false);
+    }
+
+    // ----- the checks (10.3, 10.5): one set at a time on a single thread, results back on this one -----
+    private void runChecks(boolean speed) {
+        if (cur == null || stopped || player == null) return;
+        if (checkRunning && !speed) return;
+        Diag.Req q = new Diag.Req();
+        q.ctx = getApplicationContext();
+        Uri u = streamUri != null ? streamUri : Uri.parse(cur.url);
+        q.host = u.getHost();
+        q.port = u.getPort() > 0 ? u.getPort() : "https".equalsIgnoreCase(u.getScheme()) ? 443 : 80;
+        q.api = apiUrl;
+        q.gateway = rd.gateway;
+        q.weak = rd.wifiWeak();
+        q.starving = rd.starving();
+        q.speed = speed;
+        q.speedIfStarving = !(rd.speedState == 1 && SystemClock.uptimeMillis() - rd.speedAt < 600000);   // (cached 10 min)
+        wifiNow();
+        rd.linkMax = rd.link;   // the ratio uses the highest link speed seen during this test
+        int seq = ++checkSeq;
+        checkRunning = true;
+        lastCheckAt = SystemClock.uptimeMillis();
+        Diag.SETS.execute(() -> {
+            Diag.Probe p = Diag.run(q);
+            handler.post(() -> {
+                if (seq != checkSeq || isFinishing() || player == null) return;
+                checkRunning = false;
+                if (forced) return;
+                p.into(rd);
+                diagnosed();
+            });
+        });
+    }
+    private void cancelChecks() { checkSeq++; checkRunning = false; }
+    private void diagnosed() {
+        Diag.Cause c = Diag.decide(rd, what(), title());
+        if (cardUp) applyCause(c);
+        else if (!"good".equals(c.id) && (rd.stalled || reconnecting)) cause = c;
+        if (stutterWanted) {
+            stutterWanted = false;
+            if (chipUp && chipKind == CHIP_TEAM) { waitingStutter = c; waitingStutterAt = SystemClock.uptimeMillis(); }
+            else if (!chipUp && open == null && !cardUp) showStutter(c);
+        }
+        if (connPanel != null && open == connPanel) fillConnection();
+    }
+    /** A cause changes only when two checks in a row agree; certain ones (an HTTP status, offline, the decoder) at once. */
+    private void applyCause(Diag.Cause c) {
+        if ("good".equals(c.id)) return;
+        if (cause == null || "checking".equals(cause.id) || c.certain || c.id.equals(cause.id) || c.id.equals(pendingId)) { pendingId = null; showCause(c); }
+        else pendingId = c.id;
+    }
+
+    // ----- the card -----
+    private boolean hidden(Diag.Cause c) {
+        Long u = cur == null ? null : hiddenUntil.get(cur.id + ":" + c.id);
+        return u != null && u > SystemClock.uptimeMillis() && !c.fail;
+    }
+    private static String fit(TextView t, String full, String shorter, int widthDp) {
+        return shorter != null && t.getPaint().measureText(full) > Ui.dp(widthDp) ? shorter : full;
+    }
+    private void showCause(Diag.Cause c) {
+        if (c.fail && live) { showFailed(c); return; }
+        boolean changed = cause == null || !c.id.equals(cause.id) || !cardUp;
+        cause = c;
+        if (hidden(c)) { hideCard(false); return; }
+        if (open != null) return;   // the card waits for the panel to close
+        String[] a = live ? first(actions(c, 1)) : null;
+        String was = act;
+        act = a == null ? "" : a[0];
+        actLabel = a == null ? "" : a[1];
+        actRun = a == null ? null : runOf(a);
+        if (!act.equals(was) || changed) actionAt = SystemClock.uptimeMillis();
+        dSpin.setVisibility(c.spin ? View.VISIBLE : View.GONE);
+        dTitle.setText(fit(dTitle, c.title, "unknown".equals(c.id) ? Diag.UNKNOWN_SHORT : null, c.spin ? 486 : 520));
+        dLine.setText(fit(dLine, c.line, c.shortLine, c.spin ? 486 : 520));
+        dPath.set(c.path);
+        if (live) {
+            dOkKey.setText(act.isEmpty() ? "▲ ▼" : "OK");
+            dOk.setText(act.isEmpty() ? "Zap" : actLabel);
+            dOk.setTextColor(act.isEmpty() ? Ui.T2 : Ui.T1);
+            dOk.setTypeface(act.isEmpty() ? Ui.inter500 : Ui.inter650);
+        }
+        for (View v : new View[] { dOkKey, dOk, dLeftKey }) v.setVisibility(live ? View.VISIBLE : View.GONE);
+        dDetails.setText(live ? "Details" : "");
+        updateRight();
+        if (!cardUp) {
+            cardUp = true;
+            cardAt = SystemClock.uptimeMillis();
+            steadyAt = 0;
+            dcard.animate().cancel();
+            dcard.setAlpha(1);
+            dcard.setVisibility(View.VISIBLE);
+            dcard.bringToFront();
+            puck.setVisibility(View.GONE);
+            toast.setVisibility(View.GONE);
+            zap.setVisibility(View.GONE);
+            hintsChanged();
+        }
+        if (changed) emitDiag(c, "card");
+    }
+    private void hideCard(boolean fade) {
+        if (!cardUp) return;
+        cardUp = false;
+        pendingId = null;
+        dcard.animate().cancel();
+        if (fade) dcard.animate().alpha(0).setDuration(200).withEndAction(() -> { if (!cardUp) dcard.setVisibility(View.GONE); dcard.setAlpha(1); }).start();
+        else { dcard.setVisibility(View.GONE); dcard.setAlpha(1); }
+        hintsChanged();
+    }
+    private void updateRight() {
+        if (!cardUp || cause == null || dRight == null) return;
+        long now = SystemClock.uptimeMillis();
+        String r;
+        if (nextTryAt > now) r = "Next try in " + Math.max(1, (nextTryAt - now + 999) / 1000) + " s";
+        else if (reconnecting) r = cause.limit ? "Trying again…" : "Reconnecting · try " + Math.max(1, retries) + " of 6";
+        else r = "Back hides";
+        if (!r.contentEquals(dRight.getText())) dRight.setText(r);
+    }
+
+    // ----- actions (4.4): another feed of the game, another copy, try again, next channel; never automatic -----
+    private static String[] first(List<String[]> l) { return l.isEmpty() ? null : l.get(0); }
+    /** {kind, label, sub, icon, id} for up to max of the cause's actions that exist right now. */
+    private List<String[]> actions(Diag.Cause c, int max) {
+        List<String[]> out = new ArrayList<>();
+        java.util.Set<String> kinds = new java.util.HashSet<>();
+        for (String k : c.actions) {
+            if (out.size() >= max) break;
+            String[] a = action(k);
+            if (a != null && kinds.add(a[0])) out.add(a);
+        }
+        return out;
+    }
+    private String[] action(String k) {
+        switch (k) {
+            case "feed": {
+                if (!live || !gameLinked) return null;
+                JSONArray f = otherFeeds();
+                if (f.length() == 0) return null;
+                JSONObject o = f.optJSONObject(0);
+                return new String[] { "feed", "Same game on " + Diag.clean(o.optString("name")), o.optString("label"), "tv", o.optString("id") };
+            }
+            case "copy": case "lower": {
+                JSONObject o = copy("lower".equals(k));
+                if (o == null) return null;
+                String tag = Diag.tagOfName(o.optString("name"));
+                return new String[] { "copy", tag.isEmpty() ? "Watch the other copy" : "Watch the " + tag + " copy", Diag.clean(o.optString("name")), "quality", o.optString("id") };
+            }
+            case "retry": return new String[] { "retry", "Try again now", null, "refresh", "" };
+            case "next": {
+                if (!live || ring.size() < 2) return null;
+                Entry n = ring.get(((index + 1) % ring.size() + ring.size()) % ring.size());
+                return new String[] { "next", "Next channel", (n.num > 0 ? n.num + " · " : "") + Diag.clean(n.title), "chevR", n.id };
+            }
+            case "settings": return new String[] { "settings", "Network settings", null, "signal", "" };
+            case "account": return new String[] { "account", "Account", "Renew it with your provider", "chevR", "" };
+        }
+        return null;
+    }
+    /** Another copy of the channel (the Quality sheet's versions): lower = the best one whose need fits 0.8 × what
+     * arrives, else the lowest below this one; otherwise the copy nearest this one's quality (another stream). */
+    private JSONObject copy(boolean lower) {
+        JSONArray vs = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONArray("list") : null;
+        if (vs == null || cur == null) return null;
+        double mine = Diag.needOfName(cur.title), room = Math.max(rd.arrival, rd.capacity());
+        JSONObject best = null, lowest = null;
+        for (int i = 0; i < vs.length(); i++) {
+            JSONObject o = vs.optJSONObject(i);
+            if (o == null || cur.id.equals(o.optString("id"))) continue;
+            double n = Diag.needOfName(o.optString("name"));
+            if (!lower) { if (best == null || Math.abs(n - mine) < Math.abs(Diag.needOfName(best.optString("name")) - mine)) best = o; continue; }
+            if (n >= mine) continue;
+            if (lowest == null || n < Diag.needOfName(lowest.optString("name"))) lowest = o;
+            if ((room <= 0 || n <= 0.8 * room) && (best == null || n > Diag.needOfName(best.optString("name")))) best = o;
+        }
+        return best != null ? best : lowest;
+    }
+    private Runnable runOf(String[] a) {
+        switch (a[0]) {
+            case "feed": case "copy": { String id = a[4]; return () -> { closeOverlay(); hideCard(false); pick(id, "diagnosis"); }; }   // its own score delay, lag 0
+            case "next": return () -> { closeOverlay(); hideCard(false); zap(1, false); };
+            case "settings": return this::openNetworkSettings;
+            case "account": return () -> { TunerPlayerPlugin.emit(event("goto-account")); finish(); };
+            default: return () -> { closeOverlay(); tryNow(); };
+        }
+    }
+    private static String shortLabel(String[] a) {
+        switch (a[0]) {
+            case "feed": return a[1].replace("Same game on ", "");
+            case "copy": return a[1].replace("Watch the ", "");
+            case "retry": return "Try again";
+            default: return a[1];
+        }
+    }
+    private void tryNow() {
+        handler.removeCallbacks(retune);
+        reconnecting = true;
+        Diag.closedAt = SystemClock.elapsedRealtime();
+        retune.run();
+    }
+    private void openNetworkSettings() {
+        for (String a : new String[] { Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_SETTINGS }) {
+            try { startActivity(new Intent(a)); return; } catch (Exception ignored) {}
+        }
+        showText("The TV's network settings didn't open", 3000);
+    }
+
+    // ----- errors -----
+    private void liveError(PlaybackException e) {
+        classify(e);
+        if (!player.getPlayWhenReady()) { droppedWhilePaused = true; return; }   // (review 3, S3-4) a stream dropped while paused waits for Play
+        if (e.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED && !decoderRetried) {
+            // a decoder still held after coming back to the app: once more, 1 s later, before blaming the TV
+            decoderRetried = true;
+            handler.removeCallbacks(retune);
+            handler.postDelayed(retune, 1000);
+            return;
+        }
+        if (rd.http == 404 || rd.http == 410) notFound++;
+        Diag.Cause c = Diag.decide(rd, what(), title());
+        if (c.fail || ("off".equals(c.id) && notFound >= 2)) { showFailed(c); return; }
+        boolean askAccount = (rd.http == 401 || rd.http == 403) && !apiUrl.isEmpty();
+        if (askAccount) {   // a limit needs evidence: the account check says which (C7b, C7, C7c)
+            cause = null;
+            if (!cardUp && open == null) showCause(Diag.checking(rd, what()));
+            cancelChecks();
+            runChecks(false);
+        } else if (c.certain) { if (open == null || cardUp) showCause(c); }
+        else {
+            if (!cardUp && open == null) showCause(cause != null && !"good".equals(cause.id) ? cause : Diag.checking(rd, what()));
+            if (!checkRunning) runChecks(false);
+        }
+        reconnect();
+    }
+    private void classify(PlaybackException e) {
+        rd.clearError();
+        rd.redirected = streamRedirected;
+        String ct = streamType == null ? "" : streamType.toLowerCase(Locale.ROOT);
+        switch (e.errorCode) {
+            case PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES:
+            case PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED: rd.decoder = 1; break;
+            case PlaybackException.ERROR_CODE_DECODER_INIT_FAILED: if (decoderRetried) rd.decoder = 1; break;
+            case PlaybackException.ERROR_CODE_DECODING_FAILED: if (++broken >= 2) rd.decoder = 2; break;
+            case PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT: rd.timedOut = true; break;
+            case PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED:
+            case PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED: if (ct.contains("html")) { rd.http = 200; rd.htmlBody = true; } break;
+        }
+        for (Throwable t = e.getCause(); t != null; t = t.getCause()) {
+            if (t instanceof HttpDataSource.InvalidResponseCodeException) {
+                HttpDataSource.InvalidResponseCodeException x = (HttpDataSource.InvalidResponseCodeException) t;
+                rd.http = x.responseCode;
+                byte[] body = x.responseBody;
+                String s = body == null ? "" : new String(body, 0, Math.min(2048, body.length), java.nio.charset.StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
+                rd.limitBody = s.matches("(?s).*(connection|max.?con|too many|stream limit|limit reached).*");
+                rd.htmlBody = s.contains("<html") || s.contains("<!doctype");
+            }
+            if (t instanceof java.net.UnknownHostException) rd.noHost = true;
+            if (t instanceof java.net.SocketTimeoutException) rd.timedOut = true;
+        }
+    }
+    private void resumeDropped() {
+        droppedWhilePaused = false;
+        showText("Back to live: the stream was dropped while paused", 2500);
+        retries = 0;
+        tryNow();   // (a reconnect starts at the live edge, so the lag starts again from there)
+    }
+    private void resetDiag() {
+        cancelChecks();
+        hideCard(false);
+        if (chipUp && chipKind == CHIP_STUTTER) hideChip();
+        if (puck != null) puck.setVisibility(View.GONE);
+        cause = null; pendingId = null; forced = false;
+        stallStart = 0; notRec = 0; versionsAsked = false; stallSlowStart = false;
+        reconnecting = false; droppedWhilePaused = false; decoderRetried = false;
+        limitTries = 0; notFound = 0; broken = 0; nextTryAt = 0;
+        rd.clearError(); rd.host = 0; rd.frames = false; rd.need = 0; rd.arrival = -1; rd.refill = -1; rd.height = 0; rd.pauses5m = 0;
+        needAt = 0; needMeasured = 0; aheadN = 0; stalls.clear();
+        streamUri = null; streamRedirected = false; streamType = "";
+        handler.removeCallbacks(retune);
+    }
+
+    // ----- the network (S8): the offline chip, the card, and one re-tune once it has been back for 2 s -----
+    private ConnectivityManager.NetworkCallback netCb;
+    private void watchNetwork() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) return;
+        try {
+            Network n = cm.getActiveNetwork();
+            rd.connected = n != null;
+            NetworkCapabilities nc = n == null ? null : cm.getNetworkCapabilities(n);
+            if (nc != null) caps(nc);
+            LinkProperties lp = n == null ? null : cm.getLinkProperties(n);
+            if (lp != null) gateway(lp);
+        } catch (Exception ignored) {}
+        netCb = new ConnectivityManager.NetworkCallback() {
+            @Override public void onLost(@NonNull Network n) { handler.post(PlayerActivity.this::netLost); }
+            @Override public void onCapabilitiesChanged(@NonNull Network n, @NonNull NetworkCapabilities c) {
+                handler.post(() -> {
+                    rd.connected = true;
+                    caps(c);
+                    if (rd.validated) { handler.removeCallbacks(netBack); handler.postDelayed(netBack, 2000); }
+                });
+            }
+            @Override public void onLinkPropertiesChanged(@NonNull Network n, @NonNull LinkProperties lp) { handler.post(() -> gateway(lp)); }
+        };
+        try { cm.registerDefaultNetworkCallback(netCb); } catch (Exception e) { netCb = null; }
+    }
+    private void caps(NetworkCapabilities c) {
+        rd.wifi = c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+        rd.cable = c.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET);
+        rd.validated = c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+        rd.captive = c.hasCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL);
+    }
+    private void gateway(LinkProperties lp) {
+        for (RouteInfo r : lp.getRoutes()) if (r.isDefaultRoute() && r.getGateway() != null && !r.getGateway().isAnyLocalAddress()) { rd.gateway = r.getGateway().getHostAddress(); return; }
+    }
+    private void netLost() {
+        if (forced || isFinishing()) return;
+        rd.connected = false;
+        rd.validated = false;
+        wasOffline = true;
+        if (!played || cur == null) return;
+        if (player.isPlaying()) showOfflineChip();   // picture still in hand (S15)
+        else if (open == null) showCause(Diag.decide(rd, what(), title()));
+    }
+    private final Runnable netBack = () -> {
+        if (!rd.validated || !rd.connected || forced || isFinishing()) return;
+        if (stopped) { netBackPending = true; return; }   // nothing re-tunes until airglow is back in front
+        if (chipUp && chipKind == CHIP_OFFLINE) hideChip();
+        boolean outage = cause != null && ("offline".equals(cause.id) || "no-internet".equals(cause.id) || "no-router".equals(cause.id) || "wifi-gone".equals(cause.id));
+        boolean stuck = outage || (wasOffline && (reconnecting || rd.stalled || open instanceof FailedCard));
+        wasOffline = false;
+        long now = SystemClock.uptimeMillis();
+        if (!live || !stuck || now - lastNetTune < 10000) return;   // at most once per 10 s
+        lastNetTune = now;
+        if (open instanceof FailedCard) closeOverlay();
+        retries = 0;
+        tryNow();
+    };
+
+    // ----- chips (3.4) -----
+    private void showOfflineChip() {
+        if (!live || open != null || (chipUp && chipKind == CHIP_TEAM)) return;
+        chipKind = CHIP_OFFLINE;
+        chipIsUpNext = false;
+        chipStyle(false, false);
+        chipTitle.setText(rd.cable ? "The network dropped" : "The Wi-Fi dropped");
+        chipSub.setText("Playing what's loaded");
+        chipUp = true;
+        chip.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(chipTick);
+        hintsChanged();
+        emitDiag(Diag.decide(rd, what(), title()), "chip");
+    }
+    private void showStutter(Diag.Cause c) {
+        if (!live || open != null || cardUp || cur == null) return;
+        if (chipUp && chipKind == CHIP_TEAM) { waitingStutter = c; waitingStutterAt = SystemClock.uptimeMillis(); return; }
+        String[] a = null;
+        for (String k : c.actions.length > 0 ? c.actions : new String[] { "feed", "copy" }) { a = action(k); if (a != null) break; }
+        chipKind = CHIP_STUTTER;
+        chipIsUpNext = false;
+        chipStyle(true, a != null);
+        chipTitle.setText("This keeps pausing");
+        chipSub.setText(c.chip);
+        chipAct = a == null ? "" : a[0];
+        chipRun = a == null ? null : runOf(a);
+        chipOk.setText(a == null ? "" : shortLabel(a));
+        chipUntil = SystemClock.uptimeMillis() + 8000;
+        chipUp = true;
+        chip.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(chipTick);
+        handler.post(chipTick);
+        hintsChanged();
+        emitDiag(c, "chip");
+    }
+
+    // ----- Options > Connection (6, 7) -----
+    /** What the readings say now: the card's cause; while it plays, All good unless a fresh check says otherwise. */
+    private Diag.Cause current() {
+        if (cardUp && cause != null) return cause;
+        if (!rd.connected) return Diag.decide(rd, what(), title());
+        boolean fresh = rd.checkedAt > 0 && System.currentTimeMillis() - rd.checkedAt < 60000;
+        if (rd.stalled && !fresh) return Diag.checking(rd, what());
+        if (!fresh && (rd.playing || rd.frames)) return Diag.good(rd, what());
+        if (!fresh) return Diag.checking(rd, what());
+        return Diag.decide(rd, what(), title());
+    }
+    private ListPanel.Item connectionRow() {
+        Diag.Cause c = current();
+        return row("Connection", c.brief, c.verdict, "signal", this::openConnection);
+    }
+    private void openConnection() {
+        Diag.Cause c = current();
+        ListPanel p = new ListPanel(this, "Connection", true, 400);
+        LinearLayout ex = new LinearLayout(this);
+        ex.setOrientation(LinearLayout.VERTICAL);
+        connTitle = Ui.line(this, "", 18, Ui.T1, Ui.outfit700);
+        Ui.lineHeight(connTitle, 24);
+        connTitle.setPadding(Ui.dp(10), Ui.dp(2), Ui.dp(10), 0);
+        connLine = Ui.text(this, "", 14, Ui.T2, Ui.inter500);
+        connLine.setMaxLines(2);
+        connLine.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        connLine.setPadding(Ui.dp(10), Ui.dp(2), Ui.dp(10), Ui.dp(8));
+        connPath = new PathView(this, true, 44);
+        View sep = new View(this);
+        sep.setBackgroundColor(Ui.BORDER);
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(-1, Math.max(1, Ui.dp(1)));
+        sp.topMargin = Ui.dp(4);
+        sp.bottomMargin = Ui.dp(2);
+        ex.addView(connTitle);
+        ex.addView(connLine);
+        ex.addView(connPath, new LinearLayout.LayoutParams(-1, -2));
+        ex.addView(sep, sp);
+        int lines = connLine.getPaint().measureText(c.line) > Ui.dp(360) ? 2 : 1;
+        p.setExtra(ex, 26 + 18 * lines + 10 + 220 + 7);
+        List<ListPanel.Item> items = new ArrayList<>();
+        for (String[] a : actions(c, 3)) {
+            if ("retry".equals(a[0]) || items.size() >= 1) continue;   // one action, then Check again (the cap is 453)
+            ListPanel.Item it = row(a[1], a[2], null, a[3], runOf(a));
+            it.height = 50;
+            items.add(it);
+        }
+        ListPanel.Item again = row("Check again", "Includes a 3 s speed test", null, "refresh", () -> { runChecks(true); fillConnection(); });
+        again.height = 50;
+        items.add(again);
+        p.source(ListPanel.of(items), items.size() - 1);   // always on Check again: a switch is never the default (N-M9)
+        p.backTo = this::openOptions;
+        p.hintKeys = items.size() > 1 ? new String[][] { { "OK", "Check again" }, { "▲", items.get(0).title }, { "Back", "Close" } }
+                : new String[][] { { "OK", "Check again" }, { "Back", "Options" } };
+        connPanel = p;
+        p.onClosed = () -> { if (connPanel == p) connPanel = null; };
+        show(p);
+        fillConnection();
+        if (SystemClock.uptimeMillis() - lastCheckAt > 60000 && !checkRunning) runChecks(false);   // the speed test only on Check again
+        emitDiag(c, "panel");
+    }
+    private void fillConnection() {
+        if (connPanel == null || connTitle == null) return;
+        Diag.Cause c = current();
+        connPanel.setCount(checkRunning ? "Checking…" : rd.checkedAt > 0 ? "Checked " + hm(rd.checkedAt) : "Not checked yet");
+        connTitle.setText(c.title);
+        String l = c.line;
+        if (!"good".equals(c.id) && rd.pauses5m >= 2 && l.length() < 40) l += " " + rd.pauses5m + " pauses in 5 min.";
+        connLine.setText(l);
+        connPath.set(Diag.panelPath(c, rd, Math.round(rd.ahead)));
+    }
+
+    private void emitDiag(Diag.Cause c, String surface) {
+        JSObject e = event("diag");
+        e.put("cause", c.id);
+        e.put("title", c.title);
+        e.put("line", c.line);
+        e.put("surface", surface);
+        JSObject r = new JSObject();
+        r.put("arrival", Math.round(rd.arrival * 10) / 10.0);
+        r.put("need", Math.round(rd.need * 10) / 10.0);
+        r.put("bars", rd.bars);
+        r.put("internet", rd.inet);
+        r.put("host", rd.host);
+        r.put("speed", Math.round(rd.speed));
+        e.put("readings", r);
+        TunerPlayerPlugin.emit(e);
+    }
+
+    // ----- the debug intent (SPEC 11.10) -----
+    private BroadcastReceiver debug;
+    /** Debug builds only: `adb shell am broadcast -a app.tuner.player.DIAG -p app.tuner.player --es diag <cause>` shows
+     * that cause's surface from made-up readings, for the emulator test's screenshots. "clear" puts things back. */
+    private void debugIntent() {
+        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
+        debug = new BroadcastReceiver() {
+            @Override public void onReceive(Context c, Intent i) { String d = i.getStringExtra("diag"); if (d != null) handler.post(() -> forceDiag(d)); }
+        };
+        ContextCompat.registerReceiver(this, debug, new IntentFilter("app.tuner.player.DIAG"), ContextCompat.RECEIVER_EXPORTED);
+    }
+    private void forceDiag(String name) {
+        if (isFinishing() || player == null) return;
+        if ("clear".equals(name)) {
+            forced = false;
+            hideCard(false);
+            if (chipUp) hideChip();
+            if (open != null) closeOverlay();
+            puck.setVisibility(View.GONE);
+            cause = null;
+            return;
+        }
+        cancelChecks();
+        forced = true;
+        boolean fail = name.startsWith("fail-");
+        String n = fail ? name.substring(5) : name;
+        fake(rd, n);
+        if (open != null) closeOverlay();
+        if (chipUp) hideChip();
+        hideCard(false);
+        cause = null;
+        hiddenUntil.clear();
+        switch (n) {
+            case "puck": puck.set(0.62f); puck.setVisibility(View.VISIBLE); return;
+            case "checking": showCause(Diag.checking(rd, what())); emitDiag(Diag.checking(rd, what()), "card"); return;
+            case "offline-chip": showOfflineChip(); return;
+            case "stutter": tunedAt = SystemClock.uptimeMillis() - 60000; showStutter(Diag.decide(rd, what(), title())); return;
+            case "panel": openConnection(); return;
+            case "options": showCause(Diag.decide(rd, what(), title())); optOrder = 1; openOptions(); return;
+        }
+        Diag.Cause c = Diag.decide(rd, what(), title());
+        if (fail || c.fail) showFailed(c); else showCause(c);
+    }
+    /** Readings that lead to each cause (the scenarios of the mocks). */
+    private static void fake(Diag.Readings f, String n) {
+        long now = SystemClock.uptimeMillis();
+        f.connected = true; f.wifi = true; f.cable = false; f.validated = true; f.captive = false;
+        f.rssi = -60; f.bars = 3; f.link = 300; f.linkMax = 300;
+        f.inet = 204; f.inetMs = 38; f.host = 1; f.hostMs = 90; f.hostOkAt = now; f.acct = 1; f.acctMs = 120;
+        f.status = "Active"; f.exp = System.currentTimeMillis() / 1000 + 23 * 86400; f.active = 1; f.max = 2; f.router = 1;
+        f.speed = 64; f.speedFull = true; f.speedState = 1; f.speedAt = now; f.checkedAt = System.currentTimeMillis();
+        f.arrival = 9; f.need = 9; f.needAbout = true; f.ahead = 1; f.refill = 0.3; f.stalled = true; f.playing = false; f.frames = true;
+        f.clearError(); f.redirected = false; f.height = 1080; f.fps = 50; f.pauses5m = 0;
+        switch (n) {
+            case "wifi": f.bars = 1; f.link = f.linkMax = 26; f.speed = 10; f.arrival = 4; f.need = 12; break;
+            case "wifi-gone": f.bars = 1; f.link = f.linkMax = 6; f.inet = -1; f.host = -1; break;
+            case "internet-slow": f.wifi = false; f.cable = true; f.bars = 0; f.height = 2160; f.need = 25; f.speed = 8; f.arrival = 3; f.speedFull = false; break;
+            case "home-slow": f.bars = 4; f.link = f.linkMax = 30; f.need = 12; f.speed = 3; f.arrival = 2; f.speedFull = false; break;
+            case "provider-slow": case "options": f.arrival = 3; break;
+            case "panel": f.arrival = 3; f.stalled = false; f.playing = true; f.pauses5m = 3; break;
+            case "stutter": f.stalled = false; f.playing = true; f.bars = 2; f.link = f.linkMax = 20; f.need = 9; f.arrival = 4; f.speed = 6; f.speedFull = false; break;
+            case "provider-down": f.host = -1; f.hostOkAt = now - 20000; break;
+            case "no-internet": f.inet = -1; f.host = -1; f.router = 1; break;
+            case "no-router": f.inet = -1; f.host = -1; f.router = -1; break;
+            case "offline": f.connected = false; break;
+            case "signin": f.inet = 200; break;
+            case "limit": f.http = 403; f.active = 2; Diag.closedAt = SystemClock.elapsedRealtime(); break;
+            case "ended": f.http = 403; f.status = "Expired"; f.exp = System.currentTimeMillis() / 1000 - 7 * 86400; break;
+            case "refused": f.http = 403; f.active = 0; break;
+            case "refused-unsure": f.http = 403; f.acct = -1; break;
+            case "off": f.http = 404; break;
+            case "server-error": f.http = 503; break;
+            case "blocked": f.http = 200; f.htmlBody = true; f.acct = 2; break;
+            case "not-found": f.host = -2; break;
+            case "slow-untested": f.speed = -1; f.speedState = 2; f.arrival = 3; break;
+            case "moment": f.refill = 1.0; break;
+            case "unknown": f.inet = -1; f.host = 0; f.refill = 1.0; break;
+            case "decoder": f.decoder = 1; f.height = 2160; break;
+            case "broken": f.decoder = 2; break;
+        }
+    }
 
     private JSObject event(String type) {
         JSObject e = new JSObject();
