@@ -12,8 +12,11 @@ import { push } from '../router.js';
 import { focus } from '../focus.js';
 import { toast, contextMenu } from '../ui.js';
 import { ringFor, ringName } from '../screens/home.js';
+import { findReplays, replaysOf, dayHasReplay } from '../catchup.js';
+import { heroAct as replayAct, heroHold, watchFromTipoff } from '../replay.js';
+import { tc, gameName, reveal as revealIt } from './common.js';
 
-let el, ctx, offset = 0, games = [], loading = false, err = '';
+let el, ctx, offset = 0, games = [], loading = false, err = '', lookT = 0;
 
 const counts = (list, hero) => {
   const n = (s) => list.filter((g) => g.state === s).length;
@@ -53,7 +56,8 @@ function draw() {
   const day = (o) => dayLabel(o).split(' · ')[0];
   const dayTop = mine ? 332 : 128, gridTop = dayTop + 48;
   const days = `<div class="nb-days" data-row data-days style="top:${dayTop}px"><span class="chip lg" data-day="-1">${ic('chevL')}${esc(day(offset - 1))}</span><span class="chip lg fx sel" tabindex="-1" data-day="0">${esc(dayLabel(offset))}</span><span class="chip lg" data-day="1">${esc(day(offset + 1))}${ic('chevR')}</span>
-    <span class="t-cap">${loading ? 'Loading…' : counts(rest, mine && games.some((g) => g.id === mine.id))}</span></div>`;
+    <span class="t-cap">${loading ? 'Loading…' : counts(rest, mine && games.some((g) => g.id === mine.id))}${!loading && dayHasReplay(games) ? `${dot}${ic('hist', 'xs')}&nbsp;= replay` : ''}</span></div>`;
+  if (mine && mine.state !== 'pre' && !replaysOf(mine)) findReplays(mine);
   const hero = mine ? gameHero(mine, { channel: bestChannel(mine), feeds: feedsNow(mine).length, top: 128, hub: true }) : '';
   const body = err && !games.length ? `<div class="center-col" style="top:${gridTop + 8}px"><div class="state big"><div class="ico">${ic('wifiOff')}</div><b>Scores aren't reachable</b><p>${esc(err)}</p></div></div>`
     : !games.length && !loading ? `<div class="center-col" style="top:${gridTop + 8}px"><div class="state"><div class="ico">${ic('clock')}</div><b>No games ${offset ? 'that day' : 'today'}</b><p>◀ ▶ on the day picks another day.</p></div></div>`
@@ -91,9 +95,10 @@ async function load(o) {
   if (document.activeElement?.dataset?.day) focus(el.querySelector('[data-day="0"]'));
 }
 
-function heroAct(act) {
+function heroAct(act, b) {
   const g = el._mine;
   if (!g) return;
+  if (replayAct(g, b?.closest('[data-row-kind]')?.dataset.rowKind, act)) return;
   if (act === 'primary') {
     const ch = bestChannel(g);
     if (g.state === 'post' || (g.state === 'pre' && (g.date - Date.now() > 3 * 3600e3 || !ch))) return push('game', { id: g.id });   // (the hero's "Game page")
@@ -105,13 +110,23 @@ function heroAct(act) {
   if (act === 'plays') return push('game', { id: g.id, tab: 'plays' });
 }
 // Hold OK on a game card (and Home's Tonight row): its teams' pages, then the game (SPEC 1).
+// With a replay (catch-up 5.4): Watch from tip-off first (a live game: Watch live, then From tip-off), the teams' pages,
+// the game, and Reveal last for a hidden game; the 292 px menu placed below, above or beside the card.
 export function gameMenu(card, g) {
   if (!g) return;
-  return contextMenu(card, [
-    { icon: 'chevR', label: `${g.away.name} page`, run: () => push('team', { abbr: g.away.abbr }) },
-    { icon: 'chevR', label: `${g.home.name} page`, run: () => push('team', { abbr: g.home.abbr }) },
+  const rp = g.state !== 'pre' && replaysOf(g)?.length;
+  const rows = [
+    { lead: tc(g.away, 's24'), label: `${g.away.name} page`, run: () => push('team', { abbr: g.away.abbr }) },
+    { lead: tc(g.home, 's24'), label: `${g.home.name} page`, run: () => push('team', { abbr: g.home.abbr }) },
     { icon: 'score', label: 'Open the game', run: () => push('game', { id: g.id }) },
-  ]);
+  ];
+  if (!rp) return contextMenu(card, rows.map((r) => ({ ...r, lead: undefined, icon: r.icon || 'chevR' })));
+  if (g.state === 'in') {
+    const ch = bestChannel(g);
+    rows.unshift({ icon: 'play', label: 'Watch live', run: () => (ch ? playLive(ch, ringFor(ch), ringName(ch)) : push('game', { id: g.id })) }, { icon: 'tipoff', label: 'From tip-off', run: () => watchFromTipoff(g) });
+  } else rows.unshift({ icon: 'play', label: 'Watch from tip-off', run: () => watchFromTipoff(g) });
+  if (show(g).hidden) rows.push({ lead: `${ic('eyeOff', 'xs')}`, label: `Reveal ${gameName(g)}`, run: () => revealIt({ dataset: { g: g.id } }) });
+  return contextMenu(card, rows, { cls: 'cu-w' });
 }
 
 export default {
@@ -124,17 +139,25 @@ export default {
       const d = e.target.closest('[data-day]');
       if (d) { const v = +d.dataset.day; if (v) load(offset + v); return; }
       const b = e.target.closest('[data-act]');
-      if (b && b.closest('.hero-plate')) return heroAct(b.dataset.act);
+      if (b && b.closest('.hero-plate')) return heroAct(b.dataset.act, b);
       const card = e.target.closest('.gc');
       if (card) push('game', { id: card.dataset.g });
     });
     root.addEventListener('tvhold', (e) => {
+      const hb = e.target.closest('.hero-plate [data-act]');
+      if (hb && el._mine && heroHold(el._mine, hb.closest('[data-row-kind]')?.dataset.rowKind, hb.dataset.act)) return;
       const card = e.target.closest('.gc');
       if (card) gameMenu(card, games.find((g) => g.id === card.dataset.g));
     });
-    root.addEventListener('tvfocus', place);
+    root.addEventListener('tvfocus', (e) => {
+      place();
+      // other games' replays are looked up when their card has had focus for 600 ms (5.3)
+      clearTimeout(lookT);
+      const c = e.target.closest?.('.gc');
+      if (c) lookT = setTimeout(() => { const g = games.find((x) => x.id === c.dataset.g); if (g && document.activeElement === c) findReplays(g); }, 600);
+    });
     const redraw = () => { if (ctx.visible()) { if (!offset) games = nba.today; draw(); } };
-    on('nba', redraw); on('summary', redraw); on('feeds', redraw);
+    on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('replays', redraw); on('progress', redraw);
     on('league', (k) => { if (k === `schedule:${favTeam()}` || k === 'standings') redraw(); });
   },
   enter() {

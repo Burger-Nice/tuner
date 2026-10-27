@@ -56,7 +56,7 @@ function table(id, nowMs) {
     if (g && g[0] > t) { e = g[0]; title = 'NBA Gametime'; }
     else if (g) { e = g[0] + 2.5 * H; title = g[1]; }
     out.push({ title: Buffer.from(title).toString('base64'), description: Buffer.from(g && s === g[0] ? 'Live coverage of the game.' : desc[title] || 'Description').toString('base64'),
-      start: panelStr(s), end: panelStr(e), start_timestamp: String(s / 1000), stop_timestamp: String(e / 1000), now_playing: s <= nowMs && e > nowMs ? 1 : 0, has_archive: s >= nowMs - 3 * 24 * H && e <= nowMs ? 1 : 0 });
+      start: panelStr(s), end: panelStr(e), start_timestamp: String(s / 1000), stop_timestamp: String(e / 1000), now_playing: s <= nowMs && e > nowMs ? 1 : 0, has_archive: s >= nowMs - 3 * 24 * H && s <= nowMs ? 1 : 0 });
     t = e;
   }
   return { epg_listings: out };

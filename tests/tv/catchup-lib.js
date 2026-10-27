@@ -77,8 +77,10 @@ module.exports = async ({ p, key }, opts = {}) => {
   // the provider's guide on the page's clock
   await p.route('**/player_api.php*', (r) => r.continue({ headers: { ...r.request().headers(), 'x-mock-now': String(at + (Date.now() - started)) } }));
   const started = Date.now();
-  await p.clock.install({ time: new Date(at) });
+  if (!p.__clocked) { await p.clock.install({ time: new Date(at) }); p.__clocked = true; } else await p.clock.setSystemTime(new Date(at));
   await ev((o) => {
+    // a fresh morning: no replay progress, picks or "watched on" kept from an earlier part of the script
+    for (const k of Object.keys(localStorage)) if (/:(progress|replayPick|nbaWatchedOn|archiveShift|replayDelay)"?$/.test(k) || /:(progress|replayPick|nbaWatchedOn|archiveShift|replayDelay)$/.test(k)) localStorage.removeItem(k);
     const k = 'tuner.settings', v = JSON.parse(localStorage.getItem(k) || '{}');
     v.shield = o.shield || 'mine'; v.nbaTeam = 'MEM'; if (o.replaysPlay) v.replaysPlay = o.replaysPlay; else delete v.replaysPlay;
     localStorage.setItem(k, JSON.stringify(v));
@@ -95,8 +97,10 @@ module.exports = async ({ p, key }, opts = {}) => {
 module.exports.JAZZ = JAZZ;
 module.exports.TIP = TIP;
 // What's on screen as text (for the shield sweep): every visible element's text, the overlays included.
-module.exports.screenText = (p) => p.evaluate(() => {
-  const vis = (e) => { for (let n = e; n; n = n.parentElement) { if (n.hidden) return false; const cs = getComputedStyle(n); if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false; } return true; };
+// (other games' cards and tiles are left out: their scores may show, as on the hub; gameId: the hidden game's)
+module.exports.screenText = (p, gameId = JAZZ) => p.evaluate((id) => {
+  const other = (n) => (n.matches?.('.gc[data-g], .nb-gt[data-g]') && n.dataset.g !== id);
+  const vis = (e) => { for (let n = e; n; n = n.parentElement) { if (n.hidden || other(n)) return false; const cs = getComputedStyle(n); if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false; } return true; };
   return [...document.querySelectorAll('#screens [data-screen]:not([hidden]), #overlays, #topbar')].map((r) => [...r.querySelectorAll('*')].filter((e) => e.children.length === 0 && vis(e)).map((e) => e.textContent.trim()).filter(Boolean).join(' | ')).join(' || ');
 });
 // The shield's SPOILER rule (SPEC 11), run on the app's text: dates go first, then a score, a result word, OT, a

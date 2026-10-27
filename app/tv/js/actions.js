@@ -3,6 +3,8 @@ import { S } from './state.js';
 import { catalog, ensure } from './catalog.js';
 import { playVod, queueAfter } from './player.js';
 import { push } from './router.js';
+import { gameById } from './games.js';
+import { resumeGame, watchFromTipoff, playProgramme } from './replay.js';
 
 // Series episode lists, kept for a while so the next resume has Up next at once.
 const seriesCache = new Map();   // seriesId -> { at, eps }
@@ -18,6 +20,7 @@ export function episodesOf(it) {
 // Continue watching plays straight away. An episode starts at once; the episodes after it join for Up next when
 // the series' list arrives (at once when it was looked up recently).
 export async function resumeItem(it, { restart } = {}) {
+  if (it.kind === 'rp') return resumeReplay(it, { restart });
   if (it.kind !== 'episode') return playVod(it, { restart });
   const hit = seriesCache.get(it.seriesId);
   const known = hit && Date.now() - hit.at < 30 * 60e3 ? hit.eps : null;
@@ -28,7 +31,14 @@ export async function resumeItem(it, { restart } = {}) {
 }
 
 // The title page for a library title, a provider item (a version) or an episode.
+// A replay you stopped (catch-up 5.2): a game resumes (or starts again from tip-off); a programme from where you were.
+function resumeReplay(it, { restart } = {}) {
+  if (it.game) { const g = gameById(it.game.id) || it.game; return restart ? watchFromTipoff(g) : resumeGame(g); }
+  const ch = catalog.live?.byId.get(it.ch);
+  if (ch) playProgramme(ch, { title: it.title, start: it.start, end: it.end }, { restart });
+}
 export async function openTitle(it) {
+  if (it.kind === 'rp') { if (it.game) push('game', { id: it.game.id }); return; }
   const kind = it.kind === 'episode' ? 'series' : it.kind;
   const id = it.kind === 'episode' ? it.seriesId : it.id;
   const c = catalog[kind] || await ensure(kind).catch(() => null);

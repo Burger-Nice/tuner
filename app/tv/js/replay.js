@@ -412,3 +412,26 @@ export function chooseVideo(g, { focusId } = {}) {
 // ---------- the game page and Look again ----------
 export const lookAgain = (g) => findReplays(g, { force: true });
 on('session', () => { cur = null; });
+
+// ---------- the heroes' catch-up rows (Home, the hub, the team header): what their buttons do (5.1) ----------
+// kind: the hero's data-row-kind. Returns true when the press was a catch-up one (the caller handles the rest:
+// Watch live, Box score, Reveal score).
+export function heroAct(g, kind, act) {
+  if (!g || !kind) return false;
+  if (act === 'primary') {
+    if (kind === 'morning') { watchFromTipoff(g); return true; }
+    if (kind === 'resume' || kind === 'behind') { resumeGame(g); return true; }
+    if (kind === 'looking' || kind === 'seen') { push('game', { id: g.id }); return true; }
+    return false;   // live-tipoff: Watch live is the caller's
+  }
+  if (act === 'tipoff' || act === 'again') { watchFromTipoff(g); return true; }
+  if (act === 'golive') { backToLive(g); return true; }
+  if (act === 'game') { push('game', { id: g.id }); return true; }
+  return false;
+}
+// Hold OK on a watch button: the sources sheet, whatever the setting (13.1).
+export function heroHold(g, kind, act) {
+  if (!g || !kind) return false;
+  if (act === 'tipoff' || act === 'again' || (act === 'primary' && kind !== 'live-tipoff' && kind !== 'looking')) { sourcesSheet(g); return true; }
+  return false;
+}

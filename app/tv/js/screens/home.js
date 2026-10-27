@@ -5,7 +5,7 @@ import { $, esc, setHtml, ic } from '../util.js';
 import { S, on, store, scoped, favList, continueRows, toggleFav, isFav, markWatched, settings } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
-import { nba, bestChannel, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
+import { gameById, nba, bestChannel, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
 import { gameHero, resumeHero, channelHero, liveCard, contCard, gameCard } from '../cards.js';
 import { playLive, playVod, watching } from '../player.js';
 import { push, go, current, barHidden } from '../router.js';
@@ -14,19 +14,26 @@ import { openOverlay, contextMenu, toast, scrollList } from '../ui.js';
 import { resumeItem, openTitle } from '../actions.js';
 import { launchOpen, launchDone } from '../launch.js';
 import { gameMenu } from '../nba/hub.js';
+import { heldLive } from '../games.js';
+import { morningGame, WINDOW } from '../catchup.js';
+import { heroAct, heroHold, resumeGame, watchFromTipoff, playProgramme } from '../replay.js';
 
 let el, page, heroKind = null, heroLockUntil = 0, rows = [], railItems = {};
 const ROW_TOP = [278, 422];
 
 // Your team's game counts from 3 h before tip-off to 30 min after the final.
+// Then (catch-up 5.1): your team's last game, hidden, with a replay (the morning after). Behind in a replay of it, the
+// game counts as live until its tip-off + 3 h 30, on the clock.
 function heroGame() {
   if (settings().heroGame === false) return null;   // Account > Home rows > Your team first
   const g = myGame();
-  if (!g) return null;
-  if (g.state === 'in') return g;
-  if (g.state === 'pre' && g.date - Date.now() < 3 * 3600e3) return g;
-  if (g.state === 'post' && (!g._finalAt || Date.now() - g._finalAt < 30 * 60e3)) { g._finalAt = g._finalAt || Date.now(); return g; }
-  return null;
+  if (g) {
+    if (g.state === 'in' || heldLive(g)) return g;
+    if (g.state === 'pre' && g.date - Date.now() < 3 * 3600e3) return g;
+    // (a final first seen long after its tip-off isn't "just ended": the morning-after row takes it, below)
+    if (g.state === 'post' && Date.now() - g.date < WINDOW + 3600e3 && (!g._finalAt || Date.now() - g._finalAt < 30 * 60e3)) { g._finalAt = g._finalAt || Date.now(); return g; }
+  }
+  return morningGame();
 }
 function channelFor(g) {
   return bestChannel(g);
@@ -109,6 +116,7 @@ function placeRails() {
 function heroAction(act, btn) {
   const g = heroGame();
   if (heroKind === 'game' && g) {
+    if (heroAct(g, btn?.closest('[data-row-kind]')?.dataset.rowKind, act)) return;
     const ch = channelFor(g);
     if (act === 'primary') {
       if (g.state === 'post') return push('game', { id: g.id });
@@ -171,12 +179,33 @@ function railHold(id, i, card) {
     ]);
   } else {
     const p = railItems.cont[i]; if (!p) return;
+    if (p.item.kind === 'rp') return replayMenu(card, p);
     contextMenu(card, [
       { icon: 'play', label: 'Resume', run: () => resumeItem(p.item) },
       { icon: 'check', label: 'Mark watched', run: () => { markWatched(p.item); draw(); } },
       { icon: 'info', label: 'Details', run: () => openTitle(p.item) },
     ]);
   }
+}
+
+// Hold OK on a replay in Continue watching (catch-up 5.2): From tip-off, Game page, Remove.
+function replayMenu(card, p) {
+  const it = p.item, remove = () => { delete S.progress[`rp:${it.id}`]; store.set(scoped('progress'), S.progress); draw(); };
+  if (it.game) {
+    const g = () => gameById(it.game.id) || it.game;
+    return contextMenu(card, [
+      { icon: 'play', label: 'Resume', run: () => resumeGame(g()) },
+      { icon: 'tipoff', label: 'From tip-off', run: () => watchFromTipoff(g()) },
+      { icon: 'score', label: 'Game page', run: () => push('game', { id: it.game.id }) },
+      { icon: 'close', label: 'Remove', run: remove },
+    ]);
+  }
+  const ch = catalog.live?.byId.get(it.ch);
+  contextMenu(card, [
+    { icon: 'play', label: 'Resume', run: () => ch && playProgramme(ch, { title: it.title, start: it.start, end: it.end }) },
+    { icon: 'tipoff', label: 'Start over', run: () => ch && playProgramme(ch, { title: it.title, start: it.start, end: it.end }, { restart: true }) },
+    { icon: 'close', label: 'Remove', run: remove },
+  ]);
 }
 
 export default {
@@ -197,6 +226,8 @@ export default {
       if (gc) return gameMenu(gc, railItems.games[+gc.dataset.i]);
       const card = e.target.closest('.hc');
       if (card) return railHold(card.closest('[data-rail]').dataset.rail, +card.dataset.i, card);
+      const hk = e.target.closest('[data-row-kind]')?.dataset.rowKind, hg = heroGame();
+      if (hg && e.target.dataset.act && heroHold(hg, hk, e.target.dataset.act)) return;
       if (e.target.dataset.act === 'primary') { const g = heroGame(); if (g) otherFeeds(g); }
     });
     root.addEventListener('tvfocus', placeRails);
@@ -210,7 +241,7 @@ export default {
       if (!launchOpen() && kindNow() === heroKind) { later = true; return; }   // same hero: wait for the launch to go
       draw();
     };
-    on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('progress', redraw); on('favs', redraw);
+    on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('progress', redraw); on('favs', redraw); on('replays', redraw);
     on('catalog', (k) => { if (k === 'live') { redraw(); warmRails(); } });
     on('league', (k) => { if (k.startsWith('schedule:') || k === 'standings') redraw(); });   // (records under the shield)
     setInterval(redraw, 30000);
