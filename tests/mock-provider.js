@@ -15,7 +15,7 @@ const names = ['NBA 01: Memphis Grizzlies @ Golden State Warriors', 'US: ESPN HD
 const live = Array.from({ length: 320 }, (_, i) => ({
   num: i + 1, name: i < names.length ? names[i] + (i % 3 === 0 ? ' HD' : '') : `Channel ${i + 1}`, stream_type: 'live', stream_id: 1000 + i,
   stream_icon: i % 4 === 3 ? '' : `${B}/img/l${i % 8}.png`, epg_channel_id: 'x', category_id: String((i % 8) + 1),
-  tv_archive: i % 8 === 1 ? 1 : 0, tv_archive_duration: i % 8 === 1 ? 3 : 0,   // the Sports group keeps 3 days
+  tv_archive: i % 8 === 1 || i === 6 ? 1 : 0, tv_archive_duration: i % 8 === 1 || i === 6 ? 3 : 0,   // the Sports group and RÚV keep 3 days
 }));
 // Named the way real providers do, with the language and quality in the category name.
 const vodCats = ['FR | DRAMA', 'EN | NEW RELEASES', 'EN | ACTION', '4K | UHD MOVIES', 'KIDS | MULTI-SUB', 'DE - KOMÖDIE'].map((n, i) => ({ category_id: String(10 + i), category_name: n }));
@@ -25,15 +25,52 @@ const vod = Array.from({ length: 640 }, (_, i) => ({
   stream_icon: i % 5 === 4 ? '' : `${B}/img/p${i % 8}.jpg`, rating: String(((i * 7) % 50) / 10 + 5), added: String(1700000000 + i * 3600),
   category_id: String(10 + (i % 6)), container_extension: 'mp4',
 }));
+// NBA replays the way real providers name them (catch-up: design/ui-v1/catchup/SPEC.md 3.3, 5.7): the Grizzlies at the
+// Jazz (tip-off Tue 27 Oct 01:00 UTC, Mon 26 Oct in the US) and at the Kings (Mon 26 Oct 01:00 UTC), and other videos.
+vodCats.push({ category_id: '16', category_name: 'EN | NBA REPLAYS' });
+const at = (iso) => String(Math.floor(Date.parse(iso) / 1000));
+[['NBA 2026-10-26 Memphis Grizzlies @ Utah Jazz (Memphis Feed) 1080p', '2026-10-27T08:14:00Z'],
+  ['NBA 26.10.2026 Grizzlies vs Jazz Utah Feed 720p', '2026-10-27T08:40:00Z'],
+  ['NBA Condensed 2026-10-26 Grizzlies @ Jazz', '2026-10-27T07:30:00Z'],
+  ['Grizzlies 118-112 Jazz highlights', '2026-10-27T09:02:00Z'],
+  ['NBA 2026-10-25 Grizzlies vs Kings full game 1080p', '2026-10-26T09:00:00Z'],
+  ['Memphis Grizzlies Season Preview 720p', '2026-10-19T12:00:00Z'],
+  ['Utah Jazz Media Day 1080p', '2026-09-30T12:00:00Z'],
+].forEach(([name, added], k) => vod.push({ num: 641 + k, name, stream_type: 'movie', stream_id: 5900 + k, stream_icon: `${B}/img/p${k % 8}.jpg`, rating: '', added: at(added), category_id: '16', container_extension: 'mp4' }));
+// The full table (get_simple_data_table) of a kept channel: 3 days back and a day ahead, with has_archive and the
+// panel's own time strings (the panel's zone is Atlantic/Reykjavik, UTC). US: ESPN HD carried the Grizzlies' games.
+const GAMES_ON = { 1001: [['2026-10-24T02:00:00Z', 'NBA: Memphis Grizzlies @ Golden State Warriors'], ['2026-10-26T01:00:00Z', 'NBA: Memphis Grizzlies @ Sacramento Kings'], ['2026-10-27T01:00:00Z', 'NBA: Memphis Grizzlies @ Utah Jazz']] };
+const panelStr = (t) => new Date(t).toISOString().slice(0, 19).replace('T', ' ');
+function table(id, nowMs) {
+  const ch = live.find((x) => x.stream_id === id);
+  if (!ch?.tv_archive) return { epg_listings: [] };
+  const H = 3600e3, from = Math.floor(nowMs / H) * H - 3 * 24 * H - 6 * H, to = from + 4 * 24 * H + 6 * H, out = [];
+  const games = (GAMES_ON[id] || []).map(([iso, title]) => [Date.parse(iso), title]);
+  const sports = ['SportsCenter', 'NBA Today', 'First Take', 'Around the Horn', 'NBA Gametime', 'College Football Live'];
+  const ruv = ['Kvöldfréttir', 'Coastline', 'Night Circuit', 'Weather for the Week', 'Morning Coffee', 'Kastljós'];
+  const desc = { Coastline: 'The cliffs of the far north-west, filmed over a year of storms.', 'Night Circuit': 'A late drive through the city, with music.', Kvöldfréttir: 'The evening news from Iceland and abroad.' };
+  for (let t = from; t < to;) {
+    const g = games.find(([s]) => s >= t && s < t + H);
+    let s = t, e = t + H, title = id === 1006 ? ruv[new Date(t).getUTCHours() % ruv.length] : sports[new Date(t).getUTCHours() % sports.length];
+    if (id === 1006) title = { 19: 'Kvöldfréttir', 20: 'Coastline', 21: 'Night Circuit' }[new Date(t).getUTCHours()] || title;
+    if (g && g[0] > t) { e = g[0]; title = 'NBA Gametime'; }
+    else if (g) { e = g[0] + 2.5 * H; title = g[1]; }
+    out.push({ title: Buffer.from(title).toString('base64'), description: Buffer.from(g && s === g[0] ? 'Live coverage of the game.' : desc[title] || 'Description').toString('base64'),
+      start: panelStr(s), end: panelStr(e), start_timestamp: String(s / 1000), stop_timestamp: String(e / 1000), now_playing: s <= nowMs && e > nowMs ? 1 : 0, has_archive: s >= nowMs - 3 * 24 * H && e <= nowMs ? 1 : 0 });
+    t = e;
+  }
+  return { epg_listings: out };
+}
 const serCats = ['Drama', 'Crime', 'Comedy', 'Reality'].map((n, i) => ({ category_id: String(30 + i), category_name: n }));
 const series = Array.from({ length: 60 }, (_, i) => ({
   num: i + 1, name: ['Trapped', 'The Office', 'Katla', 'Succession', 'The Bear', 'Severance'][i % 6] + (i >= 6 ? ` ${Math.floor(i / 6) + 1}` : ''), series_id: 9000 + i,
   cover: i % 7 === 6 ? '' : `${B}/img/p${(i + 3) % 8}.jpg`, plot: 'A plot.', rating: '8.1', releaseDate: `${2010 + (i % 14)}-01-01`, last_modified: String(1700000000 + i), category_id: String(30 + (i % 4)),
 }));
 
-function api(q) {
+// (nowMs: a test's own clock, from the x-mock-now header, so the guide matches the page's fake time)
+function api(q, nowMs = Date.now()) {
   if (q.get('username') !== 'demo' || q.get('password') !== 'demo') return { user_info: { auth: 0 } };
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(nowMs / 1000);
   switch (q.get('action')) {
     case null: return { user_info: { username: 'demo', password: 'demo', auth: 1, status: 'Active', exp_date: String(now + 86400 * 143), is_trial: '0', active_cons: '0', max_connections: '2', created_at: '1690000000' }, server_info: { url: '127.0.0.1', port: String(PORT), timezone: 'Atlantic/Reykjavik' } };
     case 'get_live_categories': return liveCats;
@@ -47,6 +84,7 @@ function api(q) {
       const mk = (s, n) => Array.from({ length: n }, (_, e) => ({ id: String(70000 + s * 100 + e), episode_num: e + 1, title: `Episode ${e + 1}: ${['Arrival', 'The Storm', 'Whiteout', 'Thaw', 'Aftershock', 'Home'][e % 6]}`, container_extension: 'mp4', season: s, info: { plot: 'Snow closes the only road out of town just as a body turns up in the harbour.', duration: '00:52:10', movie_image: e % 3 ? `${B}/img/bd.jpg` : '' } }));
       return { info: { name: 'x', plot: 'A small Icelandic town is cut off by a blizzard while the police chief investigates a murder.', genre: 'Crime, Drama', cast: 'Ólafur Darri Ólafsson', director: 'Baltasar Kormákur', releaseDate: '2015-12-27', rating: '8.1', backdrop_path: [`${B}/img/bd.jpg`] }, episodes: { 1: mk(1, 6), 2: mk(2, 8), 3: mk(3, 4) } };
     }
+    case 'get_simple_data_table': return table(+q.get('stream_id'), nowMs);
     case 'get_short_epg': {
       const start = now - 1800 - (now % 1800);
       const t = q.get('stream_id') === '1001' ? ['NBA Basketball: LA Clippers at Los Angeles Lakers', 'NBA Basketball: LA Clippers at Los Angeles Lakers', 'NBA Basketball: LA Clippers at Los Angeles Lakers', 'SportsCenter'] : ['Evening News', 'Weather', 'Match of the Day', 'Late Show', 'Documentary: Volcanoes', 'Night Music'];
@@ -103,7 +141,7 @@ http.createServer((req, res) => {
     req.on('close', () => { sent = total; });
     return more();
   }
-  if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams))); }
+  if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams, +req.headers['x-mock-now'] || Date.now()))); }
   if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');
   if (u.pathname === '/espn/summary') {
     // the plays as if happening now (the newest 75 s ago), so Sync score has clocks to match
@@ -145,6 +183,9 @@ http.createServer((req, res) => {
   }
   // catch-up: /timeshift/demo/demo/<minutes>/<YYYY-MM-DD:HH-MM>/<id>.ts (the archive plays the test clip)
   if (/^\/timeshift\/demo\/demo\/\d+\/\d{4}-\d\d-\d\d:\d\d-\d\d\/\d+\.ts$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'live.ts'), 'video/mp2t');
+  // (the .m3u8 timeshift link replays come first with: the test clip's playlist)
+  if (/^\/timeshift\/demo\/demo\/\d+\/\d{4}-\d\d-\d\d:\d\d-\d\d\/\d+\.m3u8$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'hls/index.m3u8'), 'application/vnd.apple.mpegurl');
+  if ((m = /^\/timeshift\/demo\/demo\/\d+\/\d{4}-\d\d-\d\d:\d\d-\d\d\/(seg\d+\.ts)$/.exec(u.pathname))) return sendFile(req, res, path.join(MEDIA, 'hls', m[1]), 'video/mp2t');
   if (/^\/(movie|series)\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'movie.mp4'), 'video/mp4');
   res.writeHead(404); res.end();
 }).listen(PORT, () => console.log('mock xtream on ' + B));
