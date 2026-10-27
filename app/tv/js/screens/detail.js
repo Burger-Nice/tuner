@@ -272,6 +272,15 @@ function aboutSheet() {
 }
 function fitCol(movie) {
   const col = el.querySelector('.d-col');
+  // a series' button row with both pills (add-on copies): past the safe edge, the Version pill drops its tail
+  // ("best of 2 · S1 · E1", still in its Copies menu), then the Subtitles pill is cut with an ellipsis
+  const brow = col?.querySelector('.row-flex');
+  if (brow && !movie) {
+    brow.classList.remove('tight', 'tighter');
+    const over = () => brow.lastElementChild && brow.lastElementChild.getBoundingClientRect().right > 912;
+    if (over()) brow.classList.add('tight');
+    if (over()) brow.classList.add('tighter');
+  }
   const below = movie ? [...el.querySelectorAll('.rowtitle, .rail')] : [...el.querySelectorAll('.seas, .rail, .epsyn')];
   if (!col || !below.length) return;
   const limit = (movie ? 366 : 272) - 14, room = movie ? 16 : 44;

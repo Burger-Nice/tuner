@@ -213,3 +213,8 @@ input.field[readonly]{caret-color:transparent}
 /* posters: filled = checked, with no tick at that size; dashed = only a name says so (SPEC 6.1) */
 .pc .tl .tag.ad-ok{padding:0 7px}
 .pc .tl .tag.ad-ok,.pc .tl .tag.ad-name{height:22px}
+/* a series' button row with the Version pill and the Subtitles pill: kept inside x 912 (detail.js fitCol) */
+.d-col .row-flex.tight .pillbtn .ad-of:not(.ad-ep){display:none}
+.pillbtn .ad-of+.ad-ep{margin-left:-8px}.d-col .row-flex.tight .pillbtn .ad-of+.ad-ep{margin-left:0}
+.pillbtn .st-pre{white-space:pre}
+.d-col .row-flex.tighter [data-act="subs"] .st-pre{display:none}

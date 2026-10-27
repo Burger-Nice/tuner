@@ -159,7 +159,8 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
     const v = view(ts.target());
     let text = v.pill;
     if (slotTaken && v.st?.status === 'down' && !v.sel.lang) text += ` · trying ${hm(v.st.retryAt || Date.now() + 60e3)}`;
-    return `<span class="pillbtn fx${v.dashed ? ' st-wait' : ''}" tabindex="-1" data-act="subs">${ic('cc')}${esc(text)}</span>`;
+    // ("Subtitles: " is its own span: a crowded series row drops it, the CC icon says it: detail.js fitCol)
+    return `<span class="pillbtn fx${v.dashed ? ' st-wait' : ''}" tabindex="-1" data-act="subs">${ic('cc')}<span>${text.startsWith('Subtitles: ') ? `<span class="st-pre">Subtitles: </span>${esc(text.slice(11))}` : esc(text)}</span></span>`;
   };
   // the slot's third text: while this page's copies are checked, the progress line; else the subtitles text
   ts.slot = () => {

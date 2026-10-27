@@ -93,7 +93,7 @@ export function titleCopies(t, onChange) {
     const mixed = best.source !== 'provider' || (list || tc.copies()).some((c) => c.source !== 'provider') || (tc.addons && !!tc.q);
     const tail = best.pinned ? ' · your pick' : n > 1 ? ` · best of ${n}` : tc.unsure() && !suffix ? ' · which film is it?' : '';
     const head = mixed ? `${word ? `${esc(word)} · ` : ''}${esc(srcName(best))}` : esc(word || 'Copies');
-    return `${ic('film')}${k ? TICK : ''}<span>${head}</span><span class="ad-of">${esc(tail + suffix)}</span>${ic('chevD')}`;
+    return `${ic('film')}${k ? TICK : ''}<span>${head}</span><span class="ad-of">${esc(tail)}</span>${suffix ? `<span class="ad-of ad-ep">${esc(suffix)}</span>` : ''}${ic('chevD')}`;
   };
   tc.slot = () => { const a = tc.asking(); return a.length ? `${SPIN}Still asking ${esc(listNames(a))}` : ''; };
   tc.matchNote = () => (tc.match?.level === 'unsure' && !tc.match.none && tc.match.cands?.length > 1 ? `${tc.match.cands.length} films are called ${esc(t.name)} · which one? (in Copies)` : '');
