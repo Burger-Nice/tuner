@@ -1,0 +1,32 @@
+[
+ {
+  "file": "player-skip.html",
+  "title": "Skip intro",
+  "note": "It's Always Sunny S1 E1 at 1:47. The intro runs 1:44 to 2:11 (TheIntroDB). The chip stays 10 s; OK skips to 2:11. The hint bar shows the first 5 times."
+ },
+ {
+  "file": "player-skip-bar.html",
+  "title": "Skip intro in the button row",
+  "note": "The controls are up during the intro (▲ pressed at 1:52). The floating chip moves into the row and ▲ lands on it. Small gaps on the bar mark the intro and the credits; no labels."
+ },
+ {
+  "file": "player-skipped.html",
+  "title": "Skipped automatically",
+  "note": "Skip automatically is on. S1 E2's intro (1:19 to 1:46) was skipped; for 5 s OK goes back to 1:19. The subtitle line rises above the chip while it shows."
+ },
+ {
+  "file": "player-recap.html",
+  "title": "Skip recap",
+  "note": "Lost S2 E1 at 0:06. The recap runs 0:02 to 0:28. Recaps have speech, so the subtitles show and rise above the chip. After 5 views the hint bar stops; the key cap on the chip says what OK does."
+ },
+ {
+  "file": "player-upnext-credits.html",
+  "title": "Up next when the credits start",
+  "note": "S1 E1 at 21:30. The credits start at 21:28 (TheIntroDB) and no one speaks after it, so Up next comes then (not 40 s from the end) and counts 15 s. Unchanged: OK plays now, Back stays on this one."
+ },
+ {
+  "file": "player-options-skip.html",
+  "title": "Options > Skip intros",
+  "note": "From ▼ Options in an episode. The same setting as Account > Playback > Skip intros. The foot says whether this episode is known."
+ }
+]

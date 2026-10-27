@@ -1,0 +1,34 @@
+/* airglow TV: Skip intro / recap, and Up next at the credits v1.0 (design/ui-v1/skip/SPEC.md). New classes only, prefix sk-.
+   Built on tv/brand/tokens.css + tv/ui.css + tv/app.css (+ the subtitles panel rows). Everything here is a native view
+   (PlayerActivity, VodControls, ListPanel), drawn as HTML for measuring: dp = CSS px on the 960 x 540 canvas.
+   Colour: pink only for the drain line (progress) and radio dots; no new colours. Only transform and opacity animate. */
+
+/* ---------- the Skip chip: bottom right, the Up next chip's place (right 48, bottom 64), 48 high ---------- */
+.sk-chip{position:absolute;right:48px;bottom:64px;height:48px;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;
+  border-radius:16px;background:rgba(30,27,40,.94);border:1px solid var(--a-border);z-index:7;overflow:hidden;white-space:nowrap}
+.sk-chip .ic{width:20px;height:20px;color:var(--a-text-1)}
+.sk-chip b{font:700 16px/20px var(--a-font-display);color:var(--a-text-1)}
+.sk-chip .kbd{margin:0 0 0 4px}
+.sk-chip .t-cap{color:var(--a-text-1);margin-left:-4px}
+.sk-chip small{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+/* the drain line: how long the chip stays (3 dp, pink, inset 14 / 12, along the bottom edge) */
+.sk-drain{position:absolute;left:14px;right:12px;bottom:5px;height:3px;border-radius:999px;background:var(--a-surface-3)}
+.sk-drain i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:#F95BAC}
+/* the auto-skip chip: two lines, 60 high */
+.sk-chip.two{height:60px}
+.sk-chip.two .tx{display:flex;flex-direction:column}
+
+/* ---------- the button row's Skip pill (VodControls.pill, 40 high, Outfit 700 16) ---------- */
+.vb.sk-pill{width:auto;height:40px;border-radius:999px;padding:0 18px 0 14px;display:inline-flex;gap:8px;font:700 16px/1 var(--a-font-display);color:var(--a-text-1)}
+.vb.sk-pill .ic{width:18px;height:18px}
+
+/* ---------- seek bar: 2 dp gaps at the known segments' edges (no labels on the bar) ---------- */
+.seek .sk-gap{position:absolute;top:-1px;bottom:-1px;width:2px;margin-left:-1px;background:rgba(30,27,40,1);z-index:1}
+.seek .thumbf{z-index:2}
+.seek .bub small{font:650 14px/20px var(--a-font-text);margin-left:6px;opacity:.8}
+
+/* ---------- subtitles lift above a bottom-right chip while one is up (bottom 70 -> 120) ---------- */
+.nv-sub.sk-lift{bottom:120px}
+
+/* ---------- Options > Skip intros (384 wide, as the subtitles' panels) ---------- */
+.nv-panel.sk-panel{width:384px}
