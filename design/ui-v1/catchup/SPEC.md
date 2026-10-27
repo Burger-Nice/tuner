@@ -1071,6 +1071,22 @@ tokens, not Java views); contrast over real video; that ESPN's `wallclock` lines
 
 ## 13. Decisions for the owner
 
+**Answered by the owner (27 Oct):**
+- **1. Which source first:** "maybe have the option to choose". So: a setting, Account > Settings > NBA > `Replays play`:
+  `Channel replay first` (the default), `Full-game video first`, or `Ask each time`. With `Ask each time`, "Watch from
+  tip-off" opens the sources sheet (best first, the channel replay focused) instead of playing. Hold OK on any watch
+  button opens the sources sheet whatever the setting, as designed.
+- **6. Seen when:** the final buzzer (as designed). Watching into Q4 doesn't count.
+- **7. A hidden live game you haven't started:** primary `Watch live`, `From tip-off` second (as designed).
+- **8. Words:** `Replays for 3 days` / `No replays on this channel` (the plainer pair). Every mock and string that says
+  `Kept` / `Not kept by your provider` uses these instead when built.
+
+**Not asked, the design's choice stands:** 2 (the morning-after hero holds 48 h or until the next game's window),
+3 (Back on rewound live TV leaves the player), 4 (matched videos in Movies get airglow's name and art and open the game
+page), 5 (condensed games offered last).
+
+The original list, for reference:
+
 1. **Which source plays first:** the channel replay (quarter skips, the as-aired score, ads included; this design) or
    a full-game video when there is one.
 2. **The morning-after hero** holds your unseen game up to 48 h or until the next game's window. Shorter? Longer?
