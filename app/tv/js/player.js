@@ -8,6 +8,7 @@ import { subSettings, subState, forPlayer, prepare, retryNow, subMemory, cancelC
 import { NAME_ISO1 } from './subs/lang.js';
 import { providerCopy, rank, copyLine, cutLabel } from './copies.js';
 import { matchTitle } from './imdb.js';
+import { segmentsFor } from './intros.js';
 import { keyOf } from './util.js';
 import { native } from './native.js';
 import { programmeView } from './catchup.js';
@@ -268,6 +269,7 @@ export async function playVod(item, { queue, restart, entry } = {}) {
   ctx.cur = { kind: 'vod', items: list, index: 0, session: r.session };
   sentSubs = '';
   sendSubs();
+  sendSegments(item);
   versionsNow().then((v) => { if (v && ctx.cur?.session === r.session) cmd('versions', v); });
   // an episode played on its own (Search, a poster, Saved…): the ones after it join for Up next once the series' list is in
   if (item.kind === 'episode' && list.length === 1) import('./actions.js').then((A) => A.episodesOf(item)).then((eps) => { const i = eps.findIndex((e) => String(e.id) === String(item.id)); if (i >= 0 && ctx.cur?.session === r.session) queueAfter(item, eps.slice(i + 1)); }).catch(() => {});
@@ -318,6 +320,23 @@ async function prepareFor(it, extra = {}) {
   finally { preparing.delete(key); }
 }
 on('subs', (key) => { const it = playingVod(); if (it && subsKey(it) === key) sendSubs(); });
+
+// ---------- Skip intro / recap, the credits (design/ui-v1/skip/SPEC.md) ----------
+// The item's IMDb id (an add-on item has it; a provider film or episode: its title's match, Sure or Likely), then its
+// segments; sent once per item. Off in Account > Playback: nothing is asked.
+async function sendSegments(it) {
+  if (!it || settings().skipIntro === 'off' || !native?.info?.()?.segments) return;
+  const c = ctx.cur, ep = it.kind === 'episode';
+  let imdb = ep ? it.imdbSeries : /^tt\d+$/.test(String(it.id)) ? String(it.id) : '';
+  if (!imdb) {
+    const t = ep ? seriesOf(it) : titleOf(it);
+    const m = t ? await matchTitle(t).catch(() => null) : null;
+    if (m?.id && m.level !== 'unsure') imdb = m.id;
+  }
+  if (!imdb) return;
+  const seg = await segmentsFor({ imdb, ...(ep ? { season: +it.season, episode: +it.ep } : {}) });
+  if (seg && ctx.cur === c && playingVod() === it) cmd('segments', { id: `${it.kind}:${it.id}`, ...seg });
+}
 
 // ---------- Options > Quality: the copies of the film with what their checks found (SPEC 7.7, RANKING.md) ----------
 const SOUND = (a) => {
@@ -412,7 +431,7 @@ native?.player.onEvent((e) => {
   // a replay's own events (position, need, sync, golive…) are replay.js's: only the session's end and settings are here
   if (c.kind === 'replay' && !['exit', 'diag', 'setting', 'goto-account', 'reveal'].includes(e.type)) return;
   if (e.type === 'track') {
-    if (c.kind === 'vod') { const moved = c.index !== e.index; c.index = e.index; if (moved) { sentSubs = ''; sendSubs(); } return; }   // (an episode: its own subtitles)
+    if (c.kind === 'vod') { const moved = c.index !== e.index; c.index = e.index; if (moved) { sentSubs = ''; sendSubs(); sendSegments(c.items[e.index]); } return; }   // (an episode: its own subtitles and intro)
     const i = c.items.findIndex((x) => String(x.id) === String(e.id));
     const it = i >= 0 ? c.items[i] : chOf(e.id);
     if (i >= 0) c.index = i;
