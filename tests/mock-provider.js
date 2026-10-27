@@ -51,7 +51,7 @@ function table(id, nowMs) {
   const desc = { Coastline: 'The cliffs of the far north-west, filmed over a year of storms.', 'Night Circuit': 'A late drive through the city, with music.', Kvöldfréttir: 'The evening news from Iceland and abroad.' };
   for (let t = from; t < to;) {
     const g = games.find(([s]) => s >= t && s < t + H);
-    let s = t, e = t + H, title = id === 1006 ? ruv[new Date(t).getUTCHours() % ruv.length] : sports[new Date(t).getUTCHours() % sports.length];
+    let s = t, e = Math.floor(t / H) * H + H, title = id === 1006 ? ruv[new Date(t).getUTCHours() % ruv.length] : sports[new Date(t).getUTCHours() % sports.length];
     if (id === 1006) title = { 19: 'Kvöldfréttir', 20: 'Coastline', 21: 'Night Circuit' }[new Date(t).getUTCHours()] || title;
     if (g && g[0] > t) { e = g[0]; title = 'NBA Gametime'; }
     else if (g) { e = g[0] + 2.5 * H; title = g[1]; }
