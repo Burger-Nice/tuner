@@ -16,6 +16,11 @@ module.exports = async (ctx) => {
   if (sc === 'nonews') await p.route('**/espn/news*', (r) => json(r, { articles: [] }));
   if (sc === 'stats503') await p.route('**/espnweb/common/v3/sports/basketball/nba/statistics/byteam*', fail);
   if (sc === 'empty') await p.route('**/espn/teams/*/schedule', (r) => { const s = JSON.parse(fs.readFileSync(`${F}/schedule-29.json`, 'utf8')); s.events = []; json(r, s); });
+  if (sc === 'offseason') {
+    await p.route('**/espn/teams/*/schedule', (r) => { const s = JSON.parse(fs.readFileSync(`${F}/schedule-29.json`, 'utf8')); s.events = []; json(r, s); });
+    const b = { ...h.board, events: h.board.events.filter((e) => e.id !== '401909875') };
+    await p.route('**/espn/scoreboard*', (r) => json(r, b));
+  }
   if (sc === 'allpost') await p.route('**/espn/teams/*/schedule', (r) => {
     const s = JSON.parse(fs.readFileSync(`${F}/schedule-29.json`, 'utf8'));
     s.events = s.events.filter((e) => Date.parse(e.date) < Date.parse('2026-10-26T12:00:00Z'));
@@ -23,7 +28,7 @@ module.exports = async (ctx) => {
   });
   if (sc === 'slow') await p.route('**/espn/teams/*/schedule', async (r) => { await new Promise((res) => setTimeout(res, 6000)); r.fulfill({ contentType: 'application/json', headers: CORS, body: fs.readFileSync(`${F}/schedule-29.json`, 'utf8') }); });
   if (sc === 'board503') { await start({ noRoute: true, go: false }); await p.route('**/espn/scoreboard*', fail); await p.reload(); await p.waitForTimeout(4000); await ev(() => window.__tunerTest.go('nba')); await p.waitForTimeout(2500); }
-  else await start({ team: sc === 'none' ? 'none' : 'MEM' });
+  else await start({ team: sc === 'none' ? 'none' : 'MEM', noRoute: sc === 'offseason' });
 
   if (sc === 'board503' || sc === 'none') {
     let a = await where('games entry');
