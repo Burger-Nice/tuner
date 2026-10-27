@@ -95,7 +95,7 @@ function seasonStarts() {
 }
 function legend(t, bad, pre) {
   if (t.pin && t.cover) return `<span class="legend">The ${esc(conf)} includes a result you haven’t seen</span>`;
-  if (t.pin && t.copy) return `<span class="legend" data-row style="gap:10px">${ic('eyeOff', 'sm')}<span><b style="color:var(--a-text-1);font-weight:650">As of tip-off, ${esc(gameName(t.pin.game))}</b>${dot}${esc(dayDate(t.pin.game.date))}</span>${revealBtn(t.pin.games)}</span>`;
+  if (t.pin && t.copy) return `<span class="legend" data-row style="gap:10px">${ic('eyeOff', 'sm')}<span><b style="color:var(--a-text-1);font-weight:650">As of tip-off, ${esc(gameName(t.pin.game))}</b>${dot}${esc(dayDate(t.pin.game.date))}</span>${revealBtn(t.pin.games, 'pillbtn', { confirm: true })}</span>`;   // (Right from the chips lands here: it asks first)
   if (bad) return `<span class="legend" data-row style="gap:10px">${downBits('standings')}</span>`;
   if (t.wait) return '';
   if (pre) return `<span class="legend">${esc(seasonStarts())}</span>`;

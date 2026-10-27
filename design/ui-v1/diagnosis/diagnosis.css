@@ -1,0 +1,94 @@
+/* airglow TV: playback diagnosis v1.0 (design/ui-v1/diagnosis/SPEC.md). New classes only, prefix dg-.
+   Built on tv/brand/tokens.css + tv/ui.css + tv/app.css. The player parts are native views (PlayerActivity, Ui): they are
+   drawn here as HTML for measuring, in dp = CSS px on the 960 x 540 canvas. The Account sheet (dg-sheet) is web and is
+   meant to be appended to app/tv/app.css. Only transform and opacity animate.
+   Colour rule: a link that works is neutral with a green tick badge (--a-ok, always with its icon); the link that is the
+   problem is a CHALK disc with an ink glyph (the same "look here" as the scrub bubble). No amber, no yellow, and red stays
+   LIVE only. Pink appears only as progress: the spinner and the line filling while a check runs. */
+
+.ic.xs{width:16px;height:16px}
+
+/* ---------- the stall card (bottom centre, the existing status-card anchor: bottom 96) ---------- */
+.nv-card.dg-card{width:560px;align-items:stretch;gap:12px;padding:16px 20px 14px;text-align:left}
+.dg-head{display:flex;align-items:flex-start;gap:12px}
+.dg-head .sp{flex:none;width:22px;height:22px;margin-top:2px;color:var(--a-pink);stroke-width:2.6}
+.dg-head .tx{min-width:0;flex:1}
+.dg-head b{display:block;font:700 20px/26px var(--a-font-display);color:var(--a-text-1)}
+.dg-head span{display:block;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);margin-top:2px}
+
+/* ---------- the path: TV · Wi-Fi (or Cable) · Internet · Provider · Channel ---------- */
+.dg-path{display:flex;align-items:flex-start;padding:2px 0 0}
+.dg-n{position:relative;z-index:1;flex:none;width:88px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.dg-c{position:relative;flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--a-surface-2);color:var(--a-text-1)}
+.dg-c svg.ic{width:18px;height:18px}
+.dg-c i{position:absolute;right:-5px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:var(--a-ok);display:grid;place-items:center;box-shadow:0 0 0 2px #1E1B28}
+.dg-c i svg{width:11px;height:11px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
+.dg-n b{font:650 14px/18px var(--a-font-text);color:var(--a-text-1);margin-top:6px;white-space:nowrap}
+.dg-n small{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+/* the problem link: chalk disc, ink glyph, the reading in chalk */
+.bad>.dg-c{background:var(--a-text-1);color:var(--a-ink)}
+.dg-n.bad small{color:var(--a-text-1);font-weight:650}
+/* not reached (after the break) or still being checked: an outline, no tick */
+.off>.dg-c,.run>.dg-c{background:#1E1B28;box-shadow:inset 0 0 0 1.5px var(--a-border-strong);color:var(--a-text-3)}
+.dg-n.off b{color:var(--a-text-3);font-weight:500}
+.run>.dg-c::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--a-pink);border-right-color:var(--a-pink)}
+/* the links between them, drawn under the discs (they run from centre to centre) */
+.dg-l{flex:1;height:2px;margin:15px -44px 0;min-width:20px;background:var(--a-border-strong)}
+.dg-l.run{background:linear-gradient(90deg,var(--a-pink) 0 60%,var(--a-surface-2) 60%)}
+.dg-l.slow{height:3px;margin-top:14.5px;background:repeating-linear-gradient(90deg,var(--a-text-1) 0 7px,transparent 7px 12px)}
+.dg-l.cut{background:linear-gradient(90deg,var(--a-border-strong) 0 calc(50% - 8px),transparent calc(50% - 8px) calc(50% + 8px),var(--a-border-strong) calc(50% + 8px))}
+.dg-l.off{background:repeating-linear-gradient(90deg,var(--a-border-strong) 0 2px,transparent 2px 7px);opacity:.7}
+
+/* ---------- the keys line of a card that takes no focus (the action chip's model) ---------- */
+.dg-keys{display:flex;align-items:center;gap:20px;height:28px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.dg-keys>span{display:inline-flex;align-items:center}
+.dg-keys b{font-weight:650;color:var(--a-text-1)}
+.dg-keys .r{margin-left:auto;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.dg-sep{height:1px;background:var(--a-border);margin:0 -4px}
+
+/* ---------- the spinner puck (1 to 3 s): replaces PlayerView's centre spinner ---------- */
+.dg-puck{position:absolute;left:50%;bottom:96px;width:56px;height:56px;margin-left:-28px;border-radius:50%;background:rgba(30,27,40,.94);border:1px solid var(--a-border);display:grid;place-items:center;z-index:7}
+.dg-puck svg.ic{width:28px;height:28px;color:var(--a-pink);stroke-width:2.6}
+
+/* ---------- the vertical path (the Connection panel and the Account check) ---------- */
+.dg-vpath{display:flex;flex-direction:column}
+.dg-vn{position:relative;display:flex;align-items:center;gap:14px;height:46px;padding:0 10px}
+.dg-vn .tx{flex:1;min-width:0}
+.dg-vn b{display:block;font:650 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
+.dg-vn small{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dg-vn .v{flex:none;font:650 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;text-align:right}
+.dg-vn.bad small,.dg-vn.bad .v{color:var(--a-text-1)}
+.dg-vn.off b{color:var(--a-text-3);font-weight:500}
+.dg-vn+.dg-vn::before{content:"";position:absolute;left:25px;top:-7px;width:2px;height:14px;background:var(--a-border-strong)}
+.dg-vn.in-slow::before{width:3px;left:24.5px;background:repeating-linear-gradient(180deg,var(--a-text-1) 0 4px,transparent 4px 7px)}
+.dg-vn.in-cut::before{background:transparent}
+.dg-vn.in-off::before{background:repeating-linear-gradient(180deg,var(--a-border-strong) 0 2px,transparent 2px 5px)}
+.dg-vn.in-run::before{background:linear-gradient(180deg,var(--a-pink) 0 50%,var(--a-surface-2) 50%)}
+
+/* ---------- the Connection panel (left, 400) ---------- */
+.nv-panel.dg-panel{width:400px}
+.dg-ver{padding:2px 10px 8px}
+.dg-ver b{display:block;font:700 18px/24px var(--a-font-display);color:var(--a-text-1)}
+.dg-ver span{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);margin-top:2px}
+.nv-panel .dg-acts{margin-top:4px;border-top:1px solid var(--a-border);padding-top:2px}
+.nv-row .v.dg-ok{color:var(--a-text-1)}
+.nv-row .v .dg-tick{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--a-ok);margin-right:2px}
+.nv-row .v .dg-tick svg{width:11px;height:11px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
+.nv-h .dg-at{margin-left:auto;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+
+/* ---------- the stutter chip (bottom right, the action chip) ---------- */
+.nv-chip.dg-chip{max-width:440px}
+.nv-chip.dg-chip .grow{min-width:0}
+
+/* ---------- Account > Provider > Check the connection (web sheet, right, 480) ---------- */
+.sheet.dg-sheet{width:480px;gap:8px;padding:18px 20px 18px}
+.dg-sheet .dg-sub{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-top:-4px}
+.dg-sheet .dg-vn{height:54px}
+.dg-sheet .dg-vn+.dg-vn::before{top:-11px;height:22px}
+.dg-sheet .dg-vn .v .ic{width:20px;height:20px}
+.dg-verdict{border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border);padding:10px 14px}
+.dg-verdict b{display:block;font:650 16px/22px var(--a-font-text);color:var(--a-text-1)}
+.dg-verdict span{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.dg-sheet .sheet-foot{flex-direction:row;align-items:center;gap:16px;margin-top:auto}
+.dg-sheet .sheet-foot .t-cap{margin-left:auto}
+.dg-wait{font:500 15px/20px var(--a-font-text);color:var(--a-text-3)}

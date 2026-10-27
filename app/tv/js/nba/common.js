@@ -58,15 +58,21 @@ export function sideOf(g, abbr) {
 
 // ---------- Reveal (SPEC 8.2: never the default focus; it names its game) ----------
 // A Reveal button for these unseen games: one game is named; more than one reads 'Reveal 6 results' and confirms.
-export function revealBtn(games, cls = 'pillbtn') {
+export function revealBtn(games, cls = 'pillbtn', { confirm = false } = {}) {
   if (!games?.length) return '';
   const one = games.length === 1;
-  return `<span class="${cls} fx nb-reveal" tabindex="-1" data-act="reveal" data-g="${esc(games.map((g) => g.id).join(','))}">${ic('eyeOff', 'sm')}${one ? `Reveal ${esc(gameName(games[0]))}` : `Reveal ${games.length} results`}</span>`;
+  return `<span class="${cls} fx nb-reveal" tabindex="-1" data-act="reveal"${confirm ? ' data-confirm' : ''} data-g="${esc(games.map((g) => g.id).join(','))}">${ic('eyeOff', 'sm')}${one ? `Reveal ${esc(gameName(games[0]))}` : `Reveal ${games.length} results`}</span>`;
 }
 // OK on a Reveal button (from a click handler: reveal(el) when el.dataset.act === 'reveal'). then: after it's seen.
 // data-g: the game ids the button names (comma-separated); '*' every unseen game.
+// A Reveal that sits where a sideways press lands (data-confirm) asks first, even for one game.
 export function reveal(el, then) {
   const ids = el.dataset.g === '*' ? unseenFor().map((g) => g.id) : el.dataset.g.split(',').filter(Boolean);
+  if (ids.length === 1 && el.hasAttribute('data-confirm')) {
+    const g = unseenFor().find((x) => x.id === ids[0]);
+    confirmMenu({ title: `Reveal ${g ? gameName(g) : 'this game'}?`, text: 'Its score, record and stories show from now on.', yes: 'Reveal', onYes: () => { markSeen(ids[0]); then?.(); } });
+    return;
+  }
   if (ids.length === 1) { markSeen(ids[0]); then?.(); return; }
   const all = el.dataset.g === '*';
   confirmMenu({ title: `Reveal ${ids.length} results?`, text: all ? 'Every score, record and story up to now shows.' : 'Their scores, records and stories show.', yes: 'Reveal', onYes: () => { if (all) revealAll(); else markSeenMany(ids); then?.(); } });
