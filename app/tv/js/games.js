@@ -95,7 +95,7 @@ function tipOffs(before) {
     const was = before.get(g.id);
     // only a game in progress: one already final may be in the standings by now (the app was closed through it)
     if (shieldMode() !== 'off' && shielded(g) && g.state === 'in' && was !== 'in' && was !== 'post' && !isSeen(g)) pinAt(g);
-    if (g.state === 'post' && was && was !== 'post') buzzer(g);
+    if (g.state === 'post' && was && was !== 'post') { if (!finalAt.has(g.id)) finalAt.set(g.id, Date.now()); buzzer(g); }
   }
 }
 // (only while the player is up on it: a tune-in you left earlier stays revealed for this session only)
@@ -141,7 +141,7 @@ async function sumTick() {
       s.at = Date.now();
       nba.sums.set(id, s);
       const g = gameById(id), was = g?.state;
-      if (g) { merge(g); remember(g); if (was && was !== 'post' && g.state === 'post') buzzer(g); }
+      if (g) { merge(g); remember(g); if (was && was !== 'post' && g.state === 'post') { if (!finalAt.has(g.id)) finalAt.set(g.id, Date.now()); buzzer(g); } }
       nba.sumFail.delete(id);
       emit('summary', id);
     } catch { if (!nba.sumFail.has(id)) { nba.sumFail.set(id, Date.now()); emit('summary', id); } }
@@ -158,7 +158,10 @@ const delays = () => store.get(scoped('delays'), {});
 export const delayFor = (chId) => { const d = delays()[chId]; return d == null ? DEFAULT_DELAY : d; };
 export const delayKnown = (chId) => delays()[chId] != null;
 export function setDelay(chId, sec) { const d = delays(); d[chId] = sec; store.set(scoped('delays'), d); emit('nba'); }
-export const watch = { gameId: null, chId: null };   // set by the player: the game on the channel you're watching
+export const watch = { gameId: null, chId: null, lag: 0 };   // set by the player: the game on the channel you're watching
+// lag: seconds a stall has put the picture further behind (the player reports it); every score waits for it too
+export function setLag(sec) { if (watch.lag !== sec) { watch.lag = sec; emit('nba'); } }
+const finalAt = new Map();   // gameId -> when airglow first saw it final: a delayed view holds the last live moment until then + delay
 const lastSeen = new Map();   // gameId -> the channel you last watched it on: its scores stay at that delay until it ends
 export function setWatching(gameId, chId) {
   if (gameId && chId) lastSeen.set(gameId, chId);
@@ -183,8 +186,11 @@ export function delayed(g) {
   if (!g) return { g, s: null };
   const s = nba.sums.get(g.id) || null;
   const ch = watch.gameId === g.id ? watch.chId : lastSeen.get(g.id);
-  if (!ch || g.state !== 'in') return { g, s };
-  const d = delayFor(ch) * 1000, h = hist.get(g.id);
+  const lag = watch.gameId === g.id ? watch.lag || 0 : 0;
+  const d = ch ? (delayFor(ch) + lag) * 1000 : 0, h = hist.get(g.id);
+  // a game that has just ended is still live on your stream until its delay has passed
+  const ending = g.state === 'post' && finalAt.has(g.id) && Date.now() - finalAt.get(g.id) < d;
+  if (!ch || (g.state !== 'in' && !ending)) return { g, s };
   if (!d || !h?.length) return { g, s };
   const target = Date.now() - d;
   let pick = h[0];

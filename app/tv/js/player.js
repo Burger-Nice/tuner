@@ -5,7 +5,7 @@
 import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
 import { busy, catalog, versionLabel, pickVersion } from './catalog.js';
 import { native } from './native.js';
-import { gameOn, gameById, setWatching, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
+import { gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal } from './games.js';
 import { guideFor, guideNow, onNow, nextUp } from './guide.js';
 import { teamPalette, hm } from './util.js';
 import { toast } from './ui.js';
@@ -321,9 +321,14 @@ native?.player.onEvent((e) => {
     reveal(e.gameId);
     sent.game = '';
     push();
+  } else if (e.type === 'lag') {
+    setLag(+e.sec || 0);
+    sent.game = '';
+    push();
   } else if (e.type === 'sync') {
+    // what you matched is the channel's delay plus whatever a stall has added since you tuned: only the first is kept
     const sec = Math.max(0, Math.min(600, Math.round((e.seenAt - e.at) / 1000) - 1));
-    if (watch.chId) setDelay(watch.chId, sec);
+    if (watch.chId) setDelay(watch.chId, Math.max(0, sec - (watch.lag || 0)));
     cmd('show-text', `Synced · ${sec} s behind live`);
     sent.game = '';
     push();

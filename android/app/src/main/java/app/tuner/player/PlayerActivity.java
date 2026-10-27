@@ -155,6 +155,9 @@ public class PlayerActivity extends AppCompatActivity {
     private String[][] hintNow;
     private boolean hintsOn, hintForce;
     private long zapAt;
+    // Live: how far a stall has put the picture behind where the stream started (a TS stream refills at real time, so
+    // every stall adds to it until the next tune or reconnect). Reported to the app, which holds every score back by it.
+    private long lagMs, stallAt;
     private String digits = "";
     private long okDownAt;
     private boolean okLong, okInPlayer;
@@ -174,7 +177,8 @@ public class PlayerActivity extends AppCompatActivity {
     private final Runnable hideZap = () -> zap.setVisibility(View.GONE);
     private final Runnable jump = this::jumpToTypedChannel;
     private final Runnable stall = this::reconnect;
-    private final Runnable retune = () -> { if (player != null && cur != null) { player.setMediaItem(item(cur)); player.prepare(); player.play(); } };
+    // (a reconnect starts again at the live edge: the lag goes; until the picture is back, scores wait as if still stalled)
+    private final Runnable retune = () -> { if (player != null && cur != null) { player.setMediaItem(item(cur)); player.prepare(); player.play(); lagMs = 0; if (stallAt > 0) stallAt = SystemClock.uptimeMillis(); sendLag(); } };
     private final Runnable doTune = () -> {
         if (player == null || cur == null) return;
         player.setMediaItem(item(cur));
@@ -266,13 +270,14 @@ public class PlayerActivity extends AppCompatActivity {
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(15000)
-                .setReadTimeoutMs(live ? 8000 : 20000);
+                .setReadTimeoutMs(live ? 12000 : 20000);   // (a weak Wi-Fi link can go quiet for longer than 8 s)
         if (!ua.isEmpty()) http.setUserAgent(ua);
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
-        // Live: starts after 1 s of picture (zapping is quick), waits for 3 s after a stall so it doesn't stutter,
-        // and keeps a steady buffer capped in memory; movies get more room.
+        // Live: starts after 2 s of picture, and after a stall waits for 6 s so the next hiccup doesn't stall it again: a
+        // live TS stream arrives at real time, so whatever is banked when it resumes is all the cushion it gets. Keeps a
+        // steady buffer capped in memory; movies get more room.
         DefaultLoadControl load = new DefaultLoadControl.Builder()
-                .setBufferDurationsMs(live ? 10000 : 15000, live ? 30000 : 50000, live ? 1000 : 2500, live ? 3000 : 5000)
+                .setBufferDurationsMs(live ? 10000 : 15000, live ? 30000 : 50000, live ? 2000 : 2500, live ? 6000 : 5000)
                 .setTargetBufferBytes((live ? 64 : 96) << 20)
                 .setPrioritizeTimeOverSizeThresholds(false)
                 .build();
@@ -294,6 +299,8 @@ public class PlayerActivity extends AppCompatActivity {
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int s) {
                 handler.removeCallbacks(stall);
+                if (live && s == Player.STATE_BUFFERING && played && stallAt == 0) { stallAt = SystemClock.uptimeMillis(); handler.postDelayed(lagTick, 1000); }
+                if (s == Player.STATE_READY && stallAt > 0) { lagMs += SystemClock.uptimeMillis() - stallAt; stallAt = 0; sendLag(); }
                 if (s == Player.STATE_READY) {
                     played = true; error = null; retries = 0;
                     if (card.getVisibility() == View.VISIBLE) card.setVisibility(View.GONE);
@@ -1284,7 +1291,7 @@ public class PlayerActivity extends AppCompatActivity {
     private void reconnect() {
         if (player == null || isFinishing()) return;
         if (retries >= 6) { error = "Reconnected 6 times. The provider may be down."; showFailed(error); return; }
-        long wait = 1000L << Math.min(retries, 4);
+        long wait = 2000L << Math.min(retries, 3);   // 2, 4, 8, 16 s (the provider may still count the last connection)
         retries++;
         // A game channel: from the second try, offer the game's other feeds right away (reconnecting carries on underneath;
         // if this one comes back the card goes).
@@ -1331,6 +1338,7 @@ public class PlayerActivity extends AppCompatActivity {
         index = i;
         cur = e;
         error = null; quality = ""; hdr = false; textTracks = audioTracks = 0; retries = 0; played = false;
+        resetLag();
         card.setVisibility(View.GONE);
         tunedAt = SystemClock.uptimeMillis();
         if (chipUp && !chipIsUpNext) hideChip();
@@ -1769,6 +1777,20 @@ public class PlayerActivity extends AppCompatActivity {
         if (h <= 0) return "";
         return h >= 2000 ? "4K" : h >= 700 ? "HD" : "SD";
     }
+
+    // The picture's extra lag (whole seconds; a stall still going counts as it goes) to the app.
+    private int sentLag = -1;
+    private void sendLag() {
+        long now = SystemClock.uptimeMillis();
+        int sec = (int) ((lagMs + (stallAt > 0 ? now - stallAt : 0)) / 1000);
+        if (sec == sentLag) return;
+        sentLag = sec;
+        JSObject e = event("lag");
+        e.put("sec", sec);
+        TunerPlayerPlugin.emit(e);
+    }
+    private final Runnable lagTick = new Runnable() { @Override public void run() { if (stallAt > 0 && player != null) { sendLag(); handler.postDelayed(this, 1000); } } };
+    private void resetLag() { lagMs = 0; stallAt = 0; sendLag(); }
 
     private JSObject event(String type) {
         JSObject e = new JSObject();
