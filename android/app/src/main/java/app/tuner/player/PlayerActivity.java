@@ -1,6 +1,17 @@
 package app.tuner.player;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.RouteInfo;
+import android.provider.Settings;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -22,6 +33,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -38,7 +50,11 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DataSpec;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.HttpDataSource;
+import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -62,6 +78,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Full-screen player for live TV and movies, built on Media3 (ExoPlayer), with airglow's own overlays
@@ -176,9 +193,17 @@ public class PlayerActivity extends AppCompatActivity {
     private final Runnable hideToast = () -> toast.setVisibility(View.GONE);
     private final Runnable hideZap = () -> zap.setVisibility(View.GONE);
     private final Runnable jump = this::jumpToTypedChannel;
-    private final Runnable stall = this::reconnect;
+    // 12 s of BUFFERING: a stream still refilling at half speed or better isn't thrown away (that would drop what it has
+    // loaded), until 45 s; one that isn't is reconnected (SPEC 3.1)
+    private final Runnable stall = new Runnable() {
+        @Override public void run() {
+            long el = stallStart > 0 ? SystemClock.uptimeMillis() - stallStart : 12000;
+            if (rd.refill >= 0.5 && el < 45000) { handler.postDelayed(this, 12000); return; }
+            reconnect();
+        }
+    };
     // (a reconnect starts again at the live edge: the lag goes; until the picture is back, scores wait as if still stalled)
-    private final Runnable retune = () -> { if (player != null && cur != null) { player.setMediaItem(item(cur)); player.prepare(); player.play(); lagMs = 0; if (stallAt > 0) stallAt = SystemClock.uptimeMillis(); sendLag(); } };
+    private final Runnable retune = () -> { if (player != null && cur != null) { player.setMediaItem(item(cur)); player.prepare(); player.play(); lagMs = 0; if (stallAt > 0) stallAt = SystemClock.uptimeMillis(); sendLag(); nextTryAt = 0; updateRight(); } };
     private final Runnable doTune = () -> {
         if (player == null || cur == null) return;
         player.setMediaItem(item(cur));
@@ -189,7 +214,7 @@ public class PlayerActivity extends AppCompatActivity {
     private final Runnable askMeta = this::requestMeta;
     private final Runnable chipTick = new Runnable() {
         @Override public void run() {
-            if (!chipUp) return;
+            if (!chipUp || chipKind == CHIP_OFFLINE) return;   // (the offline chip has no countdown)
             long left = chipUntil - SystemClock.uptimeMillis();
             if (chipIsUpNext) left = upNextLeft();
             if (left <= 0) { hideChip(); return; }
@@ -201,6 +226,7 @@ public class PlayerActivity extends AppCompatActivity {
     };
     private final Runnable tick = new Runnable() {
         @Override public void run() {
+            if (player != null) { sample(); timeline(); if (connPanel != null && open == connPanel) fillConnection(); }
             if (player != null && !live) {
                 long d = player.getDuration();
                 if (d != C.TIME_UNSET && d > 0) {
@@ -247,6 +273,7 @@ public class PlayerActivity extends AppCompatActivity {
         index = Math.max(0, Math.min(ring.size() - 1, x.getInt("index")));
         cur = ring.get(index);
         String ua = x.getString("ua", "");
+        apiUrl = x.getString("api", "");
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -272,6 +299,7 @@ public class PlayerActivity extends AppCompatActivity {
                 .setConnectTimeoutMs(15000)
                 .setReadTimeoutMs(live ? 12000 : 20000);   // (a weak Wi-Fi link can go quiet for longer than 8 s)
         if (!ua.isEmpty()) http.setUserAgent(ua);
+        http.setTransferListener(health);
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
         // Live: starts after 2 s of picture, and after a stall waits for 6 s so the next hiccup doesn't stall it again: a
         // live TS stream arrives at real time, so whatever is banked when it resumes is all the cushion it gets. Keeps a
@@ -285,7 +313,7 @@ public class PlayerActivity extends AppCompatActivity {
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(this).setDataSourceFactory(http))
                 .setLoadControl(load)
                 .build();
-        view.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING);
+        view.setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER);   // the puck replaces the centre spinner
         player.setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true);
         // Always the best picture: no capping to the 1080p UI size, and straight to the top quality level.
         // The video plane itself runs at the panel's resolution, so 4K streams play in 4K.
@@ -301,6 +329,8 @@ public class PlayerActivity extends AppCompatActivity {
                 handler.removeCallbacks(stall);
                 if (s == Player.STATE_READY) {
                     played = true; error = null; retries = 0;
+                    reconnecting = false; limitTries = 0; notFound = 0; nextTryAt = 0;
+                    rd.clearError(); rd.frames = true;
                     if (card.getVisibility() == View.VISIBLE) card.setVisibility(View.GONE);
                     if (open instanceof FailedCard) closeOverlay();
                 }
@@ -324,9 +354,12 @@ public class PlayerActivity extends AppCompatActivity {
                 handler.postDelayed(hideZap, Math.max(0, 600 - shown));
             }
             @Override public void onPlayerError(@NonNull PlaybackException e) {
-                if (live && e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) { player.seekToDefaultPosition(); player.prepare(); return; }
-                if (live && retries < 6 && e.errorCode != PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES
-                        && e.errorCode != PlaybackException.ERROR_CODE_DECODER_INIT_FAILED) { reconnect(); return; }
+                if (live && e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {   // C9: no card
+                    showText("Back to live: the stream skipped ahead", 2000);
+                    resetLag();
+                    player.seekToDefaultPosition(); player.prepare(); return;
+                }
+                if (live) { liveError(e); return; }
                 error = errorText(e);
                 JSObject ev = event("failed");
                 ev.put("error", error);
@@ -359,9 +392,12 @@ public class PlayerActivity extends AppCompatActivity {
             }
         });
         view.setPlayer(player);
+        watchNetwork();
+        debugIntent();
 
         if (live) {
             tuneTo(index, false);
+            handler.post(tick);
         } else {
             vod = new VodControls(this, player, root);
             List<MediaItem> items = new ArrayList<>();
@@ -479,6 +515,58 @@ public class PlayerActivity extends AppCompatActivity {
         FrameLayout.LayoutParams cl = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         cl.bottomMargin = Ui.dp(96);
         root.addView(card, cl);
+        // the diagnosis card (design/ui-v1/diagnosis SPEC 3.2): the cause, its evidence, the path, its keys; takes no focus
+        dcard = new LinearLayout(this);
+        dcard.setOrientation(LinearLayout.VERTICAL);
+        dcard.setPadding(Ui.dp(20), Ui.dp(16), Ui.dp(20), Ui.dp(14));
+        dcard.setBackground(Ui.panelBg());
+        LinearLayout dh = new LinearLayout(this);
+        dSpin = new Ui.Spinner(this);
+        LinearLayout.LayoutParams sl = gapped(new LinearLayout.LayoutParams(Ui.dp(22), Ui.dp(22)), 12);
+        sl.topMargin = Ui.dp(2);
+        dh.addView(dSpin, sl);
+        LinearLayout dtx = new LinearLayout(this);
+        dtx.setOrientation(LinearLayout.VERTICAL);
+        dTitle = Ui.line(this, "", 20, Ui.T1, Ui.outfit700);
+        Ui.lineHeight(dTitle, 26);
+        dLine = Ui.line(this, "", 15, Ui.T2, Ui.inter500);
+        Ui.lineHeight(dLine, 20);
+        dtx.addView(dTitle);
+        LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(-1, -2);
+        ll.topMargin = Ui.dp(2);
+        dtx.addView(dLine, ll);
+        dh.addView(dtx, new LinearLayout.LayoutParams(0, -2, 1));
+        dcard.addView(dh);
+        dPath = new PathView(this, false, 0);
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(-1, -2);
+        pl.topMargin = Ui.dp(12);
+        dcard.addView(dPath, pl);
+        dKeys = new LinearLayout(this);
+        dKeys.setGravity(Gravity.CENTER_VERTICAL);
+        dOkKey = Ui.kbd(this, "OK");
+        dKeys.addView(dOkKey, gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 6));
+        dOk = Ui.line(this, "", 15, Ui.T1, Ui.inter650);
+        dKeys.addView(dOk, gapped(new LinearLayout.LayoutParams(-2, -2), 20));
+        dLeftKey = Ui.kbd(this, "◀");
+        dKeys.addView(dLeftKey, gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 6));
+        dDetails = Ui.text(this, "Details", 15, Ui.T2, Ui.inter500);
+        dKeys.addView(dDetails, new LinearLayout.LayoutParams(0, -2, 1));
+        dRight = Ui.line(this, "", 14, Ui.T3, Ui.inter500);
+        dKeys.addView(dRight);
+        LinearLayout.LayoutParams kl = new LinearLayout.LayoutParams(-1, Ui.dp(28));
+        kl.topMargin = Ui.dp(12);
+        dcard.addView(dKeys, kl);
+        dcard.setVisibility(View.GONE);
+        FrameLayout.LayoutParams dl0 = new FrameLayout.LayoutParams(Ui.dp(560), -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        dl0.bottomMargin = Ui.dp(96);
+        root.addView(dcard, dl0);
+        // the puck: a routine stall shows only this (SPEC 2.1)
+        puck = new PathView.Puck(this);
+        puck.setVisibility(View.GONE);
+        FrameLayout.LayoutParams pk = new FrameLayout.LayoutParams(Ui.dp(56), Ui.dp(56), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        pk.bottomMargin = Ui.dp(96);
+        root.addView(puck, pk);
+
         toast = Ui.text(this, "", 16, Ui.T1, Ui.inter500);
         toast.setPadding(Ui.dp(20), Ui.dp(12), Ui.dp(20), Ui.dp(12));
         toast.setBackground(Ui.panelBg());
@@ -504,15 +592,23 @@ public class PlayerActivity extends AppCompatActivity {
         chip.setBackground(Ui.panelBg());
         chipRing = new Ui.Ring(this);
         chip.addView(chipRing, gapped(new LinearLayout.LayoutParams(Ui.dp(40), Ui.dp(40)), 12));
+        chipGlyph = new FrameLayout(this);   // the offline chip's glyph, where the countdown ring would be
+        chipGlyph.setBackground(Ui.circle(Ui.S2));
+        chipGlyph.addView(Ui.iconView(this, "wifiOff", Ui.T1, 22), new FrameLayout.LayoutParams(Ui.dp(22), Ui.dp(22), Gravity.CENTER));
+        chipGlyph.setVisibility(View.GONE);
+        chip.addView(chipGlyph, gapped(new LinearLayout.LayoutParams(Ui.dp(40), Ui.dp(40)), 12));
         LinearLayout chc = new LinearLayout(this);
         chc.setOrientation(LinearLayout.VERTICAL);
         chipTitle = Ui.line(this, "", 16, Ui.T1, Ui.inter650);
         chipSub = Ui.line(this, "", 14, Ui.T2, Ui.inter500);
+        chipSub.setMaxWidth(Ui.dp(240));   // (the kit's chip is 420 at most)
         chc.addView(chipTitle);
         chc.addView(chipSub);
         chip.addView(chc, gapped(new LinearLayout.LayoutParams(-2, -2), 12));
-        chip.addView(Ui.kbd(this, "OK"), gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 6));
-        chipOk = Ui.text(this, "to switch", 14, Ui.T1, Ui.inter500);
+        chipKbd = Ui.kbd(this, "OK");
+        chip.addView(chipKbd, gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 6));
+        chipOk = Ui.line(this, "to switch", 14, Ui.T1, Ui.inter500);
+        chipOk.setMaxWidth(Ui.dp(120));
         chip.addView(chipOk);
         chip.setVisibility(View.GONE);
         FrameLayout.LayoutParams chl = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
@@ -626,8 +722,14 @@ public class PlayerActivity extends AppCompatActivity {
     void hintsChanged() {
         String[][] h = null;
         if (open != null) h = hintsOn ? open.hints() : null;
+        else if (chipUp && chipKind == CHIP_STUTTER) h = chipAct.isEmpty() ? new String[][] { { "◀ ▼", "Details" }, { "Back", "Dismiss" }, { "▲ ▼", "Zap" } }
+                : new String[][] { { "OK", chipOk.getText().toString() }, { "◀ ▼", "Details" }, { "Back", "Dismiss" }, { "▲ ▼", "Zap" } };
+        else if (chipUp && chipKind == CHIP_OFFLINE) h = new String[][] { { "Back", "Dismiss" }, { "▲ ▼", "Zap" } };
         else if (chipUp) h = chipIsUpNext ? new String[][] { { "OK", "Play now" }, { "Back", "Stay on this one" } }
                 : new String[][] { { "OK", "Switch" }, { "Back", "Dismiss" }, { "◀", "Options" }, { "▶", "Game" }, { "▲ ▼", "Zap" } };
+        else if (live && cardUp && banner.getVisibility() == View.VISIBLE && hintsOn)
+            h = act.isEmpty() ? new String[][] { { "◀", "Details" }, { "Back", "Hide" }, { "▲ ▼", "Zap" } }
+                    : new String[][] { { "OK", actLabel }, { "◀", "Details" }, { "Back", "Hide" }, { "▲ ▼", "Zap" } };
         else if (!live && vod != null && vod.visible()) h = hintsOn ? vod.hints() : null;
         else if (live && banner.getVisibility() == View.VISIBLE && hintsOn)
             h = new String[][] { { "OK", "Channels" }, { "◀", "Options" }, { "▶", gameLinked ? "Game" : liveGames.length() > 0 ? "Live games" : "Info" }, { "▲ ▼", "Zap" }, { "Hold OK", "Last" } };
@@ -685,6 +787,8 @@ public class PlayerActivity extends AppCompatActivity {
             return;
         }
         chipIsUpNext = false;
+        chipKind = CHIP_TEAM;
+        chipStyle(true, true);
         chipId = id;
         chipTitle.setText(title);
         chipSub.setText(sub);
@@ -706,6 +810,8 @@ public class PlayerActivity extends AppCompatActivity {
         if (index + 1 >= ring.size()) return;
         Entry n = ring.get(index + 1);
         chipIsUpNext = true;
+        chipKind = CHIP_UPNEXT;
+        chipStyle(true, true);
         chipTitle.setText("Next episode in 30 s");
         chipSub.setText(n.sub == null || n.sub.isEmpty() ? n.title : n.sub);
         chipOk.setText("play now");
@@ -719,9 +825,19 @@ public class PlayerActivity extends AppCompatActivity {
     private void hideChip() {
         if (!chipUp) return;
         chipUp = false;
+        chipKind = 0;
         chip.setVisibility(View.GONE);
         handler.removeCallbacks(chipTick);
         hintsChanged();
+        if (waitingStutter != null && SystemClock.uptimeMillis() - waitingStutterAt < 30000) { Diag.Cause c = waitingStutter; waitingStutter = null; showStutter(c); }
+        else waitingStutter = null;
+    }
+    /** The chip with its countdown ring (or the offline glyph) and with or without its OK key. */
+    private void chipStyle(boolean ring, boolean ok) {
+        chipRing.setVisibility(ring ? View.VISIBLE : View.GONE);
+        chipGlyph.setVisibility(ring ? View.GONE : View.VISIBLE);
+        chipKbd.setVisibility(ok ? View.VISIBLE : View.GONE);
+        chipOk.setVisibility(ok ? View.VISIBLE : View.GONE);
     }
 
     // ---------- panels ----------
@@ -733,6 +849,7 @@ public class PlayerActivity extends AppCompatActivity {
         handler.removeCallbacks(hideBanner);
         if (chipUp && !chipIsUpNext) hideChip();
         if (vod != null) vod.hide();
+        if (cardUp && !(o instanceof FailedCard)) hideCard(false);
         int at = root.indexOfChild(hint);
         root.addView(o.root, at);
         hintsOn = hintForce || bump("panel:" + o.getClass().getSimpleName() + ":" + (o instanceof ListPanel ? ((ListPanel) o).title.getText() : ""));
@@ -934,10 +1051,20 @@ public class PlayerActivity extends AppCompatActivity {
         if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions");   // for Quality, ready when it's opened
         ListPanel p = new ListPanel(this, "Options", true, 320);
         List<ListPanel.Item> items = new ArrayList<>();
+        int order = optOrder;
+        optOrder = 0;
+        ListPanel.Item conn = connectionRow();
+        if (order == 1) items.add(conn);
         if (live) {
-            if (gameLinked && game != null) {
+            if (order == 1 && gameLinked && game != null) {   // while the card shows: Connection, then the other feeds
+                JSONArray feeds = otherFeeds();
+                if (feeds.length() > 0) items.add(row("Other feeds for this game", feedNames(feeds), String.valueOf(feeds.length()), "tv", this::openFeeds));
                 String v = game.has("synced") && !game.isNull("synced") ? game.optInt("synced") + " s" : game.optInt("delay", 60) + " s";
                 items.add(row("Sync score", "Match the game clock", v, "refresh", this::openSync));
+            } else if (gameLinked && game != null) {
+                String v = game.has("synced") && !game.isNull("synced") ? game.optInt("synced") + " s" : game.optInt("delay", 60) + " s";
+                items.add(row("Sync score", "Match the game clock", v, "refresh", this::openSync));
+                if (order == 2) items.add(conn);
                 JSONArray feeds = otherFeeds();
                 if (feeds.length() > 0) items.add(row("Other feeds for this game", feedNames(feeds), String.valueOf(feeds.length()), "tv", this::openFeeds));
             }
@@ -948,6 +1075,8 @@ public class PlayerActivity extends AppCompatActivity {
                 : disabled(row("Audio", audioTracks == 1 ? audioValue() : "One audio track", null, "audio", null)));
         items.add(row("Picture size", live ? "This channel" : "This title", PICTURE_NAMES[pictureIndex(pictureFor(cur))], "pic", this::openPicture2));
         items.add(row("Quality", qualityDetails(player.getVideoFormat()), qualityName(player.getVideoFormat()), "quality", () -> openQuality(true)));
+        if (!items.contains(conn)) items.add(conn);
+        if (order == 2 && items.indexOf(conn) > 1) { items.remove(conn); items.add(1, conn); }
         if (live) {
             JSONObject m = metaOf(cur);
             boolean fav = m != null && m.optBoolean("fav");
@@ -1258,65 +1387,107 @@ public class PlayerActivity extends AppCompatActivity {
 
     // ---------- failure ----------
 
-    /** Shown after six failed reconnects: a game channel offers the game's other channels right here; others offer Try again. */
+    /** The failure card (SPEC 5): the cause on top (title, line, the path), then its rows, the first focused. */
     static final class FailedCard extends ListPanel {
         FailedCard(PlayerActivity a, String heading) {
-            super(a, heading, true, 470);
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.dp(470), -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            super(a, heading, true, 560);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.dp(560), -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
             lp.bottomMargin = Ui.dp(96);
             root.setLayoutParams(lp);
+            title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 20);
+            caption.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 15);
+            caption.setTextColor(Ui.T2);
+            caption.setSingleLine(true);
+            caption.setEllipsize(android.text.TextUtils.TruncateAt.END);
         }
     }
-    private void showFailed(String why) {
+    /** After six failed reconnects, or at once when it can't come back by itself (an ended account, the TV's decoder,
+     * a picture broken at the source, a channel that's off). Replaces "This channel stopped". */
+    private void showFailed(Diag.Cause c) {
+        if (c == null || "checking".equals(c.id) || "good".equals(c.id)) c = cause != null && !"checking".equals(cause.id) && !"good".equals(cause.id) ? cause : Diag.decide(rd, what(), cur == null ? "" : cur.title);
+        hideCard(false);
         card.setVisibility(View.GONE);
+        handler.removeCallbacks(retune);
+        reconnecting = false;
+        cause = c;
+        error = c.title;
+        JSObject ev = event("failed");
+        ev.put("error", error);
+        TunerPlayerPlugin.emit(ev);
         JSONArray feeds = gameLinked ? otherFeeds() : new JSONArray();
+        boolean feedCase = feeds.length() > 0 && !"decoder".equals(c.id);
         List<ListPanel.Item> items = new ArrayList<>();
-        FailedCard f;
-        if (feeds.length() > 0) {
-            f = new FailedCard(this, "This feed stopped");
-            f.setCaption((game == null ? "This game" : game.optString("title")) + " is also on");
+        String title = c.title;
+        if (feedCase && "off".equals(c.id)) title = "This feed is off at your provider";
+        FailedCard f = new FailedCard(this, title);
+        f.setCaption(feedCase ? (game == null ? "This game" : game.optString("title")) + " is also on these channels." : fit(f.caption, c.line, c.shortLine, 520));
+        PathView pv = new PathView(this, false, 0);
+        pv.set(c.path);
+        FrameLayout wrap = new FrameLayout(this);
+        wrap.setPadding(Ui.dp(10), Ui.dp(6), Ui.dp(10), Ui.dp(6));
+        wrap.addView(pv, new FrameLayout.LayoutParams(-1, -2));
+        f.setExtra(wrap, 90);
+        if (feedCase) {
             for (int i = 0; i < feeds.length(); i++) {
                 JSONObject o = feeds.optJSONObject(i);
-                ListPanel.Item it = new ListPanel.Item(o.optString("name"));
+                ListPanel.Item it = new ListPanel.Item(Diag.clean(o.optString("name")));
                 it.sub = o.optString("label");
                 it.logoName = o.optString("name");
                 it.logoUrl = o.optString("logo");
                 it.live = true;
-                it.height = 56;
+                it.height = 52;
                 String id = o.optString("id");
-                it.ok = () -> { closeOverlay(); pick(id, "failed"); };
+                it.ok = () -> { closeOverlay(); pick(id, "diagnosis"); };
                 items.add(it);
             }
-            items.add(row("Try this feed again", null, null, "refresh", () -> { closeOverlay(); retries = 0; tuneTo(index, false); }));
-            f.setFoot("Back closes");
         } else {
-            f = new FailedCard(this, "This channel stopped");
-            f.setCaption(why == null ? "Reconnected 6 times. The provider may be down." : why);
-            items.add(row("Try again", null, null, "refresh", () -> { closeOverlay(); retries = 0; tuneTo(index, false); }));
-            if (ring.size() > 1) items.add(row("Next channel", null, null, "chevR", () -> { closeOverlay(); zap(1, false); }));
+            for (String[] a : actions(c, 2)) {
+                if ("retry".equals(a[0])) continue;
+                ListPanel.Item it = row(a[1], a[2], null, a[3], runOf(a));
+                it.height = 52;
+                items.add(it);
+            }
         }
+        if ("off".equals(c.id)) {
+            ListPanel.Item it = row("Refresh channels", "Your provider may have moved it", null, "list", () -> { closeOverlay(); TunerPlayerPlugin.emit(event("refresh")); showText("Refreshing your channels…", 3000); });
+            it.height = 52;
+            items.add(it);
+        }
+        if (!"decoder".equals(c.id) && !"ended".equals(c.id))
+            items.add(row(feedCase ? "Try this feed again" : "Try again", null, null, "refresh", () -> { closeOverlay(); retries = 0; limitTries = 0; tuneTo(index, false); }));
+        if (items.isEmpty() && ring.size() > 1) items.add(row("Next channel", null, null, "chevR", () -> { closeOverlay(); zap(1, false); }));
         f.source(ListPanel.of(items), 0);
+        f.setFoot("Back closes");
         f.hintKeys = new String[][] { { "OK", "Choose" }, { "▲ ▼", "Move" }, { "Back", "Close" } };
         show(f);
+        emitDiag(c, "failed");
     }
 
-    /** Reconnects the live channel with growing waits (1, 2, 4 … seconds), up to six times. */
+    /** Reconnects the live channel: 2, 4, 8, 16, 16, 16 s, then the failure card. A limit answer (with evidence) backs off
+     * 10, 20, 30 s and then every 30 s instead: the provider may still count this TV's last stream. */
     private void reconnect() {
-        if (player == null || isFinishing()) return;
-        if (retries >= 6) { error = "Reconnected 6 times. The provider may be down."; showFailed(error); return; }
-        long wait = 2000L << Math.min(retries, 3);   // 2, 4, 8, 16 s (the provider may still count the last connection)
-        retries++;
-        // A game channel: from the second try, offer the game's other feeds right away (reconnecting carries on underneath;
-        // if this one comes back the card goes).
-        if (retries == 2 && gameLinked && otherFeeds().length() > 0 && open == null) { showFailed(null); handler.removeCallbacks(retune); handler.postDelayed(retune, wait); return; }
+        if (player == null || isFinishing() || !live) return;
+        boolean limit = (cause != null && cause.limit) || limitEvidence();
+        if (!limit && retries >= 6) { showFailed(cause); return; }
+        long wait = limit ? (limitTries < 3 ? 10000L * (limitTries + 1) : 30000L) : 2000L << Math.min(retries, 3);
+        if (limit) limitTries++; else retries++;
+        Diag.closedAt = SystemClock.elapsedRealtime();
+        reconnecting = true;
+        nextTryAt = SystemClock.uptimeMillis() + wait;
         toast.setVisibility(View.GONE);
-        spinner.setVisibility(View.VISIBLE);
-        cardTitle.setText("Reconnecting");
-        cardSub.setText("Attempt " + retries + " of 6");
-        card.setVisibility(View.VISIBLE);
-        spinner.invalidate();
+        card.setVisibility(View.GONE);
+        if (!cardUp && open == null) {
+            Diag.Cause c = cause != null && !"good".equals(cause.id) ? cause : Diag.checking(rd, what());
+            if (!hidden(c)) showCause(c);
+            if (!checkRunning) runChecks(false);
+        }
         handler.removeCallbacks(retune);
         handler.postDelayed(retune, wait);
+        updateRight();
+    }
+    private boolean limitEvidence() {
+        int h = rd.http;
+        return h == 458 || h == 509 || ((h == 401 || h == 403) && (rd.limitBody || Diag.closedRecently() || (rd.acct == 1 && rd.max > 0 && rd.active >= rd.max)));
     }
 
     private String errorText(PlaybackException e) {
@@ -1348,10 +1519,12 @@ public class PlayerActivity extends AppCompatActivity {
         boolean quick = !repeat && now - lastPress < 300;
         lastPress = now;
         if (cur != null && !cur.id.equals(e.id) && !repeat && played) last = cur;
+        if (played) Diag.closedAt = SystemClock.elapsedRealtime();   // the stream this TV had closes now
         index = i;
         cur = e;
         error = null; quality = ""; hdr = false; textTracks = audioTracks = 0; retries = 0; played = false;
         resetLag();
+        resetDiag();
         card.setVisibility(View.GONE);
         tunedAt = SystemClock.uptimeMillis();
         if (chipUp && !chipIsUpNext) hideChip();
@@ -1420,6 +1593,9 @@ public class PlayerActivity extends AppCompatActivity {
             if (open != null) hintsChanged();
             return;
         }
+        // Options' order is decided now (opening it dismisses the chip): Connection first while the card shows, second while
+        // a diagnosis chip does (so ◀ OK OK still syncs), else under Quality
+        optOrder = cardUp && live ? 1 : chipUp && (chipKind == CHIP_STUTTER || chipKind == CHIP_OFFLINE) ? 2 : 0;
         if (chipUp && !chipIsUpNext && !isOk(code)) hideChip();   // any other key dismisses the chip
         if (live) liveKey(code, repeat);
         else {
@@ -1473,10 +1649,22 @@ public class PlayerActivity extends AppCompatActivity {
         }
     }
     private void shortOk() {
+        if (chipUp && chipKind == CHIP_STUTTER) { Runnable r = chipRun; hideChip(); if (r != null) r.run(); return; }
+        if (chipUp && chipKind == CHIP_OFFLINE) { openChannels(); return; }
         if (chipUp && !chipIsUpNext) { String id = chipId; hideChip(); pick(id, "chip"); return; }
+        if (cardUp && !act.isEmpty()) {
+            // (not for 700 ms after it appears, nor 1 s after its action changes: OK pressed for something else)
+            long now = SystemClock.uptimeMillis();
+            if (now - cardAt < 700 || now - actionAt < 1000) return;
+            if (actRun != null) actRun.run();
+            return;
+        }
         openChannels();
     }
-    private void togglePlay() { if (player.isPlaying()) player.pause(); else player.play(); }
+    private void togglePlay() {
+        if (live && droppedWhilePaused) { resumeDropped(); return; }
+        if (player.isPlaying()) player.pause(); else player.play();
+    }
 
     private void back() {
         if (open != null) { if (!open.back()) closeOverlay(); return; }
@@ -1487,10 +1675,16 @@ public class PlayerActivity extends AppCompatActivity {
                 while (ring.size() > index + 1) ring.remove(ring.size() - 1);
                 vod.setItem(cur, false);
             }
+            if (chipKind == CHIP_STUTTER && cur != null) stutterBacked.add(cur.id);
             hideChip();
             return;
         }
         if (!digits.isEmpty()) { digits = ""; handler.removeCallbacks(jump); digitsView.setVisibility(View.GONE); return; }
+        if (cardUp) {   // hides it: that cause on this channel stays quiet for 10 minutes unless it stops for good
+            if (cause != null && cur != null) hiddenUntil.put(cur.id + ":" + cause.id, SystemClock.uptimeMillis() + 600000);
+            hideCard(false);
+            return;
+        }
         if (!live && vod.back()) return;
         if (live && banner.getVisibility() == View.VISIBLE && hint.getVisibility() == View.VISIBLE && hintForce) { hideBanner.run(); return; }
         finish();
@@ -1759,17 +1953,25 @@ public class PlayerActivity extends AppCompatActivity {
         sv.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 28);
     }
 
-    @Override protected void onStop() { super.onStop(); stoppedAt = System.currentTimeMillis(); if (player != null && !isFinishing()) player.pause(); }
+    @Override protected void onStop() { super.onStop(); stopped = true; cancelChecks(); stoppedAt = System.currentTimeMillis(); if (player != null && !isFinishing()) player.pause(); }
     @Override protected void onStart() {
         super.onStart();
+        stopped = false;
         if (player == null) return;
         // Back after a while on live: start from now rather than an old position.
-        if (live && stoppedAt > 0 && System.currentTimeMillis() - stoppedAt > 10000) tuneTo(index < 0 ? 0 : index, false); else player.play();
+        if (live && stoppedAt > 0 && System.currentTimeMillis() - stoppedAt > 10000) tuneTo(index < 0 ? 0 : index, false);
+        else if (live && droppedWhilePaused) resumeDropped();
+        else player.play();
+        if (netBackPending) { netBackPending = false; handler.postDelayed(netBack, 2000); }   // (nothing re-tunes while it's in the background)
     }
 
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        cancelChecks();
+        try { if (netCb != null) ((ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(netCb); } catch (Exception ignored) {}
+        try { if (debug != null) unregisterReceiver(debug); } catch (Exception ignored) {}
+        if (played) Diag.closedAt = SystemClock.elapsedRealtime();
         if (!exited) {
             exited = true;
             JSObject e = event("exit");
