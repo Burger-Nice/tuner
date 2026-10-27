@@ -23,6 +23,15 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   - `js/screens/nba.js` the NBA tab host: section row `Games · [crest] team · Standings · Leaders · Team stats · News`,
     each section a module in `js/nba/` (hub, standings, leaders, teamstats, news, team, player sheet, picker, common).
     `js/screens/team.js` another team's page (pushed). Design: `design/ui-v1/nba-pages/SPEC.md`.
+  - Catch-up / rewatch (`design/ui-v1/catchup/SPEC.md`): `js/catchup.js` (which programmes and games have a replay, the
+    provider's archive), `js/replay.js` (Watch from tip-off, the replay actions); `core.js` `catchup()` / `table()` make the links.
+  - Subtitles and real quality per copy (`design/ui-v1/subtitles/`, `design/ui-v1/copies/RANKING.md`): `js/subs/*`
+    (parse, languages, timing, OpenSubtitles, the file hash, the copy checks queue `probes.js`, prefs), `js/subs.js`,
+    `js/titlesubs.js` (the title page's pill and sheet), `js/quality.js`, `js/copies.js` (the one copy ranking, tested by
+    `tests/copies-test.js`), `js/titlecopies.js` (a title's copies from the provider and add-ons), `js/imdb.js`.
+  - Add-ons, Stremio protocol, direct links only (`design/ui-v1/addons/SPEC.md`): `js/addons.js`, `js/screens/addons.js`,
+    `js/qr.js` (the Stremio account link code).
+  - `js/conncheck.js` the playback diagnosis's connection check (`design/ui-v1/diagnosis/`).
   - `js/player.js` talks to the native player (commands and events). `js/sfx.js` UI sounds (Android SoundPool via the
     plugin for no delay; Web Audio for the launch sound). `js/launch.js` the launch animation.
   - `js/screens/` home, live (the guide), nba (the NBA tab host), team, game, lib (Movies/Series), detail, search, saved, account, first (sign-in).
@@ -30,7 +39,9 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 - `app/core.js` providers (Xtream + M3U, with `catchup()` replay links), settings and storage. `app/nba.js` ESPN's public JSON. `app/titles.js` title matching.
 - `android/app/src/main/java/app/tuner/player/`: `PlayerActivity` (Media3 player and its overlays: channel list,
   game panel, options, quality, subtitles…), `TunerPlayerPlugin` (the JS bridge, updater, UI sounds), `ListPanel`,
-  `GamePanel`, `VodControls`, `Ui` (tokens, icons). JS → native via `command` (meta, game, ring, tune, queue, versions…);
+  `GamePanel`, `VodControls`, `Ui` (tokens, icons); the diagnosis `Diag`, `PathView`; catch-up `Timeline`, `Replay`, `Card`,
+  `LivePause`; the copy check `Probe`, subtitles `Subs`, `SrtTrack`; add-ons `Handover` (hand a link to another app),
+  `PhonePage` (the page a phone opens to type into the TV), `Launch`. Each feature's native side: its `PORT-NATIVE.md`. JS → native via `command` (meta, game, ring, tune, queue, versions…);
   native → JS via events (track, need, pick, version, progress, setting, exit…).
 - `scripts/build-web.js tv` builds `www/` for the TV APK.
 
@@ -43,8 +54,10 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   between walkthrough runs, it keeps the reports). NBA page scripts: `tests/tv/nba-{host,league,news,team}.js`, and the
   bug-hunt scripts `tests/tv/hunt-*.js`.
 - CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign`) builds Windows, Android, iOS and runs
-  `tests/android-test-boot.js` on an Android TV emulator (17 checks). Its screenshots and `reports.json` are uploaded
+  `tests/android-test-boot.js` on an Android TV emulator (45 checks; the run fails if a check fails or the test doesn't finish). Its screenshots and `reports.json` are uploaded
   to the `android-test` release as `android-test-shots.tgz`.
+- Local Android build: the SDK is at `/root/android-sdk`: `export ANDROID_HOME=/root/android-sdk; node scripts/build-web.js tv;
+  npx cap sync android; cd android && ./gradlew assembleDebug --no-daemon -q` (Maven sometimes answers 429: retry).
 - Work on `tv-redesign`. Pushing it to `main` releases v0.2.<run> and the TV updates itself from `android.json`.
   **The release job doesn't wait for the emulator test**, so run CI on `tv-redesign` and see it pass first.
 - On the owner's TV over adb (same network): see `NEXT.md`.
@@ -66,5 +79,4 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 - Some channels still say "No guide information" on the owner's provider; Account > Provider > Check the guide shows
   what the provider sends (the guide has a full-table fallback and a clock-offset fix, untested on the real provider).
 - Minor: Search's ▼ past the last result jumps to the keyboard; the channel-number toast can cover a guide row.
-- Designed and reviewed, not built yet: catch-up / rewatch (`design/ui-v1/catchup/SPEC.md` v1.3, passed 8.0, owner's
-  answers in its section 13) and the playback diagnosis (`design/ui-v1/diagnosis/`, in review).
+- Built and passing CI, not yet on the TV: catch-up / rewatch, subtitles + real quality, add-ons. Unbuilt bits are in `NEXT.md`.
