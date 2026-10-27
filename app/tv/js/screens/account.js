@@ -208,7 +208,7 @@ export default {
   mount(root) {
     el = root;
     root.addEventListener('click', (e) => {
-      const g = e.target.closest('[data-g]'); if (g) { group = g.dataset.g; scroll = 0; draw(); focus(el.querySelector('.arow')); return; }
+      const g = e.target.closest('[data-g]'); if (g) { group = g.dataset.g; scroll = 0; draw(); if (group === 'addons') addonsEnter(draw); focus((group === 'addons' && el.querySelector('.ad-row')) || el.querySelector('.arow')); return; }
       const r = e.target.closest('.arow, .ad-row'); if (!r) return;
       if (r.dataset.act?.startsWith('ad:')) addonsAct(r.dataset.act, r, draw); else act(r.dataset.act);
     });
