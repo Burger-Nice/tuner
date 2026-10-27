@@ -4,3 +4,5 @@ vendor/
 www/
 tests/media/
 .tmp/
+/qr[0-9]*.pgm
+/qr[0-9]*.txt
