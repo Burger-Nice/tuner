@@ -115,8 +115,8 @@
  },
  {
   "file": "detail-sources-sheet.html",
-  "title": "The Sources sheet",
-  "note": "OK on the source pill: every copy in one list, provider and add-ons together, best first, the current one focused. Quality is the left block; size, language, kind of copy and source in plain words. A pick is remembered for this title.",
+  "title": "The Copies menu, provider and add-ons together",
+  "note": "OK on the Version pill: the subtitles design's Copies menu, with add-on copies in the same list. \"Always the best copy\" stays first and focused. Each copy says what airglow checked (the tick), where it comes from, its language, kind and size. A copy not yet checked has no tick.",
   "group": "The title page"
  },
  {
@@ -139,8 +139,8 @@
  },
  {
   "file": "detail-match.html",
-  "title": "Which film is it? (an unsure match)",
-  "note": "A provider title that matches more than one IMDb title (no year, two films called Dune) is never guessed: add-ons aren't asked until he picks. Real Cinemeta search results; the pick is remembered for this title.",
+  "title": "Which film is this? (an unsure match)",
+  "note": "Shared with the subtitles design: a provider title that matches more than one IMDb title (no year, two films called Dune) is never guessed. One pick serves add-on copies and downloaded subtitles. The closest length to this copy is focused (2 h 35 min). Real Cinemeta search.",
   "group": "The title page"
  },
  {
@@ -157,8 +157,8 @@
  },
  {
   "file": "player-sources.html",
-  "title": "Player: switching source",
-  "note": "Options > Quality: today's \"Other copies of this title\" becomes \"Sources\", the same list as the title page, in the same order. A file has one picture level, so the levels group only shows for HLS.",
+  "title": "Player: Quality lists every copy",
+  "note": "Options > Quality, as the subtitles design draws it (Always the best copy first, the checked copies below), with each copy's source on its second line. The same list and order as the title page. Picking one here is for this film.",
   "group": "Player, states, shield"
  },
  {

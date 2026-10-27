@@ -136,6 +136,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
           // ellipsised on purpose: the element (or the clipping ancestor) is a block with text-overflow and no flex parent in between
           const ell = (el) => getComputedStyle(el).textOverflow === 'ellipsis' && getComputedStyle(el).display !== 'flex' && getComputedStyle(el).display !== 'inline-flex';
           if (ell(t.e) && t.e.scrollWidth > t.e.clientWidth) continue;
+          if (ell(a) && a.scrollWidth > a.clientWidth + 1 && !(t.y1 > cl.b + TOL || t.y0 < cl.t - TOL)) continue;   // add-ons: the credits line ellipsises its own spans (detail.js)
           if (sty.getPropertyValue('-webkit-line-clamp') !== 'none') continue;
           if (a.scrollWidth <= a.clientWidth + 1 && a.scrollHeight <= a.clientHeight + 1 && !(t.y1 > cl.b + TOL || t.y0 < cl.t - TOL || t.x1 > cl.r + TOL || t.x0 < cl.l - TOL)) continue;
           issues.clip.push(`text "${t.txt}" cut by ${short(a)}`); break;
@@ -180,8 +181,9 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         if (!c.querySelector('.cu-prog .a') || !c.querySelector('.cu-prog .b') || !c.querySelector('.cu-prog .c')) issues.overlap.push('CHECK: the first-replay card must show the programme title, time and description');
         if (/sport|nba|espn|league pass|tnt|dazn/i.test(c.querySelector('.cu-prog .b')?.textContent || '')) issues.overlap.push('CHECK: the first-replay card uses a sports channel');
       }
+      // ---- add-ons: TRUNC skips a title's 3 px of Outfit descender (as on the app's own detail page), and the plot (cut by design: Up opens the full description, UI-SPEC 5.6)
       // ---- catch-up v1.2: TRUNC, a two-line caption cut by its clamp (the hero caption "Kept until Thu 29 Oct ·…")
-      for (const e of document.querySelectorAll('.clamp2,.clamp3')) { if (e.closest('.rail,.art')) continue; if (e.scrollHeight > e.clientHeight + 1) issues.clip.push(`TRUNC: "${e.textContent.trim().slice(0, 30)}" is cut by its line clamp`); }
+      for (const e of document.querySelectorAll('.clamp2,.clamp3')) { if (e.closest('.rail,.art') || e.matches('.t-display') && e.scrollHeight - e.clientHeight <= 4 || e.hasAttribute('data-plot')) continue; if (e.scrollHeight > e.clientHeight + 1) issues.clip.push(`TRUNC: "${e.textContent.trim().slice(0, 30)}" is cut by its line clamp`); }
       // ---- catch-up: SPOILER on shield mocks (scores, remaining time, OT) outside data-other / data-moment
       if (document.querySelector('meta[name="shield"]')) {
         const vis = (e) => { for (let a = e; a && a !== document.body; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return false; } return true; };

@@ -58,7 +58,7 @@
 .nv-row .rd{width:18px;height:18px}
 .nv-row .rd.on::after{inset:3px}
 .nv-row .grow{min-width:0;flex:1}
-.nv-row .b .st-tk{width:14px;height:14px;vertical-align:-3px;margin-right:4px}.nv-row .b .st-tk svg{width:9px;height:9px}
+.nv-row .a .st-tk{width:16px;height:16px;vertical-align:-3px;margin-right:6px}.nv-row .b .st-tk{width:14px;height:14px;vertical-align:-3px;margin-right:4px}.nv-row .b .st-tk svg{width:9px;height:9px}
 .nv-row.st-r .b{color:var(--a-text-2)}
 .nv-panel.st-panel{width:384px}
 .nv-panel .st-foot{padding:8px 12px 2px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}

@@ -300,7 +300,7 @@ ${vrow('film', 'Other copies of this film', '1 has English in its file', '3')}
 'The add-on is down and this copy has none. The panel says so, offers Try now, and points at the copy that has subtitles in its file (known from the check, SPEC 5.2), which opens Quality. When subtitles come in later, a one-line note says so: "English subtitles are ready · CC".', { group: G3 });
 
 // 19. Quality with the real copies
-const qrow = (c, { on = false, f = false } = {}) => `<div class="nv-row st-r${f ? ' f' : ''}"><span class="rd${on ? ' on' : ''}"></span><div class="grow"><div class="a">${qline(c)}</div><div class="b">${c.plays ? '' : 'No sound on this TV · '}${c.named ? `Named ${c.named} · ` : ''}${c.plays ? c.snd : 'DTS-HD only'}${c.rank === 1 ? ' · playing' : ''}</div></div></div>`;
+const qrow = (c, { on = false, f = false } = {}) => `<div class="nv-row st-r${f ? ' f' : ''}" data-q="checked" data-rank="${c.rank}"><span class="rd${on ? ' on' : ''}"></span><div class="grow"><div class="a">${TK}${qline(c)}</div><div class="b">${c.rank === 1 ? 'Best · playing · ' : ''}${c.plays ? '' : 'No sound on this TV · '}${c.named ? `Named ${c.named} · ` : ''}${c.plays ? c.snd : 'DTS-HD only'}</div></div></div>`;
 page('player-quality.html', 'Options > Quality: the real copies', `${video('oppenheimer', 'sun', 280)}<div class="nv-panel left st-panel st-q"><div class="nv-h">Quality</div>
 <div class="nv-row dis st-r"><div class="grow"><div class="a" style="color:var(--a-text-1)">Now: 3840 × 1600</div><div class="b" style="color:var(--a-text-2)">4K · HDR10 · 16 Mb/s · Dolby Digital Plus 5.1</div></div></div>
 ${head('Copies of this film')}

@@ -368,10 +368,25 @@ native?.player.onEvent((e) => {
     ctx.cur = null;
     sfx.zone('ui');
     if (c.kind === 'vod') { recordProgress(c.items[e.index], e.t, e.d, true); if (e.error) toast(`This video would not play. ${e.error}`, 6000); }
-    else if (e.error) toast(`That channel would not play. ${e.error}`, 6000);
+    else if (e.error && c.kind === 'live') toast(`That channel would not play. ${e.error}`, 6000);   // (a replay's own failure: replay.js)
     // The game you were watching stays at its synced delay on every screen until you tune something else,
     // so leaving the player never shows a score your stream hadn't reached.
     emit('player-closed', c);
     if (c.gotoAfter) setTimeout(() => go(c.gotoAfter), 300);
   }
 });
+
+// ---------- catch-up: the replay session (app/tv/js/replay.js drives it; design/ui-v1/catchup/PORT-NATIVE.md) ----------
+// A replay is a session of its own kind ('replay'): replay.js listens to its events. replayNative(): the native player
+// speaks the replay protocol (it says so in info()); until it does, replay.js plays the first link as a stand-in VOD.
+export const replayNative = () => !!native?.info?.()?.replay;
+export const playerCommand = (what, arg) => cmd(what, arg);
+export async function startReplaySession(opts, cur) {
+  if (!native) return null;
+  setWatching(null, null);   // one stream: the replay replaces whatever was playing live
+  const r = await native.player.play({ ...opts, ua: settings().ua, ...playerSettings() }).catch((e) => ({ ok: false, error: e?.message }));
+  if (!r?.ok) { toast(r?.error || 'This replay would not start.', 4000); return null; }
+  sfx.zone('player');
+  ctx.cur = { ...cur, session: r.session };
+  return r.session;
+}

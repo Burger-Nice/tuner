@@ -4,7 +4,7 @@ import { S } from './state.js';
 const guides = new Map();   // chId -> { at, list: Promise, ready: [] | undefined }
 // (a new account or a fresh start: the queue goes too, its jobs answer with nothing, so nothing runs for the old one)
 export const resetGuides = () => {
-  guides.clear(); shifted = S.acc?.epgShift || 0;
+  guides.clear(); tables.clear(); shifted = S.acc?.epgShift || 0;
   for (const job of [...lanes.now, ...lanes.later]) job.res([]);
   lanes.now.length = lanes.later.length = 0; queued.clear();
 };
@@ -57,9 +57,35 @@ function reshift() {
   const k = S.acc?.epgShift || 0, d = k - shifted;
   if (!d) return;
   shifted = k;
-  for (const g of guides.values()) if (g.ready) { g.ready = moved(g.ready, d); g.list = Promise.resolve(g.ready); }
+  for (const g of [...guides.values(), ...tables.values()]) if (g.ready) { g.ready = moved(g.ready, d); g.list = Promise.resolve(g.ready); }
 }
 export const guideNow = (ch) => guides.get(ch.id)?.ready;
+
+// ---------- the past (design/ui-v1/catchup/SPEC.md 4.6) ----------
+// A kept channel's full table (get_simple_data_table: the days the panel keeps, has_archive and the raw start string),
+// fetched the first time its row goes before now or a game's replay needs it, through the same queue (on-screen rows
+// first), kept 10 minutes; a failure is tried again after 30 s. Times on our clock (epgShift), the raw string untouched.
+const tables = new Map();   // chId -> { at, list: Promise, ready, failed }
+export function pastFor(ch, { urgent = false } = {}) {
+  const hit = tables.get(ch.id);
+  if (hit && Date.now() - hit.at < (hit.failed ? 30000 : 600000)) return hit.list;
+  const my = S.epoch;
+  const list = enqueue(`t:${ch.id}`, () => (S.src?.table ? S.src.table(ch) : Promise.resolve([])), urgent).then((l) => {
+    reshift();
+    const ready = moved(l, shifted);
+    if (my === S.epoch) tables.set(ch.id, { at: Date.now(), list: Promise.resolve(ready), ready });
+    return ready;
+  }, () => {
+    const keep = hit?.ready || null;
+    if (my === S.epoch) tables.set(ch.id, { at: Date.now(), list: Promise.resolve(keep || []), ready: keep, failed: true });
+    return keep || [];
+  });
+  tables.set(ch.id, { at: Date.now(), list, ready: hit?.ready });
+  return list;
+}
+export const pastNow = (ch) => tables.get(ch.id)?.ready;
+export const pastFailed = (ch) => !!tables.get(ch.id)?.failed && !tables.get(ch.id)?.ready;
+export const pastKnown = (ch) => { const t = tables.get(ch.id); return !!t && !(t.failed && Date.now() - t.at > 30000); };
 // The last try for this channel's guide failed (it is tried again after 30 s).
 export const guideFailed = (ch) => !!guides.get(ch.id)?.failed;
 // (a failed guide is unknown again after 30 s, so the screens ask for it again)

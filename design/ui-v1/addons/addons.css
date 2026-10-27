@@ -23,7 +23,8 @@
 .ad-row .st.on{color:var(--a-text-1)}
 .ad-row .st.warn{color:var(--a-text-1);font-weight:650}
 .ad-row.lift{background:var(--a-surface-3);border-color:transparent;box-shadow:var(--a-focus-ring);transform:scale(1.02);transform-origin:50% 50%;position:relative;z-index:3}
-.ad-row .grip{display:flex;color:var(--a-text-1)}
+.ad-row .grip{display:flex;flex-direction:column;color:var(--a-text-1)}
+.ad-row.lift .ad-lg{background:var(--a-surface-2)}
 .ad-lg{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font:700 13px/1 var(--a-font-display);letter-spacing:.02em;background:var(--a-surface-3);color:var(--a-text-1);flex:none}
 .ad-lg.xl{width:56px;height:56px;border-radius:12px;font-size:20px}
 .ad-lg.dim{background:var(--a-surface-2)!important;color:var(--a-text-2)}
@@ -92,13 +93,13 @@
 .ad-ring{width:22px;height:22px;flex:none}
 .ad-cap{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
 .ad-cap b{color:var(--a-text-1);font-weight:650}
-.ep .ad-only{position:absolute;right:8px;top:8px;height:22px;padding:0 7px;border-radius:var(--a-radius-sm);background:rgba(21,19,29,.82);display:flex;align-items:center;gap:4px;font:650 12px/1 var(--a-font-text);color:var(--a-text-1)}
+.ep .ad-only{position:absolute;right:8px;top:8px;height:22px;padding:0 7px;border-radius:var(--a-radius-sm);background:rgba(21,19,29,.82);display:flex;align-items:center;gap:4px;font:650 14px/1 var(--a-font-text);color:var(--a-text-1)}
 .ep .ad-only svg{width:13px;height:13px;stroke-width:2.6}
 .epsyn .ad-r{float:right;color:var(--a-text-1);font-weight:650;margin-left:12px}
 
 /* which film is it (an unsure match) */
-.menu.ad-which{left:48px;top:150px;width:560px;padding:18px 12px 12px}
-.ad-which .ad-lr{height:72px}
+.menu.ad-which{left:48px;top:120px;width:560px;padding:18px 12px 12px}
+.ad-which .ad-lr{height:66px}
 .ad-th{width:40px;height:60px;border-radius:6px;overflow:hidden;position:relative;flex:none;border:1px solid var(--a-border)}
 
 /* ---------- Search (SPEC 6) ---------- */
@@ -125,14 +126,39 @@
 .ad-up .b{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
 
 /* ---------- the phone page (SPEC 3.5): drawn at 1:1 CSS px of a 300 px wide phone ---------- */
-.ad-phone{position:absolute;top:28px;width:300px;height:484px;border-radius:28px;background:#0C0B12;border:2px solid var(--a-border-strong);padding:18px 16px;box-sizing:border-box;overflow:hidden}
+.ad-phone{position:absolute;top:28px;width:264px;height:484px;border-radius:28px;background:#0C0B12;border:2px solid var(--a-border-strong);padding:18px 16px;box-sizing:border-box;overflow:hidden}
 .ad-phone .bar{font:650 14px/18px var(--a-font-text);color:var(--a-text-3);display:flex;justify-content:space-between;margin-bottom:12px}
 .ad-phone h4{margin:0 0 6px;font:700 22px/28px var(--a-font-display);color:var(--a-text-1)}
 .ad-phone p{margin:0 0 12px;font:500 14px/20px var(--a-font-text);color:var(--a-text-2)}
-.ad-phone .pf{height:44px;border-radius:10px;border:2px solid var(--a-border-strong);background:var(--a-surface-1);display:flex;align-items:center;padding:0 12px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-bottom:10px;white-space:nowrap;overflow:hidden}
+.ad-phone .pf{height:44px;border-radius:10px;border:2px solid var(--a-border-strong);background:var(--a-surface-1);display:flex;align-items:center;padding:0 12px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;line-height:40px}
 .ad-phone .pb{height:44px;border-radius:999px;background:var(--a-grad);display:grid;place-items:center;font:700 16px/1 var(--a-font-display);color:var(--a-ink);margin-bottom:10px}
 .ad-phone .pb2{height:44px;border-radius:999px;border:2px solid var(--a-border-strong);display:grid;place-items:center;font:700 15px/1 var(--a-font-display);color:var(--a-text-1);margin-bottom:10px}
 .ad-phone .pl{font:650 14px/18px var(--a-font-text);color:var(--a-text-3);letter-spacing:.06em;text-transform:uppercase;margin:4px 0 6px}
 .ad-phone .pn{font:500 14px/20px var(--a-font-text);color:var(--a-text-3)}
 .ad-cap2{position:absolute;font:500 14px/20px var(--a-font-text);color:var(--a-text-2)}
 .ad-cap2 b{display:block;color:var(--a-text-1);font:700 18px/24px var(--a-font-display);margin-bottom:4px}
+
+/* ---------- shared with design/ui-v1/subtitles (st-tk, st-copies, st-match): the same look, ad- names so neither
+   folder depends on the other; the port keeps one class (SPEC 5.1) ---------- */
+.ad-tk{display:inline-grid;place-items:center;flex:none;width:16px;height:16px;border-radius:50%;background:var(--a-ok);vertical-align:-3px}
+.ad-tk svg{width:10px;height:10px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
+.pillbtn .ad-tk{width:14px;height:14px}.pillbtn .ad-tk svg{width:9px;height:9px}
+.pillbtn .ad-of{font-weight:500;color:var(--a-text-2)}
+.tag.ad-ok{background:var(--a-surface-3);border-color:transparent;gap:4px;padding:0 7px 0 4px}
+.tag.ad-ok .ad-tk{width:13px;height:13px;vertical-align:0}.tag.ad-ok .ad-tk svg{width:8px;height:8px;stroke-width:4}
+.menu.ad-copies{left:48px;top:27px;width:600px;padding:16px 12px 12px}
+.menu.ad-copies h3{display:flex;align-items:baseline;gap:12px}
+.menu.ad-copies h3 small,.menu.ad-match h3 small{margin-left:auto;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.lr.ad-two{height:60px;align-items:center}
+.lr.ad-two .grow{display:flex;flex-direction:column;min-width:0}
+.lr.ad-two .a{font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.lr.ad-two .b{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr.ad-two .b em{font-style:normal;color:var(--a-text-1);font-weight:650}
+.lr .ad-best{margin-left:auto;flex:none}
+.lr.ad-two .ad-spin{margin:0 1px}
+.ad-sep{height:1px;background:var(--a-border);margin:6px 8px}
+.menu .ad-foot{padding:10px 8px 2px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.menu.ad-match{left:48px;top:40px;width:540px;padding:16px 12px 12px}
+.menu.ad-match .ad-qq{padding:0 8px 10px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.nv-row.ad-r{height:50px}
+.nv-row .a .ad-tk{margin-right:6px}

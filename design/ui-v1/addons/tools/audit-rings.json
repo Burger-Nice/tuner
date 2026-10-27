@@ -1,0 +1,461 @@
+[
+ {
+  "f": "acct-addons.html",
+  "el": ".ad-row.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   267,
+   215,
+   911,
+   277
+  ],
+  "safe": 1
+ },
+ {
+  "f": "acct-addon-sheet.html",
+  "el": ".ad-lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   508,
+   233,
+   896,
+   291
+  ],
+  "safe": 16
+ },
+ {
+  "f": "acct-catalog-menu.html",
+  "el": ".ad-lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   158,
+   198,
+   462,
+   256
+  ],
+  "safe": 110
+ },
+ {
+  "f": "acct-addon-move.html",
+  "el": ".ad-row.lift",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   260.6,
+   272.4,
+   917.4,
+   335.6
+  ],
+  "safe": -5.4
+ },
+ {
+  "f": "add-ways.html",
+  "el": ".ad-lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   192,
+   144,
+   768,
+   218
+  ],
+  "safe": 117
+ },
+ {
+  "f": "add-stremio-code.html",
+  "el": ".btn2.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   680.4,
+   429,
+   896,
+   475
+  ],
+  "safe": 16
+ },
+ {
+  "f": "add-stremio-found.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   613.7,
+   274.6,
+   825.9,
+   331.4
+  ],
+  "safe": 86.1
+ },
+ {
+  "f": "add-stremio-email.html",
+  "el": ".field.ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   137,
+   573,
+   195
+  ],
+  "safe": -5
+ },
+ {
+  "f": "add-list.html",
+  "el": ".ad-row.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   43,
+   179,
+   917,
+   241
+  ],
+  "safe": -5
+ },
+ {
+  "f": "add-phone.html",
+  "el": ".btn2.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   705.8,
+   429,
+   896,
+   475
+  ],
+  "safe": 16
+ },
+ {
+  "f": "add-confirm.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   237.8,
+   326.7,
+   379.1,
+   383.3
+  ],
+  "safe": 129.7
+ },
+ {
+  "f": "home-rows.html",
+  "el": ".hc.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   264.8,
+   204.3,
+   483.1,
+   319.7
+  ],
+  "safe": 177.3
+ },
+ {
+  "f": "home-row-menu.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   272,
+   334,
+   600.5,
+   392
+  ],
+  "safe": 121
+ },
+ {
+  "f": "movies-addon.html",
+  "el": ".box.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   187.6,
+   166.1,
+   328.4,
+   371.9
+  ],
+  "safe": 139.1
+ },
+ {
+  "f": "movies-addon-down.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   321.7,
+   390.6,
+   490.8,
+   447.4
+  ],
+  "safe": 65.6
+ },
+ {
+  "f": "search-addons.html",
+  "el": ".rrow.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   427,
+   331,
+   917,
+   397
+  ],
+  "safe": -5
+ },
+ {
+  "f": "detail-sources.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   243.6,
+   173.2,
+   300.4
+  ],
+  "safe": -3.3
+ },
+ {
+  "f": "detail-sources-sheet.html",
+  "el": ".lr.ad-two",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   56,
+   75,
+   640,
+   145
+  ],
+  "safe": 8
+ },
+ {
+  "f": "detail-play-wait.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   217.6,
+   243.5,
+   274.4
+  ],
+  "safe": -3.3
+ },
+ {
+  "f": "detail-addon-only.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.7,
+   245.6,
+   173.2,
+   302.4
+  ],
+  "safe": -3.3
+ },
+ {
+  "f": "detail-series.html",
+  "el": ".th.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   490.8,
+   310,
+   711.3,
+   438
+  ],
+  "safe": 75
+ },
+ {
+  "f": "detail-match.html",
+  "el": ".lr.ad-two",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   56,
+   116,
+   580,
+   186
+  ],
+  "safe": 8
+ },
+ {
+  "f": "detail-nosources.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   44.8,
+   241.7,
+   227.3,
+   298.3
+  ],
+  "safe": -3.2
+ },
+ {
+  "f": "player-source-failed.html",
+  "el": ".btn.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   210.2,
+   386.9,
+   368.5,
+   435.1
+  ],
+  "safe": 77.9
+ },
+ {
+  "f": "player-sources.html",
+  "el": ".nv-row.ad-r",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   220,
+   437,
+   270
+  ],
+  "safe": 11
+ },
+ {
+  "f": "state-addon-down.html",
+  "el": ".ad-row.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   267,
+   407,
+   911,
+   469
+  ],
+  "safe": 1
+ },
+ {
+  "f": "sources-shield.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   508,
+   103,
+   896,
+   177
+  ],
+  "safe": 16
+ }
+]

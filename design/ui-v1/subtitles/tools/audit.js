@@ -340,7 +340,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const ranked = [...document.querySelectorAll('[data-rank]')];
       if (ranked.length) {
         const rk = ranked.map((e) => +e.dataset.rank); if (rk.some((v, i) => i && v < rk[i - 1])) issues.overlap.push(`BEST: copies out of rank order (${rk.join(',')})`);
-        const bests = ranked.filter((e) => /\bBest\b/.test(e.textContent)); if (bests.length !== 1 || +bests[0].dataset.rank !== 1) issues.overlap.push(`BEST: ${bests.length} Best marks, on rank ${bests.map((e) => e.dataset.rank).join(',') || '-'}`);
+        const bests = ranked.filter((e) => /\bbest\b/i.test(e.innerText)); if (bests.length !== 1 || +bests[0].dataset.rank !== 1) issues.overlap.push(`BEST: ${bests.length} Best marks, on rank ${bests.map((e) => e.dataset.rank).join(',') || '-'}`);
       }
       const vis = (e) => { for (let a = e; a && a !== document.body; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden') return false; } return true; };
       const allText = texts.map((t) => t.e.textContent).join(' | ');

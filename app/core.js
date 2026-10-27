@@ -124,10 +124,11 @@
   }
 
   // A panel's own time string ('2026-10-27 01:00:00') as a timeshift stamp ('2026-10-27:01-00'), moved by whole hours.
-  function rawStamp(str, hours = 0) {
+  // (plus: ms after that start, for a moment inside the programme: the first-replay check plays its start + 5 min)
+  function rawStamp(str, hours = 0, plus = 0) {
     const m = /^(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)/.exec(String(str || ''));
     if (!m) return '';
-    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) + hours * 3600e3), two = (n) => String(n).padStart(2, '0');
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) + hours * 3600e3 + plus), two = (n) => String(n).padStart(2, '0');
     return `${d.getUTCFullYear()}-${two(d.getUTCMonth() + 1)}-${two(d.getUTCDate())}:${two(d.getUTCHours())}-${two(d.getUTCMinutes())}`;
   }
 
@@ -252,14 +253,14 @@
       },
       // What a channel showed from start to end (ms), from the panel's archive: its timeshift link, which takes the start as
       // the panel's clock reads it and the length in minutes (design/ui-v1/catchup/SPEC.md 3.5). The clock, in this order:
-      // the programme's own start string from the panel's table (o.raw, '2026-10-27 01:00:00'), written back as it came
-      // with no zone conversion; else the moment in the panel's zone (from the login answer). Either way moved by the
+      // the programme's own start string from the panel's table (o.raw, '2026-10-27 01:00:00'; o.plus ms after it, start
+      // being that later moment), written back as it came with no zone conversion; else the moment in the panel's zone (from the login answer). Either way moved by the
       // channel's archive correction (o.shift, whole hours). The guide's clock offset (epgShift) is a different clock and
       // isn't used here. The .m3u8 link comes first: it's usually a VOD playlist that seeks.
       catchup(ch, start, end, o = {}) {
         if (!ch.archive) return null;
         const mins = Math.max(1, Math.ceil((end - start) / 60000)), hours = Math.round(o.shift || 0);
-        const stamp = (o.raw && rawStamp(o.raw, hours)) || panelStamp(start + hours * 3600e3, acc.tz || null);
+        const stamp = (o.raw && rawStamp(o.raw, hours, o.plus || 0)) || panelStamp(start + hours * 3600e3, acc.tz || null);
         const tail = `${encodeURIComponent(acc.username)}/${encodeURIComponent(acc.password)}/${mins}/${stamp}/${ch.id}`;
         return [{ url: `${base}/timeshift/${tail}.m3u8`, engine: 'hls' }, { url: `${base}/timeshift/${tail}.ts`, engine: 'mpegts' },
           { url: `${base}/streaming/timeshift.php?${cred}&stream=${ch.id}&start=${stamp}&duration=${mins}`, engine: 'mpegts' }];

@@ -26,7 +26,7 @@ export const ordinal = (n) => (n <= 4 ? `Q${n}` : n === 5 ? 'OT' : `${n - 4}OT`)
 export const clockText = (g) => (g.state === 'in' ? (g.period > 4 && hidden(g) ? 'Live' : /half/i.test(g.detail) ? 'Halftime' : /end of/i.test(g.detail) ? `End ${ordinal(g.period)}` : `${ordinal(g.period)} ${g.clock}`) : g.state === 'post' ? 'Final' : '');
 
 function sortGames(list) {
-  const rank = (g) => (isMine(g) ? 0 : g.state === 'in' ? 1 : g.state === 'pre' ? 2 : 3);
+  const rank = (g) => (isMine(g) ? 0 : g.state === 'in' || heldLive(g) ? 1 : g.state === 'pre' ? 2 : 3);
   return [...list].sort((a, b) => rank(a) - rank(b) || a.date - b.date);
 }
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -72,7 +72,8 @@ async function refreshToday() {
     // ESPN's "today" follows US time; once last night's games are all final and your own day has moved on, show your today.
     let r = await NBA.scoreboard('');
     const local = isoDay(new Date());
-    if (r.day && r.day < local && r.games.every((g) => g.state === 'post')) {
+    // (a game you're behind in a replay holds the day until its tip-off + 3 h 30, whatever the scoreboard: catch-up N5)
+    if (r.day && r.day < local && r.games.every((g) => g.state === 'post') && !r.games.some(heldLive)) {
       try { const next = await NBA.scoreboard(local.replace(/-/g, '')); r = { day: next.day || local, games: next.games }; } catch {}
     }
     const before = new Map(nba.today.map((g) => [g.id, g.state]));
@@ -98,8 +99,9 @@ function tipOffs(before) {
     if (g.state === 'post' && was && was !== 'post') { if (!finalAt.has(g.id)) finalAt.set(g.id, Date.now()); buzzer(g); }
   }
 }
-// (only while the player is up on it: a tune-in you left earlier stays revealed for this session only)
-function buzzer(g) { if (watch.gameId === g.id && watch.up) markSeen(g.id); }
+// (only while the player is up on it: a tune-in you left earlier stays revealed for this session only; never while a replay
+// of that game is open: the live buzzer isn't yours to see when you're behind, catch-up M2)
+function buzzer(g) { if (watch.gameId === g.id && watch.up && replay.gameId !== g.id) markSeen(g.id); }
 on('player-closed', () => { watch.up = false; });
 // Keep a summary's fresher score on the scoreboard entry.
 function merge(g) {
@@ -176,7 +178,9 @@ export function setLag(sec) { if (watch.lag !== sec) { watch.lag = sec; emit('nb
 const finalAt = new Map();   // gameId -> when airglow first saw it final: a delayed view holds the last live moment until then + delay
 const lastSeen = new Map();   // gameId -> the channel you last watched it on: its scores stay at that delay until it ends
 export function setWatching(gameId, chId) {
-  if (gameId && chId) lastSeen.set(gameId, chId);
+  if (gameId && chId) { lastSeen.set(gameId, chId); setWatchedOn(gameId, chId); }
+  // watching it live, at the live point: you've left its replay (it no longer counts as behind)
+  if (gameId) { const p = S.progress?.[`rp:${gameId}`]; if (p?.item && !p.item.live && S.acc) { p.item.live = true; store.set(scoped('progress'), S.progress); } }
   if (watch.gameId && watch.gameId !== gameId) wantSummary(watch.gameId, false);
   watch.gameId = gameId; watch.chId = chId; watch.up = !!gameId;
   if (gameId) { wantSummary(gameId); revealed.add(gameId); }   // watching the game is choosing to see it
@@ -237,8 +241,13 @@ const seenStore = () => seenMem || (seenMem = store.get(SEEN, null)) || saveSeen
 function saveSeen(s) { seenMem = s; store.set(SEEN, s); bump(); return s; }
 export function isSeen(g) {
   if (!g) return true;
+  return revealed.has(g.id) || seenForGood(g);
+}
+// Seen for good: before upTo, a stored id, or past the auto-seen window (this session's reveals don't count).
+export function seenForGood(g) {
+  if (!g) return true;
   const s = seenStore();
-  if (g.date < s.upTo || revealed.has(g.id) || s.ids.some(([id]) => id === g.id)) return true;
+  if (g.date < s.upTo || s.ids.some(([id]) => id === g.id)) return true;
   return Date.now() - g.date > (shieldMode() === 'all' ? 3 : 7) * 864e5;
 }
 // Seen for good (Reveal, or the final buzzer while watching).
@@ -354,7 +363,7 @@ const SCORE = /\b\d{1,3}\s?[-–]\s?\d{1,3}\b/;
 const namesMem = new Map(), coverMem = new Map();   // per game / per story, for this version (see bump())
 let memVer = -1;
 const fresh = () => { if (memVer !== ver) { namesMem.clear(); coverMem.clear(); memVer = ver; } };
-function namesOf(g) {
+export function namesOf(g) {
   fresh();
   if (namesMem.has(g.id)) return namesMem.get(g.id);
   const out = [];
@@ -373,7 +382,7 @@ function namesOf(g) {
   return out;
 }
 // A result word within 8 words of a name, or a score: the text gives a result away.
-function telling(text, names) {
+export function telling(text, names) {
   if (!text) return false;
   if (SCORE.test(text) && names.some((re) => re.test(text))) return true;
   const words = text.split(/\s+/);
@@ -452,6 +461,8 @@ export function show(g) {
 // ---------- which channels carry a game ----------
 // Channels named for the game, then channels whose guide says it's on, then NBA / League Pass, then sports channels.
 const SPORTY = /\bnba\b|league pass|\bespn|\btnt\b|\btsn\b|sportsnet|sky sports|\bbt sport|tnt sports|\bdazn|\bnbc ?sports|\bbally|\bfanduel sports|\bsport/i;
+// A sports channel, from its name or its group's.
+export const isSporty = (ch) => !!ch && (SPORTY.test(ch.name) || SPORTY.test(catalog.live?.catName?.get(ch.cat) || ''));
 const teamChKey = () => scoped('teamCh');
 export const teamChannel = (abbr) => store.get(teamChKey(), {})[abbr] || null;
 export function setTeamChannel(abbr, chId) { const m = store.get(teamChKey(), {}); m[abbr] = chId; store.set(teamChKey(), m); emit('nba'); }
@@ -527,7 +538,8 @@ export function gameOn(ch, guideList) {
 export function recentClocks(gameId, seenAt = Date.now()) {
   const s = nba.sums.get(gameId);
   const out = [], seen = new Set();
-  for (const p of s?.plays || []) {
+  // (newest first; a replay's Sync passes its aired time, which can be hours back: every play is looked at)
+  for (const p of s?.all ? [...s.all].reverse() : s?.plays || []) {
     if (!p.at || p.at > seenAt || seenAt - p.at > 8 * 60000) continue;
     const label = `${ordinal(p.period)} ${p.clock}`;
     if (seen.has(label)) continue;
@@ -535,4 +547,125 @@ export function recentClocks(gameId, seenAt = Date.now()) {
     out.push({ label, at: p.at });
   }
   return out.slice(0, 24);
+}
+
+// ---------- replays (design/ui-v1/catchup/SPEC.md 6.10 and 7) ----------
+// The replay you have open: never `watch` (that's live watching) and never a reveal, not even for the session. Set by
+// replay.js when a replay starts and from the player's position events (played: ms into the window, airedAt: the
+// wallclock moment on screen).
+export const replay = { gameId: null, chId: null, kind: null, windowStart: 0, played: 0, airedAt: 0 };
+export function openReplay(g, { chId = null, kind = 'channel', windowStart = 0 } = {}) {
+  Object.assign(replay, { gameId: g.id, chId, kind, windowStart, played: 0, airedAt: 0 });
+  // watching live first, then From tip-off, hides the game again (catch-up N1)
+  if (watch.gameId === g.id) { watch.gameId = null; watch.chId = null; watch.up = false; }
+  revealed.delete(g.id);
+  if (chId) setWatchedOn(g.id, chId);
+  wantSummary(g.id);   // the plays: the as-aired score, the chapters, the buzzer
+  bump(); emit('nba');
+}
+export function closeReplay() {
+  if (!replay.gameId) return;
+  const id = replay.gameId;
+  Object.assign(replay, { gameId: null, chId: null, kind: null, windowStart: 0, played: 0, airedAt: 0 });
+  if (watch.gameId !== id) wantSummary(id, false);
+  bump(); emit('nba');
+}
+// Where you stopped in a game's replay: the progress entry rp:<gameId> ({ t, d, item }), or null.
+export const replayProgress = (id) => S.progress?.[`rp:${id}`] || null;
+const H = 3600e3;
+// The LIVE pills' clock: from the scheduled tip-off to tip-off + 3 h 30, whatever the game does (catch-up 7.2).
+export const liveByClock = (g) => !!g && Date.now() >= g.date && Date.now() < g.date + 3.5 * H;
+// Behind in a replay: a replay of this game you started while it could still be live, left unfinished, and the game
+// isn't seen for good (its buzzer played in the replay, a Reveal), within 12 h of tip-off. Whatever the session reveal.
+export function behindReplay(g) {
+  if (!g || !g.date) return false;
+  const p = replayProgress(g.id);
+  if (!p || p.done || p.item?.live || p.item?.seen) return false;
+  if (Date.now() - g.date > 12 * H || seenForGood(g)) return false;
+  return (p.item?.startedAt || p.at || 0) < g.date + 3.5 * H;
+}
+// A game held as live by the clock: behind in its replay and inside its tip-off + 3 h 30 (Home's hero, the ESPN day,
+// sortGames, the LIVE pills).
+export const heldLive = (g) => !!g && shielded(g) && behindReplay(g) && liveByClock(g);
+// What the LIVE pills of a game show: the scoreboard, or the clock while you're behind in its replay.
+export const liveShown = (g) => (!!g && shielded(g) && behindReplay(g) ? liveByClock(g) : g?.state === 'in');
+
+// ---------- the game as it aired (catch-up M2, M6, N4) ----------
+// The chapters of a game from ESPN's plays: Tip-off, Q2, Half (the last play of Q2), Q3, Q4, then each OT; the buzzer is
+// the last play's moment once the game is final. Every entry: { key, label, at (wallclock ms), period }.
+export function chaptersOf(gameId) {
+  const s = nba.sums.get(gameId), all = s?.all || [];
+  const first = new Map(), last = new Map();
+  for (const p of all) {
+    if (!p.at || !p.period) continue;
+    if (!first.has(p.period)) first.set(p.period, p.at);
+    last.set(p.period, p.at);
+  }
+  const out = [];
+  for (const [n, at] of [...first].sort((a, b) => a[0] - b[0])) {
+    if (n === 1) out.push({ key: 'tip', label: 'Tip-off', at, period: 1 });
+    else if (n === 3) { if (last.has(2)) out.push({ key: 'half', label: 'Halftime', at: last.get(2), period: 2 }); out.push({ key: 'q3', label: 'Q3', at, period: 3 }); }
+    else out.push({ key: n <= 4 ? `q${n}` : `ot${n - 4}`, label: ordinal(n), at, period: n });
+  }
+  if (!first.has(3) && last.has(2) && (first.size > 2 || s?.game?.state === 'post')) out.push({ key: 'half', label: 'Halftime', at: last.get(2), period: 2 });
+  const g = gameById(gameId), final = (s?.game?.state || g?.state) === 'post';
+  const buzzerAt = final && all.length ? Math.max(...all.map((p) => p.at || 0)) : 0;
+  return { list: out.sort((a, b) => a.at - b.at), buzzerAt, known: !!s?.all };
+}
+// The game as it stood at a wallclock moment, from the plays up to it: score, period, clock, the plays (newest first),
+// the chapters reached. Every player-side feed of a game uses this during its replay, at the aired moment − 90 s, never
+// show() or delayed() (which have the final). Returns null when the plays aren't on hand yet.
+export function asAired(g, wallclock) {
+  const s = g && nba.sums.get(g.id);
+  if (!s?.all) return null;
+  let last = null;
+  const upto = [];
+  for (const p of s.all) { if (p.at && p.at <= wallclock) { upto.push(p); last = p; } }
+  const ch = chaptersOf(g.id);
+  const reached = ch.list.filter((c) => c.at <= wallclock);
+  const cur = reached[reached.length - 1] || null;
+  let label = !last ? 'Before tip-off' : cur?.key === 'half' ? 'Halftime' : `${ordinal(last.period)} ${last.clock}`;
+  if (last && /end of/i.test(last.text) && cur?.key !== 'half') label = `End ${ordinal(last.period)}`;
+  return {
+    state: last ? 'in' : 'pre', period: last?.period || 0, clock: last?.clock || '', label,
+    chapter: cur ? cur.label : '', score: last ? [String(last.away ?? 0), String(last.home ?? 0)] : null,
+    plays: upto.slice(-40).reverse(), chapters: reached,
+  };
+}
+// The chapter you're in, as a word for your position ('Q1', 'Halftime', 'Q3'), at a wallclock moment (never past what aired).
+export function chapterAt(gameId, wallclock) {
+  const reached = chaptersOf(gameId).list.filter((c) => c.at <= wallclock);
+  const c = reached[reached.length - 1];
+  return !c ? '' : c.key === 'tip' ? 'Q1' : c.label;
+}
+
+// ---------- per-account replay stores ----------
+// archiveShift: whole hours per channel (Not the game?, the first-replay check), '_' the account default (catch-up 3.5).
+const shiftKey = () => scoped('archiveShift');
+export const archiveShift = (chId) => { const m = store.get(shiftKey(), {}); return m[chId] ?? m._ ?? 0; };
+export const shiftKnown = () => store.get(shiftKey(), {})._ != null;
+export function setArchiveShift(chId, hours) { const m = store.get(shiftKey(), {}); m[chId || '_'] = hours; store.set(shiftKey(), m); }
+// replayDelay: seconds the archive runs behind ESPN's clock on a channel (starts at the live delay − 20 s: no client lag).
+const rdKey = () => scoped('replayDelay');
+export const replayDelay = (chId) => { const d = store.get(rdKey(), {})[chId]; return d == null ? Math.max(0, delayFor(chId) - 20) : d; };
+export function setReplayDelay(chId, sec) { const d = store.get(rdKey(), {}); d[chId] = sec; store.set(rdKey(), d); }
+// nbaWatchedOn: the channel you watched a game on, kept across restarts { gameId: [chId, tip-off] }, pruned after 8 days.
+const woKey = () => scoped('nbaWatchedOn');
+export const watchedOn = (id) => (S.acc ? store.get(woKey(), {})[id]?.[0] || null : null);
+function setWatchedOn(id, chId) {
+  if (!S.acc) return;
+  const m = store.get(woKey(), {}), g = gameById(id), cut = Date.now() - 8 * 864e5;
+  m[id] = [chId, g?.date || Date.now()];
+  for (const k of Object.keys(m)) if (m[k][1] < cut) delete m[k];
+  store.set(woKey(), m);
+}
+// replayPick: the source you chose for a game in the sources sheet { gameId: { kind, id, at } }, pruned after 8 days.
+const pickKey = () => scoped('replayPick');
+export const replayPick = (id) => (S.acc ? store.get(pickKey(), {})[id] || null : null);
+export function setReplayPick(id, src) {
+  const m = store.get(pickKey(), {}), cut = Date.now() - 8 * 864e5;
+  m[id] = { kind: src.kind, id: String(src.id), at: Date.now() };
+  for (const k of Object.keys(m)) if (m[k].at < cut) delete m[k];
+  store.set(pickKey(), m);
+  emit('replays', id);
 }
