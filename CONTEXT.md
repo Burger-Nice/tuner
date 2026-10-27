@@ -162,6 +162,22 @@ shipped, and how the owner likes to work. Read this, then `CLAUDE.md` (how the c
   - **Options:** subtitles, audio, picture size, Quality, speed and Match frame rate.
   - **Movies and shows:** a seek bar and Up next.
 
+## v0.2.70 (27 Oct)
+
+What the owner asked for after v0.2.66, built from designs that passed review, then four report-only bug hunters
+(catch-up + the shield, subtitles + quality, add-ons, a code review), every finding fixed or listed in `NEXT.md`, and
+CI 45/45 before the release:
+- **Catch-up / rewatch** ("being able to rewatch games"): Watch from tip-off on Home, the NBA tab, team and game pages,
+  past programmes in the guide (◀ before now), a timeline with the quarters; the shield holds while you're behind in a
+  replay; seen at the replay's final buzzer. The owner's answers: Replays play (option to choose), Watch live first,
+  seen at the final buzzer, "Replays for 3 days".
+- **Subtitles from OpenSubtitles and real quality per copy** ("sometimes no subtitles, bad quality"): Always on,
+  Icelandic first; each copy's real resolution, HDR and sound are checked (one connection at a time) and the copies are
+  ranked by what they really are (`design/ui-v1/copies/RANKING.md`).
+- **Add-ons, Stremio's system** ("just do stremios system on our app"): Stremio account sign-in with a code (his whole
+  Stremio list comes over and stays in step), Stremio's list, a link from the phone, typing one; catalogs in
+  Movies/Series, add-on copies next to the provider's, direct links only (no torrents; debrid add-ons work).
+
 ## Things that are true but easy to miss
 
 - **Pushing `tv-redesign` to `main` = a release.** The release job does **not** wait for the emulator test, so run CI
