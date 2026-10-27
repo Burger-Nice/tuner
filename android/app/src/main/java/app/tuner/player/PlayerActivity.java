@@ -300,7 +300,7 @@ public class PlayerActivity extends AppCompatActivity {
             @Override public void onPlaybackStateChanged(int s) {
                 handler.removeCallbacks(stall);
                 if (live && s == Player.STATE_BUFFERING && played && stallAt == 0) { stallAt = SystemClock.uptimeMillis(); handler.postDelayed(lagTick, 1000); }
-                if (s == Player.STATE_READY && stallAt > 0) { lagMs += SystemClock.uptimeMillis() - stallAt; stallAt = 0; sendLag(); }
+                if (s == Player.STATE_READY && stallAt > 0 && player.getPlayWhenReady()) { lagMs += SystemClock.uptimeMillis() - stallAt; stallAt = 0; sendLag(); }   // (paused: counted on resume)
                 if (s == Player.STATE_READY) {
                     played = true; error = null; retries = 0;
                     if (card.getVisibility() == View.VISIBLE) card.setVisibility(View.GONE);
@@ -312,6 +312,13 @@ public class PlayerActivity extends AppCompatActivity {
                 if (live && s == Player.STATE_BUFFERING && played) handler.postDelayed(stall, 12000);
             }
             @Override public void onIsPlayingChanged(boolean playing) { if (vod != null) vod.playStateChanged(); }
+            // Pausing live TV puts the picture behind by as long as it was paused: that's lag too (scores wait for it).
+            @Override public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+                if (!live || !played) return;
+                long now = SystemClock.uptimeMillis();
+                if (!playWhenReady && stallAt == 0) { stallAt = now; handler.postDelayed(lagTick, 1000); }
+                else if (playWhenReady && stallAt > 0 && player.getPlaybackState() == Player.STATE_READY) { lagMs += now - stallAt; stallAt = 0; sendLag(); }
+            }
             @Override public void onRenderedFirstFrame() {
                 long shown = SystemClock.uptimeMillis() - zapAt;
                 handler.removeCallbacks(hideZap);

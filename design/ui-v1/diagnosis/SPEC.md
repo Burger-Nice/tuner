@@ -1,4 +1,4 @@
-# airglow TV: playback diagnosis, v1.1
+# airglow TV: playback diagnosis, v1.2
 
 The owner: *"when stuff is buffering or loading or something when I am watching live, I want to know if its my internet
 or the provider, or just in general what the issue is"*.
@@ -9,12 +9,13 @@ sits beside `design/ui-v1/catchup/SPEC.md` 6.7 (its split failure cards). Everyt
 | File | What it is |
 |---|---|
 | `SPEC.md` | this |
-| `*.html` (25) | the mocks at 960 x 540; `png/*.png` are their 2x renders, `png/contact-sheet.png` shows all of them |
+| `*.html` (27) | the mocks at 960 x 540; `png/*.png` are their 2x renders, `png/contact-sheet.png` shows all of them |
 | `diagnosis.css` | the new classes, prefix `dg-`. The player parts are native views measured here in dp (1 dp = 1 CSS px on the canvas); `dg-sheet` is web, for `app/tv/app.css` |
 | `tools/build.js` | writes the mocks and `tools/pages.json` |
 | `tools/render.js` | the PNGs and the contact sheet |
 | `tools/audit.js` | the self-check (section 12); ring data in `tools/audit-rings.json` |
 | `REVIEW-independent.md` | the review of v1.0 (6.3 / 10) that v1.1 answers |
+| `REVIEW-independent-2.md` | the review of v1.1 (7.2 / 10) that v1.2 answers |
 
 **Scenario (section 0).** Tue 27 Oct 2026, 01:52 on the owner's TV (Reykjavik time, UTC). Grizzlies at Jazz is live on
 NBA League Pass 4 (41), also on ESPN HD (210) and NBA TV. Shield: My team. Speeds, bitrates, latencies and channels
@@ -22,8 +23,109 @@ are illustrative.
 
 **The player this is designed for (engineering, v1.1).** Live channels play the provider's **MPEG-TS** link (no HLS
 levels). The live load control starts after **2 s** of picture and, after a stall, **waits for 6 s of picture** before
-it plays again. The live read timeout is **12 s**. The player measures the **extra lag** a stall adds (wall-clock time
-minus playback progress) and reports it to the app, and every score surface adds it.
+it plays again. The live read timeout is **12 s**. The player measures the **extra lag** (today: the time spent
+BUFFERING) and reports it to the app, and every score surface adds it. v1.2: the measure must also cover live pauses
+(section 8), and **Sync stores what it measured and resets the lag to 0** (engineering agreed).
+
+## v1.2 changes: an answer to every point of review 2
+
+### Must fix
+
+**N-M1. The "!" badge had no dot. Accepted.** The dot inherited the problem disc's ink colour and vanished, so the badge
+read as "|". It's now drawn in chalk explicitly and bigger: a 20 dp badge with a 14 dp mark, a 3.2 dp bar and a 4 dp dot.
+`PathView` draws the dot in `T1`, never in an inherited colour. **The audit now reads the pixels** (BADGEPX: the bar
+and the dot must each show chalk). It catches the v1.1 badge on every problem mock (`--inject-v12`).
+
+**N-M2. The limit card fired on any 401/403 after a zap. Accepted.**
+- **The account-ended card (C7b) is now above the limit card (C7).**
+- **C7 needs evidence of a limit:** the account check shows `active_cons ≥ max_connections`, or a 458 / 509 answer, or
+  a body naming connections. A bare 401/403 with free streams is C7c (`refused`).
+- **The title takes the real maximum:** `Your provider allows 2 streams`.
+- **The line says whose stream it is.** Within 60 s of this TV closing one: `One is this TV's last channel, which
+  clears within a minute.` (on a 1-stream account: `It still counts this TV's last one.`). Otherwise: `by other devices`.
+- `stall-limit` is redrawn with the real maximum.
+
+**N-M3. A dead line read as a sign-in page. Accepted.** The sign-in card (C1c) now needs an **HTTP answer** other than
+204 (a 200 with a page, or a redirect), or `CAPTIVE_PORTAL`. No answer at all is a failed check, which goes to C1b or
+C11. Both 4.1 and 10.3 say so.
+
+**N-M4. A real outage couldn't reach its own card. Accepted.**
+- **C1b moves above the Wi-Fi card.**
+- **Its gate is the checks, not Android:** both internet hosts get no answer, **and** the stream host gets none.
+  `VALIDATED` dropping is a later confirmation shown in Details, not a gate.
+- **The router check picks the title:**
+  - router answers: `Your internet isn't working` / `Your router answers, but nothing gets past it. Restart it.`, with
+    Internet cut;
+  - router silent: `The TV can't reach your router`, with Wi-Fi cut.
+- **"No route" to the speed test while both internet checks also fail is an outage**, not "test unavailable".
+- New mock: `stall-no-internet`.
+
+**N-M5. Live pauses weren't counted as lag: a spoiler. Accepted (a port item).**
+- **The lag must cover live pauses as well as stalls:**
+  - the Play/Pause key in live;
+  - `onStop` → pause, then `onStart` resuming in place.
+- **So the measure is the one 8.2 always described:** wall-clock time since the reference READY minus the playback
+  position advanced. Or the code adds paused time explicitly.
+- **Today's code counts only BUFFERING time**, so section 8 no longer calls it "engineering's measure". 11.5 lists the
+  change.
+
+**N-M6. "Sync stores measured − lag" went the unsafe way. Accepted (engineering agreed).** A Sync now stores **what it
+measured** and sets the lag to 0 at that moment. Later stalls add from there. A reconnect after a Sync then leaves the
+score a little late, which is safe, until the next Sync. Section 8.2 and 11.5 are changed.
+
+**N-M7. Load ahead opened a second stream on the provider. Accepted.** One connection at a time (3.3):
+1. On OK, note the position and `stop()` the player (its connection closes).
+2. Run the `CacheWriter` from that position.
+3. On OK again, cancel the writer and prepare the player at the position through `CacheDataSource`. It reads the cached
+   part from disk and uses the network only past it.
+
+The cache is capped at the smaller of 2 GB and a quarter of the free space. `CacheDataSource` is used only once load
+ahead has started, so ordinary films never write to the TV's flash.
+
+**N-M8. An ordinary 404 page was blamed on the ISP. Accepted.**
+- **Status rows win:** 404/410 is C6, and 5xx on the stream request is C4x, whatever the body.
+- **It's a block (C6b, now below the status rows) only when two things are true:**
+  - a **200** comes back with an HTML page instead of video;
+  - **and** `player_api.php` on the **same hostname** also returns HTML instead of JSON (the name is being intercepted).
+- **Any other HTML body** is the provider's own error page.
+
+**N-M9. ◀ OK OK, the Sync habit, switched feeds. Accepted.**
+- **Connection goes first in Options only while the card shows** (the picture is frozen, so there's nothing to sync
+  against).
+- **While a chip shows**, Options keeps its order (Sync score first on a game). Connection is moved to second, so the
+  chip's keys read `◀ ▼ Details`.
+- **The Connection panel always opens on `Check again`.** A feed or copy switch is one ▲ away and never the default
+  (`opt-panel-slow`).
+- Both are audited: CHIPKEYS and PANELFOCUS.
+
+### Should fix
+
+| # | Answer |
+|---|---|
+| S-N1 | **Accepted, one rule.** On Wi-Fi with a slow test: test ÷ the RX link speed **< 0.15** → C3 (`Your internet`); **0.15 or more** with the Wi-Fi weak → C2 (`Your Wi-Fi`) when ≥ 0.35, else C3h; strong Wi-Fi at 0.15 or more → C3h. On a cable → C3 |
+| S-N2 | **Accepted.** The ratio uses the **highest** RX link speed seen during the 3 s test (rate adaptation lowers it when the line is idle) |
+| S-N3 | **Accepted.** For the stream host's `HEAD /`, any HTTP answer **or a TCP reset** means "answering"; only a 5xx on the **stream request** is C4x |
+| S-N4 | **Accepted.** The card opens after **two seconds in a row** fail the "recovering" test, not one noisy second |
+| S-N5 | **Accepted.** C1b's title follows the router check (N-M4) |
+| S-N6 | **Accepted.** A game first seen as `post` while it's being watched gets `finalAt` = the first time it's seen, so the Final still waits delay + lag (11.5) |
+
+### Nits
+
+| Nit | Answer |
+|---|---|
+| The offline chip's glyph sat up-left | Fixed: the kit's `.nv-chip span` rule made its disc `display:block`; it's a `div` now |
+| `60+` for a 52 Mbps reading | `N+ Mbps` only when the test read the full 25 MB (N rounded down to 10); otherwise the reading itself. The card's `Fast` = capacity ≥ 3 × need |
+| C10 drawn "all ticked" | New mock `stall-moment`: Channel `run`, no tick; the TICK audit covers it |
+| C4's "20 s" | The real seconds since the stream host last answered |
+| "Letting the stream go…" up to 60 s | Back still closes the sheet; the check finishes on its own |
+| 11.3's `retries == 2` item | Kept: still a port item |
+
+**Self-check, v1.2:**
+- **New checks:** BADGEPX (pixels), CHIPKEYS, PANELFOCUS, and LINE (a card's title or line wrapping, which caught
+  `stall-no-internet`'s first draft).
+- **Result:** 27 pages, 0 findings.
+- **`--inject-v12`:** puts back the ink dot, `◀ Details` on a chip, the panel opening on a switch and a wrapped line. It
+  reports BADGEPX ×3, CHIPKEYS ×1, PANELFOCUS ×1, LINE ×2.
 
 ## v1.1 changes: an answer to every review point
 
@@ -215,15 +317,15 @@ covers the centre" (11.8). When the picture is moving, it's always a chip in the
 | Surface | Focus | OK | Hold OK | ◀ | Back | Others |
 |---|---|---|---|---|---|---|
 | Puck | none | channels, as always | Last channel | Options | as always | as always |
-| Stall card | **none** (the action chip's model) | **its one best action** (ignored for 700 ms after it appears and 1 s after the action changes) | **Last channel** | **Options, Connection first and focused** (`opt-during-stall`): Details is ◀ OK | **hides it** | ▲▼ zap, ▶ game, digits as always; a tune clears it |
-| Chips | none | its action (the offline chip has none) | Last channel | as the card | dismiss | any other key dismisses (as the chip) |
+| Stall card | **none** (the action chip's model) | **its one best action** (ignored for 700 ms after it appears and 1 s after the action changes) | **Last channel** | **Options, Connection first and focused** (`opt-during-stall`): Details is ◀ OK (the picture is frozen: there's no Sync to protect) | **hides it** | ▲▼ zap, ▶ game, digits as always; a tune clears it |
+| Chips | none | its action (the offline chip has none) | Last channel | **Options in its usual order** (Sync score first on a game), Connection second: Details is ◀ ▼ OK, and ◀ OK OK still syncs | dismiss | any other key dismisses (as the chip) |
 | Failure card | first row (inset ring) | the row | – | – | close | ▲▼ move |
-| Connection panel | first action row | the row | – | – | to Options | ▲▼ move |
+| Connection panel | **`Check again`, always** (a switch is never the default) | the row | – | – | to Options | ▲▼ move |
 | VOD card, controls up | none | **play / pause** (as always; no keys line) | – | – | hides it | as the controls |
 | Account sheet | Run again when done; the text body while running | Run again | – | – | stop / close | – |
 
-While a card or chip shows, the hint bar (when it shows: first 5 times, then on Info) reads
-`OK <action> · ◀ Details · Back Hide · ▲▼ Zap`.
+While a card shows, the hint bar (when it shows: first 5 times, then on Info) reads `OK <action> · ◀ Details · Back Hide
+· ▲▼ Zap`; while a chip shows, `OK <action> · ◀ ▼ Details · Back Dismiss · ▲▼ Zap` (both audited, CHIPKEYS).
 
 ### 2.3 New glyphs (`Ui.Icon`, 24 grid, 2 dp stroke, round caps)
 
@@ -233,15 +335,16 @@ actions use the existing `quality` glyph.
 
 ### 2.4 Colour (native `Ui`)
 
-Add `OK = 0xFF47D394`. Problem disc `T1` with an `INK` glyph; its badge `INK` with a `T1` "!" and a 1.5 dp `T1` inner
-ring. Lines `BORDER_STRONG`; dashes via `DashPathEffect(7, 5)`; the progress and the puck ring `PINK`. The VOD loading
+Add `OK = 0xFF47D394`. Problem disc `T1` with an `INK` glyph; its badge (20 dp) `INK` with a `T1` "!" (bar 3.2 dp, dot
+4 dp, **both painted `T1` explicitly**, v1.2) and a 1.5 dp `T1` inner ring. Lines `BORDER_STRONG`; dashes via `DashPathEffect(7, 5)`; the progress and the puck ring `PINK`. The VOD loading
 bar is the seek bar's gradient fill (already allowed natively).
 
 ### 2.5 Copy rules
 
-- The title is the cause, in his words, one line. The line under it: one sentence of evidence, one line on a card.
+- The title is the cause, in his words, one line. The line under it: one sentence of evidence, one line on a card
+  (audited, LINE).
 - One pair of Mbps figures per card or chip (audited). Mbps whole; ms for answers; seconds for waits; bars for Wi-Fi.
-  A test that hit its ceiling reads `Fast` (card) or `60+ Mbps` (panel). An estimated need reads `about 12 Mbps`.
+  A test that read its full 25 MB reads `N+ Mbps` (panel); the card says `Fast` when capacity ≥ 3 × need. An estimated need reads `about 12 Mbps`.
 - No codec, format or protocol words (HEVC, HLS, fps, MPEG, bitrate, buffer, DNS, timeout, dBm): audited.
 - Channel titles without their provider prefixes (`ESPN HD`, not `US: ESPN HD`): audited.
 - Actions say what will happen: `Same game on ESPN`, `Watch the HD copy`, `Try again now`, `Network settings`,
@@ -261,10 +364,10 @@ seconds of picture per second.
 | 0 | nothing | the stall is logged; the lag starts counting (section 8) |
 | **1 s** | the **puck**: the refill ring (loaded ÷ 6 s) while r > 0, the spinner while nothing arrives | Wi-Fi readings polled each second |
 | 3 s onward | **still the puck while it's recovering**: r ≥ 0.8 and (6 s − loaded) ÷ r ≤ 4 s. A routine `.ts` stall ends here around 6 s | – |
-| the first second from 3 s that it **isn't** recovering | the **card**, `Still loading` with the path filling (`stall-checking`) | the quick checks in parallel (internet, stream host, account; 2 s timeout each) |
+| from 3 s, **two seconds in a row** that it **isn't** recovering (v1.2, S-N4) | the **card**, `Still loading` with the path filling (`stall-checking`) | the quick checks in parallel (internet, stream host, account; 2 s timeout each) |
 | ≈ 2 s later | the cause (4.1) | the speed test (3 s) only if C2 / C3 / C3h / C5 need splitting |
 | **12 s** at the latest | the card, whatever r is | – |
-| 12 s, no bytes at all | the card's right side: `Reconnecting · try 1 of 6` | the read timeout → `onPlayerError` → diagnose (4.1) → `reconnect()`: 2, 4, 8, 16, 16, 16 s (limit answers: 10, 20, 30 s) |
+| 12 s, no bytes at all | the card's right side: `Reconnecting · try 1 of 6` | the read timeout → `onPlayerError` → diagnose (4.1) → `reconnect()`: 2, 4, 8, 16, 16, 16 s (limit answers with evidence: 10, 20, 30 s, then every 30) |
 | 12 s, still refilling at r ≥ 0.5 | the card, no reconnect (it would throw the loaded picture away) | the `stall` runnable re-arms for 12 s; a stream still under 0.8 s per second at 45 s gets one reconnect |
 | 6 failed tries, or a certain failure | the **failure card** (section 5) | – |
 | it plays | the puck goes at once; the card fades out (200 ms) after 1 s of steady play | readings cached 60 s |
@@ -292,10 +395,13 @@ seconds of picture per second.
 
 The same card and causes; the last node reads `Movie` / `Episode`. For a slow line the best action is **`Pause and load
 ahead`** (M10):
-- OK pauses, and a `CacheWriter` writes ahead into the disk cache.
+- **One connection at a time** (v1.2, N-M7): OK notes the position and `stop()`s the player (closing its connection),
+  then a `CacheWriter` writes ahead from there into a `SimpleCache` (cap: the smaller of 2 GB and a quarter of the free
+  space; cleared when the title closes). `CacheDataSource` is used only once load ahead has started.
 - The card becomes `Loading ahead` / `3:10 loaded. Enough to watch about 6 minutes without a pause.`, with a bar showing
   how far it is to `Enough for the rest in about 8 min` (the right of the keys line).
-- OK plays at any moment. The provider's other copy is the second action (in Details).
+- OK plays at any moment: the writer is cancelled first, then the player is prepared at the position through
+  `CacheDataSource` (disk for the cached part, the network past it). The provider's other copy is the second action.
 
 With the controls up, see 2.2.
 
@@ -313,32 +419,36 @@ With the controls up, see 2.2.
 ### 4.1 The decision table (first match wins)
 
 "r" is the refill rate (3.1); "starving" = r < 0.8 during a stall, or arrival < 0.9 × need while playing. "Need" is in
-4.2. "Capacity" = the speed test + the stream's own arrival over the same 3 s. "Wi-Fi weak" = on Wi-Fi with
-(bars ≤ 2 or RX link < 2 × need). "Wi-Fi-limited" = capacity ≥ 0.35 × RX link (with no link speed known: bars = 1).
+4.2. "Capacity" = the speed test + the stream's own arrival over the same 3 s. "Link" = the **highest** RX link speed seen
+during the test (S-N2). "Wi-Fi weak" = on Wi-Fi with (bars ≤ 2 or link < 2 × need). "Ratio" = capacity ÷ link (with no
+link speed known: bars = 1 counts as ratio ≥ 0.35). "No answer" = no HTTP answer at all (timeout, no route); an HTTP
+answer of any kind, or a TCP reset, is an answer.
+
+**v1.2 order:** the TV's own state → the account and HTTP status rows (the far side answered) → the outage (C1b) → the
+Wi-Fi → the provider's server → speed. First match wins.
 
 | # | Signal (what must be true) | Title / line | Path | Best action (OK) | Then |
 |---|---|---|---|---|---|
 | C1 | no active network, picture stopped (while picture remains: the chip, 3.4) | **Your TV is offline** / The Wi-Fi dropped (`The network cable is unplugged`). airglow carries on by itself when it's back. | Wi-Fi (or Cable) **cut** `Not connected` | **Network settings** | re-tune after 2 s of `VALIDATED`, at most once per 10 s, never while stopped |
-| C1c | `NET_CAPABILITY_CAPTIVE_PORTAL`, or the internet check gets anything but 204 | **Your Wi-Fi wants you to sign in** / Open its sign-in page in the TV's network settings. | Internet **cut** `Sign-in page` | **Network settings** | – |
-| C8 | `DECODING_FORMAT_EXCEEDS_CAPABILITIES`, `DECODING_FORMAT_UNSUPPORTED`, or `DECODER_INIT_FAILED` again after one retry 1 s later | **This TV can't play this channel's picture** / It's 4K at a frame rate this TV can't play. Not your internet or provider. (from the `Format` against the decoder table, in words) | **TV** bad `Can't play it`; the other links ticked by `stream-bytes` | another copy (**Watch the HD copy**) | Next channel. `fail-decoder` |
+| C1c | `NET_CAPABILITY_CAPTIVE_PORTAL`, or the internet check gets an **HTTP answer** other than 204 (a 200 page, a 3xx). **Never on no answer** (v1.2) | **Your Wi-Fi wants you to sign in** / Open its sign-in page in the TV's network settings. | Internet **cut** `Sign-in page` | **Network settings** | – |
+| C8 | `DECODING_FORMAT_EXCEEDS_CAPABILITIES`, `DECODING_FORMAT_UNSUPPORTED`, or `DECODER_INIT_FAILED` again after one retry 1 s later | **This TV can't play this channel's picture** / It's 4K at a frame rate this TV can't play. Not your internet or provider. | **TV** bad `Can't play it`; the other links ticked by `stream-bytes` | another copy (**Watch the HD copy**) | Next channel. `fail-decoder` |
 | C8b | `DECODING_FAILED` twice, the format inside the decoder table | **This channel's picture is broken at your provider** / This TV can play this format, but what arrives is damaged. | Channel bad `Damaged` | another copy / feed | Try again. `fail-broken` |
-| C7 | HTTP 401 / 403 / 458 / 509 or a "connections" answer, **within 60 s of this TV closing a stream** | **Your provider allows 1 stream** / It still counts this TV's last one. That clears within a minute. | Provider bad `1 of 1 in use` | **Try again now**; right `Next try in 10 s` | back-off 10, 20, 30 s. `stall-limit` |
-| C7o | the same, and the account check still shows every stream in use after that | **Your provider allows 2 streams** / Both are in use, by other devices. Stop one, or wait a moment. (unknown max: `Your provider's stream limit is reached`) | Provider bad `2 of 2 in use` | **Try again now** | every 30 s |
-| C7b | 401 / 403 and the account is not `Active` or past `exp_date` | **Your provider account has ended** / It expired on 19 Nov. Renew it with your provider. | Provider bad `Ended` | **Account** | failure card at once |
-| C7c | 401 / 403, account active, streams free | **Your provider refused this channel** / It may not be in your package, or they may block your connection (a VPN or a new address). | Channel **cut** `Refused` | another copy / feed, else **Next channel** | Try again |
-| C6b | an HTML page (not video) from a host other than the provider's, after a redirect | **Something on the way is blocking this channel** / Your internet company may block it. Private DNS in the TV's network settings may get around it. | Internet bad `Blocked` | another copy / feed | – |
-| C6 | HTTP 404 / 410, or a malformed answer from the provider's own host, twice, with the stream host answering | **This channel is off at your provider** / Their server answered, but sends nothing on CNN International. | Channel **cut** `Nothing sent` | another feed / copy, else **Next channel** (named) | **Refresh channels**, Try again. `fail-channel-off`, `fail-game-feed` |
-| C4x | HTTP 5xx from the stream host | **Your provider's server has a problem** / It answered with an error. airglow keeps trying. | Provider bad `Error` | **Try again now** | auto retry |
-| C2 | Wi-Fi weak **and** capacity < 1.3 × need **and** Wi-Fi-limited (any error type, timeouts included, or starving) | **Your Wi-Fi is weak** / This channel needs 12 Mbps. Over this Wi-Fi it's getting 4. | Wi-Fi bad (**slow**) `1 of 4 bars`; the rest off | another copy (**Watch the HD copy**); a lower level only on streams that have them | Details: `A network cable, or the router closer, fixes it for good.` `stall-wifi-weak`, `stall-stutter` |
-| C1b | both internet hosts fail (IPv4 then IPv6) **and** the stream host fails **and** `VALIDATED` drops within 3 s of `reportNetworkConnectivity(false)` | **Your Wi-Fi has no internet** / `Your router answers, but nothing gets past it. Restarting it usually fixes this.` or `The TV can't reach your router.` (gateway connect) | Internet **cut** `No answer` | **Try again now** | auto retry |
-| C4b | the stream host's name doesn't resolve while the internet check passes | **Your internet can't find your provider** / Their address doesn't work from here. Your internet company may block it. | Provider **cut** `Not found` | **Try again now** | Details names Private DNS |
-| C4 | the stream host's own check fails (connect or `HEAD`, 2 s) while the internet check passes and the Wi-Fi isn't weak | **Your provider isn't answering** / Your internet works. Their server hasn't answered for 20 s. | Provider **cut** `No answer` | **Try again now**; right `Next try in 8 s` | another feed / copy only if it's on a different host. `stall-provider-down` |
-| C3 | starving, capacity < 1.3 × need, on a cable (or on Wi-Fi that's weak but not Wi-Fi-limited) | **Your internet is too slow for this channel** (`for 4K`) / This 4K channel needs 25 Mbps. Your internet gives 11 right now. | Internet bad (**slow**) `11 Mbps`; the rest off | another copy (**Watch the HD copy**); VOD **Pause and load ahead** | Details: `Something else on your network may be using it.` `stall-internet-slow`, `stall-vod` |
-| C3h | starving, capacity < 1.3 × need, on Wi-Fi with strong bars and an RX link ≥ 2 × need | **Your connection at home is too slow** / This channel needs 12 Mbps and gets 5. The Wi-Fi signal is strong. | Wi-Fi and Internet bad (**slow**) | another copy | Details: `A network cable would show whether it's the Wi-Fi or the line.` `stall-home-slow` |
+| C7b | 401 / 403 and the account is not `Active` or past `exp_date` (**first**, v1.2) | **Your provider account has ended** / It expired on 19 Nov. Renew it with your provider. | Provider bad `Ended` | **Account** | failure card at once |
+| C7 | 401 / 403 / 458 / 509 **with evidence of a limit**: the account shows `active_cons ≥ max_connections`, or a 458 / 509, or a body naming connections | **Your provider allows 2 streams** (the real `max_connections`; unknown: `Your provider's stream limit is reached`) / within 60 s of this TV closing a stream: `One is this TV's last channel, which clears within a minute.` (1-stream account: `It still counts this TV's last one. That clears within a minute.`); otherwise `Both are in use, by other devices. Stop one, or wait a moment.` | Provider bad `2 of 2 in use` | **Try again now**; right `Next try in 10 s` | back-off 10, 20, 30 s, then every 30 s. `stall-limit` |
+| C7c | a bare 401 / 403: account active, streams free | **Your provider refused this channel** / It may not be in your package, or they may block your connection (a VPN or a new address). | Channel **cut** `Refused` | another copy / feed, else **Next channel** | Try again |
+| C6 | HTTP 404 / 410 on the stream, **whatever the body**, twice | **This channel is off at your provider** / Their server answered, but sends nothing on CNN International. | Channel **cut** `Nothing sent` | another feed / copy, else **Next channel** (named) | **Refresh channels**, Try again. `fail-channel-off`, `fail-game-feed` |
+| C4x | HTTP 5xx on the **stream request** (not on the `HEAD /` check, S-N3) | **Your provider's server has a problem** / It answered with an error. airglow keeps trying. | Provider bad `Error` | **Try again now** | auto retry |
+| C6b | a **200** with an HTML page instead of video, **and** `player_api.php` on the **same hostname** also returns HTML instead of JSON (v1.2) | **Something on the way is blocking this channel** / Your internet company may block it. Private DNS in the TV's network settings may get around it. | Internet bad `Blocked` | another copy / feed | any other HTML body: the provider's error page (C6 / C4x / C11) |
+| C1b | both internet hosts get **no answer** (IPv4 then IPv6), **and** the stream host gets no answer (v1.2: above the Wi-Fi; `VALIDATED` dropping only confirms it in Details) | router answers: **Your internet isn't working** / `Your router answers, but nothing gets past it. Restart it.` (Internet **cut**). Router silent: **The TV can't reach your router** / `It's on the Wi-Fi, but the router doesn't answer. Restart it.` (Wi-Fi **cut**) | as the title says | **Try again now**; right `Next try in 8 s` | auto retry. `stall-no-internet` |
+| C2 | Wi-Fi weak **and** capacity < 1.3 × need **and** ratio ≥ 0.35 (timeouts included) | **Your Wi-Fi is weak** / This channel needs 12 Mbps. Over this Wi-Fi it's getting 4. | Wi-Fi bad (**slow**) `1 of 4 bars`; the rest off | another copy (**Watch the HD copy**); a lower level only where the stream has them | Details: `A network cable, or the router closer, fixes it for good.` `stall-wifi-weak`, `stall-stutter` |
+| C4b | the stream host's name doesn't resolve while the internet check answers 204 | **Your internet can't find your provider** / Their address doesn't work from here. Your internet company may block it. | Provider **cut** `Not found` | **Try again now** | Details names Private DNS |
+| C4 | the stream host gets **no answer** (connect or `HEAD /`, 2 s) while the internet check answers 204 and the Wi-Fi isn't weak | **Your provider isn't answering** / Your internet works. Their server hasn't answered for {n} s. (the real seconds) | Provider **cut** `No answer` | **Try again now**; right `Next try in 8 s` | another feed / copy only if it's on a different host. `stall-provider-down` |
+| C3 | starving, capacity < 1.3 × need, and on a cable, **or** on Wi-Fi with ratio < 0.15 | **Your internet is too slow for this channel** (`for 4K`) / This 4K channel needs 25 Mbps. Your internet gives 11 right now. | Internet bad (**slow**) `11 Mbps`; the rest off | another copy (**Watch the HD copy**); VOD **Pause and load ahead** | Details: `Something else on your network may be using it.` `stall-internet-slow`, `stall-vod` |
+| C3h | starving, capacity < 1.3 × need, on Wi-Fi with ratio ≥ 0.15 that isn't C2 | **Your connection at home is too slow** / This channel needs 12 Mbps and gets 5. The Wi-Fi signal is strong. | Wi-Fi and Internet bad (**slow**) | another copy | Details: `A network cable would show whether it's the Wi-Fi or the line.` `stall-home-slow` |
 | C5 | starving, capacity ≥ 1.3 × need | **Your provider is slow with this channel** / Your Wi-Fi and internet are fine. It's their server, or the way to it. | Channel bad (**slow**) `3 of 9 Mbps`; Internet `Fast` | another **feed** (`Same game on ESPN`), else another **copy**, else **Try again now** | `stall-provider-slow`, `opt-panel-slow` |
-| C12 | starving and no speed test was possible (S20), Wi-Fi not weak | **This channel is arriving too slowly** / airglow couldn't test your internet's speed this time. | Channel bad; Internet off `Not tested` | another feed / copy | Check again |
+| C12 | starving, the speed test unavailable (403 / 429 / 5xx from the test host) while the internet check answers 204, Wi-Fi not weak | **This channel is arriving too slowly** / airglow couldn't test your internet's speed this time. | Channel bad; Internet off `Not tested` | another feed / copy | Check again |
 | C9 | `ERROR_CODE_BEHIND_LIVE_WINDOW` | no card; toast (2 s) `Back to live: the stream skipped ahead` | – | – | today's jump to live; lag resets |
-| C10 | stalled, everything checks out, not starving | **This channel stopped for a moment** / Your internet and your provider look fine. Reconnecting. | all ticked; Channel `run` | another feed / copy, else **Try again now** | today's reconnect |
+| C10 | stalled, everything checks out, not starving | **This channel stopped for a moment** / Your internet and your provider look fine. Reconnecting. | TV to Provider ticked; Channel `run`, no tick | another feed / copy, else **Try again now** | today's reconnect. `stall-moment` |
 | C11 | anything else, or checks that contradict each other | **Something between this TV and your provider isn't answering** / The readings are in Details. | Internet **cut** | **Try again now** | every reading in the panel |
 
 `Still loading` (`stall-checking`) is the card while the checks haven't answered.
@@ -348,8 +458,8 @@ With the controls up, see 2.2.
 | What | Rule |
 |---|---|
 | Need | the playing `Format.bitrate` / `averageBitrate`; for `.ts` without one: bytes ÷ media seconds gained over 10 s of steady play; before that, typical: SD 3, 720p 5, 1080p 8 (50 fps: 10), 4K 20 Mbps, shown as `about` |
-| Speed test | `GET {speedUrl}` (default `https://speed.cloudflare.com/__down?bytes=25000000`; `speedUrl` from `android.json`), read for 3 s, rate from the last 2 s (past TCP start-up). Runs only to split C2 / C3 / C3h / C5 during a stall, on Check again, and in the Account check. Up to 25 MB. Cached 10 min. On 403 / 429 / 5xx / no route: no test (C12) |
-| Ceiling | a test that read the full 25 MB, or above 50 Mbps: `Fast` / `60+ Mbps` |
+| Speed test | `GET {speedUrl}` (default `https://speed.cloudflare.com/__down?bytes=25000000`; `speedUrl` from `android.json`), read for 3 s, rate from the last 2 s (past TCP start-up); the RX link speed sampled through it, the highest kept. Runs only to split C2 / C3 / C3h / C5 during a stall, on Check again, and in the Account check. Up to 25 MB. Cached 10 min. On 403 / 429 / 5xx: no test (C12). **No route while both internet checks also fail is an outage (C1b), not C12** |
+| Ceiling | `N+ Mbps` only when the test read the full 25 MB (N = the rate rounded down to 10); otherwise the reading. The card's `Fast` = capacity ≥ 3 × need |
 | Has room | capacity ≥ 1.3 × need |
 | Wi-Fi bars | RSSI ≥ -55: 4 · -56 to -66: 3 · -67 to -75: 2 · below -75: 1 (bars only, never dBm) |
 | Which copy / level | the highest provider copy (or HLS level) whose need ≤ 0.8 × what arrives; else the lowest |
@@ -396,8 +506,9 @@ Catch-up's cards keep their copy; when the diagnosis knows more, the path goes u
 ## 6. Options > Connection (`opt-connection`, `opt-during-stall`)
 
 A row in Options, live and VOD, right under Quality: `signal` glyph, `Connection`, a line with the one number that
-matters, and the verdict as its value (`Good` / `Slow` / `Weak Wi-Fi` / `Offline` / `Provider` / `Checking…`). **While a
-card or chip shows, it's the first row and focused** (◀ = Details), then Other feeds. OK (or ▶) opens the panel.
+matters, and the verdict as its value (`Good` / `Slow` / `Weak Wi-Fi` / `Offline` / `Provider` / `Checking…`). **While the
+card shows, it's the first row and focused** (◀ OK = Details), then Other feeds. **While a chip shows it's the second
+row** (Sync score stays first on a game, so ◀ OK OK still syncs; Details is ◀ ▼ OK). OK (or ▶) opens the panel.
 
 ## 7. The Connection panel (`opt-panel-good`, `opt-panel-slow`)
 
@@ -408,7 +519,7 @@ Left, 400 dp, height = content (≤ 453).
 | Header | `Connection` · right: `Checked 01:52`, the time of the **last check** |
 | Verdict | Outfit 18/24: `All good` or the cause; line 14/18 |
 | The vertical path | **TV** `Plays this channel fine` · `14 s ahead` · **Wi-Fi** `Strong signal` · `3 of 4 bars` · **Internet** `Answers in 38 ms` · `60+ Mbps` (or `Not tested yet`) · **Provider** (the stream host) `Answers in 90 ms · 1 of 2 streams in use` (the account reading) · **Channel** `Arriving steadily` · `12 Mbps` (bad: `Getting 3 of the 9 Mbps it needs` · `1 s ahead`) |
-| Actions | the best action focused, then the next, then `Check again` (`Includes a 3 s speed test`); all good: only Check again |
+| Actions | the best action, then the next, then `Check again` (`Includes a 3 s speed test`), **focused on Check again** (v1.2, N-M9: a switch is never the panel's default); all good: only Check again |
 
 Readings update in place every second while it's open. Opening runs the quick checks if they're over 60 s old; the
 speed test only on Check again.
@@ -417,15 +528,22 @@ speed test only on Check again.
 
 1. **No score, clock, period, `Final` or result word** on any surface here (card, chips, panel, failure card, Account
    sheet). Games are named by title, feeds by channel and `Feed 2 of 3`. Audited on the 6 shield mocks.
-2. **The lag (engineering's measure, M7).** lag = wall-clock time − playback progress since the last steady READY after
-   a (re)connect, reported to the app; **every score surface shows the score at delay + lag**. During the stall itself
-   lag grows second by second, so the score bug, the game panel, the banner and Live games hold still with the picture.
-   - **Unknown** (no steady READY yet, a clock jump): lag = all stall time since the last connect.
-   - **Resets** only on a reconnect or a new tune (a `.ts` reconnect starts at the live point again).
-   - **The stored delay never changes** because of a stall; `Sync score` stores `measured − lag`.
+2. **The lag.** lag = wall-clock time − playback position advanced, since the reference point (the last steady READY
+   after a (re)connect, or the last Sync), reported to the app; **every score surface shows the score at delay + lag**.
+   During a stall lag grows second by second, so the score bug, the game panel, the banner and Live games hold still
+   with the picture.
+   - **It covers live pauses too** (v1.2, N-M5): the Play/Pause key in live, and `onStop` → pause with `onStart`
+     resuming in place. Today's code counts only BUFFERING time; the port must switch to this measure, or add paused
+     time explicitly (11.5).
+   - **Unknown** (no reference yet, a clock jump): lag = all stall and pause time since the last connect.
+   - **Resets** on a reconnect, a new tune, and a Sync.
+   - **Sync** (v1.2, N-M6, agreed by engineering) stores **what it measured** as the channel's delay and sets lag to 0
+     at that moment. Later stalls add from there. A reconnect after it leaves the score a little late (safe) until the
+     next Sync.
+   - **The stored delay never changes** because of a stall.
 3. **The Final is held too.** The `in` → `post` change (the Final, the final score, "seen") reaches every surface only
-   after delay + lag. Today `games.js` `delayed()` returns the live game once ESPN says `post`, up to the full delay
-   before the picture's buzzer: fix it with this (11.5).
+   after delay + lag (`finalAt`, in the code since v1.1). **A game first seen already `post` while it's being watched**
+   gets `finalAt` = the first time it's seen (v1.2, S-N6), so it waits too.
 4. **Switching** to another feed or copy (from the card, chip, panel or failure card) goes through `pick(id,
    "diagnosis")` and uses **that channel's own stored delay** (or 60 s), with lag 0. Never automatic. No stream-type
    switch exists (M8).
@@ -464,18 +582,18 @@ Add `ACCESS_NETWORK_STATE` and `ACCESS_WIFI_STATE` (normal, granted at install; 
 | Network | `registerDefaultNetworkCallback`: transport, `VALIDATED`, `CAPTIVE_PORTAL`; `LinkProperties` gateway; RSSI and RX link speed (S9) | C1, C1b, C1c, C2, C3h |
 | Decoders | `MediaCodecList` once per launch | C8 / C8b, `Plays up to 4K HDR` |
 | Alternatives | `otherFeeds()`, `versions`, track levels | 4.4 |
-| Lag | engineering's measure | section 8 |
+| Lag | wall-clock − position advanced, pauses included (8.2) | section 8 |
 
 ### 10.3 Active checks (only when a stall or a check asks)
 
 | Check | Request | Pass | Time |
 |---|---|---|---|
-| Internet | `GET https://connectivitycheck.gstatic.com/generate_204`, then `http://cp.cloudflare.com/`; IPv4 first, IPv6 300 ms later | **204 only** (anything else: captive portal) | 2 s each |
-| Stream host | TCP connect + `HEAD /` on the final host and port (never the stream path) | any HTTP answer = answering; 5xx = C4x | 2 s |
-| Account | Xtream `player_api.php` (status, `exp_date`, `active_cons`, `max_connections`) | for C7 / C7b / C7c and the readings only | 2 s |
+| Internet | `GET https://connectivitycheck.gstatic.com/generate_204`, then `http://cp.cloudflare.com/`; IPv4 first, IPv6 300 ms later | **204** = passes; **another HTTP answer** (200 page, 3xx) = captive portal (C1c); **no answer** = failed (C1b / C11), never C1c | 2 s each |
+| Stream host | TCP connect + `HEAD /` on the final host and port (never the stream path) | **any HTTP answer, or a TCP reset = answering** (many healthy stream servers answer `/` with 403 / 404 / 5xx); no answer = C4 / C1b. C4x comes only from the stream request | 2 s |
+| Account | Xtream `player_api.php` (status, `exp_date`, `active_cons`, `max_connections`) | for C7b / C7 / C7c and the readings; **HTML instead of JSON** is C6b's second condition | 2 s |
 | Gateway | TCP connect to the default gateway, port 80 or 53 | splits C1b's line | 1 s |
 | Speed test | 4.2 | – | 3 s |
-| Last channel (Account check, 2+ stream accounts only) | the last channel's stream, 5 s; then poll the account until the stream's freed (≤ 60 s) | arrival vs need | 5 s + |
+| Last channel (Account check, 2+ stream accounts only) | the last channel's stream, 5 s; then poll the account until the stream's freed (≤ 60 s, `Letting the stream go…`; Back still closes the sheet, and the check finishes on its own) | arrival vs need | 5 s + |
 
 The provider's password goes only to the provider, as at login.
 
@@ -500,18 +618,22 @@ The provider's password goes only to the provider, as at login.
    - `Health` (10.2) and the checks (10.3, 10.5);
    - the timeline (3.1) on the real load control: the "recovering" test, the 12 s rules, no reconnect while r ≥ 0.5;
    - `diagnose()` = 4.1 as an ordered rule list, with two-check hysteresis;
-   - reconnect waits 2, 4, 8, 16, 16, 16 s; limit back-off 10, 20, 30 s; remember when this TV last closed a stream;
+   - reconnect waits 2, 4, 8, 16, 16, 16 s; limit back-off 10, 20, 30 s (only with limit evidence); remember when this
+     TV last closed a stream;
    - the card (today's `card` plus line, `PathView`, keys line); the OK lock (S11); Back's 10-minute memory;
    - remove the `retries == 2` early failure card for game channels (the card's OK replaces it);
-   - ◀ while a card or chip shows: Options with Connection first and focused; Hold OK untouched (Last channel);
+   - ◀ while the card shows: Options with Connection first and focused; while a chip shows: Connection second (Sync
+     stays first); Hold OK untouched (Last channel); the panel always opens on Check again;
    - the chips (`chipIsDiag`, 8 s; the team chip wins);
    - `showFailed()` takes the diagnosis (section 5);
    - Options' `Connection` row; `openConnection()` (`ListPanel` 400 with the verdict and the vertical `PathView`);
    - network re-tune rules (S8).
-4. **VOD:** `SimpleCache` + `CacheDataSource` + `CacheWriter` for Pause and load ahead (M10); with the controls up the
-   card takes no keys.
-5. **`games.js`:** add lag to every score surface (engineering); hold `in` → `post` by delay + lag in `delayed()`
-   (today's bug); `Sync score` stores `measured − lag`; a switch from the diagnosis uses the new channel's delay.
+4. **VOD:** Pause and load ahead with one connection: `stop()` the player, then the `CacheWriter`, then prepare through
+   `CacheDataSource` on OK (3.3); the cache capped by free space; with the controls up the card takes no keys.
+5. **`games.js` / `player.js` / `PlayerActivity`:** the lag measure covers live pauses (Play/Pause, `onStop` resumed in
+   place), not only BUFFERING (N-M5); Sync stores the measured delay and resets lag to 0, replacing
+   `setDelay(chId, sec - watch.lag)` (N-M6); `finalAt` set on first sight of a watched game that's already `post`
+   (S-N6); a switch from the diagnosis uses the new channel's delay.
 6. **`TunerPlayerPlugin`:** the `diag` event; `connectionCheck()` for Account (progress events per node).
 7. **Account (`screens/account.js`):** the row under Check the guide; the sheet (`dg-sheet`). The rows' right edge at
    x 906 (today's page puts the ring at 917).
@@ -524,7 +646,7 @@ The provider's password goes only to the provider, as at login.
 
 ## 12. Self-check (`node tools/audit.js`)
 
-The catch-up audit's checks on all 25 mocks: one ring, text under 14 px, overlaps, clipping, the safe area (every card,
+The catch-up audit's checks on all 27 mocks: one ring, text under 14 px, overlaps, clipping, the safe area (every card,
 panel, chip and sheet inside x 48 to 912, y 27 to 513), CONTAIN, contrast, the RING pixel check, and SPOILER on the 6
 shield mocks. **v1.1 adds nine checks**, one per checkable review point:
 
@@ -539,25 +661,31 @@ shield mocks. **v1.1 adds nine checks**, one per checkable review point:
 | TITLE | a channel title keeps its `US:` prefix | nit |
 | KEYS | a Hold OK key cap bound to anything but Last | S10 |
 | ELLIPSIS | a reading on a panel or path row is cut short | v1.1 (it caught three during this round) |
+| **BADGEPX** (v1.2) | the "!" badge's bar or dot shows no chalk pixels in the 2x screenshot | N-M1 |
+| **CHIPKEYS** (v1.2) | a chip offers `◀ Details` (◀ OK OK is the Sync habit) | N-M9 |
+| **PANELFOCUS** (v1.2) | the Connection panel opens on a feed or copy switch | N-M9 |
+| **LINE** (v1.2) | a card's or chip's title or line wraps to two lines | 2.5 |
 
-**Result: 25 pages, 0 findings.**
+**Result: 27 pages, 0 findings.**
 
 **The checks fire when the v1.0 faults are put back.**
 - `--inject-v11` puts back, on 3 mocks: a 440 dp chip with "HEVC at 100 fps", `US: ESPN HD` and `Hold OK Details`; a
   problem node without its badge; and a tick past a cut. It reports BADGE ×3, CHIP ×3, JARGON ×3, KEYS ×3, TITLE ×3 and
   TICK ×1. The tick fault fits only one of the 3 mocks.
 - `--inject` (scores, a remaining time, a dated title, a focused Reveal) still fires on the shield mocks.
-- PAIR, PANEL and ELLIPSIS weren't injected. ELLIPSIS fired for real during the round.
+- `--inject-v12` puts back review 2's faults on 4 mocks (the ink dot, `◀ Details` on a chip, the panel opening on a
+  switch, a wrapped line): BADGEPX ×3, CHIPKEYS ×1, PANELFOCUS ×1, LINE ×2.
+- PAIR, PANEL and ELLIPSIS weren't injected. ELLIPSIS and LINE fired for real while drafting.
 
 | Mock | Focused | Ring white, all sides | Ring box | To the safe edge |
 |---|---|---|---|---|
-| stall-* (13) | none by design (HUD cards and chips, the action chip's model) | – | – | – |
+| stall-* (15) | none by design (HUD cards and chips, the action chip's model) | – | – | – |
 | fail-channel-off, fail-game-feed | first row (inset) | 100% | 217, 239, 743, 291 | 169 |
 | fail-decoder, fail-broken | first row (inset) | 100% | 217, 295, 743, 347 | 166 |
 | opt-connection | Connection (inset) | 100% | 59, 288, 377, 336 | 11 |
 | opt-during-stall | Connection, first (inset) | 100% | 59, 80, 377, 128 | 11 |
 | opt-panel-good | Check again (inset) | 100% | 59, 379, 437, 429 | 11 |
-| opt-panel-slow | Same game on ESPN (inset) | 100% | 59, 361, 437, 411 | 11 |
+| opt-panel-slow | Check again (inset; v1.1: Same game on ESPN) | 100% | 59, 415, 437, 465 | 11 |
 | acct-provider | Check the connection | 100% | 267, 379, 911, 445 | 1 (v1.0: −5) |
 | acct-check-running | the text body (nothing to press while it runs) | – | – | – |
 | acct-check-done, acct-check-wifi | Run again | 100% | 444, 464, 594, 512 | 0.8 |
@@ -571,7 +699,7 @@ shield mocks. **v1.1 adds nine checks**, one per checkable review point:
 
 **Couldn't verify:**
 - **On the Philips:**
-  - how the "!" badge, the green tick and the refill ring read from the sofa;
+  - how the "!" badge (now checked to show its dot at 2x), the green tick and the refill ring read from the sofa;
   - the RSSI and RX link speed this TV reports;
   - whether the hosts can be reached (`gstatic`, Cloudflare);
   - Private DNS in its settings.
@@ -579,7 +707,9 @@ shield mocks. **v1.1 adds nine checks**, one per checkable review point:
   - its real limit answer (401, 403 or 509, with or without a body);
   - how long it keeps counting a closed stream;
   - whether its streams redirect to a separate host;
-  - how often its `.ts` feeds stall long enough to pass the "not recovering" test.
+  - how often its `.ts` feeds stall long enough to pass the "not recovering" test;
+  - whether a 401/403 at its limit carries `max connections` in the body, and how fast `active_cons` drops.
+- **Android:** how fast its own re-validation runs on this TV (no longer a gate, N-M4).
 - **On the TV's storage:** the disk room for the VOD cache.
 
 The decision table is designed against these facts, not tested on real faults.
