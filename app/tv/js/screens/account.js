@@ -12,8 +12,9 @@ import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js
 import { sfx } from '../sfx.js';
 import { connectionCheck } from '../conncheck.js';
 import { forgetReplays, keptWords, NOT_KEPT } from '../catchup.js';
+import { addonsPane, addonsAct, addonsHold, addonsEnter, addonsEntry } from './addons.js';
 
-const GROUPS = [['provider', 'Provider'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
+const GROUPS = [['provider', 'Provider'], ['addons', 'Add-ons'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
 // Owner decision 13.1 (catch-up): which source Watch from tip-off plays
 const REPLAYS = { channel: ['Channel replay first', 'Quarter skips and the as-aired score'], video: ['Full-game video first', 'From Movies, when there is one'], ask: ['Ask each time', 'Lists the sources'] };
@@ -42,6 +43,7 @@ function body() {
       ${row('refresh', 'Refresh channels and guide', esc(catalog.live?._at ? `Updated ${new Date(catalog.live._at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''))}
       ${row('signout', 'Sign out', ic('chevR', 'sm'))}`;
   }
+  if (group === 'addons') return addonsPane();
   if (group === 'playback') {
     const maxC = accountFacts().maxCons;
     return `<div class="t-title" style="margin-bottom:10px">Playback</div>
@@ -99,7 +101,7 @@ function draw() {
   const u = upd();
   const side = GROUPS.map(([k, l]) => `<div class="gl fx${k === group ? ' sel' : ''}" tabindex="-1" data-g="${k}">${l}${k === 'updates' && u.state === 'ready' ? '<i class="udot s"></i>' : ''}</div>`).join('');
   // ◀ ▶ between the panes: into the groups on the selected one, into the settings on the first (not the item level with you)
-  setHtml(el, `<div class="abs" data-col data-mem="off" data-entry=".gl.sel" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:260px;top:84px;width:658px;height:435px;padding:6px 12px;box-sizing:border-box;overflow:hidden"><div class="inner" data-col data-mem="off" data-entry=".arow:not(.dis)" style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
+  setHtml(el, `<div class="abs" data-col data-mem="off" data-entry=".gl.sel" style="left:48px;top:90px;width:200px">${side}</div><div class="abs" style="left:260px;top:84px;width:658px;height:435px;padding:6px 12px;box-sizing:border-box;overflow:hidden"><div class="inner" data-col data-mem="off" data-entry="${group === 'addons' ? addonsEntry : '.arow:not(.dis)'}" style="transition:transform 200ms var(--a-ease);transform:translateY(${-scroll}px)">${body()}</div></div>`);
 }
 
 // A toggle row's sound: on is bright, off is dim (replaces the OK sound for that press).
@@ -189,20 +191,22 @@ export default {
     el = root;
     root.addEventListener('click', (e) => {
       const g = e.target.closest('[data-g]'); if (g) { group = g.dataset.g; scroll = 0; draw(); focus(el.querySelector('.arow')); return; }
-      const r = e.target.closest('.arow'); if (r) act(r.dataset.act);
+      const r = e.target.closest('.arow, .ad-row'); if (!r) return;
+      if (r.dataset.act?.startsWith('ad:')) addonsAct(r.dataset.act, r, draw); else act(r.dataset.act);
     });
+    root.addEventListener('tvhold', (e) => { const r = e.target.closest('.ad-row'); if (r) addonsHold(r, draw); });
     // Moving along the groups shows each one's rows.
     root.addEventListener('tvfocus', (e) => {
       const g = e.target.dataset.g;
-      if (g && g !== group) { group = g; scroll = 0; draw(); return; }
-      const r = e.target.closest('.arow'); const inner = el.querySelector('.inner');
+      if (g && g !== group) { group = g; scroll = 0; draw(); if (g === 'addons') addonsEnter(draw); return; }
+      const r = e.target.closest('.arow, .ad-row'); const inner = el.querySelector('.inner');
       if (r && inner) { const y = r.offsetTop; if (y - scroll > 330) scroll = y - 330; else if (y < scroll) scroll = Math.max(0, y - 40); inner.style.transform = `translateY(${-scroll}px)`; }
     });
     native?.updates.onStatus(() => { if (current() === 'account') draw(); });
     on('info', () => { if (current() === 'account') draw(); });
   },
-  enter() { draw(); },
-  entry: (root) => root.querySelector('.arow') || root.querySelector('.gl.sel'),
+  enter() { draw(); if (group === 'addons') addonsEnter(draw); },
+  entry: (root) => (group === 'addons' && root.querySelector('.ad-row')) || root.querySelector('.arow') || root.querySelector('.gl.sel'),
 };
 
 // All 30 teams, and None (no hero game, no alert). Also opened from the first-run choices.

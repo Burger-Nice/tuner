@@ -68,6 +68,14 @@ function bridge() {
       check: (o, f) => { onCheck = f; return TP.connectionCheck(o).finally(() => { if (onCheck === f) onCheck = null; }); },
       stop: () => { onCheck = null; return TP.connectionCheckStop().catch(() => {}); },
     },
+    // Add-ons (design/ui-v1/addons/PORT-NATIVE.md): the page the TV serves on the home network while Send a link from
+    // your phone is open, and the safe launcher for another app's link. Used only once info() says phonePage / openApp.
+    phone: {
+      start: (o) => TP.startPhonePage(o),
+      stop: () => TP.stopPhonePage().catch(() => {}),
+      onEvent: (f) => TP.addListener('phone', f),
+    },
+    openApp: (o) => TP.openApp(o),
     onBack: (f) => AppPlugin.addListener('backButton', f),
     onResume: (f) => resumeSubs.push(f),
     exit: () => AppPlugin.exitApp?.() ?? AppPlugin.minimizeApp(),

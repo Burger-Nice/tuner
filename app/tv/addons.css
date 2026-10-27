@@ -1,0 +1,164 @@
+/* airglow TV: add-ons (design/ui-v1/addons/SPEC.md v1.2). The design's addons.css (new classes only, prefix ad-),
+   with the player and phone-page parts left out (those are native), and the app's :focus rules at the end (the mocks
+   mark focus with .f / .f-ring; SPEC 2.4). The ad- classes are the subtitles design's st- ones under the add-ons prefix
+   (.ad-tk = .st-tk, .tag.ad-name = .tag.st-name, .ad-two = .st-two ...); when the subtitles work ports its set, one of
+   the two can go. */
+
+.ic.xs{width:16px;height:16px}
+.ad-spin{width:18px;height:18px;color:var(--a-pink);flex:none}
+.ad-spin.lg{width:26px;height:26px}
+
+/* ---------- Account > Add-ons (SPEC 3) ---------- */
+.ad-pane{position:absolute;left:260px;top:84px;width:658px;height:435px;padding:6px 12px;box-sizing:border-box}
+.ad-sub{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin:-6px 0 12px}
+.ad-sec{display:flex;align-items:baseline;gap:10px;height:22px;margin:4px 4px 6px;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
+.ad-sec small{font:500 14px/18px var(--a-font-text);letter-spacing:0;text-transform:none;color:var(--a-text-3)}
+.ad-row{display:flex;align-items:center;gap:14px;height:52px;padding:0 14px 0 10px;border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border);margin-bottom:6px}
+.ad-row.f-ring{background:var(--a-surface-2)}
+.ad-row.off .a,.ad-row.off .b{color:var(--a-text-3)}
+.ad-row .grow{min-width:0}
+.ad-row .a{display:block;font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-row .b{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-row .st{display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;flex:none}
+.ad-row .st.on{color:var(--a-text-1)}
+.ad-row .st.warn{color:var(--a-text-1);font-weight:650}
+.ad-row.lift{background:var(--a-surface-3);border-color:transparent;box-shadow:var(--a-focus-ring);transform:scale(1.02);transform-origin:50% 50%;position:relative;z-index:3}
+.ad-row .grip{display:flex;flex-direction:column;color:var(--a-text-1)}
+.ad-row.lift .ad-lg{background:var(--a-surface-2)}
+.ad-lg{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font:700 13px/1 var(--a-font-display);letter-spacing:.02em;background:var(--a-surface-3);color:var(--a-text-1);flex:none}
+.ad-lg.xl{width:56px;height:56px;border-radius:12px;font-size:20px}
+.ad-lg.dim{background:var(--a-surface-2)!important;color:var(--a-text-2)}
+.ad-bang{width:20px;height:20px;border-radius:50%;background:var(--a-text-1);color:var(--a-ink);display:grid;place-items:center;flex:none}
+.ad-bang svg{width:14px;height:14px;stroke-width:3}
+
+/* the add-on's own sheet (right 420) */
+.ad-head{display:flex;align-items:center;gap:14px}
+.ad-head .tx b{display:block;font:700 22px/28px var(--a-font-display)}
+.ad-head .tx span{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.ad-gives{display:flex;flex-wrap:wrap;gap:6px}
+.ad-gives span{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:var(--a-surface-2);font:650 14px/1 var(--a-font-text);color:var(--a-text-1)}
+.ad-gives span .ic{width:16px;height:16px}
+.ad-lr{display:flex;align-items:center;gap:12px;min-height:48px;padding:4px 12px;border-radius:12px;font:500 16px/20px var(--a-font-text);color:var(--a-text-1)}
+.ad-lr.f-ring{background:var(--a-surface-3)}
+.ad-lr .grow{min-width:0}
+.ad-lr .a{display:block;font:650 16px/20px var(--a-font-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-lr .b{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-lr .v{display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;flex:none}
+.ad-lr .ico{display:flex;color:var(--a-text-2);flex:none}
+.ad-lr .ico svg{width:22px;height:22px}
+.ad-lr small{font:650 14px/18px var(--a-font-text);color:var(--a-pink-text);flex:none}
+.ad-lr.dis .a,.ad-lr.dis .ico{color:var(--a-text-3)}
+.ad-note{font:500 14px/20px var(--a-font-text);color:var(--a-text-2)}
+
+/* "Add an add-on": the four ways (a centred menu) */
+.menu.ad-ways{left:50%;top:50%;width:600px;transform:translate(-50%,-50%);padding:20px 16px 14px}
+.ad-ways .ad-lr{height:64px}
+
+/* ---------- full-screen steps (Stremio code, phone, setup) ---------- */
+.ad-steps{margin:0;padding:0 0 0 22px;font:500 16px/24px var(--a-font-text);color:var(--a-text-2)}
+.ad-steps li{margin-bottom:10px;padding-left:4px}
+.ad-steps b{color:var(--a-text-1);font-weight:650}
+.ad-code{display:inline-flex;gap:8px;margin-top:4px}
+.ad-code span{width:52px;height:60px;border-radius:12px;background:var(--a-surface-2);display:grid;place-items:center;font:700 32px/1 var(--a-font-display);color:var(--a-text-1)}
+.ad-wait{position:absolute;left:48px;top:420px;width:864px;height:64px;padding:0 20px;gap:14px;display:flex;align-items:center;box-sizing:border-box}
+.ad-wait b{display:block;font:650 16px/20px var(--a-font-text)}
+.ad-addr{font:650 16px/22px var(--a-font-text);color:var(--a-text-1)}
+
+/* the import list */
+.ad-imp .ad-lr{height:52px}
+.ad-why{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+
+/* ---------- catalogs (SPEC 4) ---------- */
+.lib-chips .ad-cut{width:1px;height:24px;background:var(--a-border-strong);align-self:center;flex:none;margin:0 4px}
+.chip .ad-by{font-weight:500;color:var(--a-text-3)}
+.chip.sel .ad-by{color:var(--a-pink-text)}
+.pc .ad-mine{position:absolute;right:6px;bottom:6px;height:22px;padding:0 7px;border-radius:var(--a-radius-sm);background:rgba(21,19,29,.82);display:flex;align-items:center;color:var(--a-text-1)}
+.pc .ad-mine svg{width:14px;height:14px;stroke-width:2.6}
+.ad-legend{display:inline-flex;align-items:center;gap:6px}
+.ad-legend i{height:20px;padding:0 6px;border-radius:6px;background:var(--a-surface-2);display:inline-flex;align-items:center;color:var(--a-text-1)}
+.ad-legend i svg{width:14px;height:14px;stroke-width:2.6}
+.hc .ad-src{display:inline-flex;align-items:center;gap:5px}
+
+/* ---------- the title page: the source pill and the Sources sheet (SPEC 5) ---------- */
+.ad-pills{display:flex;align-items:center;gap:10px;height:36px;width:864px}
+.ad-look{display:inline-flex;align-items:center;gap:8px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.ad-q{width:52px;height:40px;border-radius:10px;background:var(--a-surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;flex:none}
+.ad-q b{font:700 16px/18px var(--a-font-display);color:var(--a-text-1)}
+.ad-q i{font:650 12px/14px var(--a-font-text);font-style:normal;letter-spacing:.04em;color:var(--a-text-2)}
+.ad-q.top{background:var(--a-grad)}
+.ad-q.top b,.ad-q.top i{color:var(--a-ink)}
+.ad-srcs .ad-lr{height:60px}
+.ad-srcs .grp{font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3);padding:6px 12px 2px}
+.ad-wbtn{display:inline-flex;align-items:center;gap:10px}
+.ad-ring{width:22px;height:22px;flex:none}
+.ad-cap{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.ad-cap b{color:var(--a-text-1);font-weight:650}
+.ep .ad-only{position:absolute;right:8px;top:8px;height:22px;padding:0 7px;border-radius:var(--a-radius-sm);background:rgba(21,19,29,.82);display:flex;align-items:center;gap:4px;font:650 14px/1 var(--a-font-text);color:var(--a-text-1)}
+.ep .ad-only svg{width:13px;height:13px;stroke-width:2.6}
+.epsyn .ad-r{float:right;color:var(--a-text-1);font-weight:650;margin-left:12px}
+
+/* which film is it (an unsure match) */
+.menu.ad-which{left:48px;top:120px;width:560px;padding:18px 12px 12px}
+.ad-which .ad-lr{height:66px}
+.ad-th{width:40px;height:60px;border-radius:6px;overflow:hidden;position:relative;flex:none;border:1px solid var(--a-border)}
+
+/* ---------- Search (SPEC 6) ---------- */
+.ad-rh{display:flex;align-items:baseline;gap:10px;margin:14px 0 8px}
+.ad-rh small{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);letter-spacing:0;text-transform:none}
+.rrow .ad-mt{display:flex;flex-direction:column;min-width:0}
+.rrow .ad-mt b{font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .ad-mt span{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .mini{width:30px;height:44px;border-radius:6px;overflow:hidden;position:relative;flex:none}
+
+/* ---------- shared with design/ui-v1/subtitles (st-tk, st-copies, st-match): the same look, ad- names so neither
+   folder depends on the other; the port keeps one class (SPEC 5.1) ---------- */
+.ad-tk{display:inline-grid;place-items:center;flex:none;width:16px;height:16px;border-radius:50%;background:var(--a-ok);vertical-align:-3px}
+.ad-tk svg{width:10px;height:10px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
+.pillbtn .ad-tk{width:14px;height:14px}.pillbtn .ad-tk svg{width:9px;height:9px}
+.pillbtn .ad-of{font-weight:500;color:var(--a-text-2)}
+.tag.ad-ok{background:var(--a-surface-3);border-color:transparent;gap:4px;padding:0 7px 0 4px}
+.tag.ad-ok .ad-tk{width:13px;height:13px;vertical-align:0}.tag.ad-ok .ad-tk svg{width:8px;height:8px;stroke-width:4}
+.menu.ad-copies{left:48px;top:27px;width:600px;padding:16px 12px 12px}
+.menu.ad-copies h3{display:flex;align-items:baseline;gap:12px}
+.menu.ad-copies h3 small,.menu.ad-match h3 small{margin-left:auto;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.lr.ad-two{height:60px;align-items:center}
+.lr.ad-two .grow{display:flex;flex-direction:column;min-width:0}
+.lr.ad-two .a{font:650 16px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.lr.ad-two .b{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr.ad-two .b em{font-style:normal;color:var(--a-text-1);font-weight:650}
+.lr .ad-best{margin-left:auto;flex:none}
+.lr.ad-two .ad-spin{margin:0 1px}
+.ad-sep{height:1px;background:var(--a-border);margin:6px 8px}
+.menu .ad-foot{padding:10px 8px 2px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.menu.ad-match{left:48px;top:40px;width:540px;padding:16px 12px 12px}
+.menu.ad-match .ad-qq{padding:0 8px 10px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+
+/* v1.1: a tag only the copy's name claims (the subtitles design's .tag.st-name), and the Copies menu's group line */
+.tag.ad-name{background:rgba(21,19,29,.78);border:1px dashed var(--a-border-strong);color:var(--a-text-2)}
+.menu .ad-grp2{padding:8px 12px 2px;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
+.t-cap .ic.xs{vertical-align:-3px}
+.tag.ad-ok,.tag.ad-name{text-transform:none}   /* v1.2 (subtitles 15): tags keep their case: 1080p, not 1080P */
+
+/* ---------- the app: focus, full-screen steps, and what the mocks drew with classes ---------- */
+.ad-row.fx:focus{box-shadow:var(--a-focus-ring);background:var(--a-surface-2);position:relative;z-index:3}
+.ad-lr.fx:focus{box-shadow:var(--a-focus-ring);background:var(--a-surface-3);position:relative;z-index:3}
+.ad-row.lift:focus{transform:scale(1.02);background:var(--a-surface-3)}
+.ad-row.dis{opacity:.55}
+.ad-full{position:absolute;inset:0;background:var(--a-bg-0);z-index:21}
+#overlays .ov .ad-full{transition:opacity 240ms var(--a-ease);opacity:0}
+#overlays .ov.in .ad-full{opacity:1}
+.ad-full .qrbox svg{display:block}
+.ad-err{display:flex;align-items:center;gap:8px;margin:-6px 0 12px;font:500 14px/18px var(--a-font-text);color:var(--a-text-1)}
+.ad-chipcut{display:inline-block}
+.sheet .sheet-scroll{flex:1;min-height:0;overflow:hidden;position:relative}
+.sheet .sheet-scroll .inner{transition:transform 200ms var(--a-ease)}
+.ad-gives span.dim{color:var(--a-text-2)}
+.ad-spin{animation:ad-spin 900ms linear infinite}
+@keyframes ad-spin{to{transform:rotate(360deg)}}
+.st-side{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:8px;min-width:0;flex:1}
+.d-col .ad-wcap{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.d-col .ad-wcap b{color:var(--a-text-1);font-weight:650}
+.lr.ad-two.dim .a,.lr.ad-two.dim .b{color:var(--a-text-3)}
+.lr.ad-two .ad-pin{color:var(--a-text-1);font-weight:650}
+.ad-skel{position:absolute;width:124px;height:186px;border-radius:12px;background:var(--a-surface-2)}
+.lib-chips .chip .ad-by{margin-left:6px}

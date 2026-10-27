@@ -73,6 +73,7 @@ const ADDONS = {
   aftercredits: { id: 'org.aftercredits', version: '0.3.0', name: 'AfterCredits', description: 'Is there a scene after the credits?', resources: ['stream'], types: ['movie'], idPrefixes: ['tt'], catalogs: [] },
   opensubtitles: { id: 'org.stremio.opensubtitlesv3', version: '1.0.0', name: 'OpenSubtitles v3', description: 'Subtitles from OpenSubtitles in your language', resources: ['subtitles'], types: ['movie', 'series'], idPrefixes: ['tt'], catalogs: [] },
   setmeup: { id: 'org.setmeup', version: '1.0.0', name: 'Torrentio', description: 'Needs your debrid key', resources: ['stream'], types: ['movie', 'series'], idPrefixes: ['tt'], catalogs: [], behaviorHints: { configurable: true, configurationRequired: true } },
+  jump: { id: 'org.wheresthejump', version: '1.1.0', name: 'Where\'s The Jump', description: 'Subtitles that warn you before a jump scare, in English', resources: ['subtitles'], types: ['movie'], idPrefixes: ['tt'], catalogs: [] },
   legendas: { id: 'org.legendas', version: '1.0.0', name: 'Legendas Brasil', description: 'Legendas em Português do Brasil (Portuguese)', resources: ['subtitles'], types: ['movie'], catalogs: [] },
 };
 const KEY = 'eyJkZWJyaWQiOiJTRUNSRVQta2V5LTEyMzQ1Njc4OTAifQ';   // Northlight's configured link holds a (fake) debrid key
@@ -135,6 +136,7 @@ const communityList = (host) => [
   { transportUrl: transport(host, 'aftercredits'), manifest: ADDONS.aftercredits },
   { transportUrl: transport(host, 'pdm'), manifest: ADDONS.pdm },
   { transportUrl: transport(host, 'setmeup'), manifest: ADDONS.setmeup },
+  { transportUrl: transport(host, 'jump'), manifest: ADDONS.jump },
   { transportUrl: transport(host, 'legendas'), manifest: ADDONS.legendas },
 ];
 const collection = (host) => [
@@ -202,7 +204,7 @@ module.exports = function addons(req, res, u) {
   let m;
   if ((m = /^\/addon-media\/[^/]+\/([\w.-]+)$/.exec(p))) { sendMedia(req, res, m[1] === 'short.mp4' ? 'short.mp4' : 'movie.mp4'); return true; }
   if (p === '/addon/archivio/manifest.json') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<!doctype html><title>Archivio docs</title><p>This add-on moved.</p>'); return true; }
-  if ((m = /^\/addon\/(cinemeta|northlight|kestrel|pdm|watchhub|aftercredits|opensubtitles|setmeup|legendas)(?:\/(eyJ[\w-]+))?\/(.*)$/.exec(p))) {
+  if ((m = /^\/addon\/(cinemeta|northlight|kestrel|pdm|watchhub|aftercredits|opensubtitles|setmeup|legendas|jump)(?:\/(eyJ[\w-]+))?\/(.*)$/.exec(p))) {
     const [, k, , rest] = m;
     if (k === 'northlight' && !p.startsWith(`/addon/northlight/${KEY}/`)) { J(res, { err: 'not configured' }, 404); return true; }
     if (rest === 'manifest.json') { J(res, k === 'cinemeta' ? cinemeta(host) : ADDONS[k]); return true; }
