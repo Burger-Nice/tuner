@@ -1,0 +1,495 @@
+[
+ {
+  "f": "live-archive.html",
+  "el": ".g-cell.now",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   256,
+   192,
+   383,
+   240
+  ],
+  "safe": 165
+ },
+ {
+  "f": "live-past.html",
+  "el": ".g-cell.cu-rp",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   387,
+   348,
+   646,
+   396
+  ],
+  "safe": 117
+ },
+ {
+  "f": "live-past-game.html",
+  "el": ".g-cell.cu-rp",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   650,
+   192,
+   908,
+   240
+  ],
+  "safe": 4
+ },
+ {
+  "f": "live-past-gone.html",
+  "el": ".g-cell.cu-gone",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   256,
+   296,
+   908,
+   344
+  ],
+  "safe": 4
+ },
+ {
+  "f": "home-replay.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   67.7,
+   206.6,
+   315.8,
+   263.4
+  ],
+  "safe": 19.7
+ },
+ {
+  "f": "home-replay-resume.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   67.7,
+   206.6,
+   224.3,
+   263.4
+  ],
+  "safe": 19.7
+ },
+ {
+  "f": "home-live-tipoff.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   67.7,
+   206.6,
+   245.4,
+   263.4
+  ],
+  "safe": 19.7
+ },
+ {
+  "f": "nba-hub-replay.html",
+  "el": ".gc.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   371.6,
+   338.8,
+   512.4
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "nba-card-menu-replay.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   340,
+   259,
+   624,
+   317
+  ],
+  "safe": 196
+ },
+ {
+  "f": "game-replay-shield.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   231.2,
+   416.6,
+   479.2,
+   473.4
+  ],
+  "safe": 39.6
+ },
+ {
+  "f": "game-replay-seen.html",
+  "el": ".btn.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   746.3,
+   167.9,
+   917.2,
+   216.1
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "game-noreplay.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   156.2,
+   416.7,
+   338.7,
+   473.3
+  ],
+  "safe": 39.7
+ },
+ {
+  "f": "choose-video.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   188,
+   116,
+   772,
+   190
+  ],
+  "safe": 89
+ },
+ {
+  "f": "sources-sheet.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   508,
+   103,
+   896,
+   177
+  ],
+  "safe": 16
+ },
+ {
+  "f": "team-schedule-replay.html",
+  "el": ".nb-gt.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   481.8,
+   352.1,
+   700.2,
+   471.9
+  ],
+  "safe": 41.1
+ },
+ {
+  "f": "team-tile-menu.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   496,
+   148,
+   780,
+   206
+  ],
+  "safe": 121
+ },
+ {
+  "f": "player-tipoff.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   158,
+   411,
+   190,
+   443
+  ],
+  "safe": 70
+ },
+ {
+  "f": "player-halftime.html",
+  "el": ".btn2.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   279,
+   355,
+   442.1,
+   405
+  ],
+  "safe": 108
+ },
+ {
+  "f": "player-replay.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   314.8,
+   411,
+   346.8,
+   443
+  ],
+  "safe": 70
+ },
+ {
+  "f": "player-scrub.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   440.4,
+   411,
+   472.4,
+   443
+  ],
+  "safe": 70
+ },
+ {
+  "f": "player-replay-panel.html",
+  "el": ".nv-row.g",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   643,
+   326,
+   901,
+   374
+  ],
+  "safe": 11
+ },
+ {
+  "f": "player-options-live.html",
+  "el": ".nv-row.g",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   132,
+   377,
+   180
+  ],
+  "safe": 11
+ },
+ {
+  "f": "player-golive.html",
+  "el": ".btn.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   343.5,
+   384.9,
+   517.3,
+   433.1
+  ],
+  "safe": 79.9
+ },
+ {
+  "f": "player-programme.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   521.2,
+   411,
+   553.2,
+   443
+  ],
+  "safe": 70
+ },
+ {
+  "f": "player-paused.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   468.9,
+   411,
+   500.9,
+   443
+  ],
+  "safe": 70
+ },
+ {
+  "f": "player-paused-local.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   184.9,
+   411,
+   216.9,
+   443
+  ],
+  "safe": 70
+ },
+ {
+  "f": "player-video-replay.html",
+  "el": ".thumbf",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   201.9,
+   411,
+   233.9,
+   443
+  ],
+  "safe": 70
+ },
+ {
+  "f": "player-replay-failed.html",
+  "el": ".nv-row.f",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   249,
+   327,
+   711,
+   383
+  ],
+  "safe": 130
+ },
+ {
+  "f": "player-panel-live.html",
+  "el": ".btn2.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   646,
+   349,
+   809.7,
+   395
+  ],
+  "safe": 102.3
+ }
+]

@@ -297,6 +297,9 @@ export function teamPage({ pushed = false } = {}) {
     if (setHtml(body, html)) hooks();
     if (pushed) drawTools();
     place();
+    // a pushed page opened before its data came: focus went to the tools row; the header's primary takes it once it's drawn
+    const a = document.activeElement;
+    if (st.needEntry && pushed && page0.entry() && (a === document.body || tools.contains(a) && a === tools.querySelector('.fx'))) { st.needEntry = false; focus(page0.entry()); }
   }
   function drawTools() {
     if (!tools) return;
@@ -432,6 +435,9 @@ export function teamPage({ pushed = false } = {}) {
     });
   }
 
+  const page0 = {
+    entry: () => body?.querySelector('.nb-btns .fx') || body?.querySelector('.tp-sched .fx') || body?.querySelector('[data-act="retry"]') || null,
+  };
   return {
     mount(r, c) {
       root = r; ctx = c;
@@ -481,11 +487,12 @@ export function teamPage({ pushed = false } = {}) {
       const games = list(), hero = heroOf(games);
       if (hero && (hero.state === 'in' || hero.date - Date.now() < 3 * 3600e3)) findFeeds(hero);
       draw();
+      st.needEntry = !page0.entry();
     },
     state: () => st,
     abbr: () => abbr,
     draw,
-    entry: () => body?.querySelector('.nb-btns .fx') || body?.querySelector('.tp-sched .fx') || body?.querySelector('[data-act="retry"]') || null,
+    entry: page0.entry,
     toTop() { if (!st) return; st.area = 'top'; st.rowOff = 0; body.querySelectorAll('[data-row],[data-col]').forEach((b) => (b._mem = null)); place(false); },
     key(k) {
       const a = document.activeElement;

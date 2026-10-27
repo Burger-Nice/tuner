@@ -80,3 +80,4 @@
 .ctxmenu.cu-w{width:292px}
 .seek .bub.cu-up{top:-120px}
 .cu-speed.cu-up{top:-120px}
+.g-cell.now.f-in .prog{left:3px;right:3px;width:auto;bottom:3px}   /* the mocks' copy of app.css's :focus rule */

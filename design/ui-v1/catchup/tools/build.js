@@ -83,7 +83,7 @@ const NOW = T('2026-10-27T10:40:00Z');
 const CH = {
   lp4: { num: 41, name: 'NBA League Pass 4', ini: 'NBA', arc: 3 },
   sky: { num: 402, name: 'Sky Sports Main Event', ini: 'SS', arc: 7 },
-  espn: { num: 210, name: 'US: ESPN HD', ini: 'ESPN', arc: 0 },
+  espn: { num: 210, name: 'US: ESPN HD', ini: 'ES', arc: 0 },
   bbc: { num: 101, name: 'BBC One HD', ini: 'BBC', arc: 7 },
   cnn: { num: 115, name: 'CNN International', ini: 'CNN', arc: 0 },
   via: { num: 431, name: 'Viaplay Sport 1', ini: 'VS', arc: 2 },
@@ -194,7 +194,7 @@ const replayBadge = `<span class="cu-badge">${ic('hist')}Replay</span>`;
     cnn: [['2026-10-26T19:30:00Z', '2026-10-26T22:00:00Z', 'Not kept by your provider', { sub: 'OK watches CNN live' }]],
     via: [['2026-10-26T19:30:00Z', '2026-10-26T22:00:00Z', 'Ligue 1: Lens v Lille'], ['2026-10-26T22:00:00Z', '2026-10-27T00:00:00Z', 'Ligue 1: Studio']],
   };
-  const now = nowPanel({ tile: tile('ESPN', false), title: 'Earlier on ESPN', line2: '<span class="ellipsis" style="min-width:0">US: ESPN HD</span><span style="flex:none;display:flex;align-items:center">' + dot + 'not kept by your provider</span>', line3: '<span class="ellipsis" style="min-width:0">Kept channels show the history mark under their number.</span>', hint: 'OK watch ESPN live<br>Back returns to now' });
+  const now = nowPanel({ tile: tile('ES', false), title: 'Earlier on ESPN', line2: '<span class="ellipsis" style="min-width:0">US: ESPN HD</span><span style="flex:none;display:flex;align-items:center">' + dot + 'not kept by your provider</span>', line3: '<span class="ellipsis" style="min-width:0">Kept channels show the history mark under their number.</span>', hint: 'OK watch ESPN live<br>Back returns to now' });
   page('live-past-gone.html', 'Guide: a channel that isn\'t kept', `${topbar('live')}${guide({ W, data, fr: 2, fc: 0, now })}`,
     'Back in time on a channel the provider doesn\'t keep: one outlined cell, still focusable so ▲▼ keep the time. OK tunes it live.', { group: 'Guide' });
 }
@@ -220,7 +220,7 @@ const progArt = (seed) => `<div class="art">${Art.art(seed)}</div>`;
 function onNowCard(c, i, { f = false } = {}) {
   return `<div class="hc${f ? ' f' : ''}">${progArt(c[3] || c[0])}<div class="hs"></div><div class="tp"><span class="logo sm">${c[2]}</span>${c[4] ? liveP() : ''}<span class="n">${c[1]}</span></div><div class="bt"><b>${esc(c[5])}</b><span>${esc(c[0])}</span></div><div class="prog flush"><i style="width:${c[6]}%"></i></div></div>`;
 }
-const ONNOW = [['US: ESPN HD', 210, 'ESPN', 'espn', 0, 'SportsCenter', 66], ['Sky Sports Main Event', 402, 'SS', 'sky', 0, 'Sky Sports News', 44], ['BBC One HD', 101, 'BBC', 'bbc', 0, 'Bargain Street', 55], ['CNN International', 115, 'CNN', 'cnn', 0, 'CNN Newsroom', 66], ['Viaplay Sport 1', 431, 'VS', 'via', 0, 'Ligue 1: Lens v Lille', 60]];
+const ONNOW = [['US: ESPN HD', 210, 'ES', 'espn', 0, 'SportsCenter', 66], ['Sky Sports Main Event', 402, 'SS', 'sky', 0, 'Sky Sports News', 44], ['BBC One HD', 101, 'BBC', 'bbc', 0, 'Bargain Street', 55], ['CNN International', 115, 'CNN', 'cnn', 0, 'CNN Newsroom', 66], ['Viaplay Sport 1', 431, 'VS', 'via', 0, 'Ligue 1: Lens v Lille', 60]];
 const rail = (title, cards, top, peek) => `<div class="abs rowtitle" style="left:48px;top:${top}px">${title}</div><div class="rail abs${peek ? ' peek' : ''}" style="top:${top + 36}px;left:0;right:0"><div class="track" data-row>${cards}</div></div>`;
 // a replay card for Continue watching: the two crests as its art, "Stopped in Q3" instead of minutes left (SPEC 7)
 const replayCard = (f) => `<div class="hc${f ? ' f' : ''}"><div class="art" style="background:linear-gradient(100deg,${pal('MEM').p} 50%,${pal('UTAH').p} 50%)"></div><div class="hs"></div><div class="tp"><span class="t-label" style="line-height:22px">NBA · Replay</span><span class="n" style="display:flex;gap:4px">${crest('MEM', 's24')}${crest('UTAH', 's24')}</span></div><div class="bt"><b>Grizzlies at Jazz</b><span>Stopped in Q3 · Mon 26 Oct</span></div><div class="prog flush"><i style="width:44%"></i></div></div>`;
@@ -281,7 +281,7 @@ page('nba-card-menu-replay.html', 'NBA: hold OK on a final', `${topbar('nba')}${
   top: 128, hub: 1, status: `<span class="t-label t-2">NBA${dot}Mon 26 Oct${dot}late</span>`, ar: recM, hr: recU, score: hidTile,
   btns: [{ t: 'Watch from tip-off', i: 'play' }, { t: 'Game page' }], cap: 'Full game in Movies<br>Memphis feed',
   slab: '<span class="big">REPLAY</span><span class="cap">Score hidden</span>',
-})}${hubDays}${hubGrid(false)}<div class="ctxmenu cu-w" data-col style="left:60px;top:116px"><div class="lr f-ring">${ic('play', 'sm')}Watch from tip-off</div><div class="lr">${crest('MEM', 's24')}Grizzlies page</div><div class="lr">${crest('UTAH', 's24')}Jazz page</div><div class="lr">${ic('score', 'sm')}Open the game</div><div class="lr">${eyeSm}Reveal Grizzlies at Jazz</div></div>`,
+})}${hubDays}${hubGrid(false)}<div class="ctxmenu cu-w" data-col style="left:336px;top:255px"><div class="lr f-ring">${ic('play', 'sm')}Watch from tip-off</div><div class="lr">${crest('MEM', 's24')}Grizzlies page</div><div class="lr">${crest('UTAH', 's24')}Jazz page</div><div class="lr">${ic('score', 'sm')}Open the game</div><div class="lr">${eyeSm}Reveal Grizzlies at Jazz</div></div>`,
 'Hold OK on a final with a replay: Watch from tip-off first and focused. Reveal names its game and comes last. The menu opens above the card (it would cover it below).', { group: 'NBA', shield: true });
 
 // ---- the game page (app/tv/js/screens/game.js) ----
@@ -314,7 +314,7 @@ ${tabsRow([['Grizzlies'], ['Jazz'], ['Team stats']])}
 // ---- N9: Choose a video (names masked) ----
 const vids = [['Grizzlies at Jazz', 'Mon 26 Oct · Full game · Memphis feed · 1080p', 1], ['Grizzlies at Jazz', 'Mon 26 Oct · Full game · Utah feed · 720p'], ['Grizzlies at Jazz', 'Mon 26 Oct · Condensed game'], ['NBA 2026-10-25 Grizzlies vs Kings', 'Sun 25 Oct · seen · 1080p'], ['Grizzlies vs Warriors · full game', 'Fri 23 Oct · seen · 720p']];
 page('choose-video.html', 'Choose a video', `${topbar('nba')}${gameHead({ status: `<span class="t-label t-2">Ended${dot}Mon 26 Oct${dot}late</span>`, mid: gdHid })}${tabsRow([['Grizzlies'], ['Jazz'], ['Team stats']])}
-<div class="scrim"></div><div class="menu cu-srcs" style="left:180px;top:60px;width:600px"><h3>Choose a video</h3><div class="t-cap" style="padding:0 8px 10px">Videos naming the Grizzlies or the Jazz, nearest to Mon 26 Oct first. Names of unseen games are airglow's own.</div><div data-col>${vids.map(([a, b, f], i) => `<div class="lr${i === 0 ? ' f-ring' : ''}"><span class="ico">${ic('film')}</span><span class="grow"><span class="a">${esc(a)}</span><span class="b">${esc(b)}</span></span>${i < 3 ? `<small>${i === 0 ? 'Best match' : ''}</small>` : ''}</div>`).join('')}</div><div class="t-cap" style="padding:10px 8px 0">Your pick is remembered for this game.</div></div>`,
+<div class="scrim"></div><div class="menu cu-srcs" style="left:180px;top:40px;width:600px"><h3>Choose a video</h3><div class="t-cap" style="padding:0 8px 10px">Videos naming the Grizzlies or the Jazz, nearest date first</div><div data-col>${vids.map(([a, b, f], i) => `<div class="lr${i === 0 ? ' f-ring' : ''}"${i > 2 ? ' data-other="1"' : ''}><span class="ico">${ic('film')}</span><span class="grow"><span class="a">${esc(a)}</span><span class="b">${esc(b)}</span></span>${i < 3 ? `<small>${i === 0 ? 'Best match' : ''}</small>` : ''}</div>`).join('')}</div><div class="t-cap" style="padding:10px 8px 0">Your pick is remembered. An unseen game gets airglow's own name.</div></div>`,
 'Choose a video: only videos naming either team, nearest date first. Unseen games get airglow\'s own names (the provider\'s can carry the score).', { group: 'NBA', shield: true });
 
 // ---- N10: the replay sources (hold OK on Watch from tip-off) ----

@@ -109,7 +109,7 @@ module.exports = async ({ p, shot, key, log }) => {
   console.log('kings header:', await ev(() => document.querySelector('[data-screen="team"] .nb-rec')?.innerText.replace(/\s+/g, ' ')));
 
   // ---------- team "None": the section is the picker; a team whose schedule ESPN won't send ----------
-  await p.route('**/espn/teams/2/schedule', (r) => r.fulfill({ status: 503, body: 'down' }));
+  await p.route('**/espn/teams/1/schedule', (r) => r.fulfill({ status: 503, body: 'down' }));
   await ev(() => { const k = 'tuner.settings', v = JSON.parse(localStorage.getItem(k) || '{}'); v.nbaTeam = 'none'; v.shield = 'off'; localStorage.setItem(k, JSON.stringify(v)); });
   await p.reload(); await p.waitForTimeout(4500);
   await ev(() => window.__tunerTest.go('nba')); await p.waitForTimeout(2000);
