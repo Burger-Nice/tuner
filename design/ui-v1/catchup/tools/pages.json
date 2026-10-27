@@ -2,7 +2,7 @@
  {
   "file": "live-archive.html",
   "title": "Guide: today, kept channels",
-  "note": "Today's guide at 10:40. Kept channels carry the history mark; the Now panel says ◀ goes to earlier programmes, kept 3 days.",
+  "note": "v1.1: the morning after, an NBA studio show gets a quiet warning instead of its description, and the re-air of the hidden game shows no end time.",
   "group": "Guide"
  },
  {
@@ -14,7 +14,7 @@
  {
   "file": "live-past-game.html",
   "title": "Guide: last night's game",
-  "note": "Shield on. Last night's Grizzlies game: description hidden, OK plays it from tip-off (not from the pre-game). The day pill marks the date.",
+  "note": "Shield on. Last night's game: description hidden, OK plays it from tip-off (not the pre-game). v1.1: line 2 names it the way the NBA pages do (Mon 26 Oct · late).",
   "group": "Guide"
  },
  {
@@ -74,7 +74,7 @@
  {
   "file": "choose-video.html",
   "title": "Choose a video",
-  "note": "Choose a video: only videos naming either team, nearest date first. Unseen games get airglow's own names (the provider's can carry the score).",
+  "note": "v1.1: the case you reach it in (nothing matched). Names that could tell the result are hidden whatever the shield mode; older and seen ones show.",
   "group": "NBA"
  },
  {
@@ -98,7 +98,7 @@
  {
   "file": "player-tipoff.html",
   "title": "Player: from tip-off, game live",
-  "note": "Watch from tip-off on a live game. The bar is a fixed 3½ h window; the live edge is the red dot, the part not yet played is outlined. Focus on the thumb.",
+  "note": "From tip-off on a live game: a fixed 3½ h window, the live point the red dot. v1.1: line 2 says where you are, never where live is; the Game button opens the panel.",
   "group": "Player"
  },
  {
@@ -110,19 +110,19 @@
  {
   "file": "player-replay.html",
   "title": "Player: replay, shield on",
-  "note": "A finished game under the shield: the bar never shows where the game ends (no remaining time, no end mark, no OT tick ahead). It becomes seen at the final buzzer.",
+  "note": "A finished game under the shield: the bar never shows where it ends. v1.1: Back to live stays for the whole replay (under the shield it always asks first); a Game button.",
   "group": "Player"
  },
  {
   "file": "player-scrub.html",
   "title": "Player: scrubbing a replay",
-  "note": "Holding ▶ scrubs faster every second (×2 up to ×32, as movies). The bubble shows the quarter and the time since tip-off, never a score.",
+  "note": "Hold ▶: faster every second (×2 to ×32). The bubble names the quarter of the thumb, never past Q4; nothing on the bar changes until the picture plays there.",
   "group": "Player"
  },
  {
   "file": "player-replay-panel.html",
   "title": "Player: quarters panel",
-  "note": "▶ in a replay: the game as it stood at this moment (the same reveal rule as live), and the quarters to jump to. No box score, no OT row ahead.",
+  "note": "The Game button in a replay: the game as aired, 90 s behind the picture, and the quarters to jump to. No box score, no OT row ahead.",
   "group": "Player"
  },
  {
@@ -133,8 +133,8 @@
  },
  {
   "file": "player-golive.html",
-  "title": "Player: the game ended live",
-  "note": "You are behind live and the game ends live: Back to live would show the result, so it asks. Stay is focused; Back stays too.",
+  "title": "Player: Back to live, shield on",
+  "note": "v1.1: under the shield, Back to live in a hidden game's replay always asks, with the same words, so the card never tells whether the game has ended.",
   "group": "Player"
  },
  {
@@ -152,13 +152,13 @@
  {
   "file": "player-paused-local.html",
   "title": "Player: paused, not kept",
-  "note": "A channel the provider doesn't keep: pause and rewind work inside what the TV holds in memory (2 min here; measured on the TV). Past that it goes back to live.",
+  "note": "v1.1 (review M9): a channel the provider doesn't keep rewinds only inside the stream's own window (HLS, 45 s here); a .ts channel pauses only. The bar shows the real span.",
   "group": "Player"
  },
  {
   "file": "player-video-replay.html",
   "title": "Player: a full-game video",
-  "note": "A provider video, not the archive: no quarter marks (the video's timing is unknown), the same hidden end. Elapsed time only.",
+  "note": "A video from Movies plays in the same hidden-end timeline (also when started from Movies). No quarter marks: its timing is unknown.",
   "group": "Player"
  },
  {
@@ -170,7 +170,31 @@
  {
   "file": "player-panel-live.html",
   "title": "Player: game panel, from tip-off",
-  "note": "▶ while watching a live game on a kept channel: the panel (the reveal you asked for, as today) gets a From tip-off button at its foot, ▼ from the table. (Figures illustrative.)",
+  "note": "▶ while watching a live game on a kept channel: the panel (the reveal you asked for, as today) gets a From tip-off button at its foot. v1.1: the tabs fit the panel (the Sync chip was cut). (Figures illustrative.)",
+  "group": "Player"
+ },
+ {
+  "file": "home-behind.html",
+  "title": "Home: behind in a replay",
+  "note": "v1.1 (review M3): 02:35, you left your replay in Q1. The game shows your position, never the live clock; LIVE stays until tip-off + 3 h 30; the channel keeps the game's title.",
+  "group": "NBA"
+ },
+ {
+  "file": "player-replay-options.html",
+  "title": "Player: Options in a replay",
+  "note": "v1.1: ▼ in a game replay. Game panel (the panel's second way in, M8), Other sources, and Not the game? for a replay that lands on the wrong show (M6).",
+  "group": "Player"
+ },
+ {
+  "file": "player-notgame.html",
+  "title": "Player: Not the game?",
+  "note": "v1.1 (review M6): a panel whose clock is an hour off. One OK moves the replay and stores the correction per account (archiveShift), so the next one starts right.",
+  "group": "Player"
+ },
+ {
+  "file": "player-connlimit.html",
+  "title": "Player: one stream at a time",
+  "note": "v1.1 (review S3): one of the split failure cards. Seeking asks once per pause in key presses (M10); if the provider still says the slot is taken, it waits and retries on its own.",
   "group": "Player"
  }
 ]

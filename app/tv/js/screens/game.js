@@ -57,7 +57,7 @@ function draw() {
   const tabs = [['away', g.away.name], ['home', g.home.name], ...(v.hidden ? [] : [['plays', 'Plays']]), ['team', 'Team stats']];
   if (!tabs.some(([k]) => k === tab)) tab = 'away';
   let body;
-  if (v.hidden) body = `<div class="state" style="margin:28px auto 0;width:520px"><div class="ico">${ic('eyeOff')}</div><b>Box score is hidden</b><p>The spoiler shield covers this game. Reveal it for this game, this session.</p><span class="btn fx" tabindex="-1" data-act="reveal">Reveal score</span></div>`;
+  if (v.hidden) body = `<div class="state" style="margin:28px auto 0;width:520px"><div class="ico">${ic('eyeOff')}</div><b>Box score is hidden</b><p>The spoiler shield covers this game. Revealing it shows its score everywhere, from now on.</p><span class="btn fx" tabindex="-1" data-act="reveal">Reveal ${esc(g.away.name)} at ${esc(g.home.name)}</span></div>`;
   else if (tab === 'plays') body = plays(s, g);
   else if (tab === 'team') body = teamStats(s, g);
   else body = table(s, tab === 'home' ? g.home.abbr : g.away.abbr, g);
@@ -112,7 +112,8 @@ export default {
     draw();
   },
   leave() { if (id) wantSummary(id, false); },
-  entry: (root) => root.querySelector('[data-act="reveal"]') || root.querySelector(`[data-tab-g="${tab}"]`),
+  // (never the Reveal button: a second OK while the page opens would reveal the game for good)
+  entry: (root) => root.querySelector(`[data-tab-g="${tab}"]`) || root.querySelector('[data-tab-g]'),
   key(k) {
     const a = document.activeElement;
     const inner = el.querySelector('.gd-body .inner');

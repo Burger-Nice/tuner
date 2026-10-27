@@ -26,11 +26,13 @@ const $ = (s) => el.querySelector(s);
 
 // What the list shows: today's, the copy from before an unseen game, or nothing (covered / still reading).
 function listFor(data) {
-  const v = pinView([...new Set(data.map((p) => p.abbr))]);
+  // any unseen game counts, not only those of the teams in today's list: a player who dropped out of it after an
+  // unseen game would give that game away by his absence
+  const v = pinView(null);
   if (!v) return { rows: data };
   if (v.loading) return { pin: v, wait: true };
   const c = v.copy?.leaders?.[cat];
-  return c ? { rows: c, pin: v, copy: true } : { pin: v, cover: true };
+  return c?.length ? { rows: c, pin: v, copy: true } : { pin: v, cover: true };
 }
 // ESPN sorts them; the same order again here keeps ties together whatever comes back.
 const sorted = (rows) => [...rows].sort((a, b) => (parseFloat(b.value) || 0) - (parseFloat(a.value) || 0));
@@ -73,7 +75,7 @@ function draw() {
     // the copy's label under the column, its Reveal a button you move to (never the default focus)
     if (t.copy) {
       const [a, b] = t.pin.label.split(/,\s*/);
-      note = `<div class="nb-catnote ld-note" style="top:412px"><span class="row-flex">${ic('eyeOff')}${esc(a)},</span><span style="margin-top:-8px">${esc(b || '')}</span><div data-row><span class="pillbtn fx nb-reveal" tabindex="-1" data-act="reveal" data-g="${t.pin.games.length === 1 ? esc(t.pin.game.id) : '*'}">${t.pin.games.length === 1 ? 'Reveal it' : `Reveal ${t.pin.games.length} results`}</span></div></div>`;
+      note = `<div class="nb-catnote ld-note" style="top:412px"><span class="row-flex">${ic('eyeOff')}${esc(a)},</span><span style="margin-top:-8px">${esc(b || '')}</span><div data-row><span class="pillbtn fx nb-reveal" tabindex="-1" data-act="reveal" data-g="${esc(t.pin.games.map((g) => g.id).join(','))}">${t.pin.games.length === 1 ? 'Reveal it' : `Reveal ${t.pin.games.length} results`}</span></div></div>`;
     } else if (bad) note = `<div class="nb-catnote ld-note" style="top:412px"><span class="row-flex">${ic('wifiOff')}ESPN isn’t answering</span>${fetchedAt(keyOf(cat)) ? `<span style="margin-top:-8px">showing ${hm(fetchedAt(keyOf(cat)))}</span>` : ''}<div data-row><span class="pillbtn fx" tabindex="-1" data-act="retry">${ic('refresh')}Try again</span></div></div>`;
   }
   setHtml($('.ld-note-box'), note);

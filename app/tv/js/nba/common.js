@@ -1,9 +1,9 @@
 // Shared by the NBA tab's sections and the team page (design/ui-v1/nba-pages/SPEC.md): crests, the night rule for
 // tip-off times, game names, Reveal buttons, the copies kept from before a game (the shield's tables), state cards.
 import { esc, ic, crest, hm } from '../util.js';
-import { emit } from '../state.js';
+import { emit, on } from '../state.js';
 import { confirmMenu } from '../ui.js';
-import { unseenFor, markSeen, revealAll, pinFor, shieldMode } from '../games.js';
+import { unseenFor, markSeen, markSeenMany, revealAll, pinFor, pinBusy, shieldMode } from '../games.js';
 import { fetchedAt, failed } from '../league.js';
 
 const { NBA } = window;
@@ -61,14 +61,15 @@ export function sideOf(g, abbr) {
 export function revealBtn(games, cls = 'pillbtn') {
   if (!games?.length) return '';
   const one = games.length === 1;
-  return `<span class="${cls} fx nb-reveal" tabindex="-1" data-act="reveal" data-g="${one ? esc(games[0].id) : '*'}">${ic('eyeOff', 'sm')}${one ? `Reveal ${esc(gameName(games[0]))}` : `Reveal ${games.length} results`}</span>`;
+  return `<span class="${cls} fx nb-reveal" tabindex="-1" data-act="reveal" data-g="${esc(games.map((g) => g.id).join(','))}">${ic('eyeOff', 'sm')}${one ? `Reveal ${esc(gameName(games[0]))}` : `Reveal ${games.length} results`}</span>`;
 }
 // OK on a Reveal button (from a click handler: reveal(el) when el.dataset.act === 'reveal'). then: after it's seen.
+// data-g: the game ids the button names (comma-separated); '*' every unseen game.
 export function reveal(el, then) {
-  const id = el.dataset.g;
-  if (id !== '*') { markSeen(id); then?.(); return; }
-  const n = unseenFor().length;
-  confirmMenu({ title: `Reveal ${n} results?`, text: 'Every score, record and story up to now shows.', yes: 'Reveal', onYes: () => { revealAll(); then?.(); } });
+  const ids = el.dataset.g === '*' ? unseenFor().map((g) => g.id) : el.dataset.g.split(',').filter(Boolean);
+  if (ids.length === 1) { markSeen(ids[0]); then?.(); return; }
+  const all = el.dataset.g === '*';
+  confirmMenu({ title: `Reveal ${ids.length} results?`, text: all ? 'Every score, record and story up to now shows.' : 'Their scores, records and stories show.', yes: 'Reveal', onYes: () => { if (all) revealAll(); else markSeenMany(ids); then?.(); } });
 }
 
 // ---------- the copy from before an unseen game (SPEC 8.1-8.2) ----------
@@ -78,11 +79,14 @@ export function reveal(el, then) {
 //     loading (the copy is being read), label: 'As of tip-off, Grizzlies at Kings (Sun)' }
 // 'league' ('pin') fires when a copy has been read.
 const pins = new Map();   // tip-off time -> copy | null; missing = not read yet
+on('league', (k) => { if (k === 'pinned') { pins.clear(); emit('league', 'pin'); } });   // a copy was just kept: read again
 export function pinView(abbrs) {
   if (shieldMode() === 'off') return null;
   const games = unseenFor().filter((g) => !abbrs || abbrs.includes(g.home.abbr) || abbrs.includes(g.away.abbr)).sort((a, b) => a.date - b.date);
   if (!games.length) return null;
   const game = games[0];
+  // being fetched right now (it just tipped off): loading, not "no copy"
+  if (pinBusy(game)) return { game, games, copy: null, loading: true, label: `As of tip-off, ${gameName(game)} (${shortDay(game.date)})` };
   if (!pins.has(game.date)) {
     pins.set(game.date, undefined);
     pinFor(game).then((c) => { pins.set(game.date, c || null); emit('league', 'pin'); }, () => { pins.set(game.date, null); emit('league', 'pin'); });

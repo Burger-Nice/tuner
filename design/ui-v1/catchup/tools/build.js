@@ -53,6 +53,11 @@ const edge = (a) => `<span class="tedge" style="background:${pal(a).a}"></span>`
 // ---------- time: Reykjavik = UTC ----------
 const T = (s) => Date.parse(s);
 const hm = (t) => { const d = new Date(t); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+// One formatter for "kept until" (review S2): the archive keeps a replay while its window start (tip-off − 15 min) is
+// inside the channel's days; the end reads with the night rule, as game dates do.
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const keptUntil = (tip, days) => { const u = tip - 15 * 60e3 + days * 864e5, n = new Date(u - 6 * 3600e3), late = new Date(u).getUTCHours() < 6; return `${DAYS[n.getUTCDay()]} ${n.getUTCDate()} ${MON[n.getUTCMonth()]}${late ? ' · late' : ''}`; };
+const JAZZ_KEPT = keptUntil(Date.parse('2026-10-27T01:00:00Z'), 3), KINGS_KEPT = keptUntil(Date.parse('2026-10-26T01:00:00Z'), 3);
 const eyeSm = `<svg class="ic xs" viewBox="0 0 24 24" aria-hidden="true" style="flex:none">${P.eyeOff}</svg>`;
 const partial = (r) => `<span class="nb-rp" style="display:inline-flex;align-items:center;gap:4px">${r}${eyeSm}</span>`;
 
@@ -62,14 +67,14 @@ function topbar(sel, { nbaLive = false } = {}) {
   return `<div class="topbar" data-row="topbar"><img src="../../../app/tv/brand/assets/mark-small.svg" class="mk" alt=""><div class="tabs">${tabs.map(([k, l]) => `<span class="tab${k === 'search' ? ' srch' : ''}${k === sel ? ' sel' : ''}">${k === 'search' ? ic('search') : ''}${l}${k === 'nba' && nbaLive ? liveP(1) : ''}</span>`).join('')}</div><div class="tb-r"><span class="avatar">${ic('user')}</span></div></div>`;
 }
 const pages = [];
-function page(file, title, body, note, { group = '', shield = false } = {}) {
+function page(file, title, body, note, { group = '', shield = false, other = false } = {}) {
   fs.writeFileSync(path.join(root, file), `<!doctype html>
 <html lang="en" class="tv"><head><meta charset="utf-8"><meta name="viewport" content="width=960,height=540"><meta name="mock-size" content="960x540@2">${shield ? '\n<meta name="shield" content="unseen">' : ''}
 <title>${esc(title)}</title>
 <link rel="stylesheet" href="../../../app/tv/brand/fonts.css"><link rel="stylesheet" href="../../../app/tv/brand/tokens.css">
 <link rel="stylesheet" href="../../../app/tv/ui.css"><link rel="stylesheet" href="../../../app/tv/app.css"><link rel="stylesheet" href="../../../app/tv/nba.css"><link rel="stylesheet" href="catchup.css">
 </head><body><div class="screen">
-${body}
+${other ? body.replace(/class="(gd-head|gd-body|cu-tbar|nv-vtop|gd-tabs)"/g, 'class="$1" data-other="1"') : body}
 </div></body></html>
 `);
   pages.push({ file, title, note, group });
@@ -139,16 +144,16 @@ const replayBadge = `<span class="cu-badge">${ic('hist')}Replay</span>`;
 {
   const W = T('2026-10-27T10:30:00Z');
   const data = {
-    lp4: [['2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z', 'NBA Gametime'], ['2026-10-27T11:00:00Z', '2026-10-27T13:30:00Z', 'NBA: Grizzlies at Jazz (replay)']],
+    lp4: [['2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z', 'NBA Gametime'], ['2026-10-27T11:00:00Z', '2026-10-27T13:30:00Z', 'NBA: Grizzlies at Jazz (replay)', { sub: '11:00' }]],
     sky: [['2026-10-27T10:00:00Z', '2026-10-27T11:30:00Z', 'Sky Sports News'], ['2026-10-27T11:30:00Z', '2026-10-27T12:30:00Z', 'Monday Night Football: Review'], ['2026-10-27T12:30:00Z', '2026-10-27T13:30:00Z', 'Golf Breakfast']],
     espn: [['2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z', 'SportsCenter'], ['2026-10-27T11:00:00Z', '2026-10-27T12:00:00Z', 'First Take'], ['2026-10-27T12:00:00Z', '2026-10-27T13:00:00Z', 'NBA Today']],
     bbc: [['2026-10-27T10:15:00Z', '2026-10-27T11:00:00Z', 'Bargain Street'], ['2026-10-27T11:00:00Z', '2026-10-27T12:00:00Z', 'Coastline'], ['2026-10-27T12:00:00Z', '2026-10-27T12:30:00Z', 'BBC News at One'], ['2026-10-27T12:30:00Z', '2026-10-27T13:30:00Z', 'Doctors']],
     cnn: [['2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z', 'CNN Newsroom'], ['2026-10-27T11:00:00Z', '2026-10-27T12:00:00Z', 'World Sport'], ['2026-10-27T12:00:00Z', '2026-10-27T13:00:00Z', 'Connect the World']],
     via: [['2026-10-27T09:30:00Z', '2026-10-27T11:30:00Z', 'Ligue 1: Lens v Lille'], ['2026-10-27T11:30:00Z', '2026-10-27T13:30:00Z', 'NHL: Rangers at Devils']],
   };
-  const now = nowPanel({ tile: tile('NBA', false), title: 'NBA Gametime', line2: `<span class="ellipsis" style="min-width:0">NBA League Pass 4</span><span style="flex:none;display:flex;align-items:center">${dot}10:00 to 11:00${dot}20 min left<span class="prog" style="width:90px;margin-left:14px"><i style="width:67%"></i></span></span>`, line3: '<span class="ellipsis" style="min-width:0">Highlights and analysis from around the league, with the night’s top plays.</span>', hint: 'OK tune<span class="dot-sep"></span>Hold OK favourite<br>◀ earlier<span class="dot-sep"></span>kept 3 days' });
+  const now = nowPanel({ tile: tile('NBA', false), title: 'NBA Gametime', line2: `<span class="ellipsis" style="min-width:0">NBA League Pass 4</span><span data-other="1" style="flex:none;display:flex;align-items:center">${dot}10:00 to 11:00${dot}20 min left<span class="prog" style="width:90px;margin-left:14px"><i style="width:67%"></i></span></span>`, line3: `${eyeSm}<span class="ellipsis" style="min-width:0">May show last night's results (spoiler shield)</span>`, hint: 'OK tune<span class="dot-sep"></span>Hold OK favourite<br>◀ earlier<span class="dot-sep"></span>kept 3 days' });
   page('live-archive.html', 'Guide: today, kept channels', `${topbar('live')}${guide({ W, data, fr: 0, fc: 0, now })}`,
-    'Today\'s guide at 10:40. Kept channels carry the history mark; the Now panel says ◀ goes to earlier programmes, kept 3 days.', { group: 'Guide' });
+    'v1.1: the morning after, an NBA studio show gets a quiet warning instead of its description, and the re-air of the hidden game shows no end time.', { group: 'Guide', shield: true });
 }
 
 // ---- G2: Mon evening, an archived programme you half watched. Kept vs not kept; one row still loading ----
@@ -164,7 +169,7 @@ const replayBadge = `<span class="cu-badge">${ic('hist')}Replay</span>`;
   };
   const now = nowPanel({ tile: tile('BBC', true), title: 'Coastline', badge: replayBadge, line2: `<span class="ellipsis" style="min-width:0">BBC One HD</span><span style="flex:none;display:flex;align-items:center">${dot}Mon 26 Oct${dot}20:00 to 21:00${dot}watched 34 min<span class="prog" style="width:70px;margin-left:12px"><i style="width:57%"></i></span></span>`, line3: '<span class="ellipsis" style="min-width:0">The cliffs of the far north-west, filmed over a year of storms.</span>', hint: 'OK resume at 20:34<br>Back returns to now' });
   page('live-past.html', 'Guide: back in time', `${topbar('live')}${guide({ W, data, fr: 3, fc: 1, now })}`,
-    'Hold ◀ to go back. Kept programmes look normal with the history mark; ESPN and CNN aren\'t kept (outlined). OK resumes Coastline.', { group: 'Guide' });
+    'Hold ◀ to go back. Kept programmes look normal with the history mark; ESPN and CNN aren\'t kept (outlined). OK resumes Coastline.', { group: 'Guide', shield: true });
 }
 
 // ---- G3: last night, the Grizzlies game, shield on. Crosses midnight ----
@@ -178,9 +183,9 @@ const replayBadge = `<span class="cu-badge">${ic('hist')}Replay</span>`;
     cnn: [['2026-10-26T23:30:00Z', '2026-10-27T02:00:00Z', 'Not kept by your provider', { sub: 'OK watches CNN live' }]],
     via: [['2026-10-26T23:00:00Z', '2026-10-27T01:30:00Z', 'NHL: Rangers at Devils'], ['2026-10-27T01:30:00Z', '2026-10-27T03:00:00Z', 'Golf: Highlights']],
   };
-  const now = nowPanel({ tile: tile('NBA', true), title: 'NBA: Memphis Grizzlies @ Utah Jazz', badge: replayBadge, line2: `<span class="ellipsis" style="min-width:0">NBA League Pass 4</span><span style="flex:none;display:flex;align-items:center">${dot}Tue 27 Oct${dot}01:00 to 03:30</span>`, line3: `${eyeSm}<span class="ellipsis" style="min-width:0">Description hidden (spoiler shield)</span>`, hint: 'OK watch from tip-off<br>Back returns to now' });
+  const now = nowPanel({ tile: tile('NBA', true), title: 'NBA: Memphis Grizzlies @ Utah Jazz', badge: replayBadge, line2: `<span class="ellipsis" style="min-width:0">NBA League Pass 4</span><span style="flex:none;display:flex;align-items:center">${dot}Tue 01:00 to 03:30${dot}the Mon 26 Oct · late game</span>`, line3: `${eyeSm}<span class="ellipsis" style="min-width:0">Description hidden (spoiler shield)</span>`, hint: 'OK watch from tip-off<br>Back returns to now' });
   page('live-past-game.html', 'Guide: last night\'s game', `${topbar('live')}${guide({ W, data, fr: 0, fc: 1, now })}`,
-    'Shield on. Last night\'s Grizzlies game: description hidden, OK plays it from tip-off (not from the pre-game). The day pill marks the date.', { group: 'Guide', shield: true });
+    'Shield on. Last night\'s game: description hidden, OK plays it from tip-off (not the pre-game). v1.1: line 2 names it the way the NBA pages do (Mon 26 Oct · late).', { group: 'Guide', shield: true });
 }
 
 // ---- G4: focus on a channel the provider doesn't keep ----
@@ -196,7 +201,7 @@ const replayBadge = `<span class="cu-badge">${ic('hist')}Replay</span>`;
   };
   const now = nowPanel({ tile: tile('ES', false), title: 'Earlier on ESPN', line2: '<span class="ellipsis" style="min-width:0">US: ESPN HD</span><span style="flex:none;display:flex;align-items:center">' + dot + 'not kept by your provider</span>', line3: '<span class="ellipsis" style="min-width:0">Kept channels show the history mark under their number.</span>', hint: 'OK watch ESPN live<br>Back returns to now' });
   page('live-past-gone.html', 'Guide: a channel that isn\'t kept', `${topbar('live')}${guide({ W, data, fr: 2, fc: 0, now })}`,
-    'Back in time on a channel the provider doesn\'t keep: one outlined cell, still focusable so ▲▼ keep the time. OK tunes it live.', { group: 'Guide' });
+    'Back in time on a channel the provider doesn\'t keep: one outlined cell, still focusable so ▲▼ keep the time. OK tunes it live.', { group: 'Guide', shield: true });
 }
 
 // =====================================================================================================================
@@ -223,14 +228,14 @@ function onNowCard(c, i, { f = false } = {}) {
 const ONNOW = [['US: ESPN HD', 210, 'ES', 'espn', 0, 'SportsCenter', 66], ['Sky Sports Main Event', 402, 'SS', 'sky', 0, 'Sky Sports News', 44], ['BBC One HD', 101, 'BBC', 'bbc', 0, 'Bargain Street', 55], ['CNN International', 115, 'CNN', 'cnn', 0, 'CNN Newsroom', 66], ['Viaplay Sport 1', 431, 'VS', 'via', 0, 'Ligue 1: Lens v Lille', 60]];
 const rail = (title, cards, top, peek) => `<div class="abs rowtitle" style="left:48px;top:${top}px">${title}</div><div class="rail abs${peek ? ' peek' : ''}" style="top:${top + 36}px;left:0;right:0"><div class="track" data-row>${cards}</div></div>`;
 // a replay card for Continue watching: the two crests as its art, "Stopped in Q3" instead of minutes left (SPEC 7)
-const replayCard = (f) => `<div class="hc${f ? ' f' : ''}"><div class="art" style="background:linear-gradient(100deg,${pal('MEM').p} 50%,${pal('UTAH').p} 50%)"></div><div class="hs"></div><div class="tp"><span class="t-label" style="line-height:22px">NBA · Replay</span><span class="n" style="display:flex;gap:4px">${crest('MEM', 's24')}${crest('UTAH', 's24')}</span></div><div class="bt"><b>Grizzlies at Jazz</b><span>Stopped in Q3 · Mon 26 Oct</span></div><div class="prog flush"><i style="width:44%"></i></div></div>`;
-const contCard = (kind, title, left, pct, seed) => `<div class="hc">${progArt(seed)}<div class="hs"></div><div class="tp"><span class="t-label" style="line-height:22px">${kind}</span><span class="n">${left}</span></div><div class="bt"><b>${esc(title)}</b></div><div class="prog flush"><i style="width:${pct}%"></i></div></div>`;
+const replayCard = (f) => `<div class="hc${f ? ' f' : ''}"><div class="art" style="background:linear-gradient(100deg,${pal('MEM').p} 50%,${pal('UTAH').p} 50%)"></div><div class="hs"></div><div class="tp"><span class="t-label" style="line-height:22px">NBA · Replay</span><span class="n" style="display:flex;gap:4px">${crest('MEM', 's24')}${crest('UTAH', 's24')}</span></div><div class="bt"><b>Grizzlies at Jazz</b><span>Stopped in Q3</span></div><div class="prog flush"><i style="width:44%"></i></div></div>`;
+const contCard = (kind, title, left, pct, seed) => `<div class="hc" data-other="1">${progArt(seed)}<div class="hs"></div><div class="tp"><span class="t-label" style="line-height:22px">${kind}</span><span class="n">${left}</span></div><div class="bt"><b>${esc(title)}</b></div><div class="prog flush"><i style="width:${pct}%"></i></div></div>`;
 const tonightPeek = () => ['WSH', 'MIN', 'BOS', 'DAL'].map((a, i) => `<div class="gc"><div class="st"><span>${['23:00', '23:00', '23:30', '00:00'][i]}</span><span class="tvn">NBA League Pass</span></div><div class="pk ellipsis">${NAME[a]} at ${NAME[['CHA', 'CLE', 'CHI', 'MIA'][i]]}</div></div>`).join('');
 
 // ---- N1: the morning after, shield on. Home opens on the replay ----
 page('home-replay.html', 'Home: the morning after', `${topbar('home')}${hero({
   label: 1, status: `<span class="t-label t-2">NBA${dot}Mon 26 Oct${dot}late</span>`, ar: recM, hr: recU, score: hidTile,
-  btns: [{ t: 'Watch from tip-off', i: 'play', f: 1 }, { t: 'Game page' }], cap: 'NBA League Pass 4<br>Kept until Thu 29 Oct',
+  btns: [{ t: 'Watch from tip-off', i: 'play', f: 1 }, { t: 'Game page' }], cap: `NBA League Pass 4<br>Kept until ${JAZZ_KEPT}`,
   slab: '<span class="big">REPLAY</span><span class="cap">Score hidden</span>',
 })}${rail('On now', ONNOW.map((c, i) => onNowCard(c, i)).join(''), 278)}${rail('Tonight\'s games', tonightPeek(), 422, 1)}<div class="edgefade"></div>`,
 '10:40, shield My team. Last night\'s game is unseen and kept, so Home opens on it: Watch from tip-off is focused. No score, no record past the seen games.', { group: 'NBA', shield: true });
@@ -295,15 +300,15 @@ const tabsRow = (tabs, right = '') => `<div class="gd-tabs" data-row>${tabs.map(
 // ---- N6: game page, shield on, a replay exists: the card offers it first ----
 page('game-replay-shield.html', 'Game page: hidden, replay', `${topbar('nba')}${gameHead({ status: `<span class="t-label t-2">Ended${dot}Mon 26 Oct${dot}late</span>`, mid: gdHid })}
 ${tabsRow([['Grizzlies'], ['Jazz'], ['Team stats']])}
-<div class="gd-body" style="bottom:27px"><div class="state big cu-state" style="margin:10px auto 0;padding:20px 28px 13px" data-row><div class="ico">${ic('eyeOff')}</div><b>Grizzlies at Jazz is hidden</b><p>Watch it from tip-off: it counts as seen at the replay's final buzzer.</p><div class="row-flex"><span class="btn f">${ic('play')}Watch from tip-off</span><span class="btn2">Reveal Grizzlies at Jazz</span></div><div class="t-cap">NBA League Pass 4${dot}kept until Thu 01:00${dot}hold OK for other sources</div></div></div>`,
+<div class="gd-body" style="bottom:27px"><div class="state big cu-state" style="margin:10px auto 0;padding:20px 28px 13px" data-row><div class="ico">${ic('eyeOff')}</div><b>Grizzlies at Jazz is hidden</b><p>Watch it from tip-off: it counts as seen at the replay's final buzzer.</p><div class="row-flex"><span class="btn f">${ic('play')}Watch from tip-off</span><span class="btn2">Reveal Grizzlies at Jazz</span></div><div class="t-cap">NBA League Pass 4${dot}kept until ${JAZZ_KEPT}${dot}hold OK: other sources</div></div></div>`,
 'Shield on: the card in the body offers the replay first (focused). Reveal names the game and is a move away. Plays is dropped while hidden.', { group: 'NBA', shield: true });
 
 // ---- N7: a seen final, watch it again ----
 const BOX = [['C. Boozer', 'F', '34', '24', '9', '3', '9-15', '2-4', '+12'], ['J. Grant', 'F', '31', '18', '5', '2', '7-13', '3-6', '+8'], ['Z. Edey', 'C', '28', '16', '13', '1', '7-9', '0-0', '+10'], ['C. Coward', 'F', '30', '14', '4', '4', '5-11', '2-5', '+6'], ['T. Hendricks', 'F', '26', '11', '6', '2', '4-8', '1-3', '+4'], ['G. Jackson', 'F', '22', '15', '3', '1', '6-12', '2-5', '+7']];
 page('game-replay-seen.html', 'Game page: seen, watch again', `${topbar('nba')}${gameHead({ status: `<span class="t-label t-2">Final${dot}Sun 25 Oct${dot}late</span>`, away: 'MEM', home: 'SAC', mid: '<span class="score md">123</span><span class="t-3" style="font:700 20px var(--a-font-display)">–</span><span class="score md">112</span>' })}
-${tabsRow([['Grizzlies', 1], ['Kings'], ['Plays'], ['Team stats']], `<span class="t-cap" style="margin-left:auto;margin-right:16px">Kept until Wed</span><span class="btn sm f" style="transform-origin:100% 50%">${ic('play')}Watch again</span>`)}
+${tabsRow([['Grizzlies', 1], ['Kings'], ['Plays'], ['Team stats']], `<span class="t-cap" style="margin-left:auto;margin-right:16px">Kept until ${KINGS_KEPT}</span><span class="btn sm f" style="transform-origin:100% 50%">${ic('play')}Watch again</span>`)}
 <div class="gd-body" style="bottom:27px;overflow:hidden"><div class="inner"><table class="box"><thead><tr><th>Player</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>FG</th><th>3P</th><th>+/-</th></tr></thead><tbody>${BOX.map((r) => `<tr class="st"><td>${r[0]}<span class="pos">${r[1]}</span></td>${r.slice(2).map((v, k) => `<td${k === 1 ? ' class="b"' : ''}>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`,
-'Sun\'s game, seen: the box score as today, and Watch again at the right of the tab row. (Box score figures are illustrative.)', { group: 'NBA' });
+'Sun\'s game, seen: the box score as today, and Watch again at the right of the tab row. (Box score figures are illustrative.)', { group: 'NBA', shield: true, other: true });
 
 // ---- N8: hidden, and no replay anywhere ----
 page('game-noreplay.html', 'Game page: no replay', `${topbar('nba')}${gameHead({ status: `<span class="t-label t-2">Ended${dot}Mon 26 Oct${dot}late</span>`, mid: gdHid })}
@@ -312,16 +317,18 @@ ${tabsRow([['Grizzlies'], ['Jazz'], ['Team stats']])}
 'Neither an archive nor a video: say so plainly, keep looking every hour, and let you pick a video yourself. Look again is focused, never Reveal.', { group: 'NBA', shield: true });
 
 // ---- N9: Choose a video (names masked) ----
-const vids = [['Grizzlies at Jazz', 'Mon 26 Oct · Full game · Memphis feed · 1080p', 1], ['Grizzlies at Jazz', 'Mon 26 Oct · Full game · Utah feed · 720p'], ['Grizzlies at Jazz', 'Mon 26 Oct · Condensed game'], ['NBA 2026-10-25 Grizzlies vs Kings', 'Sun 25 Oct · seen · 1080p'], ['Grizzlies vs Warriors · full game', 'Fri 23 Oct · seen · 720p']];
+// v1.1 (review M4): the real case. The matcher found nothing, so these are videos it couldn't place. Any title naming a
+// hidden game's team, undated or dated from its tip-off on, runs through the news rule; if it could tell, it is hidden.
+const vids = [['Video naming the Grizzlies and the Jazz', 'added Tue 27 Oct 08:14 · 1080p', 'Name hidden'], ['Video naming the Grizzlies', 'added Tue 27 Oct 09:02 · 720p', 'Name hidden'], ['Grizzlies vs Kings · full game', 'Sun 25 Oct · a game you\'ve seen · 1080p', ''], ['Memphis Grizzlies Season Preview', 'added Mon 19 Oct · 720p', ''], ['Utah Jazz Media Day', 'added Wed 30 Sep · 1080p', '']];
 page('choose-video.html', 'Choose a video', `${topbar('nba')}${gameHead({ status: `<span class="t-label t-2">Ended${dot}Mon 26 Oct${dot}late</span>`, mid: gdHid })}${tabsRow([['Grizzlies'], ['Jazz'], ['Team stats']])}
-<div class="scrim"></div><div class="menu cu-srcs" style="left:180px;top:40px;width:600px"><h3>Choose a video</h3><div class="t-cap" style="padding:0 8px 10px">Videos naming the Grizzlies or the Jazz, nearest date first</div><div data-col>${vids.map(([a, b, f], i) => `<div class="lr${i === 0 ? ' f-ring' : ''}"${i > 2 ? ' data-other="1"' : ''}><span class="ico">${ic('film')}</span><span class="grow"><span class="a">${esc(a)}</span><span class="b">${esc(b)}</span></span>${i < 3 ? `<small>${i === 0 ? 'Best match' : ''}</small>` : ''}</div>`).join('')}</div><div class="t-cap" style="padding:10px 8px 0">Your pick is remembered. An unseen game gets airglow's own name.</div></div>`,
-'Choose a video: only videos naming either team, nearest date first. Unseen games get airglow\'s own names (the provider\'s can carry the score).', { group: 'NBA', shield: true });
+<div class="scrim"></div><div class="menu cu-srcs" style="left:180px;top:40px;width:600px"><h3>Choose a video</h3><div class="t-cap" style="padding:0 8px 10px">Videos naming the Grizzlies or the Jazz, newest first</div><div data-col>${vids.map(([a, b, h], i) => `<div class="lr${i === 0 ? ' f-ring' : ''}"><span class="ico">${ic(h ? 'eyeOff' : 'film')}</span><span class="grow"><span class="a">${esc(a)}</span><span class="b">${esc(b)}</span></span>${h ? `<small style="color:var(--a-text-2);font-weight:500">${h}</small>` : ''}</div>`).join('')}</div><div class="t-cap" style="padding:10px 8px 0">Names that could tell the result stay hidden until you've seen the game. Your pick is remembered.</div></div>`,
+'v1.1: the case you reach it in (nothing matched). Names that could tell the result are hidden whatever the shield mode; older and seen ones show.', { group: 'NBA', shield: true });
 
 // ---- N10: the replay sources (hold OK on Watch from tip-off) ----
-const srcs = [['hist', 'NBA League Pass 4', 'Channel replay · quarter skips', 'Best'], ['film', 'Full game · Memphis feed', 'Movies · NBA Replays · 1080p · no ads'], ['film', 'Full game · Utah feed', 'Movies · NBA Replays · 720p'], ['film', 'Condensed game', 'Movies · NBA Replays · about 20 min'], ['search', 'Choose a video…', 'Every video naming either team']];
+const srcs = [['hist', 'NBA League Pass 4', 'Channel replay · quarter skips', 'Best'], ['film', 'Full game · Memphis feed', 'Movies · NBA Replays · 1080p'], ['film', 'Full game · Utah feed', 'Movies · NBA Replays · 720p'], ['film', 'Condensed game', 'Movies · NBA Replays'], ['search', 'Choose a video…', 'Every video naming either team']];
 page('sources-sheet.html', 'Where to watch it from', `${topbar('home')}${hero({
   label: 1, status: `<span class="t-label t-2">NBA${dot}Mon 26 Oct${dot}late</span>`, ar: recM, hr: recU, score: hidTile,
-  btns: [{ t: 'Watch from tip-off', i: 'play' }, { t: 'Game page' }], cap: 'NBA League Pass 4<br>Kept until Thu 29 Oct',
+  btns: [{ t: 'Watch from tip-off', i: 'play' }, { t: 'Game page' }], cap: `NBA League Pass 4<br>Kept until ${JAZZ_KEPT}`,
   slab: '<span class="big">REPLAY</span><span class="cap">Score hidden</span>',
 })}${rail('On now', ONNOW.map((c, i) => onNowCard(c, i)).join(''), 278)}<div class="scrim"></div><div class="sheet cu-srcs"><h3>Watch Grizzlies at Jazz</h3><div class="t-cap" style="margin-top:-6px">From tip-off${dot}Mon 26 Oct · late</div><div data-col style="display:flex;flex-direction:column;gap:2px">${srcs.map(([i0, a, b, s], i) => `<div class="lr${i === 0 ? ' f-ring' : ''}"><span class="ico">${ic(i0)}</span><span class="grow"><span class="a">${esc(a)}</span><span class="b">${esc(b)}</span></span>${s ? `<small>${s}</small>` : ''}</div>`).join('')}</div><div class="t-cap" style="margin-top:auto">Your pick is remembered for this game. The channel replay comes first: it has the quarter skips and the synced score.</div></div>`,
 'Hold OK on Watch from tip-off: every source airglow found, best first and focused. OK plays it from tip-off.', { group: 'NBA', shield: true });
@@ -333,7 +340,7 @@ function teamHead() {
   <div class="nb-plate" style="${tvars('MEM')}">${crest('MEM', 'xl')}<div><div class="loc">Memphis</div><div class="nk">Grizzlies</div></div></div>
   <div class="nb-rec"><div class="big">3-0</div><div><div class="l1">1 result hidden</div><div class="l2 row-flex" style="gap:6px">${eyeSm}Mon, at Jazz</div></div></div>
   <div class="nb-next"><span class="t-label">Next${dot}Thu night 02:00</span><div class="mu">${crest('POR', 's28')}<span>at Trail Blazers</span></div><div class="tv">NBA League Pass</div></div>
-  <div class="nb-btns" data-row><span class="btn" style="transform-origin:0 50%">${ic('play')}Watch from tip-off</span><span class="btn2">Game page</span><span class="t-cap clamp2">Mon 26 Oct · late<br>Replay on NBA League Pass 4</span></div>
+  <div class="nb-btns" data-row><span class="btn" style="transform-origin:0 50%">${ic('play')}Watch from tip-off</span><span class="btn2">Game page</span><span class="t-cap clamp2">NBA League Pass 4<br>Kept until ${JAZZ_KEPT}</span></div>
 </div>`;
 }
 const tileG = (d, op, r, { f = false, g = false, next = false, pk = false, other = false } = {}) => `<div class="nb-gt${f ? ' f' : ''}${next ? ' next' : ''}${pk ? ' pk' : ''}"${other ? ' data-other="1"' : ''}><div class="d">${next ? '<span class="n">Next</span><span>Thu 29 · late</span>' : `<span>${d}</span>`}</div><div class="o">${crest(op[0], 's32')}<span>${op[1]}</span></div><div class="r">${r}${g ? `<span class="cu-g">${ic('hist')}</span>` : ''}</div></div>`;
@@ -376,23 +383,25 @@ function tbar({ a, b, pos, live, ticks = [], left = '', right = '', onTick = -1,
 }
 const vtop = (title, sub, pos) => `<div class="nv-vtop"><div style="min-width:0"><b>${esc(title)}</b><span>${sub}</span></div><div class="cu-pos">${pos}</div></div>`;
 const RIGHT3 = `${vb(ic('cc'))}${vb(ic('audio'))}${vb(ic('pic'))}`;
+const GAMEB = (f) => vb(ic('score'), { f });   // v1.1 (review M8): the game panel's key in a replay
+const RIGHTG = `${pill('Back to live')}${GAMEB()}${RIGHT3}`;
 // the Jazz game: scheduled tip 01:00, real tip 01:12; the replay window is tip-off − 15 min to + 3 h 15 min (SPEC 6.4)
 const GA = T('2026-10-27T00:45:00Z'), GB = T('2026-10-27T04:15:00Z');
 const Q = { tip: T('2026-10-27T01:12:00Z'), q2: T('2026-10-27T01:38:00Z'), half: T('2026-10-27T02:06:00Z'), q3: T('2026-10-27T02:22:00Z'), q4: T('2026-10-27T02:52:00Z') };
 
 // ---- P1: from tip-off while the game is live ----
-page('player-tipoff.html', 'Player: from tip-off, game live', `${video('arena', 'arena')}${vtop('Grizzlies at Jazz', 'From tip-off · NBA League Pass 4', '<b>40 min behind live</b><span>Live is in Q2</span>')}${tbar({
+page('player-tipoff.html', 'Player: from tip-off, game live', `${video('arena', 'arena')}${vtop('Grizzlies at Jazz', 'From tip-off · NBA League Pass 4', '<b>40 min behind live</b><span>You\'re in Q1</span>')}${tbar({
   a: GA, b: GB, pos: Q.tip, live: T('2026-10-27T01:52:00Z'), ticks: [[Q.tip, 'Tip-off'], [Q.q2, 'Q2']], onTick: 0,
   btnL: `${vb(ic('pause'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}${pill(`Skip to Q2${ic('chevR', 'sm')}`)}`,
-  btnR: `${pill('Back to live')}${RIGHT3}`,
+  btnR: RIGHTG,
 })}${HINT_T}`,
-'Watch from tip-off on a live game. The bar is a fixed 3½ h window; the live edge is the red dot, the part not yet played is outlined. Focus on the thumb.', { group: 'Player', shield: true });
+'From tip-off on a live game: a fixed 3½ h window, the live point the red dot. v1.1: line 2 says where you are, never where live is; the Game button opens the panel.', { group: 'Player', shield: true });
 
 // ---- P2: halftime: the skip button names where it goes ----
 page('player-halftime.html', 'Player: skip halftime', `${video('arena', 'arena')}${vtop('Grizzlies at Jazz', 'From tip-off · NBA League Pass 4', '<b>23 min behind live</b><span>Halftime</span>')}${tbar({
   a: GA, b: GB, pos: T('2026-10-27T02:08:00Z'), live: T('2026-10-27T02:31:00Z'), ticks: [[Q.tip, 'Tip-off'], [Q.q2, 'Q2'], [Q.half, 'Half'], [Q.q3, 'Q3']], onTick: 2, thumbF: false,
   btnL: `${vb(ic('pause'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}${pill(`Skip halftime${ic('chevR', 'sm')}`, 1)}`,
-  btnR: `${pill('Back to live')}${RIGHT3}`,
+  btnR: RIGHTG,
 })}${hint([['OK', 'Skip to Q3'], ['◀ ▶', 'Buttons'], ['▼', 'Seek bar'], ['Back', 'Hide']])}`,
 '▲ to the buttons at halftime: the skip reads "Skip halftime" and OK lands on the Q3 tip. The hint bar says what OK does.', { group: 'Player', shield: true });
 
@@ -400,26 +409,26 @@ page('player-halftime.html', 'Player: skip halftime', `${video('arena', 'arena')
 page('player-replay.html', 'Player: replay, shield on', `${video('arena2', 'arena')}${vtop('Grizzlies at Jazz', 'Replay · Mon 26 Oct · NBA League Pass 4', `<div class="row-flex">${eyeSm}<b>Score hidden</b></div><span>Seen at the final buzzer</span>`)}${tbar({
   a: GA, b: GB, pos: T('2026-10-27T01:52:00Z'), ticks: [[Q.tip, 'Tip-off'], [Q.q2, 'Q2'], [Q.half, 'Half'], [Q.q3, 'Q3'], [Q.q4, 'Q4']], onTick: 1,
   btnL: `${vb(ic('pause'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}${pill(`Skip to Q3${ic('chevR', 'sm')}`)}`,
-  btnR: RIGHT3, right: `${eyeSm}End hidden`,
+  btnR: RIGHTG, right: `${eyeSm}End hidden`,
 })}${HINT_T}`,
-'A finished game under the shield: the bar never shows where the game ends (no remaining time, no end mark, no OT tick ahead). It becomes seen at the final buzzer.', { group: 'Player', shield: true });
+'A finished game under the shield: the bar never shows where it ends. v1.1: Back to live stays for the whole replay (under the shield it always asks first); a Game button.', { group: 'Player', shield: true });
 
 // ---- P4: scrubbing: the bubble says the quarter ----
 page('player-scrub.html', 'Player: scrubbing a replay', `${video('arena2', 'arena')}${vtop('Grizzlies at Jazz', 'Replay · Mon 26 Oct · NBA League Pass 4', `<div class="row-flex">${eyeSm}<b>Score hidden</b></div><span>Seen at the final buzzer</span>`)}${tbar({
   a: GA, b: GB, pos: T('2026-10-27T02:24:00Z'), ticks: [[Q.tip, 'Tip-off'], [Q.q2, 'Q2'], [Q.half, 'Half'], [Q.q3, 'Q3'], [Q.q4, 'Q4']], onTick: 3,
   btnL: `${vb(ic('pause'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}${pill(`Skip to Q4${ic('chevR', 'sm')}`)}`,
-  btnR: RIGHT3, right: `${eyeSm}End hidden`, bubble: 'Q3 · 1:12:00', speed: '▶▶ ×8',
+  btnR: RIGHTG, right: `${eyeSm}End hidden`, bubble: 'Q3 · 1:12:00', speed: '▶▶ ×8',
 })}${HINT_T}`,
-'Holding ▶ scrubs faster every second (×2 up to ×32, as movies). The bubble shows the quarter and the time since tip-off, never a score.', { group: 'Player', shield: true });
+'Hold ▶: faster every second (×2 to ×32). The bubble names the quarter of the thumb, never past Q4; nothing on the bar changes until the picture plays there.', { group: 'Player', shield: true });
 
 // ---- P5: the game panel in a replay: quarters to jump to ----
 const qrow = (l, t, { cur = false, f = false } = {}) => `<div class="nv-row g cu-qrow${cur ? ' cur' : ''}${f ? ' f' : ''}"><div class="grow"><div class="a">${l}</div></div><span class="t-cap">${t}</span></div>`;
 page('player-replay-panel.html', 'Player: quarters panel', `${video('arena2', 'arena')}<div class="nv-panel right" style="width:280px"><div class="nv-sc"><div class="tm">${crest('MEM', 'md')}<span class="plate" data-moment="1"><span class="x"><span class="score sm" style="display:flex;gap:10px"><span>41</span><span style="opacity:.55">–</span><span>38</span></span></span></span>${crest('UTAH', 'md')}</div>
   <div class="t-cap" style="display:flex;justify-content:center;align-items:center;gap:8px">Q2 6:41${dot}as aired</div></div>
-  <div class="nv-tabs"><span class="on">Quarters</span><span>Plays</span><span class="act">${ic('refresh', 'sm')}Sync</span></div>
+  <div class="nv-tabs cu-t"><span class="on">Quarters</span><span>Plays</span><span class="act">${ic('refresh', 'sm')}Sync</span></div>
   ${qrow('Tip-off', '01:12')}${qrow('Q2', 'now', { cur: 1 })}${qrow('Halftime', '02:06')}${qrow('Q3', '02:22', { f: 1 })}${qrow('Q4', '02:52')}
   <div class="t-cap nv-foot">OK jumps there. The box score comes after the final buzzer.</div></div>`,
-'▶ in a replay: the game as it stood at this moment (the same reveal rule as live), and the quarters to jump to. No box score, no OT row ahead.', { group: 'Player', shield: true });
+'The Game button in a replay: the game as aired, 90 s behind the picture, and the quarters to jump to. No box score, no OT row ahead.', { group: 'Player', shield: true });
 
 // ---- P6: Options on a live game: Watch from tip-off and Rewind ----
 const orow = (i0, t, s, v, { f = false } = {}) => `<div class="nv-row g${f ? ' f' : ''}"><span class="ico">${ic(i0, 'sm')}</span><div class="grow"><div class="a">${t}</div>${s ? `<div class="b">${s}</div>` : ''}</div>${v ? `<span class="v">${v}${ic('chevR', 'sm')}</span>` : ''}</div>`;
@@ -428,8 +437,8 @@ page('player-options-live.html', 'Player: Options, live game', `${video('arena',
 '◀ on a live game on a kept channel: Watch from tip-off is the second row (Sync score stays first), Rewind and pause the third. Two more rows below.', { group: 'Player', shield: true });
 
 // ---- P7: going live would show the result ----
-page('player-golive.html', 'Player: the game ended live', `${video('arena2', 'arena')}<div class="nv-card cu-wide"><div class="t"><b>The game has ended live</b><span>Going live shows the result: NBA League Pass 4 is on the post-game show.</span></div><div class="cu-cbtns"><span class="btn sm f">Stay in the replay</span><span class="btn2 sm">Go live</span></div></div>${hint([['OK', 'Stay'], ['◀ ▶', 'Move'], ['Back', 'Stay']])}`,
-'You are behind live and the game ends live: Back to live would show the result, so it asks. Stay is focused; Back stays too.', { group: 'Player', shield: true });
+page('player-golive.html', 'Player: Back to live, shield on', `${video('arena2', 'arena')}<div class="nv-card cu-wide"><div class="t"><b>Going live may show the score</b><span>NBA League Pass 4 is live now. Your replay stays where you left it.</span></div><div class="cu-cbtns"><span class="btn sm f">Stay in the replay</span><span class="btn2 sm">Go live</span></div></div>${hint([['OK', 'Stay'], ['◀ ▶', 'Move'], ['Back', 'Stay']])}`,
+'v1.1: under the shield, Back to live in a hidden game\'s replay always asks, with the same words, so the card never tells whether the game has ended.', { group: 'Player', shield: true });
 
 // ---- P8: an archived programme ----
 const PA = T('2026-10-26T20:00:00Z'), PB = T('2026-10-26T21:00:00Z');
@@ -437,7 +446,7 @@ page('player-programme.html', 'Player: an archived programme', `${video('coast')
   a: PA, b: PB, pos: T('2026-10-26T20:34:10Z'), left: '34:10', right: '−25:50',
   btnL: `${vb(ic('pause'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}${pill(`Next programme${ic('chevR', 'sm')}`)}`, btnR: RIGHT3,
 })}${HINT_T}`,
-'OK on a kept programme in the guide: the movie bar, with the programme\'s own times. At the end, Up next offers the next programme on the channel.', { group: 'Player' });
+'OK on a kept programme in the guide: the movie bar, with the programme\'s own times. At the end, Up next offers the next programme on the channel.', { group: 'Player', shield: true, other: true });
 
 // ---- P9: paused live TV on a kept channel ----
 const LA = T('2026-10-27T10:15:00Z'), LB = T('2026-10-27T11:00:00Z');
@@ -445,26 +454,26 @@ page('player-paused.html', 'Player: live TV paused', `${video('bargain')}${vtop(
   a: LA, b: LB, pos: T('2026-10-27T10:37:46Z'), live: NOW, left: '10:15', right: '11:00',
   btnL: `${vb(ic('play'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}`, btnR: `${pill('Back to live')}${RIGHT3}`,
 })}${hint([['OK', 'Play'], ['◀ ▶', '10 s, hold for faster'], ['▲', 'Buttons'], ['▼', 'Options'], ['Back', 'Hide']])}`,
-'Pause on a kept channel: the bar shows the programme, the live edge and how far behind you are. ⏮ starts the programme over; Back to live returns.', { group: 'Player' });
+'Pause on a kept channel: the bar shows the programme, the live edge and how far behind you are. ⏮ starts the programme over; Back to live returns.', { group: 'Player', shield: true, other: true });
 
 // ---- P10: paused live TV on a channel that isn't kept: what the TV holds ----
 const BA = T('2026-10-27T10:38:00Z');
-page('player-paused-local.html', 'Player: paused, not kept', `${video('espn')}${vtop('SportsCenter', 'US: ESPN HD · paused', '<b>1:40 behind live</b><span>airglow holds the last 2 min</span>')}${tbar({
-  a: BA, b: NOW + 4000, pos: T('2026-10-27T10:38:20Z'), live: NOW, left: '2 min ago',
+page('player-paused-local.html', 'Player: paused, not kept', `${video('espn')}${vtop('SportsCenter', 'US: ESPN HD · paused', '<b>0:20 behind live</b><span>This channel rewinds 45 s</span>')}${tbar({
+  a: NOW - 45000, b: NOW + 1500, pos: NOW - 20000, live: NOW, left: '45 s ago',
   btnL: `${vb(ic('play'))}${vb('−10', { t: 1 })}${vb('+10', { t: 1 })}`, btnR: `${pill('Back to live')}${RIGHT3}`,
-})}${hint([['OK', 'Play'], ['◀ ▶', '10 s'], ['▲', 'Buttons'], ['Back', 'Hide']])}`,
-'A channel the provider doesn\'t keep: pause and rewind work inside what the TV holds in memory (2 min here; measured on the TV). Past that it goes back to live.', { group: 'Player' });
+})}${hint([['OK', 'Play'], ['◀ ▶', '10 s'], ['▲', 'Buttons'], ['▼', 'Options'], ['Back', 'Hide']])}`,
+'v1.1 (review M9): a channel the provider doesn\'t keep rewinds only inside the stream\'s own window (HLS, 45 s here); a .ts channel pauses only. The bar shows the real span.', { group: 'Player', shield: true, other: true });
 
 // ---- P11: a full-game video from Movies ----
 const VA = 0, VB = 3.5 * 3600e3;
 page('player-video-replay.html', 'Player: a full-game video', `${video('arena3', 'arena')}${vtop('Grizzlies at Jazz', 'Full game · Memphis feed · from Movies', `<div class="row-flex">${eyeSm}<b>Score hidden</b></div><span>Seen at the end of the video</span>`)}${tbar({
   a: VA, b: VB, pos: 38.2 * 60e3, left: '38:12', right: `${eyeSm}End hidden`,
-  btnL: `${vb(ic('pause'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}`, btnR: RIGHT3,
+  btnL: `${vb(ic('pause'))}${vb(ic('restart'))}${vb('−1m', { t: 1 })}${vb('+1m', { t: 1 })}`, btnR: `${GAMEB()}${RIGHT3}`,
 })}${HINT_T}`,
-'A provider video, not the archive: no quarter marks (the video\'s timing is unknown), the same hidden end. Elapsed time only.', { group: 'Player', shield: true });
+'A video from Movies plays in the same hidden-end timeline (also when started from Movies). No quarter marks: its timing is unknown.', { group: 'Player', shield: true });
 
 // ---- P12: the archive didn't answer ----
-page('player-replay-failed.html', 'Player: the replay didn\'t start', `${video('arena2', 'arena')}<div class="nv-card cu-wide" style="align-items:stretch;gap:10px;padding:18px 18px 14px"><div class="t" style="text-align:left"><b>This replay didn't start</b><span>NBA League Pass 4's archive didn't answer (3 links tried).</span></div>
+page('player-replay-failed.html', 'Player: the replay didn\'t start', `${video('arena2', 'arena')}<div class="nv-card cu-wide" style="align-items:stretch;gap:10px;padding:18px 18px 14px"><div class="t" style="text-align:left"><b>This replay didn't start</b><span>NBA League Pass 4's replay didn't start.</span></div>
   <div class="nv-row f" style="height:56px"><span class="ico">${ic('film', 'sm')}</span><div class="grow"><div class="a">Full game · Memphis feed</div><div class="b">Movies · NBA Replays · 1080p</div></div></div>
   <div class="row-flex" style="gap:10px;justify-content:space-between"><span class="btn2 sm">Try again</span><span class="t-cap">Back closes</span></div></div>`,
 'If the archive fails, the other source is one OK away (here the video in Movies), focused. No score anywhere on the card.', { group: 'Player', shield: true });
@@ -473,10 +482,38 @@ page('player-replay-failed.html', 'Player: the replay didn\'t start', `${video('
 const full = [['Boozer', '18', '11', '4', '1'], ['Grant', '17', '8', '2', '1'], ['Edey', '15', '6', '7', '0'], ['Coward', '16', '5', '2', '3'], ['Hendricks', '12', '4', '3', '1'], ['Jackson', '10', '7', '1', '0']];
 page('player-panel-live.html', 'Player: game panel, from tip-off', `${video('arena', 'arena')}<div class="nv-panel right" style="width:280px"><div class="nv-sc"><div class="tm">${crest('MEM', 'md')}<span class="plate" data-moment="1"><span class="x"><span class="score sm" style="display:flex;gap:10px"><span>41</span><span style="opacity:.55">–</span><span>38</span></span></span></span>${crest('UTAH', 'md')}</div>
   <div class="t-cap" style="display:flex;justify-content:center;align-items:center;gap:8px">Q2 5:18${dot}<span style="display:inline-flex;gap:4px;align-items:center">${ic('clock', 'sm')}Synced · 42 s</span></div></div>
-  <div class="nv-tabs"><span class="on">MEM</span><span>UTA</span><span>Plays</span><span class="act">${ic('refresh', 'sm')}Sync</span></div>
+  <div class="nv-tabs cu-t"><span class="on">MEM</span><span>UTA</span><span>Plays</span><span class="act">${ic('refresh', 'sm')}Sync</span></div>
   <table class="nv-box"><tr><th></th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th></tr>${full.map((r) => `<tr><td>${r[0]}</td>${r.slice(1).map((v, k) => `<td${k === 1 ? ' class="b"' : ''}>${v}</td>`).join('')}</tr>`).join('')}</table>
-  <div class="nv-foot" style="display:flex;align-items:center;justify-content:space-between"><span class="btn2 sm f-ring">${ic('restart', 'sm')}From tip-off</span><span class="t-cap">Back closes</span></div></div>`,
-'▶ while watching a live game on a kept channel: the panel (the reveal you asked for, as today) gets a From tip-off button at its foot, ▼ from the table. (Figures illustrative.)', { group: 'Player' });
+  <div class="nv-foot"><span class="btn2 sm f-ring">${ic('restart', 'sm')}From tip-off</span><div class="t-cap" style="margin-top:10px">Back closes</div></div></div>`,
+'▶ while watching a live game on a kept channel: the panel (the reveal you asked for, as today) gets a From tip-off button at its foot. v1.1: the tabs fit the panel (the Sync chip was cut). (Figures illustrative.)', { group: 'Player', shield: true });
+
+// =====================================================================================================================
+// v1.1 additions (review M3, M6, M8, S3)
+// =====================================================================================================================
+// ---- N13: Home while you're behind in a replay of a live game (M3): your position, never the live clock ----
+{
+  const lp = `<div class="hc"><div class="art"><div class="cu-match" style="background:linear-gradient(100deg,${pal('MEM').p} 50%,${pal('UTAH').p} 50%)"></div></div><div class="hs"></div><div class="tp"><span class="logo sm">NBA</span>${liveP()}<span class="n">41</span></div><div class="bt"><b>NBA: Grizzlies at Jazz</b><span>NBA League Pass 4</span></div></div>`;
+  const others = [['US: ESPN HD', 210, 'ES', 'espn', 0, 'SportsCenter', 40], ['Sky Sports Main Event', 402, 'SS', 'sky', 0, 'Sky Sports News', 30], ['BBC One HD', 101, 'BBC', 'bbc', 0, 'BBC News', 60], ['CNN International', 115, 'CNN', 'cnn', 0, 'CNN Newsroom', 20]].map((c, i) => onNowCard(c, i)).join('');
+  const peek = `<div class="gc"><div class="st">${liveP()}<span>You're in Q1</span></div><div class="pk ellipsis">Grizzlies at Jazz</div></div>` + ['WSH', 'MIN', 'BOS'].map((a, i) => `<div class="gc" data-other="1"><div class="st">${liveP()}<span>${['Q4 2:10', 'Q4 5:41', 'Q3 1:02'][i]}</span><span class="tvn">NBA League Pass</span></div><div class="pk ellipsis">${NAME[a]} at ${NAME[['CHA', 'CLE', 'CHI'][i]]}</div></div>`).join('');
+  page('home-behind.html', 'Home: behind in a replay', `${topbar('home', { nbaLive: 1 })}${hero({
+    label: 1, status: `${liveP()}<span class="t-label t-2">NBA${dot}NBA League Pass 4</span>`, ar: recM, hr: recU, score: hidTile,
+    btns: [{ t: 'Resume', i: 'play', f: 1 }, { t: 'Back to live' }, { t: 'Game page' }],
+    slab: '<span class="big">Q1</span><span class="big">8:20</span><span class="cap">You stopped here</span>',
+  })}${rail('On now', lp + others, 278)}${rail('Tonight\'s games', peek, 422, 1)}<div class="edgefade"></div>`,
+  'v1.1 (review M3): 02:35, you left your replay in Q1. The game shows your position, never the live clock; LIVE stays until tip-off + 3 h 30; the channel keeps the game\'s title.', { group: 'NBA', shield: true });
+}
+// ---- P14: Options in a replay: the Game panel, other sources, "Not the game?" (M6, M8) ----
+page('player-replay-options.html', 'Player: Options in a replay', `${video('arena2', 'arena')}<div class="nv-panel left" style="width:340px"><div class="nv-h">Options</div>
+  ${orow('score', 'Game panel', 'Quarters and plays, as aired', '')}${orow('film', 'Other sources', 'Full game in Movies, 2 more', '3')}${orow('clock', 'Not the game?', 'It starts on the wrong show', '', { f: 1 })}${orow('refresh', 'Sync score', 'Match the game clock', '22 s')}${orow('cc', 'Subtitles', '', 'Off')}${orow('audio', 'Audio', '', 'English')}${orow('pic', 'Picture size', 'This channel', 'Zoom')}</div>${hint([['OK', 'Open'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
+'v1.1: ▼ in a game replay. Game panel (the panel\'s second way in, M8), Other sources, and Not the game? for a replay that lands on the wrong show (M6).', { group: 'Player', shield: true });
+page('player-notgame.html', 'Player: Not the game?', `${video('studio', 'arena')}<div class="nv-panel left" style="width:360px"><div class="nv-h">Not the game?</div>
+  <div class="t-cap" style="padding:2px 10px 6px">If the replay starts on the wrong show, move it. airglow remembers this for your provider.</div>
+  ${orow('chevR', 'Go 1 hour later', 'It shows what was on before the game', '', { f: 1 })}${orow('chevL', 'Go 1 hour earlier', 'It starts mid-game, or after the game', '')}${orow('film', 'Other sources', 'Full game in Movies, 2 more', '3')}</div>${hint([['OK', 'Move the replay'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
+'v1.1 (review M6): a panel whose clock is an hour off. One OK moves the replay and stores the correction per account (archiveShift), so the next one starts right.', { group: 'Player', shield: true });
+// ---- P15: the connection limit (S3) ----
+page('player-connlimit.html', 'Player: one stream at a time', `${video('arena2', 'arena')}<div class="nv-card cu-wide" style="align-items:stretch;gap:12px;padding:18px 18px 14px"><div class="t" style="text-align:left"><b>Your provider allows 1 stream</b><span>Close it on your other devices, or wait a few seconds. Trying again in 5 s.</span></div>
+  <div class="row-flex" style="gap:10px;justify-content:space-between"><span class="btn sm f">${ic('refresh', 'sm')}Try again now</span><span class="t-cap">Back closes</span></div></div>`,
+'v1.1 (review S3): one of the split failure cards. Seeking asks once per pause in key presses (M10); if the provider still says the slot is taken, it waits and retries on its own.', { group: 'Player', shield: true });
 
 fs.writeFileSync(path.join(root, 'tools', 'pages.json'), JSON.stringify(pages, null, 1));
 console.log(`wrote ${pages.length} mocks`);

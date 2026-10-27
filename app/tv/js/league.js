@@ -61,10 +61,14 @@ export async function want(key, { force = false } = {}) {
   return hit ? hit.data : flight.get(key);
 }
 export const loading = (key) => flight.has(key);
-// Story texts: the newest 30 are kept (SPEC 11).
+// Story texts: the newest 30 are kept (SPEC 11), across launches (their keys are listed in the store).
 function pruneStories() {
-  const st = [...mem].filter(([k]) => kind(k) === 'story').sort((a, b) => b[1].at - a[1].at);
-  for (const [k] of st.slice(30)) { mem.delete(k); window.Core.cache.set(dbKey(k), null); }
+  const { store } = window.Core, now = Date.now();
+  const list = [...new Map([...store.get('nbaStories', []), ...[...mem].filter(([k]) => kind(k) === 'story').map(([k, v]) => [k, v.at])])]
+    .sort((a, b) => b[1] - a[1]);
+  const keep = list.filter(([, at], i) => i < 30 && now - at < KEEP.story);
+  for (const [k] of list) if (!keep.some(([x]) => x === k)) { mem.delete(k); window.Core.cache.set(dbKey(k), null); }
+  store.set('nbaStories', keep);
 }
 // Every kept entry whose key starts with prefix ('schedule:'): [key, data] pairs.
 export const peekAll = (prefix) => [...mem].filter(([k, v]) => k.startsWith(prefix) && v.data).map(([k, v]) => [k, v.data]);

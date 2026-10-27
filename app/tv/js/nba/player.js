@@ -38,6 +38,7 @@ export function bestRank(id) {
 // scores, read once and never shown). null while those box scores are being read.
 const boxes = new Map();   // game id -> summary | null (failed) ; missing: being read
 function boxOf(id) {
+  if (boxes.size > 24) boxes.clear();   // (a handful of unseen games at most: never grows for long)
   if (!boxes.has(id)) { boxes.set(id, undefined); NBA.summary(id).then((s) => boxes.set(id, s), () => boxes.set(id, null)).finally(() => onBox?.()); }
   return boxes.get(id);
 }
@@ -46,7 +47,8 @@ function seenAverages(p, unseen) {
   let gp = p.gp || 0, min = (p.min || 0) * gp, reb = (p.reb || 0) * gp, ast = (p.ast || 0) * gp, exact = true;
   const at = fetchedAt(`players:${p.abbr}`) || Date.now();
   for (const g of unseen) {
-    if (g.date > at) continue;   // his averages were read before this game: it isn't in them
+    // only a final that ended before his averages were read is in them (ESPN adds a game once it's over: ~3 h after tip-off)
+    if (g.state !== 'post' || g.date + 3 * 3600e3 > at) continue;
     const s = boxOf(g.id);
     if (s === undefined) return null;
     if (s === null) { exact = false; continue; }

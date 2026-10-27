@@ -477,7 +477,8 @@ export function teamPage({ pushed = false } = {}) {
       on('league', (k) => { if (k === 'pin' || keys().includes(k) || k.startsWith('schedule:')) redraw(); });
       on('nba', redraw); on('feeds', redraw);
       on('player-closed', () => { if (behind) { behind = false; redraw(); } });
-      setInterval(() => { if (!abbr || !ctx.visible()) return; for (const k of keys()) if (failed(k) && !loading(k)) want(k); draw(); }, 60000);
+      // every minute: want() fetches what's older than its age (schedule and news 10 min, stats 1 h), or what failed
+      setInterval(() => { if (!abbr || !ctx.visible()) return; for (const k of keys()) if (!loading(k)) want(k); draw(); }, 60000);
       setInterval(redraw, 30000);   // "Tips off in 1 h 20 min"
     },
     // Draw this team (state: the page's own place, kept per pushed page so Back to it lands where you were).
@@ -487,7 +488,7 @@ export function teamPage({ pushed = false } = {}) {
       for (const k of keys()) want(k);
       ensure('live').catch(() => {});
       const games = list(), hero = heroOf(games);
-      if (hero && (hero.state === 'in' || hero.date - Date.now() < 3 * 3600e3)) findFeeds(hero);
+      if (hero && (hero.state === 'in' || (hero.state === 'pre' && hero.date - Date.now() < 3 * 3600e3))) findFeeds(hero);
       draw();
       st.needEntry = !page0.entry();
     },

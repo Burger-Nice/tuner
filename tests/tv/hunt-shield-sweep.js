@@ -4,7 +4,7 @@ module.exports = async (ctx) => {
   const { p, shot, key } = ctx;
   const L = require('./hunt-shield-lib.js')(ctx);
   const mode = process.env.MODE || 'mine';
-  await L.start({ shield: mode, pin: !!process.env.PIN });
+  await L.start({ shield: mode, pin: !!process.env.PIN, schedule503: !!process.env.SCHED503 });
   console.log('mode', mode, 'pin', !!process.env.PIN, 'seen', await L.seen());
   console.log('unseen:', await L.G((m) => m.unseenFor().map((g) => `${g.away.abbr}@${g.home.abbr} ${new Date(g.date).toISOString()}`)));
   await L.ev(() => window.__tunerTest.go('home')); await p.waitForTimeout(2500);
@@ -31,9 +31,9 @@ module.exports = async (ctx) => {
   for (let i = 0; i < 25; i++) { await key('ArrowDown', 1, 260); const h = await L.scan(`news row ${i + 2}`); if (h.length) await shot(`news-leak-${i + 2}`); }
   console.log('rows:\n' + (await L.ev(() => [...document.querySelectorAll('.nb-s[data-s="news"] .nb-nrow')].map((r) => `${r.classList.contains('cov') ? 'COV ' : '    '}${r.querySelector('b').textContent.slice(0, 80)}`).join('\n'))));
   // the opponent's page, from the team's Kings tile
-  await L.toSection(1); await key('ArrowDown', 2, 500); await key('ArrowLeft', 1, 400); await L.hold(); await key('Enter', 1, 2500);
+  await key('Escape', 1, 400); await L.ev(async () => (await import('/tv/js/router.js')).push('team', { abbr: 'SAC' })); await p.waitForTimeout(2500);
   await L.scan('kings page'); await shot('kings');
   console.log('kings rec:', await L.text('[data-screen="team"] .nb-rec'));
-  await key('ArrowDown', 2, 800); await L.scan('kings ranks'); await key('ArrowDown', 1, 800); await L.scan('kings news'); await shot('kings-news');
+  await key('ArrowDown', 1, 800); await L.scan('kings sched'); await key('ArrowDown', 1, 800); await L.scan('kings ranks'); await key('ArrowDown', 1, 800); await L.scan('kings news'); await shot('kings-news');
   await key('ArrowDown', 1, 800); await L.scan('kings roster'); await key('Enter', 1, 1500); await L.scan('kings player'); await shot('kings-player');
 };

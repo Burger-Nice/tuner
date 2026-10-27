@@ -83,7 +83,9 @@ document.addEventListener('keyup', (e) => {
   if (DIRS.has(k)) document.documentElement.classList.remove('rep');
   if (k === 'ok' && okDown) {
     const d = okDown; okDown = null; clearTimeout(d.timer);
-    if (!d.held && document.activeElement === d.el) { okSound(d.el); d.el.click(); }
+    // (a redraw while OK was down puts focus on the same item drawn anew: same data-key, still that press)
+    const a = document.activeElement, same = a === d.el || (!d.el.isConnected && a?.dataset?.key && a.dataset.key === d.el.dataset.key);
+    if (!d.held && same) { okSound(a); a.click(); }
   }
 }, true);
 // OK clicks at once, except on things you can hold (cards, guide cells): those click on release, or open their menu at 500 ms.
@@ -93,7 +95,12 @@ function okPress(e) {
   if (e.repeat) return;
   if (!el.hasAttribute('data-hold')) { okSound(el); el.click(); return; }
   el.classList.add('pressing');
-  okDown = { el, held: false, timer: setTimeout(() => { if (okDown?.el === el) { okDown.held = true; el.classList.remove('pressing'); el.dispatchEvent(new CustomEvent('tvhold', { bubbles: true })); } }, 500) };
+  okDown = { el, held: false, timer: setTimeout(() => {
+    if (okDown?.el !== el) return;
+    const a = document.activeElement, to = el.isConnected ? el : a?.dataset?.key && a.dataset.key === el.dataset.key ? a : null;
+    okDown.held = true; el.classList.remove('pressing');
+    to?.dispatchEvent(new CustomEvent('tvhold', { bubbles: true }));
+  }, 500) };
   setTimeout(() => el.classList.remove('pressing'), 600);
 }
 

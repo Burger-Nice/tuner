@@ -26,21 +26,43 @@ const jazz = (over = {}) => {
   }
   return e;
 };
+// A made-up game: { id, date, away, home, as, hs (scores), state, ar, hr (records), period, clock, detail }
+function mk(o) {
+  const st = { type: { state: o.state || 'pre', completed: o.state === 'post', shortDetail: o.detail || (o.state === 'post' ? 'Final' : '') }, period: o.period || 0, displayClock: o.clock || '' };
+  const side = (abbr, ha, sc, rec) => ({ homeAway: ha, team: { id: String(require('./hunt-shield-ids.json')[abbr] || 0), abbreviation: abbr, shortDisplayName: o.names?.[abbr] || abbr, displayName: abbr }, score: o.state && o.state !== 'pre' ? String(sc) : undefined, records: rec ? [{ summary: rec }] : undefined });
+  return { id: o.id, date: o.date, status: st, competitions: [{ status: st, competitors: [side(o.home, 'home', o.hs, o.hr), side(o.away, 'away', o.as, o.ar)], broadcasts: [] }] };
+}
 const board = (events) => ({ ...sb, day: { date: '2026-10-26' }, events });
 
 module.exports = function lib({ p, key }) {
   const ev = (f, a) => p.evaluate(f, a);
   const hold = async () => { await p.keyboard.down('Enter'); await p.waitForTimeout(650); await p.keyboard.up('Enter'); await p.waitForTimeout(400); };
   let today = board([jazz()]);
+  const days = {}, failDays = new Set();
+  let lastJazz = null;
   const setBoard = (b) => { today = b; };
   const routes = async ({ schedule503 = false } = {}) => {
     await p.route('**/espn/scoreboard*', (r) => {
-      const u = new URL(r.request().url());
-      const body = u.searchParams.get('dates') ? { day: { date: u.searchParams.get('dates') }, events: [] } : today;
+      const u = new URL(r.request().url()), d = u.searchParams.get('dates');
+      if (d && failDays.has(d)) return r.fulfill({ status: 503, headers: H, body: 'down' });
+      const body = d ? days[d] || { day: { date: d }, events: [] } : today;
       return r.fulfill({ contentType: 'application/json', headers: H, body: JSON.stringify(body) });
     });
     await p.route('**/espn/summary?event=401909867', (r) => r.fulfill({ contentType: 'application/json', headers: H, body: fs.readFileSync(`${F}/summary-401909850.json`, 'utf8') }));
     if (schedule503) await p.route('**/espn/teams/*/schedule', (r) => r.fulfill({ status: 503, headers: H, body: 'down' }));
+    // the Grizzlies' schedule follows today's board for the Jazz game (the fixture has it 'pre' for ever)
+    else await p.route('**/espn/teams/29/schedule', (r) => {
+      const d = clone(sched), j = (today.events || []).find((e) => e.id === JAZZ_ID) || lastJazz;
+      if (j) { lastJazz = j; d.events = d.events.map((e) => (e.id === JAZZ_ID ? j : e)); }
+      return r.fulfill({ contentType: 'application/json', headers: H, body: JSON.stringify(d) });
+    });
+    // the summary of the Jazz game: its state and score from the board
+    await p.route('**/espn/summary?event=401909875', (r) => {
+      const j = (today.events || []).find((e) => e.id === JAZZ_ID) || lastJazz;
+      if (!j) return r.fulfill({ status: 404, headers: H, body: '' });
+      const c = j.competitions[0];
+      return r.fulfill({ contentType: 'application/json', headers: H, body: JSON.stringify({ header: { competitions: [{ date: j.date, status: j.status || c.status, competitors: c.competitors }] }, boxscore: { players: [], teams: [] }, plays: [] }) });
+    });
   };
   // shield: 'off' | 'mine' | 'all'; seen: the nbaSeen store (undefined: the Kings final unseen; null: none stored)
   const start = async ({ shield = 'mine', seen, pin = false, clock = '2026-10-26T23:40:00Z', schedule503 = false, before } = {}) => {
@@ -90,5 +112,5 @@ module.exports = function lib({ p, key }) {
     for (let i = 0; i < 4 && !(await ev(() => !!document.activeElement.dataset.sec)); i++) await key('ArrowUp', 1, 300);
     await key('ArrowLeft', 6, 80); await key('ArrowRight', n, 120); await p.waitForTimeout(1800);
   };
-  return { ev, hold, start, setBoard, board, jazz, withRecords, sched, sb, scan, where, text, seen, G, toSection, SAC_ID, JAZZ_ID, clone };
+  return { mk, days, failDays, ev, hold, start, setBoard, board, jazz, withRecords, sched, sb, scan, where, text, seen, G, toSection, SAC_ID, JAZZ_ID, clone };
 };

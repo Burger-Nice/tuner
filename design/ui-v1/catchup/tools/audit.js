@@ -18,7 +18,7 @@
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 (async () => {
   const root = path.resolve(__dirname, '..'); const b = await chromium.launch();
-  const args = process.argv.slice(2).filter((a) => !a.startsWith('--')); const quiet = process.argv.includes('--quiet'), inject = process.argv.includes('--inject');
+  const args = process.argv.slice(2).filter((a) => !a.startsWith('--')); const quiet = process.argv.includes('--quiet'), inject = process.argv.includes('--inject'), injectV10 = process.argv.includes('--inject-v10');
   const files = (args.length ? args : JSON.parse(fs.readFileSync(root + '/tools/pages.json', 'utf8')).map((p) => p.file)).filter((f) => f.endsWith('.html'));
   const rings = [];
   let bad = 0; const lines = [];
@@ -26,6 +26,12 @@ const { chromium } = require('playwright'); const path = require('path'); const 
     const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 2 });
     p.on('pageerror', (e) => lines.push(`${f}  PAGEERROR ${e.message}`));
     await p.goto('file://' + root + '/' + f); await p.evaluate(() => document.fonts.ready);
+    // --inject-v10: put back the two v1.0 CSS bugs the review found (the 560 px shield card, the clipped Sync chip) and the
+    // "Live is in Q2" line, to prove CONTAIN and SPOILER catch them
+    if (injectV10) await p.evaluate(() => {
+      document.head.insertAdjacentHTML('beforeend', '<style>.state.big.cu-state{width:560px}.nv-tabs.cu-t{gap:6px}.nv-tabs.cu-t span,.nv-tabs.cu-t span.act{padding:0 12px}</style>');
+      const pos = document.querySelector('.cu-pos span'); if (pos && document.querySelector('meta[name="shield"]')) pos.textContent = 'Live is in Q2';
+    });
     if (inject) await p.evaluate(() => { if (!document.querySelector('meta[name="shield"]')) return; const s = document.querySelector('.screen'); s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112 · −12:40</div><span class="btn2 f" style="position:absolute;left:600px;top:470px;z-index:30">Reveal score</span>'); });
     const r = await p.evaluate(() => {
       const SAFE = { l: 48, r: 912, t: 27, b: 513 }, TOL = 1.5;
@@ -147,6 +153,17 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       for (const m of document.querySelectorAll('.ctxmenu,.menu,.sheet,.nb-read,.cu-state,.cu-tbar,.nv-panel,.nv-card')) { const q = m.getBoundingClientRect(); if (q.bottom > 513.5 || q.top < 26.5 || q.left < 47.5 || q.right > 912.5) issues.safe.push(`${short(m)} box ${q.left.toFixed(0)},${q.top.toFixed(1)}-${q.right.toFixed(0)},${q.bottom.toFixed(1)} crosses the safe area`); }
       for (const fe of focusEls) if (/reveal/i.test(fe.textContent)) issues.overlap.push(`SHIELD: the focused element is a Reveal ("${fe.textContent.trim().slice(0, 30)}")`);
       for (const t of texts) if (t.e.closest('.nb-rail') && t.x1 > 913) issues.safe.push(`peek text "${t.txt}" past x 912`);
+      // ---- catch-up v1.1: CONTAIN, a control poking out of its card, panel or bar (review M11: the v1.0 audit passed a
+      // 560 px card with its buttons outside it, and a Sync chip cut by its panel)
+      const CONT = '.state,.nv-panel,.nv-card,.cu-tbar,.sheet,.menu,.ctxmenu,.hero-plate,.gc,.nb-gt,.hc,.nb-head,.gd-head,.g-cell,.g-ch,.nv-tabs';
+      for (const c of document.querySelectorAll('.btn,.btn2,.vb,.chip,.lr,.nv-row,.nv-tabs>span,.tag,.cu-badge,.a-live,.pillbtn')) {
+        const box = c.parentElement && c.parentElement.closest(CONT); if (!box || getComputedStyle(c).display === 'none') continue;
+        const q = c.getBoundingClientRect(), b = box.getBoundingClientRect(), bs = getComputedStyle(box);
+        const inner = { l: b.left + parseFloat(bs.borderLeftWidth), r: b.right - parseFloat(bs.borderRightWidth), t: b.top + parseFloat(bs.borderTopWidth), b: b.bottom - parseFloat(bs.borderBottomWidth) };
+        const sc = c.classList.contains('f') ? (q.width - c.offsetWidth) / 2 : 0;   // a lifted control may grow past its row by its own lift
+        const out = Math.max(inner.l - q.left - sc, q.right - inner.r - sc, inner.t - q.top - sc, q.bottom - inner.b - sc);
+        if (out > 1) issues.clip.push(`CONTAIN: ${short(c)} "${(c.textContent || '').trim().slice(0, 24)}" pokes ${out.toFixed(0)} px out of ${short(box)}`);
+      }
       // ---- catch-up: SPOILER on shield mocks (scores, remaining time, OT) outside data-other / data-moment
       if (document.querySelector('meta[name="shield"]')) {
         const vis = (e) => { for (let a = e; a && a !== document.body; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return false; } return true; };
@@ -154,10 +171,15 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         const runs = new Map();
         for (let n = walker.nextNode(); n; n = walker.nextNode()) { const host = n.parentElement.closest('[data-other],[data-moment]') ? null : n.parentElement.closest('.plate,.gc,.nb-gt,.x,div,span,b'); if (host && vis(n.parentElement)) runs.set(host, (runs.get(host) || '') + n.textContent); }
         for (const [host, txt0] of runs) {
-          const txt = txt0.replace(/\s+/g, ' ');
+          // dates are not scores (review S6): drop yyyy-mm-dd, dd.mm.yyyy, mm/dd and the like first
+          const txt = txt0.replace(/\s+/g, ' ').replace(/\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b(?=\s|$|·)/g, ' ');
           if (/\b\d{2,3}\s?[-–]\s?\d{2,3}\b/.test(txt)) issues.overlap.push(`SPOILER: a score "${txt.trim().slice(0, 30)}" on a shield mock`);
           if (/[−-]\d{1,2}:\d\d/.test(txt)) issues.overlap.push(`SPOILER: a remaining time "${txt.trim().slice(0, 30)}" on a shield mock`);
-          if (/\bOT\b/.test(txt)) issues.overlap.push(`SPOILER: "OT" on a shield mock`);
+          if (/\bOT\b|\b\dOT\b|overtime/i.test(txt)) issues.overlap.push(`SPOILER: "OT" on a shield mock`);
+          // v1.1 (review M3, M5, S9): the live state while you're behind, an end time, minutes left, a result word
+          if (/\bLive is (in|at)\b|\blive (is )?in (Q\d|OT|half)/i.test(txt)) issues.overlap.push(`SPOILER: the live state "${txt.trim().slice(0, 30)}"`);
+          if (/\bEnds at\b|\b\d+\s?(min|h \d+m) left\b/i.test(txt)) issues.overlap.push(`SPOILER: an end or a time left "${txt.trim().slice(0, 30)}"`);
+          if ((/\bFinal\b(?! buzzer)/.test(txt) || /\b(won|beat|lost to|wins|swept)\b|\b[WL] \d/i.test(txt))) issues.overlap.push(`SPOILER: a result word "${txt.trim().slice(0, 30)}"`);
         }
         // the score plates of a game card: two numbers in separate spans
         for (const pl of document.querySelectorAll('.plate')) { if (pl.closest('[data-other],[data-moment]')) continue; if (pl.querySelectorAll('.score').length >= 2 && [...pl.querySelectorAll('.score')].every((x) => /^\d+$/.test(x.textContent.trim()))) issues.overlap.push('SPOILER: a score plate on a shield mock'); }

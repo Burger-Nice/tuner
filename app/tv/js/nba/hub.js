@@ -132,7 +132,7 @@ export default {
     startNba();
     ensure('live').catch(() => {});
     if (favTeam()) want(`schedule:${favTeam()}`);
-    if (offset === 0) { games = nba.today; loading = !nba.today.length && !nba.err; err = nba.err; draw(); const m = heroGame(); if (m) findFeeds(m); }
+    if (offset === 0) { games = nba.today; loading = !nba.today.length && !nba.err; err = nba.err; draw(); const m = heroGame(); if (m && (m.state === 'in' || (m.state === 'pre' && m.date - Date.now() < 3 * 3600e3))) findFeeds(m); }
     else load(offset);
   },
   leave() {},

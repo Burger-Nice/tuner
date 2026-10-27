@@ -44,7 +44,7 @@
 .cu-srcs .lr .ico svg{width:22px;height:22px}
 .cu-srcs .lr small{font:650 14px/18px var(--a-font-text);color:var(--a-pink-text);flex:none}
 .cu-match{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:100%;background:var(--a-surface-2)}
-.cu-state{width:680px}
+.state.big.cu-state{width:680px}   /* v1.1: .state.big (ui.css) won over .cu-state at 560 */
 .cu-state .row-flex{justify-content:center;gap:20px}
 .cu-state .t-cap{margin-top:14px}
 
@@ -81,3 +81,4 @@
 .seek .bub.cu-up{top:-120px}
 .cu-speed.cu-up{top:-120px}
 .g-cell.now.f-in .prog{left:3px;right:3px;width:auto;bottom:3px}   /* the mocks' copy of app.css's :focus rule */
+.nv-tabs.cu-t{gap:4px}.nv-tabs.cu-t span{padding:0 9px}.nv-tabs.cu-t span.act{padding:0 9px 0 7px}   /* v1.1: four tabs fit 280 dp */
