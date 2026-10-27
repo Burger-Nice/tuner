@@ -155,7 +155,9 @@
 .ad-gives span.dim{color:var(--a-text-2)}
 .ad-spin{animation:ad-spin 900ms linear infinite}
 @keyframes ad-spin{to{transform:rotate(360deg)}}
-.st-side{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:8px;min-width:0;flex:1}
+.st-side{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:8px;min-width:0;flex:0 1 auto;margin-left:6px}
+.st-side .ic{width:18px;height:18px;flex:none}
+.menu.ad-copies .sheet-body{padding:6px 4px!important}
 .d-col .ad-wcap{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
 .d-col .ad-wcap b{color:var(--a-text-1);font-weight:650}
 .lr.ad-two.dim .a,.lr.ad-two.dim .b{color:var(--a-text-3)}

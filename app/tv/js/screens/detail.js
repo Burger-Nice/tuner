@@ -110,7 +110,7 @@ function draw() {
   const cat = catalog[t.kind]?.catName.get(t.cat);
   const eyebrow = [movie ? 'Movie' : 'Series', genres.join(' · ') || (cat ? prettyCat(cat).name : '')].filter(Boolean).join(dot);
   const rating = t._ir ? t._ir.toFixed(1) : d.rating || t.rating;
-  const seasons = d.seasons?.length;
+  const seasons = movie ? 0 : seasonsList().filter((x) => +x.n > 0).length || d.seasons?.length;
   const meta = [rating ? `<span class="star">${ic('star')}${esc(rating)}</span>` : '', d.year || t.year ? `<span>${esc(d.year || t.year)}</span>` : '', movie && d.duration ? `<span>${esc(d.duration)}</span>` : '', !movie && seasons ? `<span>${seasons} season${seasons > 1 ? 's' : ''}</span>` : '']
     .filter(Boolean).join(dot);
   const on = !!tc?.active, best = on && movie ? tc.best() : null;
@@ -165,10 +165,19 @@ function draw() {
   ${t.addon ? `<div class="t-cap" style="margin-top:8px;display:flex;align-items:center;gap:6px">${PUZZLE.replace('class="ic"', 'class="ic xs"')}Not on your provider · details from ${esc(info?.from || 'Cinemeta')}</div>` : ''}
   ${nothing ? `<div class="t-body" style="margin-top:8px;width:640px;color:var(--a-text-2)">${esc(nothing)}</div>` : ''}
   <div class="row-flex" data-row style="gap:20px;margin-top:${movie ? 20 : 16}px;height:44px;padding-left:2px">${play}<span class="btn2 fx" tabindex="-1" data-act="save">${ic(saved ? 'check' : 'saved')}${saved ? 'Saved' : 'Save'}</span>${wcap}${movie ? '' : seriesPill() || `<span class="pillbtn fx" tabindex="-1" data-act="subs">${ic('cc')}Subtitles: ${esc(subLabel())}</span>`}</div>
-  ${movie ? `<div class="row-flex" data-row style="gap:10px;margin-top:12px;height:36px">${pills}</div>` : ''}
+  ${movie ? `<div class="row-flex" data-row style="gap:10px;margin-top:12px;height:36px;width:864px">${pills}</div>` : ''}
 </div>${below}`);
   fitCol(movie);
   placeTracks();
+}
+// A title only add-ons have (SPEC 5.7): its details from the first add-on with meta for its id (4.3)
+async function addonInfo(t) {
+  const m = await AD.meta(t.addon.type || t.kind, t.id);
+  if (!m) return { error: 'No details for this title', seasons: [] };
+  const mins = m.runtime;
+  if (m.genres?.length && !t._genres?.length) t._genres = m.genres;
+  if (m.imdbRating && !t._ir) t._ir = parseFloat(m.imdbRating) || 0;
+  return { plot: m.description, genre: m.genres.join(', '), cast: m.cast.join(', '), director: m.director.join(', '), year: m.year ? String(m.year) : '', duration: mins ? (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`) : '', rating: m.imdbRating, backdrop: m.background || m.poster, seasons: [], from: m.from };
 }
 // A copy's resume point: the provider version's, or (an add-on copy played before) the title's IMDb key (SPEC 8.3)
 function resumePoint() {
@@ -209,7 +218,7 @@ function aboutSheet() {
   const ov = openOverlay(`<div class="sheet about" style="width:520px"><h3 class="clamp2">${esc(t.name)}</h3>${facts ? `<div class="t-cap" style="margin-top:-4px">${facts}</div>` : ''}
     <div class="sheet-body"><div class="inner fx" tabindex="-1" data-col style="outline:none">
       <div class="t-body" style="white-space:pre-line">${esc(d.plot || 'No description from your provider.')}</div>
-      ${part('Genres', genres.join(' · '))}${part('Directed by', d.director)}${part('Cast', d.cast)}
+      ${part('Genres', genres.join(' · '))}${part('Directed by', d.director)}${part('Cast', d.cast)}${tc?.infoLines().length ? part('From add-ons', tc.infoLines().join(' · ')) : ''}
     </div></div><div class="t-cap" data-more style="text-align:right"></div></div>`, {
     focusSel: '.inner',
     onKey: (k) => {
@@ -266,11 +275,27 @@ function placeTracks() {
 }
 
 function play(restart) {
-  if (t.kind === 'movie') return playVod(ver, { restart });
+  if (t.kind === 'movie') {
+    if (tc?.active) { if (tc.waiting()) { tc.stopWait(); return tc.play({ now: true, restart }); } return tc.play({ restart }); }   // (OK during the wait plays the best so far)
+    return playVod(ver, { restart });
+  }
   const r = seriesResume();
-  if (r) playVod(r.ep, { queue: episodes() });
+  if (r) playEpisode(r.ep);
+}
+// An episode: the provider's, or the best copy of it from every source (SPEC 5.8). Not out yet: its date.
+function playEpisode(e) {
+  if (notOut(e)) return toast(`${epName(e) || `Episode ${e.ep}`} isn't out yet`);
+  const row = rowOf.get(e);
+  const rows = episodes().map((x) => rowOf.get(x) || { prov: x, season: x.season, ep: x.ep, name: x.name, vid: null }).filter((x) => !x.soon);
+  if (tc?.active && row) { tc.askEpisode(row); if (tc.playEpisode(row, rows.slice(rows.indexOf(row)))) return; }
+  if (e._row) return toast('No copy of this episode yet. Your add-ons are still looking');
+  playVod(e, { queue: episodes().filter((x) => !x._row) });
 }
 function versionSheet() {
+  if (tc?.active) {
+    const row = t.kind === 'series' ? playRow() : null;
+    return copiesMenu(tc, { title: `Copies of ${t.name}${row ? ` · S${row.season} · E${row.ep}` : ''}`, row, which: row ? 'series' : 'film', onDone: () => { ver = defaultVersion(t); draw(); focus(el.querySelector('[data-act="version"]') || el.querySelector('[data-act="play"]')); } });
+  }
   const vs = [...t.versions];
   radioMenu({
     title: 'Version', value: ver.id, style: 'left:48px;top:150px;width:520px',
@@ -297,10 +322,11 @@ export default {
       const b = e.target.closest('[data-act],[data-season],[data-ep],.wc');
       if (!b || !t) return;
       if (b.dataset.season) { season = b.dataset.season; epFocus = null; draw(); focus(el.querySelector(`[data-season="${CSS.escape(season)}"]`)); return; }
-      if (b.dataset.ep != null) { const s = info.seasons.find((x) => x.n === season); return playVod(s.eps[+b.dataset.ep], { queue: episodes() }); }
+      if (b.dataset.ep != null) { const s = seasonsList().find((x) => x.n === season); return playEpisode(s.eps[+b.dataset.ep]); }
       if (b.classList.contains('wc')) { const x = el._more?.[+b.dataset.i]; if (x) openDetail(x); return; }
       const act = b.dataset.act;
       if (act === 'play') play(false);
+      else if (act === 'again') { tc?.lookAgain(); draw(); focus(el.querySelector('[data-act="wait"]') || el.querySelector('.btn')); }
       else if (act === 'restart') play(true);
       else if (act === 'save') { const on = toggleFav(t); toast(on ? `Saved ${t.name}` : `Removed ${t.name} from Saved`); draw(); focus(el.querySelector('[data-act="save"]')); }
       else if (act === 'version') versionSheet();
@@ -311,31 +337,48 @@ export default {
       placeTracks();
       const ep = e.target.closest('.ep');
       if (ep && info) {
-        const s = info.seasons.find((x) => x.n === season);
+        const s = seasonsList().find((x) => x.n === season);
         epFocus = s.eps[+ep.dataset.ep];
         const syn = el.querySelector('[data-syn]');
-        if (syn) syn.innerHTML = `<b>${epLine(epFocus)}</b>${epFocus.plot ? `${dot}${esc(epFocus.plot)}` : ''}`;
+        if (syn) syn.innerHTML = synLine(epFocus);
+        // an episode's copies are asked for once it has had focus for 1 s (SPEC 5.4)
+        clearTimeout(epT);
+        const row = rowOf.get(epFocus), was = epFocus;
+        if (row?.vid && tc?.active) epT = setTimeout(() => { if (epFocus === was && !el.hidden) { tc.askEpisode(row); } }, 1000);
       }
     });
     on('progress', () => { if (!el.hidden) draw(); });
+    on('copies', () => { if (!el.hidden) draw(); });
   },
+  // Back while Play waits stops the wait (RANKING.md 3.2)
+  back() { if (tc?.waiting()) { tc.stopWait(); draw(); focus(el.querySelector('[data-act="play"]')); return true; } return false; },
+  leave() { tc?.stopWait(); },
   async enter(root, params, { fresh }) {
     if (params.title && (fresh || params.title !== t)) {
-      t = params.title; ver = defaultVersion(t); season = null; epFocus = null;
+      t = params.title; ver = t.versions?.length ? defaultVersion(t) : null; season = null; epFocus = null;
+      tc?.destroy();
+      tc = titleCopies(t, (x, why) => {
+        if (!tc || x !== tc || el.hidden) return;
+        const w = tc.waiting(), b = el.querySelector('[data-act="play"]');
+        if (why === 'tick' && w && b) { b.innerHTML = `${ringSvg(w)}Playing in ${w.left()} s`; return; }
+        if (t.kind === 'movie') ver = t.versions.length ? defaultVersion(t) : null;
+        draw();
+      });
       // Details seen this session are kept (Back through More like this doesn't load each page again, and the router
       // can put focus back on the card you opened).
       const ck = `${t.kind}:${t.id}:${ver?.id || ''}`;
       info = infoCache.get(ck) || null;
       const mine = ++my;
       draw();
-      if (info) return;
+      if (info) { tc.start(info); return; }
       try {
-        const d = t.kind === 'movie' ? await S.src.movieInfo(ver) : await S.src.seriesInfo({ id: t.id, name: t.name, poster: t.poster });
+        const d = t.addon ? await addonInfo(t) : t.kind === 'movie' ? await S.src.movieInfo(ver) : await S.src.seriesInfo({ id: t.id, name: t.name, poster: t.poster });
         if (mine !== my) return;
         info = d;
         infoCache.set(ck, d);
         if (infoCache.size > 30) infoCache.delete(infoCache.keys().next().value);
       } catch (e) { if (mine !== my) return; info = { error: e.message, seasons: [] }; }
+      tc.start(info);
       const inside = root.contains(document.activeElement);
       draw();   // (keeps focus on the same control)
       if (!inside || !root.contains(document.activeElement)) focus(root.querySelector('[data-act="play"]') || root.querySelector('.btn'));

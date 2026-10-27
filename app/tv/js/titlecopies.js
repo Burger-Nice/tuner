@@ -63,13 +63,15 @@ export function titleCopies(t, onChange) {
   tc.asking = () => AD.stillAsking(tc.q);
   tc.answered = () => !!tc.q && !tc.asking().length;
   // ---- words ----
-  tc.pillShows = (n = tc.copies().length) => tc.active && (n >= 2 || (n === 1 && tc.asking().length > 0));
+  // (an Unsure match shows it too: its Copies menu asks "Which film is this?")
+  tc.unsure = () => tc.match?.level === 'unsure' && !tc.match.none && (tc.match.cands || []).length > 0;
+  tc.pillShows = (n = tc.copies().length) => tc.active && (n >= 2 || (n === 1 && (tc.asking().length > 0 || tc.unsure())));
   tc.pillHtml = (best = tc.best(), n = tc.copies().length, suffix = '') => {
     if (!best) return '';
     const k = best.checked, res = (k && k.res) || best.claim.res || '';
-    const word = [res, KIND_SHORT[best.claim.kind] && best.source !== 'provider' ? KIND_SHORT[best.claim.kind] : ''].filter(Boolean).join(' ') || 'Copy';
-    const tail = best.pinned ? ' · your pick' : n > 1 ? ` · best of ${n}` : '';
-    return `${ic('film')}${k ? TICK : ''}<span>${esc(word)} · ${esc(srcName(best))}</span><span class="ad-of">${esc(tail + suffix)}</span>${ic('chevD')}`;
+    const word = [res, KIND_SHORT[best.claim.kind] && best.source !== 'provider' ? KIND_SHORT[best.claim.kind] : ''].filter(Boolean).join(' ');
+    const tail = best.pinned ? ' · your pick' : n > 1 ? ` · best of ${n}` : tc.unsure() && !suffix ? ' · which film is it?' : '';
+    return `${ic('film')}${k ? TICK : ''}<span>${word ? `${esc(word)} · ` : ''}${esc(srcName(best))}</span><span class="ad-of">${esc(tail + suffix)}</span>${ic('chevD')}`;
   };
   tc.slot = () => { const a = tc.asking(); return a.length ? `${SPIN}Still asking ${esc(listNames(a))}` : ''; };
   tc.matchNote = () => (tc.match?.level === 'unsure' && !tc.match.none && tc.match.cands?.length > 1 ? `${tc.match.cands.length} films are called ${esc(t.name)} · which one? (in Copies)` : '');
@@ -84,7 +86,8 @@ export function titleCopies(t, onChange) {
   // 5.9: nothing to play, in one line naming each add-on and why
   tc.nothing = () => {
     if (!tc.q || tc.asking().length || tc.copies().length) return '';
-    const bits = [...tc.q.results.values()].map((r) => r.dropped.torrent ? `${AD.label(r.a)} has it only as a torrent, which airglow doesn't play.` : r.state === 'timeout' || r.state === 'failed' || r.state === 'down' ? `${AD.label(r.a)} isn't answering.` : r.ext.length || r.info.length ? '' : `${AD.label(r.a)} found nothing.`).filter(Boolean);
+    const order = (r) => (r.dropped.torrent ? 0 : r.state === 'timeout' || r.state === 'failed' || r.state === 'down' ? 1 : 2);
+    const bits = [...tc.q.results.values()].sort((a, b) => order(a) - order(b)).map((r) => r.dropped.torrent ? `${AD.label(r.a)} has it only as a torrent, which airglow doesn't play.` : r.state === 'timeout' || r.state === 'failed' || r.state === 'down' ? `${AD.label(r.a)} isn't answering.` : r.ext.length || r.info.length ? '' : `${AD.label(r.a)} found nothing.`).filter(Boolean);
     return `No copy to play. ${bits.join(' ')}`.trim();
   };
   tc.others = () => (tc.q ? [...tc.q.results.values()].flatMap((r) => r.ext) : []);
@@ -116,7 +119,7 @@ export function titleCopies(t, onChange) {
       if (tc.dead) return;
       const b = tc.best(), top4k = b && ((b.checked && b.checked.res) || b.claim.res) === '4K' && (b.lang || '') === (prefLangs()[0] || 'English');
       if (Date.now() >= until || !tc.asking().length || top4k) { tc.stopWait(); playCopy(t, tc.best(), tc, opts); }
-      else changed();
+      else if (!tc.dead) onChange?.(tc, 'tick');   // (only the button's countdown changes)
     }, 250);
     changed();
     return true;
@@ -283,7 +286,7 @@ export function copiesMenu(tc, { title, onDone, row, which }) {
       if (c.source === 'provider') bits.push(`“${esc(c.v?.name || '')}”`);
       return bits.join(' · ');
     };
-    const rowOf = (c, i) => two('copy', c.key, `${c.checked ? TICK : ''}${esc(copyLine(c) || 'Copy')}`, line2(c), i === 0 ? '<span class="tag ad-best">Best</span>' : '', c.failed || c.notReady ? ' dim' : '');
+    const rowOf = (c, i) => two('copy', c.key, `${c.checked ? TICK : ''}${esc(copyLine(c) || 'Quality not known yet')}`, line2(c), i === 0 ? '<span class="tag ad-best">Best</span>' : '', c.failed || c.notReady ? ' dim' : '');
     const good = list.filter((c) => !(c.source !== 'provider' && c.match !== 'sure') || c.failed || c.notReady);
     const maybe = list.filter((c) => c.source !== 'provider' && c.match !== 'sure' && !c.failed && !c.notReady);
     const ends = good.filter((c) => c.failed || c.notReady);
