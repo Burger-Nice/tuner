@@ -183,3 +183,4 @@ input.field[readonly]{caret-color:transparent}
 .hc .tp .cu-crs{display:flex;gap:4px;margin-left:auto}.hc .tp .cu-crs .team{width:24px;height:24px}
 .hc .bt .cu-may{display:flex;align-items:center;gap:6px}.hc .bt .cu-may .ic{width:16px;height:16px;flex:none}
 .cu-noart{display:grid;place-items:center;background:var(--a-surface-2);color:var(--a-text-2)}
+.g-now .ellipsis>.ic.sm{margin-right:6px;vertical-align:-3px}

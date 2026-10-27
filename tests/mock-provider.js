@@ -47,7 +47,7 @@ function table(id, nowMs) {
   const H = 3600e3, from = Math.floor(nowMs / H) * H - 3 * 24 * H - 6 * H, to = from + 4 * 24 * H + 6 * H, out = [];
   const games = (GAMES_ON[id] || []).map(([iso, title]) => [Date.parse(iso), title]);
   const sports = ['SportsCenter', 'NBA Today', 'First Take', 'Around the Horn', 'NBA Gametime', 'College Football Live'];
-  const ruv = ['Kvöldfréttir', 'Coastline', 'Night Circuit', 'Weather for the Week', 'Morning Coffee', 'Kastljós'];
+  const ruv = ['Kastljós', 'Weather for the Week', 'Morning Coffee', 'Landinn', 'Bargain Street', 'The One Show'];
   const desc = { Coastline: 'The cliffs of the far north-west, filmed over a year of storms.', 'Night Circuit': 'A late drive through the city, with music.', Kvöldfréttir: 'The evening news from Iceland and abroad.' };
   for (let t = from; t < to;) {
     const g = games.find(([s]) => s >= t && s < t + H);
