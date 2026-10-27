@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>airglow · on your TV</title>
+<meta name="referrer" content="no-referrer">
+<style>
+:root{--bg:#0C0B12;--s1:#1E1B28;--t1:#F3EFE6;--t2:#D2CEE2;--t3:#C8C4D8;--line:#918BA7;--ink:#14101F;--pink:#F95BAC;--grad:linear-gradient(90deg,#F95BAC,#D540F5)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t1);font:500 16px/22px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:420px;margin:0 auto;padding:20px 18px 32px}
+.bar{font-weight:650;font-size:14px;color:var(--t3);margin-bottom:16px}
+h1{margin:0 0 8px;font:700 24px/30px system-ui,sans-serif}
+p{margin:0 0 14px;color:var(--t2);font-size:15px;line-height:21px}
+.pn{color:var(--t3);font-size:14px;line-height:20px;margin-top:6px}
+input{display:block;width:100%;height:48px;border-radius:10px;border:2px solid var(--line);background:var(--s1);color:var(--t1);padding:0 12px;font:500 16px system-ui,sans-serif;margin-bottom:12px}
+input:focus{outline:none;border-color:var(--pink)}
+input.code{font-size:24px;letter-spacing:.3em;text-align:center}
+button{display:block;width:100%;height:48px;border-radius:999px;border:0;background:var(--grad);color:var(--ink);font:700 17px system-ui,sans-serif;margin-bottom:12px}
+button.two{background:none;border:2px solid var(--line);color:var(--t1)}
+button:disabled{opacity:.5}
+.err{color:#FF8F8F;min-height:20px;font-size:14px;margin:-4px 0 10px}
+[hidden]{display:none!important}
+</style></head><body><main>
+<div class="bar">airglow · on your TV</div>
+
+<section id="code" hidden>
+  <h1>Enter the code on your TV</h1>
+  <p>Your TV shows a 6-digit code under its QR code.</p>
+  <input id="c" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" aria-label="The code on your TV">
+  <div class="err" id="ce"></div>
+  <button id="cb">Next</button>
+  <p class="pn">Works only on your home network.</p>
+</section>
+
+<section id="send" hidden>
+  <h1>Send to your TV</h1>
+  <p>Paste an add-on's link. It usually ends in manifest.json.</p>
+  <input id="u" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…/manifest.json" aria-label="The add-on's link">
+  <div class="err" id="ue"></div>
+  <button id="ub">Send to the TV</button>
+  <p class="pn">Works only on your home network. The TV asks before it adds anything.</p>
+</section>
+
+<section id="sent" hidden>
+  <h1>Sent</h1>
+  <p>Look at your TV. It asks before adding it.</p>
+  <button class="two" id="again">Send another</button>
+  <p class="pn">This page stops working when you close the screen on the TV. To use it again, open Add an add-on.</p>
+</section>
+</main>
+<script>
+(function () {
+  var token = '__TOKEN__';
+  var $ = function (id) { return document.getElementById(id); };
+  function show(id) { ['code', 'send', 'sent'].forEach(function (x) { $(x).hidden = x !== id; }); var f = $(id).querySelector('input'); if (f) f.focus(); }
+  function post(path, body) {
+    return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); })
+      .catch(function () { return { status: 0, error: 'The TV didn’t answer. Is the screen still open on the TV?' }; });
+  }
+  $('cb').onclick = function () {
+    var v = $('c').value.replace(/\s/g, '');
+    if (!/^\d{6}$/.test(v)) { $('ce').textContent = 'The code has 6 digits.'; return; }
+    $('cb').disabled = true;
+    post('/code', { code: v }).then(function (j) {
+      $('cb').disabled = false;
+      if (j.token) { token = j.token; history.replaceState(null, '', '/' + token); show('send'); return; }
+      $('ce').textContent = (j.error || 'That code isn’t right.') + (j.left ? ' ' + j.left + ' tries left.' : '');
+      if (j.status === 423) $('cb').disabled = true;
+    });
+  };
+  $('c').onkeydown = function (e) { if (e.key === 'Enter') $('cb').onclick(); };
+  $('ub').onclick = function () {
+    var v = $('u').value.trim();
+    if (!v) { $('ue').textContent = 'Paste the link first.'; return; }
+    if (v.length >= 2048) { $('ue').textContent = 'That’s too long to be an add-on link.'; return; }
+    $('ub').disabled = true;
+    post('/' + token + '/send', { url: v }).then(function (j) {
+      $('ub').disabled = false;
+      if (j.ok) { $('u').value = ''; $('ue').textContent = ''; show('sent'); return; }
+      $('ue').textContent = j.error || 'That didn’t reach the TV.';
+    });
+  };
+  $('u').onkeydown = function (e) { if (e.key === 'Enter') $('ub').onclick(); };
+  $('again').onclick = function () { show('send'); };
+  show(token ? 'send' : 'code');
+})();
+</script>
+</body></html>

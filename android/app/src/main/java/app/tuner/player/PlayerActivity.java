@@ -193,6 +193,7 @@ public class PlayerActivity extends AppCompatActivity {
     // overlays
     private Overlay open;
     private LinearLayout banner, bNx, hint, zap, chip, card, bug;
+    private TextView chipSay;
     private TextView bNum, bName, bLine, bNext, zName, zNow, chipTitle, chipSub, chipOk, cardTitle, cardSub, toast, digitsView;
     private FrameLayout bLogo, zLogo;
     private LinearLayout bTags;
@@ -362,7 +363,7 @@ public class PlayerActivity extends AppCompatActivity {
                 .setReadTimeoutMs(live ? 12000 : 20000);   // (a weak Wi-Fi link can go quiet for longer than 8 s)
         if (!ua.isEmpty()) http.setUserAgent(ua);
         http.setTransferListener(health);
-        if (!live && !replayMode) { ho = new Handover(this, cur, cur.start > 30 ? cur.start * 1000 : 0); rd.source = cur.addon() ? cur.source : ""; }
+        if (!live && !replayMode) { ho = new Handover(this, cur); rd.source = cur.addon() ? cur.source : ""; }
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
         // Live: starts after 2 s of picture, and after a stall waits for 6 s so the next hiccup doesn't stall it again: a
         // live TS stream arrives at real time, so whatever is banked when it resumes is all the cushion it gets. Keeps a
@@ -727,6 +728,10 @@ public class PlayerActivity extends AppCompatActivity {
         chipSub.setMaxWidth(Ui.dp(240));   // (the kit's chip is 420 at most)
         chc.addView(chipTitle);
         chc.addView(chipSub);
+        chipSay = Ui.line(this, "", 14, Ui.T2, Ui.inter500);   // Up next's source line: "Same source: Northlight 4K"
+        chipSay.setMaxWidth(Ui.dp(240));
+        chipSay.setVisibility(View.GONE);
+        chc.addView(chipSay);
         chip.addView(chc, gapped(new LinearLayout.LayoutParams(-2, -2), 12));
         chipKbd = Ui.kbd(this, "OK");
         chip.addView(chipKbd, gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 6));
@@ -953,6 +958,9 @@ public class PlayerActivity extends AppCompatActivity {
         chipStyle(true, true);
         chipTitle.setText("Next episode in 30 s");
         chipSub.setText(n.sub == null || n.sub.isEmpty() ? n.title : n.sub);
+        String say = ho != null ? ho.upNextSay : "";
+        chipSay.setText(say);
+        chipSay.setVisibility(say.isEmpty() ? View.GONE : View.VISIBLE);
         chipOk.setText("play now");
         chipUp = true;
         chip.setVisibility(View.VISIBLE);
@@ -964,6 +972,7 @@ public class PlayerActivity extends AppCompatActivity {
     private void hideChip() {
         if (!chipUp) return;
         chipUp = false;
+        if (chipSay != null) chipSay.setVisibility(View.GONE);
         chipKind = 0;
         chip.setVisibility(View.GONE);
         handler.removeCallbacks(chipTick);
@@ -1553,6 +1562,8 @@ public class PlayerActivity extends AppCompatActivity {
         Format f = player.getVideoFormat();
         List<ListPanel.Item> items = new ArrayList<>();
         JSONArray vs = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONArray("list") : null;
+        boolean copies = !live && rp == null && ho != null && ho.listsCopies();   // a film's copies from every source (add-ons SPEC 8.5)
+        if (copies) vs = null;
         boolean film = !live && vs != null && versions.optBoolean("film");   // the copies with what their checks found (SPEC 7.7)
         ListPanel.Item now = new ListPanel.Item(f == null || f.height <= 0 ? "Now: starting…" : "Now: " + f.width + " × " + f.height + (film && hdr ? " · " + (f.colorInfo != null && f.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG ? "HDR" : "HDR10") : ""));
         now.sub = film ? null : qualityDetails(f);
@@ -1590,8 +1601,9 @@ public class PlayerActivity extends AppCompatActivity {
                 items.add(radioRow(name, d.isEmpty() ? null : android.text.TextUtils.join(" · ", d), pinned && g.isTrackSelected(i), () -> { setLevel(g, i, false); after(fromOptions); showText("Quality: " + name, 1800); }));
             }
         }
+        if (copies) ho.qualityRows(items, this::closeOverlay);
         // the copies of this film, ranked by the app (RANKING.md): Always the best copy, then each with its checked facts
-        if (film && vs.length() > 1) {
+        else if (film && vs.length() > 1) {
             items.add(ListPanel.Item.heading("Copies of this film"));
             boolean always = versions.optBoolean("always", true);
             String bestId = versions.optString("bestId");
@@ -1629,9 +1641,9 @@ public class PlayerActivity extends AppCompatActivity {
         ListPanel p = new ListPanel(this, "Quality", true, live ? 352 : 384);
         p.source(ListPanel.of(items), Math.max(0, sel));
         while (p.sel < items.size() - 1 && items.get(p.sel).disabled) p.sel++;
-        boolean one = lg.size() <= 1 && (vs == null || vs.length() <= 1);
+        boolean one = !copies && lg.size() <= 1 && (vs == null || vs.length() <= 1);
         p.setFoot(one ? (live ? "Your provider sends this channel in one quality." : "Your provider sends this video in one quality.")
-                : lg.size() > 1 ? "Best available is the default." : "Switching starts the other copy where you are.");
+                : lg.size() > 1 && !copies ? "Best available is the default." : "Switching starts the other copy where you are.");
         if (fromOptions) p.backTo = this::openOptions;
         show(p);
     }
@@ -1824,6 +1836,7 @@ public class PlayerActivity extends AppCompatActivity {
     }
     private boolean quietTry;
     private boolean limitEvidence() {
+        if (cur != null && cur.addon()) return false;   // an add-on has no provider connection limit
         int h = rd.http;
         return h == 458 || h == 509 || ((h == 401 || h == 403) && (rd.limitBody || Diag.closedRecently() || (rd.acct == 1 && rd.max > 0 && rd.active >= rd.max)));
     }
@@ -2617,7 +2630,7 @@ public class PlayerActivity extends AppCompatActivity {
         Uri u = streamUri != null ? streamUri : Uri.parse(cur.url);
         q.host = u.getHost();
         q.port = u.getPort() > 0 ? u.getPort() : "https".equalsIgnoreCase(u.getScheme()) ? 443 : 80;
-        q.api = apiUrl;
+        q.api = cur.addon() ? "" : apiUrl;   // (an add-on copy: no provider account check, PORT-NATIVE.md 2.3)
         q.gateway = rd.gateway;
         q.weak = rd.wifiWeak();
         q.starving = rd.starving();
@@ -2644,6 +2657,8 @@ public class PlayerActivity extends AppCompatActivity {
         Diag.Cause c = Diag.decide(rd, what(), title());
         if (cardUp) applyCause(c);
         else if (!"good".equals(c.id) && (rd.stalled || reconnecting)) cause = c;
+        // a film's copy stalling on a Wi-Fi or internet the checks measured too slow: a copy that fits (PORT-NATIVE.md 2.2)
+        if (!live && rp == null && ho != null && ho.active() && rd.stalled && stallStart > 0 && SystemClock.uptimeMillis() - stallStart >= 12000 && ho.slowStall()) return;
         if (stutterWanted) {
             stutterWanted = false;
             if (chipUp && chipKind == CHIP_TEAM) { waitingStutter = c; waitingStutterAt = SystemClock.uptimeMillis(); }
@@ -3063,6 +3078,7 @@ public class PlayerActivity extends AppCompatActivity {
         e.put("title", c.title);
         e.put("line", c.line);
         e.put("surface", surface);
+        e.put("source", cur != null && cur.addon() ? cur.source : "provider");
         JSObject r = new JSObject();
         r.put("arrival", Math.round(rd.arrival * 10) / 10.0);
         r.put("need", Math.round(rd.need * 10) / 10.0);
@@ -3085,6 +3101,8 @@ public class PlayerActivity extends AppCompatActivity {
                 String d = i.getStringExtra("diag");
                 if (d != null) handler.post(() -> forceDiag(d));
                 // (the emulator test: what the subtitles show now, as an event)
+                // (the emulator test: what the copies are doing; names and keys only, never a link or a header's value)
+                if (i.getStringExtra("addon") != null) handler.post(() -> { JSObject e = event("addon-state"); e.put("state", ho == null ? "none" : ho.describe()); TunerPlayerPlugin.emit(e); });
                 if (i.getStringExtra("subs") != null) handler.post(() -> { JSObject e = event("subs-state"); e.put("state", subs == null ? "none" : subs.describe()); e.put("strip", subs == null ? "" : subs.stripState()); e.put("text", subs == null ? "" : subs.lastText()); e.put("shown", subs == null ? 0 : subs.drawer.shownCount); e.put("last", subs == null ? "" : subs.drawer.lastShown); e.put("mine", subs == null ? 0 : subs.offsetNow()); TunerPlayerPlugin.emit(e); });
             }
         };
@@ -3162,6 +3180,54 @@ public class PlayerActivity extends AppCompatActivity {
             case "decoder": f.decoder = 1; f.height = 2160; break;
             case "broken": f.decoder = 2; break;
         }
+    }
+
+    // ---------- a film's copies (Handover: design/ui-v1/addons/PORT-NATIVE.md 2 to 4) ----------
+    Entry entryNow() { return cur; }
+    long durationMs() { return player == null ? C.TIME_UNSET : player.getDuration(); }
+    long positionMs() { return player == null ? 0 : player.getCurrentPosition(); }
+    boolean hasNext() { return player != null && player.hasNextMediaItem(); }
+    void pausePlayer() { if (player != null) player.pause(); }
+    /** Once more from where it stopped (after the player's own retries), before handing over. */
+    void retryHere() { if (player == null) return; player.prepare(); player.play(); }
+    /** The stream this TV has goes first, so the next copy (maybe the same provider account) isn't refused. */
+    void releasePlayback() { if (player == null) return; if (played) Diag.closedAt = SystemClock.elapsedRealtime(); player.stop(); }
+    void hideDiagCard() { hideCard(false); if (puck != null) puck.setVisibility(View.GONE); }
+    String causeId() { return cause == null ? null : cause.id; }
+    /** What the diagnosis last measured the Wi-Fi or internet at (Mb/s), or 0. */
+    double measuredMbps() { double c = rd.speedState == 1 ? rd.capacity() : -1; return c > 0 ? c : 0; }
+    /** Another copy of what's playing, at posMs: same place in the ring, its own source (and headers). */
+    void switchCopy(Entry e, long posMs) {
+        if (player == null || cur == null || isFinishing()) return;
+        int i = Math.max(0, Math.min(ring.size() - 1, index));
+        if (e.title.isEmpty()) e.title = cur.title;
+        if (e.sub.isEmpty()) e.sub = cur.sub;
+        e.start = 0;
+        if (played) Diag.closedAt = SystemClock.elapsedRealtime();
+        ring.set(i, e);
+        cur = e;
+        rd.source = e.addon() ? e.source : "";
+        resetDiag();
+        played = false; error = null; quality = ""; hdr = false; retries = 0;
+        player.setMediaSources(sources(ring), i, Math.max(0, posMs));
+        player.prepare();
+        player.play();
+        vod.setItem(cur, i < ring.size() - 1);
+        vod.show();
+        TunerPlayerPlugin.emit(event("track"));
+    }
+    /** Up next for an add-on episode (need: next → queue-next {entry, same, say}). */
+    private void queueNext(JSONObject o) {
+        if (live || player == null || vod == null) return;
+        JSONObject ej = o.optJSONObject("entry");
+        if (ej == null) return;
+        Entry e;
+        try { e = Entry.from(ej); } catch (Exception x) { return; }
+        if (index + 1 < ring.size()) return;   // (something is queued already)
+        ring.add(e);
+        player.addMediaSource(source(e));
+        if (ho != null) ho.upNextSay = o.optString("say", "");
+        vod.setItem(cur, true);
     }
 
     FrameLayout rootView() { return root; }

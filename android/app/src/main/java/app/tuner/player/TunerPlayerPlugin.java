@@ -91,6 +91,7 @@ public class TunerPlayerPlugin extends Plugin {
     @Override
     protected void handleOnDestroy() {
         synchronized (uiIds) { if (ui != null) { ui.release(); ui = null; uiIds.clear(); uiReady.clear(); } }
+        PhonePage.stop();
         super.handleOnDestroy();
     }
 
@@ -124,6 +125,13 @@ public class TunerPlayerPlugin extends Plugin {
         // player (the subs command): design/ui-v1/subtitles/PORT-NATIVE.md 0.
         r.put("probe", true);
         r.put("subs", 1);
+        // Add-ons (design/ui-v1/addons/PORT-NATIVE.md 0): the entry fields and the copy messages, the home-network phone
+        // page, the safe launcher for another app's link, and the TV's own region for countryWhitelist
+        r.put("addons", true);
+        r.put("phonePage", true);
+        r.put("openApp", true);
+        String region = java.util.Locale.getDefault().getCountry();
+        if (region != null && region.matches("[A-Za-z]{2,3}")) r.put("region", region);
         // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).
         try { r.put("systemSounds", Settings.System.getInt(getContext().getContentResolver(), Settings.System.SOUND_EFFECTS_ENABLED, 1) == 1); } catch (Exception ignored) {}
         try {
@@ -241,7 +249,7 @@ public class TunerPlayerPlugin extends Plugin {
             String arg = args.length() > 1 ? args.optString(1, "") : "";
             if (p != null && p.session() == session) p.runOnUiThread(() -> p.command(what, arg));
             // The player is still starting (play() answers right after asking for it): keep what it must not miss.
-            else if (PlayerActivity.launching && ("queue".equals(what) || "subs".equals(what) || "versions".equals(what))) synchronized (early) { early.add(new String[] { what, arg }); }
+            else if (PlayerActivity.launching && ("queue".equals(what) || "subs".equals(what) || "versions".equals(what) || "queue-next".equals(what))) synchronized (early) { early.add(new String[] { what, arg }); }
         }
         call.resolve();
     }
@@ -399,6 +407,42 @@ public class TunerPlayerPlugin extends Plugin {
             r.put("code", -1);
         } finally { if (c != null) c.disconnect(); }
         return r;
+    }
+
+    // ---------- Send a link from your phone (design/ui-v1/addons/PORT-NATIVE.md 5) ----------
+    /** Starts the page on the TV's home-network address (or swaps its code): { address: "192.168.1.23:8790" }. */
+    @PluginMethod
+    public void startPhonePage(PluginCall call) {
+        String token = call.getString("token", ""), code = call.getString("code", "");
+        Integer port = call.getInt("port", 8790);
+        Context ctx = getContext();
+        new Thread(() -> {
+            try {
+                String address = PhonePage.start(ctx, token, code, port == null ? 8790 : port, (e) -> notifyListeners("phone", e));
+                JSObject r = new JSObject();
+                r.put("address", address);
+                call.resolve(r);
+            } catch (Exception e) { call.reject("The TV couldn't open its page."); }
+        }).start();
+    }
+    @PluginMethod
+    public void stopPhonePage(PluginCall call) { PhonePage.stop(); call.resolve(); }
+
+    // ---------- Watch in another app, trailers (design/ui-v1/addons/SPEC.md 5.6, PORT-NATIVE.md 6) ----------
+    /** Opens another app's link the way Chrome treats an untrusted intent: { ok } (false when nothing on the TV takes it). */
+    @PluginMethod
+    public void openApp(PluginCall call) {
+        Intent i = Launch.safeIntent(call.getString("uri", ""), getContext().getPackageName());
+        JSObject r = new JSObject();
+        if (i == null) { r.put("ok", false); r.put("why", "refused"); call.resolve(r); return; }
+        try {
+            if (getActivity() != null) getActivity().startActivity(i); else { i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); getContext().startActivity(i); }
+            r.put("ok", true);
+        } catch (Exception e) {   // ActivityNotFoundException (the app isn't on this TV), SecurityException
+            r.put("ok", false);
+            r.put("why", "missing");
+        }
+        call.resolve(r);
     }
 
     /** Downloads a new airglow APK and hands it to Android's installer. */

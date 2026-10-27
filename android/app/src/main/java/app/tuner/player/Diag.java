@@ -91,6 +91,9 @@ final class Diag {
         int decoder;                               // 1 the TV can't play it, 2 damaged at the source
         int height; float fps;
         int pauses5m;
+        // an add-on copy (design/ui-v1/addons/PORT-NATIVE.md 2.3): the add-on's name, "" for the provider. Its causes
+        // name the add-on, and the provider account's causes (the stream limit, an ended account) don't apply
+        String source = "";
 
         boolean wifiWeak() { return wifi && ((bars > 0 && bars <= 2) || (link > 0 && need > 0 && link < 2 * need)); }
         boolean starving() { return stalled ? refill < 0.8 : arrival >= 0 && need > 0 && ahead < 10 && arrival < 0.9 * need; }
@@ -176,6 +179,11 @@ final class Diag {
         }
         // the status rows: the far side answered
         int h = r.http;
+        String S = r.source == null ? "" : r.source;
+        if (!S.isEmpty()) {
+            Cause a = addonStatus(r, S, h, what);
+            if (a != null) return fin(a, r, what);
+        }
         if (h == 401 || h == 403 || h == 458 || h == 509) {
             if (h <= 403 && r.acct == 1 && (!r.active() || r.expired())) {
                 c = new Cause("ended");
@@ -372,6 +380,47 @@ final class Diag {
         c.verdict = "Checking…"; c.brief = "Something isn't answering"; c.chip = "Something on the way isn't answering";
         return fin(c, r, what);
     }
+    /** An add-on copy's answer: no account, no stream limit; the add-on by name (PORT-NATIVE.md 2.3). */
+    private static Cause addonStatus(Readings r, String S, int h, String what) {
+        Cause c = null;
+        if (h == 401 || h == 403 || h == 429 || h == 458 || h == 509) {
+            c = new Cause("refused");
+            c.title = S + " refused this copy";
+            c.line = "Its link may have expired, or it wants your account again. Another copy may play.";
+            c.path.nodes(OK, OK, OK, OK, BAD).links(L_OK, L_OK, L_OK, L_CUT).read(CH, "Refused");
+            c.actions = new String[] { "retry" };
+            c.certain = true; c.verdict = "Add-on"; c.brief = S + " refused it";
+        } else if (h == 404 || h == 410) {
+            c = new Cause("off");
+            c.title = S + " no longer has this copy";
+            c.line = "Its server answered, but sends nothing for this " + what + ".";
+            c.path.nodes(OK, OK, OK, OK, BAD).links(L_OK, L_OK, L_OK, L_CUT).read(CH, "Nothing sent");
+            c.actions = new String[] { "retry" };
+            c.certain = true; c.spin = false; c.verdict = "Add-on"; c.brief = S + " doesn't have it";
+        } else if (h >= 500 && h < 600) {
+            c = new Cause("server-error");
+            c.title = S + "'s server has a problem";
+            c.line = "It answered with an error. airglow keeps trying.";
+            c.path.nodes(OK, OK, OK, BAD, OFF).links(L_OK, L_OK, L_OK, L_OFF).read(PROV, "Error");
+            c.actions = new String[] { "retry" };
+            c.certain = true; c.verdict = "Add-on"; c.brief = S + " has a problem";
+        }
+        return c;
+    }
+    /** An add-on copy: the provider's words become the add-on's (its server, its name on the path). */
+    private static Cause addonWords(Cause c, Readings r, String what) {
+        String S = r.source;
+        switch (c.id) {
+            case "not-found": c.title = "Your internet can't find " + S; c.line = "Its address doesn't work from here. Your internet company may block it."; c.brief = S + " can't be found"; c.verdict = "Add-on"; break;
+            case "provider-down": c.title = S + " isn't answering"; c.line = "Your internet works. Its server doesn't answer."; c.brief = S + " isn't answering"; c.verdict = "Add-on"; break;
+            case "provider-slow": c.title = S + " is slow with this copy"; c.line = "Your Wi-Fi and internet are fine. It's its server, or the way to it."; c.brief = S + " is slow"; c.chip = S + " is slow with it"; break;
+            case "moment": c.line = "Your internet and " + S + " look fine. Reconnecting."; c.chip = S + "'s stream is uneven"; break;
+            case "unknown": c.title = "Something between this TV and " + S + " isn't answering"; break;
+            case "checking": c.line = "Checking your " + (r.cable ? "connection" : "Wi-Fi") + ", internet and " + S + "…"; break;
+            case "good": c.chip = S + "'s stream is uneven"; break;
+        }
+        return c;
+    }
     /** Playing, and nothing says otherwise. */
     static Cause good(Readings r, String what) {
         Cause c = new Cause("good");
@@ -401,6 +450,7 @@ final class Diag {
     private static void netNode(Cause c, Readings r, int st, String reading) { c.path.node[NET] = st; c.path.reading[NET] = reading; }
     private static Cause fin(Cause c, Readings r, String what) {
         if (r.cable) { c.path.label[NET] = "Cable"; c.path.icon[NET] = "cable"; }
+        if (r.source != null && !r.source.isEmpty()) { c.path.label[PROV] = r.source.length() > 12 ? "Add-on" : r.source; addonWords(c, r, what); }
         if (!"channel".equals(what)) c.path.label[CH] = "movie".equals(what) ? "Movie" : "Episode";
         if (c.chip.isEmpty()) c.chip = c.brief;
         return c;

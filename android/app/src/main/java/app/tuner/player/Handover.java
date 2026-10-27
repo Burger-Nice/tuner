@@ -52,9 +52,8 @@ final class Handover {
     // Up next (an add-on episode): the card's line from the app
     String upNextSay = "";
 
-    Handover(PlayerActivity a, PlayerActivity.Entry first, long startMs) {
+    Handover(PlayerActivity a, PlayerActivity.Entry first) {
         this.a = a;
-        this.startMs = startMs;
         reset(first);
     }
 
@@ -65,6 +64,7 @@ final class Handover {
         auto = 0;
         chosen = false;
         if (e == null) return;
+        startMs = e.start > 30 ? e.start * 1000 : 0;
         if (!e.copyKey.isEmpty()) chain.add(identity(e));
         JSONArray cs = e.copies;
         for (int i = 0; cs != null && i < cs.length(); i++) {
@@ -91,6 +91,8 @@ final class Handover {
     /** There are copies to hand over to, or the not-ready rule applies (an add-on copy). */
     boolean active() { PlayerActivity.Entry e = a.entryNow(); return chain.size() > 1 || (e != null && e.addon()); }
     boolean hasOthers() { return !left().isEmpty(); }
+    /** Quality lists the copies (not the provider's versions) once there is more than one. */
+    boolean listsCopies() { return chain.size() > 1; }
     boolean notReady() { return notReady; }
     /** Progress is saved only for a copy that isn't a placeholder, once that's decided (PORT-NATIVE.md 2.2). */
     boolean progressAllowed() { PlayerActivity.Entry e = a.entryNow(); return e == null || !e.addon() || (decided && !notReady); }
@@ -269,7 +271,7 @@ final class Handover {
         if (ready.label.isEmpty()) ready.label = labelOf(key);
         waitKey = null;
         // a speed answer: the card names the copy now
-        if (card != null && cardNext != null && cardNext.getText().length() == 0) fillNext(ready);
+        if (card != null && cardNext != null && nextLabel.isEmpty()) fillNext(ready);
         Runnable r = onLink;
         if (r != null && card == null) { onLink = null; r.run(); }
         else if (r != null && cardDue) { onLink = null; r.run(); }
