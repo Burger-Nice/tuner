@@ -14,10 +14,18 @@ per copy, add-ons (Stremio protocol, direct links only).
 
 ## Left from the built features
 
-- **Catch-up:** pause / rewind on live turning into the programme's replay, "Try a replay" on a failed channel, the
-  "expired" caption on a replay past the archive's days (`design/ui-v1/catchup/SPEC.md`).
-- **Subtitles:** subtitle add-ons other than OpenSubtitles are fetched but not listed in the Subtitles sheet.
-- **Add-ons:** what `design/ui-v1/addons/SPEC.md` marks for later. Torrents stay out (direct links only).
+- **Catch-up:** pause / rewind on live turning into the programme's replay, "Try a replay" on a failed channel and in
+  Account > Provider, Check the guide's Replays line per kept channel, the "expired" caption on a replay past the
+  archive's days (`design/ui-v1/catchup/SPEC.md`). After a matched re-air, the next
+  programme shows its real start, not `·` (S3).
+- **Subtitles:** subtitle add-ons other than OpenSubtitles are fetched but not listed in the Subtitles sheet. RANKING.md
+  4.3's series rules: "This episode's length is unusual for this series" (`episodeNote` unused) and a series made Sure by
+  its episodes' lengths (`imdb.js` never passes `epLens`).
+- **Add-ons:** what `design/ui-v1/addons/SPEC.md` marks for later. Torrents stay out (direct links only). From bug hunt 2:
+  Up next after an add-on episode resumed from Continue watching (`resumeAddonItem` has no rows); Home asking ahead for
+  the first Continue watching add-on card (SPEC 5.4); the setup card without a Stremio sign-in (the phone page has no
+  paste-the-setup state, SPEC 3.5/3.7); Search's "4K from Northlight" on a provider title (SPEC 6); "Only titles your
+  provider has" counting add-ons that give no copies (S10); Back from the Add-ons list landing on the avatar (SPEC 2.2).
 - **Out of scope for now:** VOD "Pause and load ahead".
 
 ## Next features

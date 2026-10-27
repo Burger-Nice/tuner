@@ -11,7 +11,7 @@ import { playLive, playVod, watching } from '../player.js';
 import { push, current } from '../router.js';
 import { focus } from '../focus.js';
 import { openDetail, playMasked } from '../actions.js';
-import { videoMask } from '../catchup.js';
+import { videoMask, programmeView } from '../catchup.js';
 import { ringFor, ringName } from './home.js';
 import * as AD from '../addons.js';
 import { providerByImdb } from '../imdb.js';
@@ -87,7 +87,7 @@ function results() {
   if (top) html += `<div class="t-label" style="margin-bottom:8px">Top result</div><div class="rrow fx" tabindex="-1" data-res="${top.kind === 'movie' ? 'p' : 't'}:${top.kind}:${top.id}" style="height:84px"><div class="mini2"><div class="art">${top.poster ? `<img src="${esc(sized(top.poster, 154))}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
   if (onTv.length || chans.length) {
     html += '<div class="t-label" style="margin:14px 0 8px">On TV</div>';
-    html += onTv.slice(0, 2).map(({ ch, p }) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(p.title)}</div><div class="t-cap ellipsis">${esc(ch.name)}${dot}${hm(p.start)} to ${hm(p.end)}</div></div></div>`).join('');
+    html += onTv.slice(0, 2).map(({ ch, p }) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(programmeView(ch, p).title)}</div><div class="t-cap ellipsis">${esc(ch.name)}${dot}${hm(p.start)} to ${hm(p.end)}</div></div></div>`).join('');
     html += chans.filter((c) => !onTv.some((o) => o.ch === c)).slice(0, 2).map((ch) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(ch.name)}</div><div class="t-cap">Channel ${ch.num}</div></div></div>`).join('');
   }
   if (rest.length) html += `<div class="t-label" style="margin:14px 0 8px">Movies and series</div>${(adb ? rest.slice(0, 2) : rest).map((t) => `<div class="rrow fx" tabindex="-1" data-res="t:${t.kind}:${t.id}">${mini(t)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(t.name)}</div><div class="t-cap">${t.kind === 'movie' ? 'Movie' : 'Series'}${t.year ? dot + esc(t.year) : ''}${t._genres?.[0] ? dot + esc(t._genres[0]) : ''}</div></div></div>`).join('')}`;
@@ -126,7 +126,7 @@ function remember() {
 }
 function openRes(v) {
   remember();
-  const [kind, a, b] = v.split(':');
+  const [kind, a, ...r] = v.split(':'), b = r.join(':');   // (an add-on's ids can hold a colon: kitsu:…, tmdb:…)
   if (kind === 'c') { const ch = catalog.live?.byId.get(a); if (ch) playLive(ch, ringFor(ch), ringName(ch)); return; }
   if (kind === 'a') { const m = ads?.items.find((x) => x.id === b); if (m) openDetail(adTitle(m)); return; }
   const t = catalog[a]?.titleById?.get(b) || catalog[a]?.titles?.find((x) => x.id === b);

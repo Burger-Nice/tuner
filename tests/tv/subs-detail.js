@@ -21,7 +21,9 @@ module.exports = async ({ p, shot, key }) => {
   let pl = await pills();
   check('checking: Checking copies · n of 4 (dashed)', /^Checking copies · [1-4] of 4$/.test(pl[0]) && await ev((D) => document.querySelector(`${D} [data-act="version"]`).classList.contains('st-wait'), D), pl[0]);
   check('checking: the slot', /Checking what each copy really is/.test(await slot()), await slot());
-  check('checking: tags dashed, no tick', (await tags()).every((t) => /^(ad-name|tag):/.test(t) && !t.includes('✓')), (await tags()).join(' '));
+  // (the copy Play plays is checked first: once its check is in, its tags are ticked while the others are still checked)
+  const tg = await tags();
+  check('checking: tags dashed with no tick, or the best copy\'s ticked once checked', tg.every((t) => /^(ad-name|tag):/.test(t) && !t.includes('✓')) || tg.filter((t) => /^ad-ok:/.test(t)).every((t) => t.includes('✓')), tg.join(' '));
   await ok(p, 'Play focused', 'play');
   for (let i = 0; i < 40 && (await ev(() => window.__probeLog.length)) < 4; i++) await p.waitForTimeout(250);
   await p.waitForTimeout(2500);

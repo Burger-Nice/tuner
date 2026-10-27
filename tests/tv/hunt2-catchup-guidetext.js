@@ -61,6 +61,10 @@ module.exports = async (ctx) => {
   await shot('saved-channels');
   await ev(() => window.__tunerTest.go('home')); await p.waitForTimeout(3500);
   report('Home On now', await ev(() => [...document.querySelectorAll('[data-screen="home"] .hc')].map((r) => r.innerText.replace(/\s+/g, ' ')).join(' | ')));
+  // Search › On TV (a programme on now whose title matches)
+  await ev(() => window.__tunerTest.go('search')); await p.waitForTimeout(1200); await p.keyboard.type(process.env.SEARCHQ || 'sportscenter', { delay: 80 }); await p.waitForTimeout(2500);
+  report('Search › On TV', await ev(() => document.querySelector('[data-screen="search"] [data-right]')?.innerText.replace(/\s+/g, ' ')));
+  await shot('search-ontv');
   // no team, All games: the last-channel hero on ESPN
   await setup(ctx, { shield: 'all', team: 'none' });
   await ev(async () => { const s = await import('./tv/js/state.js'); s.store.set(s.scoped('lastLive'), '1001'); });

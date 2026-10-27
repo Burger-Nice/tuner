@@ -20,10 +20,11 @@ export const mySide = (g) => (g.home.abbr === favTeam() ? g.home : g.away);
 export const gameById = (id) => nba.today.find((g) => g.id === id) || [...nba.other.values()].flat().find((g) => g.id === id)
   || peekAll('schedule:').map(([, d]) => (d.games || []).find((g) => g.id === id)).find(Boolean) || null;   // (a team page's schedule)
 export const myGame = () => nba.today.find(isMine) || null;
-export const liveGames = () => nba.today.filter((g) => g.state === 'in');
+// (a game you're behind in stays live by the clock, 7.2: the real game ending says nothing yet)
+export const liveGames = () => nba.today.filter((g) => g.state === 'in' || heldLive(g));
 export const ordinal = (n) => (n <= 4 ? `Q${n}` : n === 5 ? 'OT' : `${n - 4}OT`);
-// (a hidden game in overtime reads 'Live': "OT" would say it was tied)
-export const clockText = (g) => (g.state === 'in' ? (g.period > 4 && hidden(g) ? 'Live' : /half/i.test(g.detail) ? 'Halftime' : /end of/i.test(g.detail) ? `End ${ordinal(g.period)}` : `${ordinal(g.period)} ${g.clock}`) : g.state === 'post' ? 'Final' : '');
+// (a hidden game in overtime, or at the end of the 4th still live, reads 'Live': both would say it was tied)
+export const clockText = (g) => (g.state === 'in' ? ((g.period > 4 || (g.period === 4 && (/end of/i.test(g.detail) || g.clock === '0:00' || g.clock === '0.0'))) && hidden(g) ? 'Live' : /half/i.test(g.detail) ? 'Halftime' : /end of/i.test(g.detail) ? `End ${ordinal(g.period)}` : `${ordinal(g.period)} ${g.clock}`) : g.state === 'post' ? 'Final' : '');
 
 function sortGames(list) {
   const rank = (g) => (isMine(g) ? 0 : g.state === 'in' || heldLive(g) ? 1 : g.state === 'pre' ? 2 : 3);
@@ -643,7 +644,7 @@ export function chapterAt(gameId, wallclock) {
 // archiveShift: whole hours per channel (Not the game?, the first-replay check), '_' the account default (catch-up 3.5).
 const shiftKey = () => scoped('archiveShift');
 export const archiveShift = (chId) => { const m = store.get(shiftKey(), {}); return m[chId] ?? m._ ?? 0; };
-export const shiftKnown = () => store.get(shiftKey(), {})._ != null;
+export const shiftKnown = () => { const m = store.get(shiftKey(), {}); return m._ != null || !!m._asked; };   // (_asked: Not sure or a second No; the check isn't shown again)
 export function setArchiveShift(chId, hours) { const m = store.get(shiftKey(), {}); m[chId || '_'] = hours; store.set(shiftKey(), m); }
 // replayDelay: seconds the archive runs behind ESPN's clock on a channel (starts at the live delay − 20 s: no client lag).
 const rdKey = () => scoped('replayDelay');

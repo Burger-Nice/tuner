@@ -34,7 +34,7 @@ async function run(t, info) {
   if (fresh && !len) return { ...old, meta: old.id ? await meta(kind, old.id) : null };
   const year = +t.year || 0;
   const tmdb = +(info.tmdb || t.versions?.find((v) => v.tmdb)?.tmdb || 0);
-  let out;
+  let out, missed = false;   // (missed: Cinemeta gave no details for a candidate: maybe a blip, so a weaker answer isn't kept)
   // 1. the provider's own tt id
   if (info.imdb) out = { id: info.imdb, level: 'sure', via: 'provider' };
   // 2. the ratings file, rows counted per key
@@ -44,12 +44,14 @@ async function run(t, info) {
   if (!out && tmdb && rows.length) {
     for (const r of [...near, ...rows.filter((x) => !near.includes(x))].slice(0, 3)) {
       const m = await meta(kind, r.id);
+      if (!m) missed = true;
       if (m?.moviedb && m.moviedb === tmdb) { out = { id: r.id, level: 'sure', via: 'tmdb', meta: m }; break; }
     }
   }
   if (!out && rows.length) {
     const one = near.length === 1 ? near[0] : null;
     const m = one ? await meta(kind, one.id) : null;
+    if (one && !m) missed = true;
     const level = matchLevel({ cand: rows, year, kind, len, runtime: m?.runtime || 0 });
     out = { id: level === 'unsure' ? '' : one.id, level, via: 'ratings', meta: m, cands: near.length > 1 ? near : rows.slice(0, 6) };
   }
@@ -92,7 +94,7 @@ async function run(t, info) {
     if (m && ((tmdb && m.moviedb === tmdb) || (info.tvdb && m.tvdb === +info.tvdb))) out = { ...out, level: 'sure', via: tmdb && m.moviedb === tmdb ? 'tmdb' : 'tvdb', meta: m };
   }
   if (out.id && !out.meta) out.meta = await meta(kind, out.id);
-  if (out.via !== 'offline') save(t, { id: out.id, level: out.level, via: out.via });
+  if (out.via !== 'offline' && !(missed && out.level !== 'sure')) save(t, { id: out.id, level: out.level, via: out.via });
   return out;
 }
 // His answer from "Which film is this?" (subtitles 4.5, shared): a pick is Sure for this title from now on; None of

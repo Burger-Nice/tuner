@@ -269,7 +269,7 @@ export async function prepare(req, { again = false } = {}) {
   const others = [...new Set(files.filter((f) => !f.dropped && f.lang && !prefs.langs.includes(f.lang)).map((f) => f.lang))];
   unfail();
   const anyMine = choice.perLang.some((p) => p.source);
-  const st = put(finish({ ...base, files: [...got.values()], others, choice, status: anyMine ? 'ready' : 'none', retryAt: list.ok ? 0 : list.retryAt || 0, down: !list.ok }));
+  const st = put(finish({ ...base, files: [...got.values()], others, choice, status: anyMine ? 'ready' : 'none', retryAt: !list.ok ? list.retryAt || 0 : down ? Date.now() + 120e3 : 0, down: !list.ok }));   // (some downloads failed: those are tried again in 2 min)
   retryLater(st);
   return st;
 }

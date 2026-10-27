@@ -209,7 +209,7 @@ export function addonItem(t, c, tc, row) {
   const it = {
     kind: ep ? 'episode' : 'movie', id, name: ep ? row.name || `Episode ${row.ep}` : t.name, _title: t.name, poster: t.poster || tc.meta?.poster || '', year: t.year || '',
     ...(ep ? { season: row.season, ep: row.ep, seriesId: t.id, seriesName: t.name, imdbSeries: tc.match?.id } : {}),
-    copy: { source: c.source, addonKey: c.addonKey, key: c.key, binge: c.binge, filename: c.filename, size: c.size, title: t.name, kind: t.kind, tkey: t.key, tid: t.id },
+    copy: { source: c.source, addonKey: c.addonKey, key: c.key, binge: c.binge, filename: c.filename, size: c.size, title: t.name, kind: t.kind, tkey: t.key, tid: t.id, runtime: ep ? (c.providerLenSec || 0) : (tc.meta?.runtime || 0) * 60 },
   };
   const runtime = ep ? (c.providerLenSec || 0) : (tc.meta?.runtime || 0) * 60;
   const entry = { headers: c.headers || null, mime: mimeOf(c), source: c.source, sourceKind: 'addon', key: id, binge: c.binge || '', runtime, copyKey: c.key, label: copyLine(c) };
@@ -242,18 +242,28 @@ export async function resumeAddonItem(it, { restart } = {}) {
   const cp = it.copy;
   const q = AD.askStreams(it.kind === 'episode' ? 'series' : 'movie', it.id, { match: 'sure' });
   toast('Asking your add-ons for this copy…');
-  await q.done;
-  const all = rank(AD.copiesOf(q).map((c) => Object.assign(c, { match: 'sure' })), { langs: prefLangs() });
-  const same = all.find((c) => c.key === cp.key) || all.find((c) => cp.binge && c.binge === cp.binge) || all[0];
+  // the copy he was watching, as soon as its add-on answers (not the slowest one); else every answer
+  await new Promise((res) => {
+    const has = () => AD.copiesOf(q).some((c) => c.key === cp.key && !c.claim.notReady);
+    const off = q.on(() => { if (has()) { off(); res(); } });
+    if (has()) { off(); res(); }
+    q.done.then(() => { off(); res(); });
+  });
+  // (a copy whose name now says it's being downloaded, the debrid cache gone, isn't the same copy any more: 8.2)
+  const all = rank(AD.copiesOf(q).map((c) => Object.assign(c, { match: 'sure', notReady: c.claim.notReady, providerLenSec: cp.runtime || 0 })), { langs: prefLangs() });
+  const ready = all.filter((c) => !c.notReady);
+  const same = ready.find((c) => c.key === cp.key) || ready.find((c) => cp.binge && c.binge === cp.binge) || ready[0] || all[0];
   if (!same) { toast('None of your add-ons has a copy of this right now', 4000); return; }
   const t = { kind: cp.kind || 'movie', key: cp.tkey || it.id, id: cp.tid || it.id, name: cp.title || it._title || it.name, poster: it.poster, year: it.year, versions: [] };
-  const tc = { match: { id: it.kind === 'episode' ? it.imdbSeries : it.id, level: 'sure' }, meta: null, episodeCopies: () => all, copies: () => all };
+  const tc = { match: { id: it.kind === 'episode' ? it.imdbSeries : it.id, level: 'sure' }, meta: cp.runtime ? { runtime: cp.runtime / 60 } : null, episodeCopies: () => all, copies: () => all };   // (its runtime: the placeholder rule)
   const row = it.kind === 'episode' ? { vid: { id: it.id }, season: it.season, ep: it.ep, name: it.name } : null;
   const item = addonItem(t, same, tc, row);
   item._entry.copies = identities(all.filter((c) => c !== same));
   if (same.key !== cp.key) toast(`That copy has gone · playing ${copyLine(same)} · ${same.source}`, 4000);
   lastPlay = { tc, list: all, t, row, item, playing: same.key };
-  playVod(item, { restart });
+  // another copy: 10 s earlier, so nothing is missed where the cuts differ (8.3)
+  const p = progressOf(item);
+  playVod(item, { restart, entry: same.key !== cp.key && !restart && inProgress(p) ? { ...item._entry, startAt: Math.max(0, p.t - 10) } : undefined });
 }
 
 // What the player asks for (PORT-NATIVE.md): need: copy (the link for a hand-over), copy-failed (band e for this
@@ -267,7 +277,11 @@ native?.player.onEvent((e) => {
       : rank(lastPlay.list.filter((y) => y.key !== lastPlay.playing && !failed.has(y.key)), { langs: prefLangs(), runtime: (lastPlay.tc.meta?.runtime || 0) * 60, speedMbps: +e.speedMbps || 0 })[0];
     if (!x) { playerCommand('copy', { key: e.key, error: 'gone' }); return; }
     lastPlay.playing = x.key;
-    if (x.source === 'provider') { playerCommand('copy', { key: x.key, entry: { id: `movie:${x.v.id}`, url: x.v.url, title: x.v._title || x.v.name, source: 'provider', sourceKind: 'provider' } }); return; }
+    if (x.source === 'provider') {
+      const v = x.v, ep = v.kind === 'episode';   // (an episode hands over as an episode: its id, the series' name, its line)
+      playerCommand('copy', { key: x.key, entry: { id: `${ep ? 'episode' : 'movie'}:${v.id}`, url: v.url, title: ep ? v.seriesName || lastPlay.t.name : v._title || v.name, sub: ep ? `S${v.season} · E${v.ep} · ${v.name}` : '', source: 'provider', sourceKind: 'provider' } });
+      return;
+    }
     const it = addonItem(lastPlay.t, x, lastPlay.tc, lastPlay.row);
     playerCommand('copy', { key: x.key, entry: { id: `${it.kind}:${it.id}`, url: it.url, title: lastPlay.t.name, ...it._entry } });
   } else if (e.type === 'copy-failed' || e.type === 'copy-notready') {
@@ -373,7 +387,7 @@ export function copiesMenu(tc, { title, onDone, row, which }) {
   });
   scrollList(ov.el);
   // copies that arrive while it is open join the list in place (focus stays on the same row)
-  const off = on('addon-streams', () => { if (!ov.el.isConnected) return off(); const at = document.activeElement?.dataset?.v; ov.el.querySelector('.menu').innerHTML = draw(); scrollList(ov.el); const f = ov.el.querySelector(`[data-act="copy"][data-v="${CSS.escape(at ?? '')}"]`) || ov.el.querySelector('.fx'); f?.focus({ preventScroll: true }); });
+  const off = on('addon-streams', () => { if (!ov.el.isConnected) return off(); const ae = document.activeElement?.dataset || {}, at = ae.v, act = ae.act; ov.el.querySelector('.menu').innerHTML = draw(); scrollList(ov.el); const f = (act === 'copy' ? ov.el.querySelector(`[data-act="copy"][data-v="${CSS.escape(at ?? '')}"]`) : act && ov.el.querySelector(`[data-act="${CSS.escape(act)}"]`)) || ov.el.querySelector('.fx'); f?.focus({ preventScroll: true }); });
   return ov;
 }
 function otherApps(list) {

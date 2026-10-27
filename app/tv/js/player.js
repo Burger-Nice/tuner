@@ -10,6 +10,7 @@ import { providerCopy, rank, copyLine, cutLabel } from './copies.js';
 import { matchTitle } from './imdb.js';
 import { keyOf } from './util.js';
 import { native } from './native.js';
+import { programmeView } from './catchup.js';
 import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress, chaptersOf } from './games.js';
 import { guideFor, guideNow, onNow, nextUp, resetGuides } from './guide.js';
 import { go } from './router.js';
@@ -108,8 +109,9 @@ function metaFor(ch, list) {
   const g = gameOn(ch, list);
   const m = { fav: isFav(ch) };
   if (ch.archive > 0) m.kept = ch.archive;   // (the player's Rewind and pause, Start over, Watch from tip-off: catch-up 6.6)
-  if (now) Object.assign(m, { now: now.title, start: now.start, end: now.end, desc: now.desc || '' });
-  if (next) Object.assign(m, { next: next.title, nextStart: next.start });
+  // (the shield's view of them: a telling title becomes the studio show's name, a game's description goes, 7.2's held title)
+  if (now) { const v = programmeView(ch, now); Object.assign(m, { now: v.title, start: now.start, end: now.end, desc: v.desc || '' }); }
+  if (next) Object.assign(m, { next: programmeView(ch, next).title, nextStart: next.start });
   if (g?.state === 'in') m.live = true;
   const feeds = g ? feedsNow(g) : [];
   const k = feeds.findIndex((f) => f.ch.id === ch.id);

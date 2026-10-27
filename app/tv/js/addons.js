@@ -20,7 +20,7 @@ const CINEMETA_ID = 'com.linvo.cinemeta';
 export function hashOf(s) { let h = 2166136261; s = String(s || ''); for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return (h >>> 0).toString(36); }
 export const baseOf = (u) => String(u || '').replace(/\/manifest\.json(\?.*)?$/i, '').replace(/\/+$/, '');
 // stremio://host/x/manifest.json is the https link (SPEC 3.5)
-export const normLink = (u) => { let s = String(u || '').trim(); if (/^stremio:\/\//i.test(s)) s = 'https://' + s.slice(10); if (!/\/manifest\.json$/i.test(s.split('?')[0]) && /^https?:\/\//i.test(s)) s = s.replace(/\/+$/, '') + '/manifest.json'; return s; };
+export const normLink = (u) => { let s = String(u || '').trim(); if (/^stremio:\/\//i.test(s)) s = 'https://' + s.slice(10); else if (/^[\w-]+(\.[\w-]+)+(:\d+)?(\/|$)/.test(s)) s = 'https://' + s; /* (typed without https://) */ if (!/\/manifest\.json$/i.test(s.split('?')[0]) && /^https?:\/\//i.test(s)) s = s.replace(/\/+$/, '') + '/manifest.json'; return s; };
 export const hostOf = (u) => { try { return new URL(u).host; } catch { return ''; } };
 // a link whose path holds more than the add-on's own name (a configured add-on: settings or a key in the path)
 export const hasConfig = (u) => { try { return new URL(u).pathname.split('/').some((p) => p.length > 24); } catch { return false; } };
@@ -38,13 +38,18 @@ export class AddonError extends Error { constructor(kind, status) { super(kind =
 // GET or POST JSON. Errors never carry the link (it can hold a key).
 async function getJSON(url, { ms = 10000, body, raw } = {}) {
   await slot();
-  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  // (the timer also wins the race on its own: on the TV a POST goes through the native bridge, which ignores the abort,
+  // and a hung request would otherwise keep its slot)
+  let t;
+  const late = new Promise((_, no) => { t = setTimeout(() => { ctl.abort(); no(new AddonError('timeout')); }, ms); });
+  late.catch(() => {});
+  const ctl = new AbortController();
   try {
     let r;
-    try { r = await fetch(url, body ? { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' }, signal: ctl.signal, cache: 'no-store' } : { signal: ctl.signal, cache: 'no-store' }); }
-    catch (e) { throw new AddonError(e.name === 'AbortError' ? 'timeout' : 'down'); }
+    try { r = await Promise.race([fetch(url, body ? { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' }, signal: ctl.signal, cache: 'no-store' } : { signal: ctl.signal, cache: 'no-store' }), late]); }
+    catch (e) { throw e instanceof AddonError ? e : new AddonError(e.name === 'AbortError' ? 'timeout' : 'down'); }
     let text;
-    try { text = await r.text(); } catch (e) { throw new AddonError(e.name === 'AbortError' ? 'timeout' : 'down'); }
+    try { text = await Promise.race([r.text(), late]); } catch (e) { throw e instanceof AddonError ? e : new AddonError(e.name === 'AbortError' ? 'timeout' : 'down'); }
     if (raw) return { status: r.status, type: r.headers.get('content-type') || '', text };
     if (!r.ok) throw new AddonError('http', r.status);
     try { return JSON.parse(text); } catch { throw new AddonError('notjson', r.status); }
@@ -201,6 +206,17 @@ async function ask(a, resource, type, id, extra, ms) {
 
 // ---------- manifests ----------
 // Reads <base>/manifest.json (6 s). { ok, manifest } or { ok: false, why: 'a web page' | 'nothing' | 'down' | 'not an add-on' }
+// A manifest's lists as airglow reads them: junk entries (null, {} for a list) dropped, so nothing later throws
+function cleanManifest(m) {
+  const obj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+  const strs = (a) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string') : []);
+  const out = { ...m };
+  out.resources = (Array.isArray(m.resources) ? m.resources : []).filter((r) => typeof r === 'string' || (obj(r) && typeof r.name === 'string')).map((r) => (typeof r === 'string' ? r : { ...r, types: strs(r.types), idPrefixes: r.idPrefixes == null ? r.idPrefixes : strs(r.idPrefixes) }));
+  out.types = strs(m.types);
+  if (m.idPrefixes != null) out.idPrefixes = strs(m.idPrefixes);
+  out.catalogs = (Array.isArray(m.catalogs) ? m.catalogs : []).filter((c) => obj(c) && c.id != null && typeof c.type === 'string').map((c) => ({ ...c, extra: (Array.isArray(c.extra) ? c.extra : []).filter((e) => obj(e) && typeof e.name === 'string').map((e) => ({ ...e, options: e.options == null ? e.options : strs(e.options) })), extraSupported: c.extraSupported == null ? c.extraSupported : strs(c.extraSupported), extraRequired: c.extraRequired == null ? c.extraRequired : strs(c.extraRequired) }));
+  return out;
+}
 export async function readManifest(link) {
   const url = normLink(link);
   if (!/^https?:\/\//i.test(url)) return { ok: false, why: 'not a link airglow can open' };
@@ -209,7 +225,7 @@ export async function readManifest(link) {
   let m = null; try { m = JSON.parse(r.text); } catch {}
   if (!m) return { ok: false, why: /html/i.test(r.type) || /^\s*</.test(r.text) ? 'a web page' : r.text.trim() ? 'something that isn\'t an add-on' : 'nothing' };
   if (!m.id || !m.name || !Array.isArray(m.resources)) return { ok: false, why: 'something that isn\'t an add-on' };
-  return { ok: true, url, manifest: m };
+  return { ok: true, url, manifest: cleanManifest(m) };
 }
 // Manifests are read again after 24 h (in the background, when an add-on is used)
 async function freshen(a) {
@@ -382,9 +398,11 @@ const streamCache = new Map();   // `${type}:${id}` -> ask
 // match: the title's IMDb match level ('sure' | 'likely'), origin: the film's original language (an unnamed copy's)
 export function askStreams(type, id, { match = 'sure', origin = '' } = {}) {
   const ck = `${type}:${id}`;
-  const hit = streamCache.get(ck);
-  if (hit && Date.now() - hit.at < 30 * 60e3) { hit.match = match; return hit; }
   const who = enabled().filter((a) => supports(a, 'stream', type, id) && stateOf(a) !== 'setup');
+  // (kept per set of add-ons: one turned off, removed or added asks again)
+  const sk = `${ck}|${who.map((a) => a.key).join(',')}`;
+  const hit = streamCache.get(sk);
+  if (hit && Date.now() - hit.at < 30 * 60e3) { hit.match = match; return hit; }
   const q = { at: Date.now(), type, id, match, results: new Map(), listeners: new Set(), done: null };
   q.on = (f) => { q.listeners.add(f); return () => q.listeners.delete(f); };
   const changed = () => { for (const f of q.listeners) { try { f(q); } catch {} } emit('addon-streams', ck); };
@@ -406,12 +424,12 @@ export function askStreams(type, id, { match = 'sure', origin = '' } = {}) {
     changed();
   });
   q.done = Promise.all(all).then(() => q);
-  streamCache.set(ck, q);
+  streamCache.set(sk, q);
   while (streamCache.size > 50) streamCache.delete(streamCache.keys().next().value);
   if (who.length) changed();
   return q;
 }
-export const forgetStreams = (type, id) => streamCache.delete(`${type}:${id}`);
+export const forgetStreams = (type, id) => { for (const k of [...streamCache.keys()]) if (k.startsWith(`${type}:${id}|`)) streamCache.delete(k); };
 // the add-on's kind, learnt from its answers (SPEC 3.1.1)
 function learn(a, r, n) {
   if (!n) return;
@@ -447,7 +465,7 @@ export async function stremioList(which) {
 // ---------- the Stremio account (SPEC 3.3) ----------
 // The key is kept like the provider's password (this account's storage), never logged, never shown.
 const SKEY = () => scoped('stremio');
-export const stremioSignedIn = () => !!(S.acc && store.get(SKEY(), null)?.authKey);
+export const stremioSignedIn = () => { const s = S.acc && store.get(SKEY(), null); return !!(s?.authKey && !s.signedOut); };   // (Stremio signed him out: the code screen again)
 export const stremioState = () => (S.acc ? store.get(SKEY(), null) : null);
 const setStremio = (v) => { if (v) store.set(SKEY(), v); else store.del(SKEY()); emit('addons'); };
 const apiErr = (d) => d?.error ? Object.assign(new Error(d.error.message || 'Stremio said no'), { code: d.error.code, wrongEmail: !!d.error.wrongEmail }) : null;
@@ -487,7 +505,7 @@ export async function stremioCollection() {
   const e = apiErr(d); if (e) throw e;
   const usable = [], left = [];
   for (const x of d?.result?.addons || []) {
-    const url = String(x.transportUrl || ''), m = x.manifest || {};
+    const url = String(x.transportUrl || ''), m = cleanManifest(x.manifest && typeof x.manifest === 'object' ? x.manifest : {});
     const why = /\/stremio\/v1\/?$/.test(url) ? 'an older kind of add-on; v3 does the same'
       : STREMIO_SERVER.test(url) ? 'needs the Stremio app on this TV'
       : /^ipf?n?s:\/\//i.test(url) || /^ip[fn]s:/i.test(url) ? 'a kind of link airglow can\'t open'
@@ -534,10 +552,10 @@ export async function stremioSync({ force = false, toast } = {}) {
 const newer = (a, b) => { const p = (v) => String(v || '0').split('.').map((x) => +x || 0); const x = p(a), y = p(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 // "Hide in airglow" for one from Stremio: it stays in his Stremio account and doesn't come back on the next sync
 function hideFromStremio(a) { const s = stremioState(); if (s) setStremio({ ...s, hidden: [...new Set([...(s.hidden || []), a.key])] }); }
-// The import (add-stremio-found): adds the ticked ones
-export function importFromStremio(picked) {
+// The import (add-stremio-found): adds the ticked ones; the unticked ones are kept out of later syncs (his choice, S20)
+export function importFromStremio(picked, unticked = []) {
   for (const x of picked) addAddon({ url: x.url, manifest: x.manifest }, 'stremio').from = 'stremio';
-  const s = stremioState(); if (s) setStremio({ ...s, syncedAt: Date.now() });
+  const s = stremioState(); if (s) setStremio({ ...s, syncedAt: Date.now(), hidden: [...new Set([...(s.hidden || []), ...unticked.filter((x) => x?.url).map((x) => 'ad' + hashOf(x.url))])] });
   lastSync = Date.now();
   saveList();
 }

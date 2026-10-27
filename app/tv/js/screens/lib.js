@@ -351,7 +351,7 @@ export default function lib(kind) {
         const card = e.target.closest('.pc'); if (!card) return;
         const t = list[+card.dataset.i];
         contextMenu(card, [
-          { icon: 'saved', label: isFav(t) ? 'Remove from Saved' : 'Save to Saved', run: () => toast(toggleFav(t) ? `Saved ${t.name}` : `Removed ${t.name}`) },
+          { icon: 'saved', label: isFav(t) ? 'Remove from Saved' : 'Save to Saved', run: () => { const nm = videoMask(t)?.title || t.name; toast(toggleFav(t) ? `Saved ${nm}` : `Removed ${nm}`); } },   // (a masked video: airglow's name)
           ...(t.addon ? [] : [{ icon: 'check', label: 'Mark watched', run: () => { markWatched(t.versions[0]); drawGrid(); } }]),
           { icon: 'info', label: 'Details', run: () => openDetail(t) },
         ]);

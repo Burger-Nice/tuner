@@ -13,7 +13,7 @@ import {
   chapterAt, archiveShift, setArchiveShift, shiftKnown, replayDelay, setReplayDelay, setReplayPick, replayPick, wantSummary,
   fetchSummary, recentClocks, ordinal, isSporty, shieldMode, behindReplay, liveByClock, watchedOn,
 } from './games.js';
-import { findReplays, replaysOf, bestReplay, nightLabel, keptUntil, videosNaming, videoMask, matchVideo, WINDOW, etDate, datesIn } from './catchup.js';
+import { findReplays, replaysOf, bestReplay, nightLabel, keptUntil, videosNaming, videoMask, matchVideo, WINDOW, etDate, datesIn, programmeView } from './catchup.js';
 import { playLive, playVod, ctx, replayNative, playerCommand, startReplaySession } from './player.js';
 import { push } from './router.js';
 import { openOverlay, toast, confirmMenu, scrollList } from './ui.js';
@@ -96,7 +96,8 @@ function saveProgress(played, force) {
     it.aired = airedOf(src, played);
     it.pos = v?.state === 'in' ? { chapter: chapterAt(cur.g.id, at), clock: v.chapter === 'Halftime' ? '' : v.clock } : null;
   } else if (cur.g) it.pos = { mins: Math.round(played / MIN) };
-  const d = (src.kind === 'channel' ? cur.windowMs : cur.duration || cur.windowMs) / 1000;
+  // (a game's bar is on the window's scale whatever the source: a video's real length would tell an overtime, 5.2 M5)
+  const d = (src.kind === 'channel' || cur.g ? cur.windowMs || cur.duration : cur.duration || cur.windowMs) / 1000;
   if (played > 0) recordProgress(it, played / 1000, d, force);
 }
 // The replay's buzzer + 2 min has played (or a video's last 2 %): seen for good; nothing changes in the player (M6.2).
@@ -143,13 +144,13 @@ async function start(what) {
   const index = Math.max(0, what.sources.indexOf(src));
   const R = {
     id: progKey(item), kind: g ? (src.kind === 'channel' ? 'game' : 'video') : 'programme',
-    title: g ? gameName(g) : what.prog.title, sub: g ? `${src.kind === 'channel' ? src.name : 'Full game in Movies'} · ${nightLabel(g.date)}` : `${what.ch.name} · ${hm(what.prog.start)} to ${hm(what.prog.end)}`,
+    title: g ? gameName(g) : programmeView(what.ch, what.prog).title, sub: g ? `${src.kind === 'channel' ? src.name : 'Full game in Movies'} · ${nightLabel(g.date)}` : `${what.ch.name} · ${hm(what.prog.start)} to ${hm(what.prog.end)}`,
     hidden: !!g && shielded(g) && !isSeen(g),
     sources, source: index, startAt: Math.max(0, Math.round(what.startAt || 0)), windowMs,
     tipoffAt: g ? tipoffAt(g, src) : 0, chapters: g ? chapterMarks(g, src) : [],
     margin: MARGIN, extensions: g ? 2 : 0,
     live: src.kind === 'channel' ? { id: String(src.ch.id), name: src.ch.name, num: src.ch.num || 0 } : null,
-    gameId: g?.id || '', programme: !g ? { title: what.prog.title, start: what.prog.start, end: what.prog.end, next: nextAfter(what.ch, what.prog) } : null,
+    gameId: g?.id || '', programme: !g ? { title: programmeView(what.ch, what.prog).title, start: what.prog.start, end: what.prog.end, next: nextAfter(what.ch, what.prog) } : null,
     check: null,
   };
   if (g && R.hidden && src.kind === 'channel' && !shiftKnown() && replayNative()) R.check = await firstCheck().catch(() => null);
@@ -178,7 +179,7 @@ async function start(what) {
   }
   return R;
 }
-const nextAfter = (ch, p) => { const l = pastNow(ch) || guideNow(ch) || []; const n = l.find((x) => x.start >= p.end - 60e3 && x.start > p.start); return n ? { title: n.title, start: n.start } : null; };
+const nextAfter = (ch, p) => { const l = pastNow(ch) || guideNow(ch) || []; const n = l.find((x) => x.start >= p.end - 60e3 && x.start > p.start); return n ? { title: programmeView(ch, n).title, start: n.start } : null; };
 
 // ---------- the first-replay check (6.6) ----------
 // Before the first game replay on an account with the shield on: 10 s of a finished programme on a kept non-sports
@@ -226,8 +227,11 @@ function handleReplayEvent(e) {
   if (e.type === 'pick-source') {
     const x = cur.sources[+e.source];
     if (!x) return;
+    const was = cur.src;
     cur.src = x;
     if (g) setReplayPick(g.id, x);
+    // from a video to a channel: the player has no quarter marks or tip-off for the channel yet (it starts at tip-off)
+    if (g && x.kind === 'channel' && was?.kind !== 'channel') playerCommand('replay-links', { source: cur.sources.indexOf(x), links: linksOf(x, cur.windowMs), windowStart: x.windowStart, tipoffAt: tipoffAt(g, x), chapters: chapterMarks(g, x) });
     if (g) openReplay(g, { chId: x.kind === 'channel' ? String(x.ch.id) : null, kind: x.kind, windowStart: x.windowStart || 0 });
   } else if (e.type === 'source-failed' || e.type === 'conn-limit') {
     window.__replayFail = { type: e.type, source: e.source, code: e.code, at: Date.now() };
@@ -274,6 +278,7 @@ function handleReplayEvent(e) {
   } else if (e.type === 'check-answer') {
     // Yes 0; the second look's Yes −1 or +1; Not sure / a second No: nothing stored (M1)
     if (e.shift === 0 || e.shift === -1 || e.shift === 1) setArchiveShift(null, +e.shift);
+    else setArchiveShift('_asked', Date.now());   // (no shift stored, but "You'll see this once": not asked again)
     if (cur.src.kind === 'channel') playerCommand('replay-links', { source: cur.sources.indexOf(cur.src), links: linksOf(cur.src, cur.windowMs), windowStart: cur.src.windowStart, tipoffAt: g ? tipoffAt(g, cur.src) : 0, chapters: g ? chapterMarks(g, cur.src) : [] });
   } else if (e.type === 'golive') {
     // Back to live (after the player's own "Going live may show the score" card): the channel, live
@@ -307,8 +312,11 @@ export async function watchFromTipoff(g, { source, ask = false, resume = false }
   let startAt = null;
   if (resume && p && !p.done && p.t > 30) {
     // the same source: the same played position; another channel: the same aired moment
-    if (p.item.src === `${src.kind}:${src.id}` || src.kind !== 'channel' || !p.item.aired) startAt = p.t * 1000;
-    else startAt = Math.max(0, posOf(src, p.item.aired));
+    // (a video's position never lands in a channel's window, nor a channel's in a video: those start at tip-off)
+    const was = String(p.item.src || '');
+    if (was === `${src.kind}:${src.id}`) startAt = p.t * 1000;
+    else if (src.kind === 'channel' && p.item.aired) startAt = Math.max(0, posOf(src, p.item.aired));
+    else if (src.kind !== 'channel' && !was.startsWith('channel:')) startAt = p.t * 1000;
   }
   if (startAt == null) {
     wantSummary(g.id);

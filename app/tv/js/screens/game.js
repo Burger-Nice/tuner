@@ -62,7 +62,8 @@ function draw() {
   const reps = replaysOf(g0), best = reps?.[0] || null, behind = behindReplay(g0);
   const until = best?.kind === 'channel' ? keptUntil(best.windowStart, best.days) : '';
   let watch = g.state !== 'post' ? `<span class="btn fx" tabindex="-1" data-act="watch">${ic('play')}Watch live</span>` : '';
-  if (behind && g.state !== 'pre') watch = `<span class="btn fx" tabindex="-1" data-act="resume" data-hold>${ic('play')}Resume</span><span class="btn2 fx" tabindex="-1" data-act="golive">Back to live</span>`;
+  // (Back to live while the game could still be on, by the clock; after tip-off + 3 h 30: From tip-off, N5)
+  if (behind && g.state !== 'pre') watch = `<span class="btn fx" tabindex="-1" data-act="resume" data-hold>${ic('play')}Resume</span>${liveByClock(g0) ? '<span class="btn2 fx" tabindex="-1" data-act="golive">Back to live</span>' : `<span class="btn2 fx" tabindex="-1" data-act="tipoff">${ic('tipoff')}From tip-off</span>`}`;
   else if (g.state === 'in' && best) watch += `<span class="btn2 fx" tabindex="-1" data-act="tipoff" data-hold>${ic('tipoff')}From tip-off</span>`;
   else if (g.state === 'post' && !v.hidden && best) watch = `${until ? `<span class="t-cap" style="margin-left:auto">Replays until ${esc(until)}</span>` : ''}<span class="btn fx" tabindex="-1" data-act="again" data-hold>${ic('play')}Watch again</span>`;
   const tabs = [['away', g.away.name], ['home', g.home.name], ...(v.hidden ? [] : [['plays', 'Plays']]), ['team', 'Team stats']];

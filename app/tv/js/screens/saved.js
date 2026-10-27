@@ -13,7 +13,7 @@ import { push, current } from '../router.js';
 import { focus } from '../focus.js';
 import { contextMenu, toast } from '../ui.js';
 import { resumeItem, openTitle, openDetail } from '../actions.js';
-import { videoMask } from '../catchup.js';
+import { videoMask, programmeView } from '../catchup.js';
 
 let el, tab = 'channels', lift = null, liftFrom = 0, order = [], gridTop = 0;
 const keyOf = (f) => `${f.kind}:${f.id}`;
@@ -38,7 +38,7 @@ function draw() {
     const rows = order.map((c, i) => {
       const p = onNow(guideNow(c)), g = p && gameOn(c, [p]);
       const lifted = lift === i;
-      return `<div class="srow fx${lifted ? ' lift' : ''}" tabindex="-1" data-hold data-ci="${i}"><span class="grip">${lifted ? ic('chevU', 'sm') + ic('chevD', 'sm') : '<i></i><i></i><i></i>'}</span><span class="num">${i + 1}</span>${logo(c.logo, c.name)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(c.name)}</div><div class="t-cap ellipsis">${esc(p?.title || (guideNow(c) ? 'No guide information' : 'Loading guide…'))}</div></div>${g?.state === 'in' ? '<span class="a-live">Live</span>' : ''}</div>`;
+      return `<div class="srow fx${lifted ? ' lift' : ''}" tabindex="-1" data-hold data-ci="${i}"><span class="grip">${lifted ? ic('chevU', 'sm') + ic('chevD', 'sm') : '<i></i><i></i><i></i>'}</span><span class="num">${i + 1}</span>${logo(c.logo, c.name)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(c.name)}</div><div class="t-cap ellipsis">${esc((p && programmeView(c, p).title) || (guideNow(c) ? 'No guide information' : 'Loading guide…'))}</div></div>${g?.state === 'in' ? '<span class="a-live">Live</span>' : ''}</div>`;
     }).join('');
     body = order.length
       // (the instructions stay put above the list; the list's clip leaves room for the focus ring and a lifted row)

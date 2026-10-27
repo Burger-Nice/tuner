@@ -20,6 +20,7 @@ module.exports = async (ctx) => {
       return `${vis ? '[launch] ' : ''}${hp?.dataset.rowKind || ''} ${hp?.querySelector('.btn')?.textContent || ''} | focus: ${document.activeElement?.textContent?.trim().slice(0, 30)}`;
     }).catch(() => 'n/a');
     if (h !== last) { console.log(`${String(Date.now() - t0).padStart(6)} ms  ${h}`); last = h; if (/Watch$|Watch \|/.test(h)) await shot('hero-before'); }
+    if (!globalThis.__s8 && Date.now() - t0 > 8000) { globalThis.__s8 = 1; console.log('at 8 s:', await ev(() => document.querySelector('[data-screen="home"] .hero-plate')?.innerText.replace(/\s+/g, ' '))); await shot('hero-at-8s'); }
     if (/morning/.test(h)) break;
     await p.waitForTimeout(200);
   }

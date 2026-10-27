@@ -194,8 +194,9 @@ export function teamPage({ pushed = false } = {}) {
     const ww = whenWord(g.date);
     const d = g === next && (ww === 'TONIGHT' || ww === 'TOMORROW') ? `<span class="n">${ww}</span><span>Next</span>` : `<span>${esc(tileDate(g.date))}</span>`;
     let r;
-    if (g.state === 'post') r = v.hidden ? `<span class="nb-hid">${ic('eyeOff')}Result hidden</span>` : `<b class="${s.won ? '' : 'l'}">${s.won ? 'W' : 'L'}</b><b class="${s.won ? '' : 'l'}" style="font-weight:650">${esc(s.me.score)}–${esc(s.op.score)}</b>`;
-    else if (shielded(g) && behindReplay(g)) r = `${liveByClock(g) ? liveP() : ''}<span>You're in ${esc(replayProgress(g.id)?.item?.pos?.chapter || 'the replay')}</span>`;
+    // (behind in its replay first: the real game ending says nothing until he's watched it, 7.2)
+    if (shielded(g) && behindReplay(g)) r = `${liveByClock(g) ? liveP() : ''}<span>You're in ${esc(replayProgress(g.id)?.item?.pos?.chapter || 'the replay')}</span>`;
+    else if (g.state === 'post') r = v.hidden ? `<span class="nb-hid">${ic('eyeOff')}Result hidden</span>` : `<b class="${s.won ? '' : 'l'}">${s.won ? 'W' : 'L'}</b><b class="${s.won ? '' : 'l'}" style="font-weight:650">${esc(s.me.score)}–${esc(s.op.score)}</b>`;
     else if (g.state === 'in') r = `${liveP()}<span>${esc(clockText(v.g))}</span>`;
     else r = `<span>${hm(g.date)}${g.tv[0] ? `${dot}${esc(shortTv(g.tv[0]))}` : ''}</span>`;
     if (g.state !== 'pre' && replaysOf(g)?.length) r += `<span class="cu-g">${ic('hist')}</span>`;   // (catch-up 5.3: a replay)

@@ -6,7 +6,7 @@ import { S, on, store, scoped, favList, toggleFav, isFav } from '../state.js';
 import { catalog, ensure, takeFresh } from '../catalog.js';
 import { guideFor, guideNow, guideFailed, onNow, warm, known, pastFor, pastNow, pastFailed, pastKnown } from '../guide.js';
 import { myGame, gameOn, hidden, feedsNow, findFeeds, liveGames, isMine, show, knownGames } from '../games.js';
-import { programmeView, keptWords, NOT_KEPT, nightLabel } from '../catchup.js';
+import { programmeView, reairOf, keptWords, NOT_KEPT, nightLabel } from '../catchup.js';
 import { playProgramme, programmeProgress, watchOnChannel } from '../replay.js';
 const knownGamesNear = (p) => knownGames().filter((g) => Math.abs(g.date - p.start) < 3 * 3600e3);
 import { playLive, watching } from '../player.js';
@@ -199,7 +199,7 @@ function nowPanel() {
   const right = toastT > Date.now() ? `<span class="toast"><b>${isFav(ch) ? 'Added to Favourites' : 'Removed from Favourites'}</b><span class="t-cap">Hold OK to undo</span></span>` : `<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune${kept ? dot : '<br>'}Hold OK favourite${kept}</div>`;
   return `${pv}<div class="grow">
     <div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(pvw?.title || p?.title || ch.name)}</span>${g?.state === 'in' ? liveP() : ''}</div>
-    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${hm(p.start)} to ${hm(p.end)}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
+    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${reairOf(ch, p) ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
     <div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide || pvw?.mask ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${desc}</span></div>
   </div>${right}`;
 }
@@ -311,7 +311,9 @@ function cellOk(cell) {
   if (cell.hasAttribute('data-ch') || s <= n || cell.classList.contains('empty')) return tune(ch);
   // A later programme: its details, and the channel as it is now.
   const p = (guideNow(ch) || []).find((q) => q.start === s);
-  const ov = openOverlay(`<div class="menu" style="left:48px;top:120px;width:520px"><h3>${esc(p?.title || 'Later')}</h3><div class="t-cap" style="padding:0 8px 8px">${esc(ch.name)}${p ? `${dot}${hm(p.start)} to ${hm(p.end)}` : ''}</div>${p?.desc ? `<p class="t-body clamp3" style="margin:0 8px 12px">${esc(p.desc)}</p>` : ''}<div data-row class="row-flex" style="gap:12px;padding:4px 8px"><span class="btn fx" tabindex="-1" data-act="tune" style="max-width:480px;transform-origin:0 50%">${ic('play')}<span class="ellipsis" style="min-width:0">Watch ${esc(ch.name)} now</span></span></div></div>`, {
+  const pv = p ? programmeView(ch, p) : null, re = p && reairOf(ch, p);   // (the shield: its title, its description; a re-air shows its start only)
+  const pdesc = pv?.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : pv?.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : esc(pv?.desc || '');
+  const ov = openOverlay(`<div class="menu" style="left:48px;top:120px;width:520px"><h3>${esc(pv?.title || 'Later')}</h3><div class="t-cap" style="padding:0 8px 8px">${esc(ch.name)}${p ? `${dot}${re ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}</div>${pdesc ? `<p class="t-body clamp3" style="margin:0 8px 12px">${pdesc}</p>` : ''}<div data-row class="row-flex" style="gap:12px;padding:4px 8px"><span class="btn fx" tabindex="-1" data-act="tune" style="max-width:480px;transform-origin:0 50%">${ic('play')}<span class="ellipsis" style="min-width:0">Watch ${esc(ch.name)} now</span></span></div></div>`, {
     onClick: (act) => { ov.close(false); if (act === 'tune') tune(ch); },
   });
 }

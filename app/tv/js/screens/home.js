@@ -16,10 +16,10 @@ import { resumeItem, openTitle } from '../actions.js';
 import { launchOpen, launchDone } from '../launch.js';
 import { gameMenu } from '../nba/hub.js';
 import { heldLive } from '../games.js';
-import { morningGame, WINDOW, findReplays, replaysOf } from '../catchup.js';
+import { morningGame, WINDOW, findReplays, replaysOf, programmeView } from '../catchup.js';
 import { heroAct, heroHold, resumeGame, watchFromTipoff, playProgramme } from '../replay.js';
 
-let el, page, heroKind = null, heroLockUntil = 0, rows = [], railItems = {};
+let el, page, heroKind = null, heroLockUntil = 0, lockT = 0, rows = [], railItems = {};
 const ROW_TOP = [278, 422];
 
 // Your team's game counts from 3 h before tip-off to 30 min after the final.
@@ -67,6 +67,9 @@ function draw() {
   let kind = kindNow(g, cont);
   // ('none' is never locked: it only means the channel list hasn't loaded yet)
   if (heroKind && heroKind !== 'none' && launchOpen() && Date.now() < heroLockUntil) kind = heroKind;
+  // a hero held by the lock is drawn as soon as the lock ends (the morning-after game, not 30 s later)
+  clearTimeout(lockT);
+  if (kind !== kindNow(g, cont)) lockT = setTimeout(draw, Math.max(50, heroLockUntil - Date.now() + 50));
   if (!heroKind || heroKind === 'none' || !launchOpen()) heroLockUntil = Date.now() + 3000;
   heroKind = kind;
   let hero = '';
@@ -154,7 +157,7 @@ async function chooseChannel(g) {
   if (!list.length) { toast('No sports channels found. Pick the channel in Live and it will be remembered.', 5000); return go('live'); }
   const ov = openOverlay(`<div class="menu" style="left:48px;top:60px;width:560px;max-height:440px;overflow:hidden"><h3>Where is ${esc(name)}?</h3><div class="sheet-body" style="max-height:360px"><div data-col class="inner">${list.map((x, i) => {
     const p = onNow(guideNow(x.ch));
-    return `<div class="lr fx" tabindex="-1" data-act="${i}" style="height:60px"><span class="logo sm">${x.ch.logo ? `<img src="${esc(x.ch.logo)}" alt="">` : esc(x.ch.name.slice(0, 2).toUpperCase())}</span><span class="grow ellipsis">${esc(x.ch.name)}<div class="t-cap ellipsis" style="margin-top:0">${esc(p?.title || '')}</div></span><small>${esc(x.why)}</small></div>`;
+    return `<div class="lr fx" tabindex="-1" data-act="${i}" style="height:60px"><span class="logo sm">${x.ch.logo ? `<img src="${esc(x.ch.logo)}" alt="">` : esc(x.ch.name.slice(0, 2).toUpperCase())}</span><span class="grow ellipsis">${esc(x.ch.name)}<div class="t-cap ellipsis" style="margin-top:0">${esc(p ? programmeView(x.ch, p).title : '')}</div></span><small>${esc(x.why)}</small></div>`;
   }).join('')}</div></div><div class="t-cap" style="padding:8px 8px 2px">Your pick is remembered for this team.</div></div>`, {
     onClick: (act) => { const x = list[+act]; if (!x) return; ov.close(false); setTeamChannel(mySide(g).abbr, x.ch.id); playLive(x.ch, ringFor(x.ch), ringName(x.ch)); },
   });

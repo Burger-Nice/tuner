@@ -159,7 +159,7 @@ function ways() {
     <div class="t-cap" style="padding:10px 12px 0;line-height:20px">Copies of films come from add-ons set up with a service like Real-Debrid. Add-ons that play torrents directly won't show anything here.</div></div>`, {
     focusSel: '[data-act="stremio"]',
     onClick: (act) => {
-      if (act === 'stremio') { if (A.stremioSignedIn()) { ov.close(false); found(); } else stremioCode(); }
+      if (act === 'stremio') { if (A.stremioSignedIn()) { ov.close(); found(); } else stremioCode(); }   // (focus back on the opener first: Back from the list returns there)
       else if (act === 'list') stremioList();
       else if (act === 'phone') phoneScreen();
       else if (act === 'type') typeLink();
@@ -196,7 +196,7 @@ function stremioCode() {
       let key = null;
       try { key = await A.stremioReadCode(code.code); } catch {}
       if (!alive) return;
-      if (key) { ov.close(false); found(); } else poll();
+      if (key) { ov.close(); found(); } else poll();
     }, 3000);
   };
   ov.el.addEventListener('click', (e) => {
@@ -294,7 +294,7 @@ async function found() {
     else if (b.dataset.act === 'keep') { keep = !keep; A.setKeepInStep(keep); }
     else if (b.dataset.act === 'add') {
       const chosen = picks.filter((p) => p.on && !p.have);
-      A.importFromStremio(chosen);
+      A.importFromStremio(chosen, picks.filter((p) => !p.on && !p.have));
       ov.close(false); closeTop();
       redraw();
       if (chosen.length) toast(`${chosen.length} add-on${chosen.length > 1 ? 's' : ''} added from your Stremio account`);
@@ -394,12 +394,14 @@ function typeLink() {
     b.textContent = 'Reading…';
     const r = await A.readManifest(v);
     if (!ov.el.isConnected) return;
-    if (!r.ok) { err = `That link isn't an add-on: it sent ${r.why}`; draw(); return focus(step.querySelector('#adUrl')); }
+    if (!r.ok) { err = notAddon(r); draw(); return focus(step.querySelector('#adUrl')); }
     confirm(r, 'typed', () => { ov.close(false); closeTop(); });
   });
   draw(); focus(step.querySelector('#adUrl'));
 }
 
+// why a link was refused, in his words (a timeout isn't "not an add-on")
+const notAddon = (r) => (r.why === 'no answer' ? 'That link didn\'t answer. Check it, or try again in a minute' : `That link isn't an add-on: it sent ${r.why}`);
 // ---------- Send a link from your phone (SPEC 3.5): the native page server ----------
 function phoneScreen() {
   if (!A.phonePageReady()) return toast('This comes with the next airglow update. Type the link instead.');
@@ -422,7 +424,7 @@ function phoneScreen() {
       if (!open) return;
       if (e.type === 'visit') visited = true;
       else if (e.type === 'locked') { c = code(); note = 'Too many wrong codes · here\'s a new one'; native.phone.start({ token, code: c, port: 8790 }).catch(() => {}); draw(); }
-      else if (e.type === 'sent' && e.url) A.readManifest(e.url).then((r) => { if (!open) return; if (r.ok) confirm(r, 'phone', () => { ov.close(false); closeTop(); }); else toast(`That link isn't an add-on: it sent ${r.why}`, 4000); });
+      else if (e.type === 'sent' && e.url) A.readManifest(e.url).then((r) => { if (!open) return; if (r.ok) confirm(r, 'phone', () => { ov.close(false); closeTop(); }); else toast(notAddon(r), 4000); });
     });
     if (!open) { l?.remove?.(); return; }
     off = l;

@@ -231,7 +231,7 @@ export function resumeHero(p) {
 export function channelHero(ch, prog) {
   return `<div class="hero-plate">
   <div class="abs t-label" style="left:24px;top:18px">Last channel</div>
-  <div class="abs row-flex" style="left:24px;top:44px;gap:16px">${logo(ch.logo, ch.name, 'lg')}<div><div class="t-head ellipsis" style="width:560px">${esc(prog?.title || ch.name)}</div><div class="metaline" style="margin-top:4px;width:560px;white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span>${prog ? `${dot}<span style="flex:none">${hm(prog.start)} to ${hm(prog.end)}</span>` : ''}</div></div></div>
+  <div class="abs row-flex" style="left:24px;top:44px;gap:16px">${logo(ch.logo, ch.name, 'lg')}<div><div class="t-head ellipsis" style="width:560px">${esc((prog && programmeView(ch, prog).title) || ch.name)}</div><div class="metaline" style="margin-top:4px;width:560px;white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span>${prog ? `${dot}<span style="flex:none">${hm(prog.start)} to ${hm(prog.end)}</span>` : ''}</div></div></div>
   <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px"><span class="btn fx" tabindex="-1" data-act="tune">${ic('play')}Watch</span><span class="btn2 fx" tabindex="-1" data-act="guide">Open guide</span></div>
 </div>`;
 }

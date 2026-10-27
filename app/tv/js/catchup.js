@@ -173,7 +173,13 @@ export function programmeView(ch, p) {
   for (const g of un) {
     if (p.end <= g.date - 30 * MIN) continue;
     // the game's own listing (and its re-airs): its description is hidden
-    if (NBA.matchScore(p.title, g) >= 10) { out.game = out.game || g; out.desc = ''; out.mask = out.mask || 'desc'; continue; }
+    if (NBA.matchScore(p.title, g) >= 10) {
+      out.game = out.game || g; out.desc = ''; out.mask = out.mask || 'desc';
+      // a title naming both teams can still tell ("Grizzlies beat Jazz in OT: reaction"): the studio show's name then
+      const names = namesOf(g), t = stripDates(out.title);
+      if (telling(t, names) || SCORE2.test(t) || RESULT2.test(t)) { out.title = `${ch.name} · studio show`; out.mask = 'results'; }
+      continue;
+    }
     if (!sporty) continue;
     // behind in its replay: the channel that carried it keeps the game's own title from tip-off to + 3 h 30 (7.2)
     if (behindReplay(g) && watchedOn(g.id) === String(ch.id) && liveByClock(g) && p.start <= now && p.end > now) {
@@ -202,6 +208,14 @@ on('catalog', (k) => { if (k === 'movie' || k === 'live') { for (const [id, c] o
 on('session', () => { cache.clear(); jobs.clear(); });
 // (the ranking changed: Account > NBA > Replays play)
 export function forgetReplays() { cache.clear(); emit('replays', null); }
+// your pick in the sources sheet first (3.4 rule 1); a pick made later reorders the kept list at once
+function withPick(id, list) {
+  const pick = replayPick(id), pi = pick ? list.findIndex((x) => x.kind === pick.kind && String(x.id) === String(pick.id)) : -1;
+  if (pi > 0) list.unshift(...list.splice(pi, 1));
+  list.forEach((x, i) => { x.best = i === 0; });
+  return list;
+}
+on('replays', (id) => { const c = id && cache.get(id); if (c) withPick(id, c.list); });
 export const replaysOf = (g) => (g ? cache.get(g.id)?.list || null : null);
 export const replaysLooked = (g) => cache.get(g?.id)?.looked || null;
 export const bestReplay = (g) => replaysOf(g)?.[0] || null;
@@ -284,9 +298,7 @@ async function scan(g) {
   const full = vids.filter((v) => !v.condensed), cond = vids.filter((v) => v.condensed);
   let list = settings().replaysPlay === 'video' ? [...full, ...chans] : [...chans, ...full];
   list = [...list, ...(unconfirmed ? [unconfirmed] : []), ...cond];
-  const pick = replayPick(g.id), pi = pick ? list.findIndex((x) => x.kind === pick.kind && x.id === pick.id) : -1;
-  if (pi > 0) list.unshift(...list.splice(pi, 1));
-  list.forEach((x, i) => { x.best = i === 0; });
+  withPick(g.id, list);
   cache.set(g.id, { at: Date.now(), list, looked: { at: Date.now(), tables: kept.length ? Math.min(tables, 12) : 0, videos: pool.length } });
   emit('replays', g.id);
   // nothing yet for a hidden game: looked for again in an hour, for up to 3 days

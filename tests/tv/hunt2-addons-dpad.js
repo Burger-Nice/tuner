@@ -36,4 +36,3 @@ module.exports = async ({ p, shot, key }) => {
   await key('Escape', 1, 500); console.log('Back from found:', await where(p), 'overlays', await ovs(), 'rows', await ev(() => document.querySelectorAll('[data-screen="account"] .ad-row').length));
   await shot('after-back-found');
 };
-module.exports.after = true;
