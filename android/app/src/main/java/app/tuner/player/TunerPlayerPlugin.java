@@ -135,6 +135,8 @@ public class TunerPlayerPlugin extends Plugin {
         Playlist(String key, List<PlayerActivity.Entry> entries) { this.key = key; this.entries = entries; }
     }
     static Playlist playlist;
+    /** A replay's start payload (design/ui-v1/catchup/PORT-NATIVE.md 1), for the player to read in onCreate. */
+    static String replayJson = "";
     /** Commands that arrived before the player opened, for the session being started; it takes them in onCreate. */
     static final java.util.List<String[]> early = new java.util.ArrayList<>();
     static int session() { return session; }
@@ -143,8 +145,14 @@ public class TunerPlayerPlugin extends Plugin {
     public void play(PluginCall call) {
         String key = call.getString("key", "");
         JSArray entries = call.getArray("entries");
+        boolean replay = "replay".equals(call.getString("mode", ""));
+        if (replay) {
+            JSObject r = call.getObject("replay");
+            if (r == null) { call.reject("Nothing to replay."); return; }
+            replayJson = r.toString();
+        }
         // The app sends a big channel list once; after that, playing from the same list sends only its key.
-        if (entries == null) {
+        else if (entries == null) {
             if (playlist == null || key.isEmpty() || !key.equals(playlist.key)) { call.reject("Send the list again.", "LIST"); return; }
         } else {
             if (entries.length() == 0) { call.reject("Nothing to play."); return; }

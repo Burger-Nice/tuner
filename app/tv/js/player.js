@@ -5,7 +5,7 @@
 import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
 import { busy, catalog, versionLabel, pickVersion, forget, ensure } from './catalog.js';
 import { native } from './native.js';
-import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress } from './games.js';
+import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress, chaptersOf } from './games.js';
 import { guideFor, guideNow, onNow, nextUp, resetGuides } from './guide.js';
 import { go } from './router.js';
 import { teamPalette, hm } from './util.js';
@@ -101,6 +101,7 @@ function metaFor(ch, list) {
   const now = onNow(list), next = nextUp(list);
   const g = gameOn(ch, list);
   const m = { fav: isFav(ch) };
+  if (ch.archive > 0) m.kept = ch.archive;   // (the player's Rewind and pause, Start over, Watch from tip-off: catch-up 6.6)
   if (now) Object.assign(m, { now: now.title, start: now.start, end: now.end, desc: now.desc || '' });
   if (next) Object.assign(m, { next: next.title, nextStart: next.start });
   if (g?.state === 'in') m.live = true;
@@ -175,6 +176,8 @@ function gameData(g) {
     plays: hid ? [] : (s?.plays || []).slice(0, 40).map((p) => ({ clock: `${ordinal(p.period)} ${p.clock}`, team: p.team || '', text: p.text || '', scoring: !!p.scoring, score: p.scoring ? `${p.away}–${p.home}` : '' })),
     feeds: feeds.map((f, i) => ({ id: String(f.ch.id), name: f.ch.name, num: f.ch.num || 0, logo: f.ch.logo || '', label: `Feed ${i + 1} of ${feeds.length}${f.why === 'Your pick' ? ' · Your pick' : ''}` })),
     shieldLabel: shieldMode() === 'all' ? 'All games' : 'My team', loading: !s,
+    // catch-up 6.6 / 6.9: From tip-off on a kept channel (no game state: only whether it has started, and when)
+    kept: (chOf(watch.chId)?.archive || 0) > 0, started: dg.state !== 'pre', tipAt: chaptersOf(g.id).list.find((x) => x.key === 'tip')?.at || g.date || 0,
   };
 }
 function liveGamesData() {
@@ -279,6 +282,8 @@ function versionsNow() {
 native?.player.onEvent((e) => {
   const c = ctx.cur;
   if (!c || e.session !== c.session) return;
+  // a replay's own events (position, need, sync, golive…) are replay.js's: only the session's end and settings are here
+  if (c.kind === 'replay' && !['exit', 'diag', 'setting', 'goto-account', 'reveal'].includes(e.type)) return;
   if (e.type === 'track') {
     if (c.kind === 'vod') { c.index = e.index; return; }
     const i = c.items.findIndex((x) => String(x.id) === String(e.id));
@@ -291,6 +296,7 @@ native?.player.onEvent((e) => {
     if (e.what === 'groups') cmd('groups', ringGroups());
     else if (e.what === 'versions') { const v = versionsNow(); if (v) cmd('versions', v); }
     else if (e.what === 'games') { sent.games = ''; push(); }
+    else if (e.what === 'rewind') emit('rewind-request', { chId: e.chId || e.id, at: +e.at || 0 });   // Start over / rewinding a kept channel past the live link (catch-up 6.8)
     else if (e.what === 'clocks') {
       const g = watch.gameId && gameById(watch.gameId);
       if (!g) { cmd('show-text', 'No NBA game found on this channel'); return; }

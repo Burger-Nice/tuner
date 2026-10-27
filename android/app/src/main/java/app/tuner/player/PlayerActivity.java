@@ -169,6 +169,15 @@ public class PlayerActivity extends AppCompatActivity {
     private Ui.Ring chipRing;
     private Ui.Spinner spinner;
     private VodControls vod;
+    // catch-up (design/ui-v1/catchup): a replay session, its timeline, live TV paused or rewound
+    Replay rp;
+    Timeline tl;
+    LivePause lp;
+    String exitThen;              // the exit event's then (a failure card's Choose a video / Game page, Next programme, tipoff)
+    static long replayLeftAt;     // when a replay went Back to live: the next live player drops repeats and ▶ for 800 ms (M8)
+    private boolean guardLive;
+    private long liveGuardUntil;
+    private boolean resumeAfterStop = true;
     private String[][] hintNow;
     private boolean hintsOn, hintForce;
     private long zapAt;
@@ -227,7 +236,9 @@ public class PlayerActivity extends AppCompatActivity {
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             if (player != null) { sample(); timeline(); if (connPanel != null && open == connPanel) fillConnection(); }
-            if (player != null && !live) {
+            if (player != null && rp != null) rp.tick();
+            if (player != null && lp != null) lp.tick();
+            if (player != null && !live && rp == null) {
                 long d = player.getDuration();
                 if (d != C.TIME_UNSET && d > 0) {
                     JSObject e = event("progress");
@@ -251,11 +262,22 @@ public class PlayerActivity extends AppCompatActivity {
         launching = false;
         Bundle x = getIntent().getExtras();
         TunerPlayerPlugin.Playlist list = TunerPlayerPlugin.playlist;
-        if (x == null || list == null || list.entries.isEmpty()) { finish(); return; }
+        boolean replayMode = x != null && "replay".equals(x.getString("mode"));
+        JSONObject rj = null;
+        if (replayMode) { try { rj = new JSONObject(TunerPlayerPlugin.replayJson); } catch (Exception e) { rj = null; } }
+        if (x == null || (replayMode ? rj == null : list == null || list.entries.isEmpty())) { finish(); return; }
         Ui.init(this);
-        ring = new ArrayList<>(list.entries);
+        if (replayMode) {
+            Entry e = new Entry();
+            e.id = rj.optString("id");
+            e.title = rj.optString("title");
+            e.sub = rj.optString("sub");
+            ring = new ArrayList<>();
+            ring.add(e);
+        } else ring = new ArrayList<>(list.entries);
         prefs = getSharedPreferences("player", MODE_PRIVATE);
         live = "live".equals(x.getString("mode"));
+        guardLive = live && SystemClock.uptimeMillis() - replayLeftAt < 15000;
         session = x.getInt("session");
         ringName = x.getString("ring", live ? "All channels" : "");
         String lv = x.getString("sounds", "on");
@@ -270,7 +292,7 @@ public class PlayerActivity extends AppCompatActivity {
             alertId = sounds.load(this, R.raw.alert, 1);
         }
         upNext = x.getBoolean("upNext", true);
-        index = Math.max(0, Math.min(ring.size() - 1, x.getInt("index")));
+        index = replayMode ? 0 : Math.max(0, Math.min(ring.size() - 1, x.getInt("index")));
         cur = ring.get(index);
         String ua = x.getString("ua", "");
         apiUrl = x.getString("api", "");
@@ -333,7 +355,9 @@ public class PlayerActivity extends AppCompatActivity {
                     rd.clearError(); rd.frames = true;
                     if (card.getVisibility() == View.VISIBLE) card.setVisibility(View.GONE);
                     if (open instanceof FailedCard) closeOverlay();
+                    if (rp != null) rp.ready();
                 }
+                if (s == Player.STATE_ENDED && rp != null) { rp.onEnded(); return; }
                 if (s == Player.STATE_ENDED && !live && !player.hasNextMediaItem()) finish();
                 // A live stream the server closed, or one stuck buffering: reconnect instead of freezing.
                 if (live && s == Player.STATE_ENDED) { quietTry = true; reconnect(); }   // (the puck covers a routine one; the card only if it doesn't come back)
@@ -343,17 +367,20 @@ public class PlayerActivity extends AppCompatActivity {
             // behind by that long: that's lag, and every score waits for it.
             @Override public void onIsPlayingChanged(boolean playing) {
                 if (vod != null) vod.playStateChanged();
+                if (tl != null) tl.playStateChanged();
                 if (!live || !played) return;
                 long now = SystemClock.uptimeMillis();
                 if (!playing && stallAt == 0) { stallAt = now; handler.postDelayed(lagTick, 1000); }
                 else if (playing && stallAt > 0) { lagMs += now - stallAt; stallAt = 0; sendLag(); }
             }
             @Override public void onRenderedFirstFrame() {
+                if (guardLive) { guardLive = false; liveGuardUntil = SystemClock.uptimeMillis() + 800; }
                 long shown = SystemClock.uptimeMillis() - zapAt;
                 handler.removeCallbacks(hideZap);
                 handler.postDelayed(hideZap, Math.max(0, 600 - shown));
             }
             @Override public void onPlayerError(@NonNull PlaybackException e) {
+                if (rp != null) { rp.error(e); return; }
                 if (live && e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {   // C9: no card
                     showText("Back to live: the stream skipped ahead", 2000);
                     resetLag();
@@ -379,7 +406,7 @@ public class PlayerActivity extends AppCompatActivity {
                 if (banner.getVisibility() == View.VISIBLE) fillBanner();
             }
             @Override public void onMediaItemTransition(MediaItem item, int reason) {
-                if (live) return;
+                if (live || rp != null) return;
                 index = player.getCurrentMediaItemIndex();
                 if (index < 0 || index >= ring.size()) return;
                 cur = ring.get(index);
@@ -395,7 +422,15 @@ public class PlayerActivity extends AppCompatActivity {
         watchNetwork();
         debugIntent();
 
-        if (live) {
+        if (replayMode) {
+            try { rp = new Replay(this, player, rj, prefs); } catch (JSONException e) { finish(); return; }
+            tl = new Timeline(this, root);
+            tl.m = rp;
+            view.setResizeMode(resizeMode(pictureFor(cur)));
+            player.setPlayWhenReady(true);
+            rp.start();
+            handler.post(tick);
+        } else if (live) {
             tuneTo(index, false);
             handler.post(tick);
         } else {
@@ -725,11 +760,13 @@ public class PlayerActivity extends AppCompatActivity {
         else if (chipUp && chipKind == CHIP_STUTTER) h = chipAct.isEmpty() ? new String[][] { { "◀ ▼", "Details" }, { "Back", "Dismiss" }, { "▲ ▼", "Zap" } }
                 : new String[][] { { "OK", chipOk.getText().toString() }, { "◀ ▼", "Details" }, { "Back", "Dismiss" }, { "▲ ▼", "Zap" } };
         else if (chipUp && chipKind == CHIP_OFFLINE) h = new String[][] { { "Back", "Dismiss" }, { "▲ ▼", "Zap" } };
+        else if (chipUp && chipKind == CHIP_PROGRAMME) h = tl != null && tl.visible() && hintsOn ? tl.hints() : null;
         else if (chipUp) h = chipIsUpNext ? new String[][] { { "OK", "Play now" }, { "Back", "Stay on this one" } }
                 : new String[][] { { "OK", "Switch" }, { "Back", "Dismiss" }, { "◀", "Options" }, { "▶", "Game" }, { "▲ ▼", "Zap" } };
         else if (live && cardUp && banner.getVisibility() == View.VISIBLE && hintsOn)
             h = act.isEmpty() ? new String[][] { { "◀", "Details" }, { "Back", "Hide" }, { "▲ ▼", "Zap" } }
                     : new String[][] { { "OK", actLabel }, { "◀", "Details" }, { "Back", "Hide" }, { "▲ ▼", "Zap" } };
+        else if (tl != null && tlActive() && tl.visible()) h = hintsOn ? tl.hints() : null;
         else if (!live && vod != null && vod.visible()) h = hintsOn ? vod.hints() : null;
         else if (live && banner.getVisibility() == View.VISIBLE && hintsOn)
             h = new String[][] { { "OK", "Channels" }, { "◀", "Options" }, { "▶", gameLinked ? "Game" : liveGames.length() > 0 ? "Live games" : "Info" }, { "▲ ▼", "Zap" }, { "Hold OK", "Last" } };
@@ -750,11 +787,12 @@ public class PlayerActivity extends AppCompatActivity {
     // ---------- score on picture ----------
 
     private boolean bugOn() { return prefs.getBoolean("scorebug", false); }
-    private void updateBug() {
-        boolean show = live && bugOn() && gameLinked && game != null && open == null && banner.getVisibility() != View.VISIBLE;
+    void updateBug() {
+        boolean inReplay = rp != null && rp.gameOnChannel() && game != null && game.optBoolean("replay");
+        boolean show = (live && gameLinked || inReplay) && bugOn() && game != null && open == null && banner.getVisibility() != View.VISIBLE && (tl == null || !tl.visible());
         if (!show) { bug.setVisibility(View.GONE); return; }
         bug.removeAllViews();
-        boolean hidden = game.optBoolean("hidden");
+        boolean hidden = game.optBoolean("hidden") && !inReplay;   // (a replay's answers are as aired: what the picture has shown)
         JSONArray sc = game.optJSONArray("score");
         String[] sides = { "away", "home" };
         for (int k = 0; k < 2; k++) {
@@ -849,14 +887,18 @@ public class PlayerActivity extends AppCompatActivity {
         handler.removeCallbacks(hideBanner);
         if (chipUp && !chipIsUpNext) hideChip();
         if (vod != null) vod.hide();
+        if (tl != null) tl.hide();
         if (cardUp && !(o instanceof FailedCard)) hideCard(false);
         int at = root.indexOfChild(hint);
         root.addView(o.root, at);
         hintsOn = hintForce || bump("panel:" + o.getClass().getSimpleName() + ":" + (o instanceof ListPanel ? ((ListPanel) o).title.getText() : ""));
         if (o instanceof ListPanel) ((ListPanel) o).render();
+        if (o instanceof Card) ((Card) o).render();
         updateBug();
         hintsChanged();
     }
+    boolean isOpen(Overlay o) { return o != null && open == o; }
+    void cardGone(Card c) { if (rp != null) rp.cardClosed(c); }
     void closeOverlay() {
         if (open == null) return;
         Overlay o = open;
@@ -1048,6 +1090,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     void openOptions() {
         if (player == null || isFinishing()) return;
+        if (rp != null) { openReplayOptions(); return; }
         if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions");   // for Quality, ready when it's opened
         ListPanel p = new ListPanel(this, "Options", true, 320);
         List<ListPanel.Item> items = new ArrayList<>();
@@ -1065,8 +1108,20 @@ public class PlayerActivity extends AppCompatActivity {
                 String v = game.has("synced") && !game.isNull("synced") ? game.optInt("synced") + " s" : game.optInt("delay", 60) + " s";
                 items.add(row("Sync score", "Match the game clock", v, "refresh", this::openSync));
                 if (order == 2) items.add(conn);
+                if (keptDays() > 0 && game.optBoolean("started")) {
+                    long tip = game.optLong("tipAt");
+                    ListPanel.Item t = row("Watch from tip-off", tip > 0 ? "Tipped off at " + hm(tip) : "The game from its start", null, "skipBack", () -> { closeOverlay(); fromTipoff(); });
+                    if (optFromLeft && order == 0) focusRow = t;
+                    items.add(t);
+                    items.add(row("Rewind and pause", keptLine(), null, "pause", () -> { closeOverlay(); pauseLive(); }));
+                }
                 JSONArray feeds = otherFeeds();
                 if (feeds.length() > 0) items.add(row("Other feeds for this game", feedNames(feeds), String.valueOf(feeds.length()), "tv", this::openFeeds));
+            } else if (keptDays() > 0) {
+                JSONObject m = metaOf(cur);
+                long st = m == null ? 0 : m.optLong("start");
+                if (st > 0 && st < System.currentTimeMillis()) items.add(row("Start over", "From " + hm(st), null, "skipBack", () -> { closeOverlay(); rewindLive(st); }));
+                items.add(row("Rewind and pause", keptLine(), null, "pause", () -> { closeOverlay(); pauseLive(); }));
             }
         }
         items.add(textTracks > 0 ? row("Subtitles", null, subtitleValue(), "cc", () -> openSubtitles(true))
@@ -1106,13 +1161,142 @@ public class PlayerActivity extends AppCompatActivity {
             }));
         }
         for (ListPanel.Item it : items) it.chevron = it.ok != null && it.value != null && !"On".equals(it.value) && !"Off".equals(it.value);
-        p.source(ListPanel.of(items), 0);
+        p.source(ListPanel.of(items), focusRow != null && items.contains(focusRow) ? items.indexOf(focusRow) : 0);
+        focusRow = null;
+        optFromLeft = false;
         // keep the focus off disabled rows
         while (p.sel < items.size() - 1 && items.get(p.sel).disabled) p.sel++;
         p.onRight = () -> { ListPanel.Item it = p.itemAt(p.sel); if (it.ok != null && it.chevron) it.ok.run(); };
         show(p);
     }
     private static ListPanel.Item disabled(ListPanel.Item it) { it.disabled = true; return it; }
+    private ListPanel.Item focusRow;
+    private boolean optFromLeft;
+
+    // ---------- catch-up on live TV (6.6, 6.8, 6.9) ----------
+    /** How many days the provider keeps this channel (the app sends it with what's on); 0: not kept. */
+    int keptDays() { JSONObject m = metaOf(cur); return m == null ? 0 : m.optInt("kept", 0); }
+    private String keptLine() { int d = keptDays(); return "Replays for " + d + " day" + (d == 1 ? "" : "s") + " on this channel"; }
+    JSONObject metaNow() { return metaOf(cur); }
+    String channelName() { return cur == null ? "" : cur.title; }
+    String channelId() { return cur == null ? "" : cur.id; }
+    boolean droppedWhilePaused() { return droppedWhilePaused; }
+    /** From tip-off (Options, the game panel's foot button): the app starts the game's replay (a new replay session). */
+    void fromTipoff() { TunerPlayerPlugin.emit(event("tipoff")); showText("Starting from tip-off…", 3000); }
+    /** Start over on a kept channel: the programme's replay from that moment (the app plays it). */
+    private void rewindLive(long wallclock) {
+        JSObject e = event("need");
+        e.put("what", "rewind");
+        e.put("at", wallclock);
+        e.put("chId", cur == null ? "" : cur.id);
+        TunerPlayerPlugin.emit(e);
+        showText("Going back…", 3000);
+    }
+    /** ⏯ or Rewind and pause: the timeline map over the live link, paused (6.8). */
+    void pauseLive() {
+        if (!live || player == null) return;
+        if (lp == null) lp = new LivePause(this, player);
+        if (tl == null) tl = new Timeline(this, root);
+        tl.m = lp;
+        handler.removeCallbacks(hideBanner);
+        hideBanner.run();
+        lp.start(true);
+        tl.show();
+    }
+    /** Back to live from paused or rewound live TV: the live map, the banner, and 800 ms without repeats or ▶ (M8). */
+    void backToLiveFromPause() {
+        if (lp == null || !lp.active()) return;
+        lp.stop();
+        if (tl != null) tl.hide();
+        liveGuardUntil = SystemClock.uptimeMillis() + 800;
+        if (droppedWhilePaused) { resumeDropped(); return; }
+        player.seekToDefaultPosition();
+        player.play();
+        showBanner();
+    }
+    void zapFromPause(int dir) { zap(dir, false); }
+    /** A paused stream the provider dropped: a kept channel goes on from where you paused, in its replay; else live. */
+    void resumeDroppedLive(long wallclock) {
+        if (keptDays() > 0) { droppedWhilePaused = false; rewindLive(wallclock); return; }
+        if (lp != null) lp.stop();
+        if (tl != null) tl.hide();
+        droppedWhilePaused = false;
+        showText("Back to live: this channel doesn't rewind", 2500);
+        retries = 0;
+        tryNow();
+    }
+
+    /** Options in a replay (catch-up 6.6, player-replay-options): Game panel · Other sources · Not the game? · Sync score
+     * · Subtitles · Audio · Picture size, and Connection (the playback diagnosis). A kept programme: Speed. */
+    private void openReplayOptions() {
+        ListPanel p = new ListPanel(this, "Options", true, 340);
+        List<ListPanel.Item> items = new ArrayList<>();
+        ListPanel.Item conn = connectionRow();
+        if (optOrder == 1) items.add(conn);
+        optOrder = 0;
+        if (rp.isGame()) items.add(row("Game panel", rp.gameOnChannel() ? "Quarters and plays, as aired" : "The game and where it plays from", null, "score", () -> { closeOverlay(); openReplayPanel(); }));
+        if (rp.sources.size() > 1) items.add(row("Other sources", sourcesLine(), String.valueOf(rp.sources.size()), "frames", this::openSources));
+        if (rp.gameOnChannel()) {
+            items.add(row("Not the game?", "It starts on the wrong show", null, "clock", this::openNotTheGame));
+            items.add(row("Sync score", "Match the game clock", rp.src().delay + " s", "refresh", this::openSync));
+        }
+        items.add(textTracks > 0 ? row("Subtitles", null, subtitleValue(), "cc", () -> openSubtitles(true)) : disabled(row("Subtitles", "No subtitles in this replay", null, "cc", null)));
+        items.add(audioTracks > 1 ? row("Audio", null, audioValue(), "audio", () -> openAudio(true)) : disabled(row("Audio", audioTracks == 1 ? audioValue() : "One audio track", null, "audio", null)));
+        items.add(row("Picture size", rp.isVideo() ? "This title" : "This channel", PICTURE_NAMES[pictureIndex(pictureFor(cur))], "pic", this::openPicture2));
+        if (rp.isProgramme()) items.add(row("Speed", null, speedName(player.getPlaybackParameters().speed), "speed", this::openSpeed));
+        if (!items.contains(conn)) items.add(conn);
+        for (ListPanel.Item it : items) it.chevron = it.ok != null && it.value != null;
+        p.source(ListPanel.of(items), 0);
+        while (p.sel < items.size() - 1 && items.get(p.sel).disabled) p.sel++;
+        p.onRight = () -> { ListPanel.Item it = p.itemAt(p.sel); if (it.ok != null && it.chevron) it.ok.run(); };
+        p.hintKeys = new String[][] { { "OK", "Open" }, { "▲ ▼", "Move" }, { "Back", "Close" } };
+        show(p);
+    }
+    private String sourcesLine() {
+        Replay.Source o = null;
+        for (int i = 0; i < rp.sources.size(); i++) if (i != rp.si) { o = rp.sources.get(i); break; }
+        if (o == null) return null;
+        int more = rp.sources.size() - 2;
+        return o.name + (more > 0 ? ", " + more + " more" : "");
+    }
+    /** Other sources: every source of this replay, Best first; OK plays it from the same moment. */
+    void openSources() {
+        ListPanel p = new ListPanel(this, "Other sources", true, 400);
+        p.setCount(rp.title);
+        List<ListPanel.Item> items = new ArrayList<>();
+        for (int i = 0; i < rp.sources.size(); i++) {
+            Replay.Source x = rp.sources.get(i);
+            ListPanel.Item it = new ListPanel.Item(x.name);
+            it.sub = x.detail;
+            it.radio = true;
+            it.radioOn = i == rp.si;
+            it.badge = x.badge.isEmpty() ? null : x.badge;
+            it.height = 56;
+            final int fi = i;
+            it.ok = () -> { closeOverlay(); if (fi != rp.si) rp.pickSource(fi); };
+            items.add(it);
+        }
+        p.source(ListPanel.of(items), rp.si);
+        p.setFoot("Your pick is remembered for this game.");
+        p.backTo = this::openOptions;
+        show(p);
+    }
+    /** Not the game? (player-notgame): move the replay an hour either way; airglow remembers it for the channel. */
+    private void openNotTheGame() {
+        ListPanel p = new ListPanel(this, "Not the game?", true, 420);
+        List<ListPanel.Item> items = new ArrayList<>();
+        ListPanel.Item later = row("Showing what was on before the game?", "Move the replay 1 hour later", null, "chevR", () -> { closeOverlay(); rp.notTheGame(1); });
+        ListPanel.Item earlier = row("Started mid-game, or after it?", "Move the replay 1 hour earlier", null, "chevL", () -> { closeOverlay(); rp.notTheGame(-1); });
+        later.height = earlier.height = 56;
+        items.add(later);
+        items.add(earlier);
+        if (rp.sources.size() > 1) { ListPanel.Item o = row("Other sources", sourcesLine(), String.valueOf(rp.sources.size()), "frames", this::openSources); o.chevron = true; o.height = 56; items.add(o); }
+        p.source(ListPanel.of(items), 0);
+        p.setFoot("airglow remembers this for the channel.");
+        p.backTo = this::openOptions;
+        p.hintKeys = new String[][] { { "OK", "Move the replay" }, { "▲ ▼", "Move" }, { "Back", "Close" } };
+        show(p);
+    }
 
     private JSONArray otherFeeds() {
         JSONArray out = new JSONArray();
@@ -1154,10 +1338,12 @@ public class PlayerActivity extends AppCompatActivity {
     // (if the app doesn't answer in time, say so: Sync must never look like nothing happened)
     private final Runnable syncSlow = () -> showText("The game clocks didn't come in. Try Sync again in a moment.", 5000);
     void openSync() {
+        if (rp != null && !rp.gameOnChannel()) { showText("A video has no clock to match", 3000); return; }
         syncSeenAt = System.currentTimeMillis();
         handler.removeCallbacks(syncSlow);
         handler.postDelayed(syncSlow, 8000);
         showText("Getting the game clocks…", 8000);
+        if (rp != null) { rp.askClocks(); return; }
         JSObject e = event("need");
         e.put("what", "clocks");
         e.put("seenAt", syncSeenAt);
@@ -1169,6 +1355,8 @@ public class PlayerActivity extends AppCompatActivity {
         JSONArray list = d.optJSONArray("list");
         if (list == null || list.length() == 0) { showText("No game clocks yet to match", 3000); return; }
         long seenAt = d.optLong("seenAt", syncSeenAt);
+        boolean replayClocks = d.optBoolean("replay");
+        long playedAt = d.optLong("played", -1);
         int curIdx = Math.max(0, Math.min(list.length() - 1, d.optInt("current", 0)));
         ListPanel p = new ListPanel(this, "Match the clock", true, 360);
         p.setCaption("Pick the game clock on the picture now. Only clocks are listed.");
@@ -1195,6 +1383,7 @@ public class PlayerActivity extends AppCompatActivity {
                 JSObject ev = event("sync");
                 ev.put("at", at);
                 ev.put("seenAt", seenAt);
+                if (replayClocks && playedAt >= 0) ev.put("played", playedAt);   // a replay: where the picture showed that clock
                 TunerPlayerPlugin.emit(ev);
             };
             items.add(it);
@@ -1202,6 +1391,7 @@ public class PlayerActivity extends AppCompatActivity {
         p.source(ListPanel.of(items), expanded ? curIdx : (curIdx > 0 ? 1 : 0));
         if (expanded) p.sel = curIdx;
         p.setFoot(d.optString("note"));
+        if (replayClocks) p.setCaption("Pick the game clock the picture showed. Only clocks are listed.");
         p.backTo = this::openOptions;
         p.hintKeys = curIdx > 0 && !expanded ? new String[][] { { "OK", "This clock" }, { "▲", "Newer" }, { "▼", "Older" }, { "Back", "Options" } }
                 : new String[][] { { "OK", "This clock" }, { "▲ ▼", "Move" }, { "Back", "Options" } };
@@ -1226,7 +1416,7 @@ public class PlayerActivity extends AppCompatActivity {
         for (int i = 0; i < PICTURES.length; i++) if (PICTURES[i].equals(p)) return i;
         return 0;
     }
-    private String pictureKey(Entry e) { return "pic:" + (live ? "" : "v:") + (e == null ? "" : e.id); }
+    private String pictureKey(Entry e) { return rp != null ? "pic:" + (rp.isVideo() ? "v:" : "") + rp.pictureId() : "pic:" + (live ? "" : "v:") + (e == null ? "" : e.id); }
     private String pictureFor(Entry e) { return prefs.getString(pictureKey(e), prefs.getString("picture", "fit")); }
     // ---------- quality ----------
     // What's on screen (resolution, frame rate, bit rate, codec), the stream's own levels when it has several (HLS):
@@ -1521,6 +1711,7 @@ public class PlayerActivity extends AppCompatActivity {
         long now = SystemClock.uptimeMillis();
         boolean quick = !repeat && now - lastPress < 300;
         lastPress = now;
+        if (lp != null && lp.active()) { lp.stop(); if (tl != null) tl.hide(); }
         if (cur != null && !cur.id.equals(e.id) && !repeat && played) last = cur;
         if (played) Diag.closedAt = SystemClock.elapsedRealtime();   // the stream this TV had closes now
         index = i;
@@ -1599,9 +1790,22 @@ public class PlayerActivity extends AppCompatActivity {
         // Options' order is decided now (opening it dismisses the chip): Connection first while the card shows, second while
         // a diagnosis chip does (so ◀ OK OK still syncs), else under Quality
         boolean opts = code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_MENU;
+        optFromLeft = code == KeyEvent.KEYCODE_DPAD_LEFT;
         optOrder = !opts ? 0 : cardUp && live ? 1 : chipUp && (chipKind == CHIP_STUTTER || chipKind == CHIP_OFFLINE) ? 2 : 0;
         if (chipUp && !chipIsUpNext && !isOk(code)) hideChip();   // any other key dismisses the chip
-        if (live) liveKey(code, repeat);
+        if (tl != null && tlActive()) {   // the timeline map (catch-up 6.1): a replay, or live TV paused or rewound
+            if (tl.key(code, repeat)) { hintsChanged(); return; }
+            switch (code) {
+                case KeyEvent.KEYCODE_MENU: if (!repeat) openOptions(); break;
+                case KeyEvent.KEYCODE_CAPTIONS: if (!repeat) openSubtitles(false); break;
+                case KeyEvent.KEYCODE_INFO: hintForce = true; hintsOn = true; tl.show(); break;
+            }
+            return;
+        }
+        if (live) {
+            if (SystemClock.uptimeMillis() < liveGuardUntil && (repeat || code == KeyEvent.KEYCODE_DPAD_RIGHT)) return;   // (M8)
+            liveKey(code, repeat);
+        }
         else {
             if (vod.key(code, repeat)) { hintsChanged(); return; }
             switch (code) {
@@ -1619,6 +1823,7 @@ public class PlayerActivity extends AppCompatActivity {
             okLong = false;
             return;
         }
+        if (tl != null && tlActive() && open == null) { tl.up(code); return; }
         if (!live && open == null && vod != null) vod.up(code);
     }
 
@@ -1667,6 +1872,7 @@ public class PlayerActivity extends AppCompatActivity {
     }
     private void togglePlay() {
         if (live && droppedWhilePaused) { resumeDropped(); return; }
+        if (live && player.getPlayWhenReady() && played) { pauseLive(); return; }   // ⏯: live TV paused, on the timeline (6.8)
         if (player.isPlaying()) player.pause(); else player.play();
     }
 
@@ -1689,7 +1895,10 @@ public class PlayerActivity extends AppCompatActivity {
             hideCard(false);
             return;
         }
-        if (!live && vod.back()) return;
+        if (tl != null && tlActive() && tl.back()) return;
+        if (rp != null) { finish(); return; }
+        if (lp != null && lp.active()) { finish(); return; }   // Back on rewound live TV leaves the player, as a movie (13.3)
+        if (!live && vod != null && vod.back()) return;
         if (live && banner.getVisibility() == View.VISIBLE && hint.getVisibility() == View.VISIBLE && hintForce) { hideBanner.run(); return; }
         finish();
     }
@@ -1712,10 +1921,13 @@ public class PlayerActivity extends AppCompatActivity {
                 }
                 case "game": {
                     game = arg == null || arg.isEmpty() ? null : new JSONObject(arg);
+                    if (rp != null) rp.game(game);
                     if (open instanceof GamePanel) open.refresh();
                     updateBug();
                     break;
                 }
+                case "replay-links": if (rp != null) rp.links(new JSONObject(arg)); break;
+                case "replay-extend": if (rp != null) rp.extend(new JSONObject(arg)); break;
                 case "meta": {
                     JSONObject items = new JSONObject(arg);
                     for (java.util.Iterator<String> it = items.keys(); it.hasNext(); ) { String id = it.next(); meta.put(id, items.getJSONObject(id)); }
@@ -1957,7 +2169,7 @@ public class PlayerActivity extends AppCompatActivity {
         sv.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 28);
     }
 
-    @Override protected void onStop() { super.onStop(); stopped = true; cancelChecks(); stoppedAt = System.currentTimeMillis(); if (player != null && !isFinishing()) player.pause(); }
+    @Override protected void onStop() { super.onStop(); stopped = true; cancelChecks(); stoppedAt = System.currentTimeMillis(); if (player != null && !isFinishing()) { resumeAfterStop = live || player.getPlayWhenReady(); player.pause(); } }
     @Override protected void onStart() {
         super.onStart();
         stopped = false;
@@ -1965,7 +2177,7 @@ public class PlayerActivity extends AppCompatActivity {
         // Back after a while on live: start from now rather than an old position.
         if (live && stoppedAt > 0 && System.currentTimeMillis() - stoppedAt > 10000) tuneTo(index < 0 ? 0 : index, false);
         else if (live && droppedWhilePaused) resumeDropped();
-        else player.play();
+        else if (resumeAfterStop) player.play();
         if (netBackPending) { netBackPending = false; handler.postDelayed(netBack, 2000); }   // (nothing re-tunes while it's in the background)
     }
 
@@ -1986,6 +2198,8 @@ public class PlayerActivity extends AppCompatActivity {
             }
             e.put("played", played);
             if (!played && error != null) e.put("error", error);
+            if (rp != null) e.put("played", rp.played());   // a replay: ms into its window (PORT-NATIVE.md 3)
+            if (exitThen != null) e.put("then", exitThen);
             TunerPlayerPlugin.emit(e);
         }
         if (player != null) { player.release(); player = null; }
@@ -2013,12 +2227,63 @@ public class PlayerActivity extends AppCompatActivity {
     private final Runnable lagTick = new Runnable() { @Override public void run() { if (stallAt > 0 && player != null) { sendLag(); handler.postDelayed(this, 1000); } } };
     private void resetLag() { lagMs = 0; stallAt = 0; sendLag(); }
 
+    // ---------- catch-up: what the replay and the timeline use (design/ui-v1/catchup/PORT-NATIVE.md) ----------
+    /** The timeline map is on: a replay, or live TV paused or rewound. */
+    boolean tlActive() { return rp != null || (lp != null && lp.active()); }
+    void timelineShown() { if (!hintsOn) hintsOn = hintForce || bump("timeline"); }
+    void timelineChanged() { if (tl != null) tl.changed(); }
+    void showTimeline() { if (tl != null && open == null && !isFinishing()) tl.show(); }
+    private long spinnerFrom;
+    /** The stream this TV has goes first (one connection, 6.11), so the provider can count it gone before the next. */
+    void releaseStream() {
+        if (player == null) return;
+        if (played) Diag.closedAt = SystemClock.elapsedRealtime();
+        player.stop();
+        player.clearMediaItems();
+        resetDiag();
+    }
+    void setStream(String url, long posMs) {
+        if (player == null) return;
+        cur.url = url;
+        player.setMediaItem(item(cur), Math.max(0, posMs));
+        player.prepare();
+    }
+    /** The reconnect spinner (no text), from 1 s after a link was asked for. */
+    void spinnerSoon() { spinnerFrom = SystemClock.uptimeMillis(); }
+    void spinnerGone() { spinnerFrom = 0; if (puck != null && !rd.stalled) puck.setVisibility(View.GONE); }
+    void classifyError(PlaybackException e) { classify(e); }
+    int httpCode() { return rd.http; }
+    boolean limitAnswer() { return limitEvidence(); }
+    boolean timedOut() { return rd.timedOut; }
+    boolean decoderFault() { return rd.decoder > 0; }
+    /** The account check (max_connections for the stream-limit card), in the background. */
+    void checkAccount() { if (!apiUrl.isEmpty() && !checkRunning) runChecks(false); }
+    int maxStreams() { return rd.acct == 1 ? rd.max : -1; }
+    /** A kept programme's Up next (6.7), the last 10 s: the chip without a countdown or a key. */
+    void upNextCard(String title, String sub) {
+        if (open != null || (chipUp && chipKind != CHIP_PROGRAMME)) return;
+        chipKind = CHIP_PROGRAMME;
+        chipIsUpNext = false;
+        chipRing.setVisibility(View.GONE);
+        chipGlyph.setVisibility(View.GONE);
+        chipKbd.setVisibility(View.GONE);
+        chipOk.setVisibility(View.GONE);
+        chipTitle.setText(title);
+        chipSub.setText(sub);
+        if (!chipUp) { chipUp = true; chip.setVisibility(View.VISIBLE); hintsChanged(); }
+    }
+    void upNextCardGone() { if (chipUp && chipKind == CHIP_PROGRAMME) hideChip(); }
+    /** The game panel in a replay (6.9): the as-aired answers only. */
+    void openReplayPanel() { if (rp != null && rp.isGame()) show(new GamePanel(this, 0)); }
+    /** For the emulator test: what the replay is doing. */
+    String replayState() { return rp == null ? "" : rp.describe() + " bar=" + (tl != null && tl.visible()) + " buttons=" + (tl == null ? "" : tl.describe()); }
+
     // ---------- playback diagnosis (design/ui-v1/diagnosis/SPEC.md) ----------
     // A routine stall shows only the puck; one that isn't recovering gets the card with its cause (checked, never
     // guessed); a channel that can't come back gets the failure card; Options > Connection shows every reading.
     // No score, clock or result anywhere here: games are named by title, feeds by channel.
 
-    static final int CHIP_TEAM = 1, CHIP_UPNEXT = 2, CHIP_STUTTER = 3, CHIP_OFFLINE = 4;
+    static final int CHIP_TEAM = 1, CHIP_UPNEXT = 2, CHIP_STUTTER = 3, CHIP_OFFLINE = 4, CHIP_PROGRAMME = 5;
     private int chipKind;
     private FrameLayout chipGlyph;
     private TextView chipKbd;
@@ -2059,8 +2324,8 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView connTitle, connLine;
     private PathView connPath;
 
-    private String what() { return live ? "channel" : cur != null && cur.id.startsWith("episode:") ? "episode" : "movie"; }
-    private String title() { return cur == null ? "" : cur.title; }
+    private String what() { return rp != null ? rp.what() : live ? "channel" : cur != null && cur.id.startsWith("episode:") ? "episode" : "movie"; }
+    private String title() { return rp != null ? rp.name() : cur == null ? "" : cur.title; }
 
     // ----- what arrives (10.2): bytes from a TransferListener on the loader threads, read once a second here -----
     private final AtomicLong bytesIn = new AtomicLong();
@@ -2145,7 +2410,9 @@ public class PlayerActivity extends AppCompatActivity {
             if (!cardUp && (notRec >= 2 || el >= 12000 || stallSlowStart)) { if (stallSlowStart) zap.setVisibility(View.GONE); openCheck(); }
         } else {
             if (stallStart > 0) { stallEnded(now - stallStart); stallStart = 0; notRec = 0; }
-            puck.setVisibility(View.GONE);
+            boolean asking = rp != null && rp.busy() && now - spinnerFrom >= 1000 && spinnerFrom > 0;
+            if (asking) puck.set(-1);
+            puck.setVisibility(asking ? View.VISIBLE : View.GONE);
             if (!cardUp && reconnecting && open == null && cause != null && !hidden(cause)) showCause(cause);
         }
         if (cardUp) {
@@ -2730,7 +2997,7 @@ public class PlayerActivity extends AppCompatActivity {
         }
     }
 
-    private JSObject event(String type) {
+    JSObject event(String type) {
         JSObject e = new JSObject();
         e.put("type", type);
         e.put("session", session);

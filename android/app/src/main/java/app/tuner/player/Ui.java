@@ -148,6 +148,37 @@ final class Ui {
         return t;
     }
 
+    /** A pill button (btn2): Outfit 700 16 chalk, 40 dp high. The primary one is the gradient with ink text; focused, any
+     * pill gets the 3 dp white ring (catch-up cards and the timeline's pills). */
+    static TextView pill(Context c, String s, String icon, boolean chevron) {
+        TextView t = text(c, s, 16, T1, outfit700);
+        t.setGravity(Gravity.CENTER);
+        t.setSingleLine(true);
+        if (icon != null || chevron) {
+            Drawable l = icon == null ? null : icon(icon, T1, 20), r = chevron ? icon("chevR", T1, 18) : null;
+            if (l != null) l.setBounds(0, 0, dp(20), dp(20));
+            if (r != null) r.setBounds(0, 0, dp(18), dp(18));
+            t.setCompoundDrawables(l, null, r, null);
+            t.setCompoundDrawablePadding(dp(8));
+        }
+        t.setPadding(dp(icon != null ? 14 : 18), 0, dp(chevron ? 14 : 18), 0);
+        return t;
+    }
+    static void pillState(TextView t, boolean primary, boolean focused) {
+        GradientDrawable g;
+        if (primary) {
+            g = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[] { PINK, ORCHID });
+            g.setCornerRadius(dp(999));
+        } else g = round(focused ? S3 : 0, 999);
+        if (focused) g.setStroke(dp(3), FOCUS);
+        else if (!primary) g.setStroke(dp(2), BORDER_STRONG);
+        t.setBackground(g);
+        int fg = primary ? INK : T1;
+        t.setTextColor(fg);
+        Drawable[] ds = t.getCompoundDrawables();
+        for (Drawable d : ds) if (d instanceof Icon) ((Icon) d).color(fg);
+    }
+
     /** A remote key, as drawn in the hint bar: chalk on surface-2. */
     static TextView kbd(Context c, String s) {
         TextView t = text(c, s, 14, T1, inter650);
@@ -239,6 +270,9 @@ final class Ui {
                 case "play": d("M7 4.5v15l13-7.5z"); f = true; break;
                 case "pause": rect(6, 4.5f, 4, 15, 1); rect(14, 4.5f, 4, 15, 1); f = true; break;
                 case "next": d("M5 5l9 7-9 7zM18 5v14"); break;
+                // catch-up (design/ui-v1/catchup): ⏮ to tip-off or a programme's start, the history glyph
+                case "skipBack": rect(5, 5, 2.6f, 14, 1); d("M19.5 5.2v13.6L9 12z"); f = true; break;
+                case "hist": d("M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4.5V9H8"); d("M12 7.5V12l3 2"); break;
                 case "speed": path.addCircle(12, 13, 8, Path.Direction.CW); d("M12 13l4-4M12 3v2"); break;
                 case "frames": rect(3, 4, 18, 16, 2.5f); d("M3 9h18M3 15h18"); break;
                 case "quality": rect(3, 5, 18, 14, 3); d("M7 9.5v5M7 12h3.2M10.2 9.5v5M13.5 9.5v5h1.3a2.5 2.5 0 0 0 0-5z"); break;
@@ -283,6 +317,7 @@ final class Ui {
         @Override public void setAlpha(int a) { paint.setAlpha(a); dotP.setAlpha(a); }
         @Override public void setColorFilter(ColorFilter f) { paint.setColorFilter(f); dotP.setColorFilter(f); }
         @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
+        void color(int c) { if (paint.getColor() != c) { paint.setColor(c); dotP.setColor(c); invalidateSelf(); } }
     }
 
     /** The Sharp dialect's plate: a parallelogram skewed 12 degrees (a real skew, not a rotated rectangle). */

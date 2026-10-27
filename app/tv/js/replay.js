@@ -54,7 +54,7 @@ const sourceRow = (g, x, windowMs) => ({
   links: x.kind === 'channel' ? linksOf(x, windowMs) : [{ url: x.video.url, engine: 'native' }],
   windowStart: x.kind === 'channel' ? x.windowStart : 0, windowMs: x.kind === 'channel' ? windowMs : 0,
   chId: x.kind === 'channel' ? String(x.ch.id) : '', channel: x.kind === 'channel' ? { name: x.ch.name, num: x.ch.num || 0, logo: x.ch.logo || '' } : null,
-  delay: x.kind === 'channel' ? replayDelay(x.ch.id) : 0,
+  delay: x.kind === 'channel' ? replayDelay(x.ch.id) : 0, days: x.kind === 'channel' ? x.days || x.ch.archive || 0 : 0,
 });
 // The game as it aired, in the shape of the player's game data (player.js gameData), for the score bug, the game panel
 // and the Live games row during a replay: asAired at the aired moment − 90 s, never show() / delayed().
@@ -206,7 +206,14 @@ native?.player.onEvent((e) => {
   if (!cur || !cur.session || e.session !== cur.session) return;
   if (e.type === 'position') onPosition(+e.played || 0, { duration: +e.duration || 0 });
   else if (e.type === 'progress') onPosition((+e.t || 0) * 1000, { duration: (+e.d || 0) * 1000 });   // (the stand-in VOD's events)
-  else if (e.type === 'exit') { close(e.played != null ? +e.played : e.t != null ? +e.t * 1000 : null); if (e.error) toast(`This replay would not play. ${e.error}`, 6000); if (e.then === 'choose-video' && pendingGame) chooseVideo(pendingGame); if (e.then === 'game-page' && pendingGame) push('game', { id: pendingGame.id }); }
+  else if (e.type === 'exit') {
+    const was = cur;
+    close(e.played != null ? +e.played : e.t != null ? +e.t * 1000 : null);
+    if (e.error) toast(`This replay would not play. ${e.error}`, 6000);
+    if (e.then === 'choose-video' && pendingGame) chooseVideo(pendingGame);
+    if (e.then === 'game-page' && pendingGame) push('game', { id: pendingGame.id });
+    if (e.then === 'next-programme' && was?.prog && was.ch) nextProgramme(was.ch, was.prog);   // the bar's Next programme ›
+  }
   else handleReplayEvent(e);
 });
 let pendingGame = null;   // (the game of the replay that just closed: the failure card's Choose a video / Game page)
@@ -229,6 +236,13 @@ function handleReplayEvent(e) {
     const h = archiveShift(x.ch.id) + (+e.hours > 0 ? 1 : -1);
     setArchiveShift(x.ch.id, h);
     playerCommand('replay-links', { source: cur.sources.indexOf(x), links: linksOf(x, cur.windowMs, h), windowStart: x.windowStart, tipoffAt: g ? tipoffAt(g, x) : 0, chapters: g ? chapterMarks(g, x) : [] });
+  } else if (e.type === 'need' && e.what === 'links') {
+    // a seek on a .ts link (minute-granular, 6.5): the window's links from that minute; the player plays them from there
+    const x = cur.sources[+e.source] || cur.src;
+    if (x?.kind !== 'channel') return;
+    const from = Math.max(0, +e.at || 0);
+    const links = S.src?.catchup?.(x.ch, x.windowStart + from, x.windowStart + cur.windowMs, { shift: archiveShift(x.ch.id), raw: x.prog?.raw || '', plus: from }) || [];
+    playerCommand('replay-links', { source: cur.sources.indexOf(x), links, from: +e.at });
   } else if (e.type === 'need' && e.what === 'extend') {
     // the window ended before the buzzer: the next 60 min, without a word, up to twice; then Replay ended (6.7)
     const b = g && chaptersOf(g.id).buzzerAt, played = +e.played || cur.windowMs, src = cur.src;
@@ -318,14 +332,32 @@ export function backToLive(g) {
   if (!shielded(g) || isSeen(g)) return go();
   confirmMenu({ title: 'Going live may show the score', text: `${ch?.name || 'The channel'} is live now. Your replay stays where you left it.`, no: 'Stay in the replay', yes: 'Go live', onYes: go });
 }
-// A kept programme from its start (or where you stopped), from the guide (4.2).
-export function playProgramme(ch, p, { restart = false } = {}) {
+// A kept programme from its start (or where you stopped), from the guide (4.2); at: from that moment (rewinding live TV, 6.8).
+export function playProgramme(ch, p, { restart = false, at = 0 } = {}) {
   const src = { kind: 'channel', id: String(ch.id), ch, prog: p, windowStart: p.start, days: ch.archive, name: ch.name, detail: 'Replay' };
   const item = { kind: 'rp', id: `${ch.id}:${p.start}`, ch: String(ch.id), name: p.title, title: p.title, start: p.start, end: p.end, channel: ch.name, logo: ch.logo || '' };
   const was = S.progress[`rp:${item.id}`];
-  const startAt = !restart && was && !was.done && was.t > 30 ? was.t * 1000 : 0;
+  const startAt = at ? Math.max(0, at - p.start) : !restart && was && !was.done && was.t > 30 ? was.t * 1000 : 0;
   return start({ ch, prog: p, src, sources: [src], startAt, item: { ...(was?.item || {}), ...item } });
 }
+// The bar's Next programme ›: the one after, from its start (live, when it's on now).
+function nextProgramme(ch, p) {
+  const l = pastNow(ch) || guideNow(ch) || [];
+  const n = l.find((x) => x.start >= p.end - 60e3 && x.start > p.start);
+  if (!n) { toast('The next programme isn’t in the guide.'); return; }
+  if (n.start <= Date.now() && n.end > Date.now()) playLive(ch, ringOf(), 'All channels');
+  else playProgramme(ch, n, { restart: true });
+}
+// Rewinding a kept channel past what the live link holds, or Start over (the live player's need: rewind, 6.8): the
+// programme on at that moment, from it.
+on('rewind-request', async ({ chId, at }) => {
+  const ch = chOf(chId);
+  if (!ch || !at) return;
+  const has = (l) => (l || []).find((x) => x.start <= at && x.end > at);
+  const p = has(pastNow(ch)) || has(await pastFor(ch, { urgent: true })) || has(guideNow(ch));
+  if (!p) { toast('That part of the programme isn’t in the replay.'); return; }
+  playProgramme(ch, p, { at });
+});
 export const programmeProgress = (ch, p) => S.progress[`rp:${ch.id}:${p.start}`] || null;
 // A video from Movies that is a hidden game's full game: the game page with it as the pick (5.8, S5).
 export function openVideoGame(g, m) {
