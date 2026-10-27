@@ -335,12 +335,16 @@ async function imdbOf(it) {
   return m?.id && m.level !== 'unsure' ? { imdb: m.id, level: m.level === 'sure' ? 'sure' : 'likely' } : null;
 }
 const segQuery = (it, imdb) => ({ imdb, ...(it.kind === 'episode' ? { season: +it.season, episode: +it.ep } : {}) });
-// the episode before this one, watched in the last 3 days (S.progress)
+// the episode before this one, watched in the last 3 days (S.progress): watched = finished or past 80%; the episode
+// before = the same season's previous number, or for an E1 the highest-numbered watched episode of the season before
 function watchedBefore(it) {
   if (it.kind !== 'episode') return false;
-  const prev = Object.values(S.progress || {}).find((p) => p?.item?.kind === 'episode' && String(p.item.seriesId) === String(it.seriesId)
-    && ((+p.item.season === +it.season && +p.item.ep === +it.ep - 1) || (+p.item.season === +it.season - 1 && +it.ep === 1)));
-  return !!prev && Date.now() - (prev.at || 0) < 3 * 864e5;
+  const S0 = +it.season, E0 = +it.ep, recent = Date.now() - 3 * 864e5;
+  const watched = Object.values(S.progress || {}).filter((p) => p?.item?.kind === 'episode' && String(p.item.seriesId) === String(it.seriesId)
+    && (p.done || (p.d > 0 && p.t / p.d >= 0.8)) && (p.at || 0) >= recent);
+  if (E0 > 1) return watched.some((p) => +p.item.season === S0 && +p.item.ep === E0 - 1);
+  const prev = watched.filter((p) => +p.item.season === S0 - 1);
+  return prev.length > 0;   // (its highest-numbered watched one: the season's last he saw)
 }
 async function sendSegments(it) {
   if (!it || !native?.info?.()?.segments || settings().skipIntro === 'off') return;
