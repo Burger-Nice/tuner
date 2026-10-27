@@ -188,7 +188,8 @@ function failed(a, err) {
 function worked(a) { const h = (a.health ||= {}); const was = h.notAddon || h.downUntil || h.fails?.length; h.lastOk = Date.now(); delete h.notAddon; delete h.downUntil; h.fails = []; if (was) saveList(); }
 export function healthLine(a) {
   const h = a.health || {}, t = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  if (h.notAddon) return `Opens a web page now${h.lastOk ? ` · last worked ${new Date(h.lastOk).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}` : ''}`;
+  const day = (ms) => { const d = new Date(ms); return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]} ${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]}`; };
+  if (h.notAddon) return `Opens a web page now${h.lastOk ? ` · last worked ${day(h.lastOk)}` : ''}`;
   if (isDown(a)) return `No answer in 10 s, 3 times since ${t(h.downSince || Date.now())} · tries again ${t(h.downUntil)}`;
   return '';
 }

@@ -137,6 +137,9 @@ Stremio account's add-ons (as `tests/tv/addons-common.js` does). Then:
 - pick the **4K web copy** (`short.mp4`, 30 s; Cinemeta's runtime is 2 min): it hands over as not ready, and no progress
   is saved for it;
 - `tests/make-media.sh` now makes `short.mp4`.
+- **Account has a new group, Add-ons, right after Provider.** `tests/android-test-boot.js`'s last Account steps
+  (`DPAD_LEFT, DPAD_DOWN, DPAD_DOWN` to reach NBA) now land one group earlier; they carry no check, but their
+  screenshots change. Clicking the group (`.gl[data-g="nba"]`) is steadier than counting presses.
 
 ## 8. What the web side already does for these
 
