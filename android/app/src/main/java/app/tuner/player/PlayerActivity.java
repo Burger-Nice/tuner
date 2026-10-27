@@ -100,17 +100,48 @@ public class PlayerActivity extends AppCompatActivity {
         String id = "", url = "", title = "", sub = "", logo = "";
         int num;
         long start;
+        // a film's or an episode's copy (design/ui-v1/addons/PORT-NATIVE.md 1): its own request headers (an add-on's
+        // proxy headers: they can hold a debrid key, so never logged or shown), a MIME hint, where it comes from, its
+        // identity, the next copies as identities, the binge group, the IMDb key and the runtime (seconds)
+        String mime = "", source = "", sourceKind = "", copyKey = "", binge = "", key = "", label = "";
+        Map<String, String> headers;
+        JSONArray copies;
+        double runtime;
+        boolean addon() { return "addon".equals(sourceKind); }
         static Entry from(JSONObject o) throws JSONException {
             Entry e = new Entry();
             e.url = o.getString("url");
             e.id = o.optString("id", e.url);
-            e.title = o.optString("title", "");
-            e.sub = o.optString("sub", "");
-            e.logo = o.optString("logo", "");
+            e.title = str(o, "title");
+            e.sub = str(o, "sub");
+            e.logo = str(o, "logo");
             e.num = o.optInt("num", 0);
             e.start = (long) o.optDouble("startAt", 0);
+            e.mime = str(o, "mime");
+            e.source = str(o, "source");
+            e.sourceKind = str(o, "sourceKind");
+            e.copyKey = str(o, "copyKey");
+            e.binge = str(o, "binge");
+            e.key = str(o, "key");
+            e.label = str(o, "label");
+            e.runtime = Math.max(0, o.optDouble("runtime", 0));
+            if (Double.isNaN(e.runtime)) e.runtime = 0;
+            e.copies = o.optJSONArray("copies");
+            JSONObject h = o.optJSONObject("headers");
+            if (h != null) {
+                Map<String, String> m = new java.util.LinkedHashMap<>();
+                for (java.util.Iterator<String> it = h.keys(); it.hasNext(); ) {
+                    String k = it.next();
+                    Object v = h.opt(k);
+                    // a header name is a token and neither name nor value may break the request line
+                    if (!(v instanceof String) || !k.matches("[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}") || ((String) v).matches("(?s).*[\\r\\n].*") || ((String) v).length() > 4096) continue;
+                    m.put(k, (String) v);
+                }
+                if (!m.isEmpty()) e.headers = m;
+            }
             return e;
         }
+        private static String str(JSONObject o, String k) { Object v = o.opt(k); return v instanceof String ? (String) v : v == null || v == JSONObject.NULL ? "" : String.valueOf(v); }
     }
     /** Rows from the app: objects (movies and episodes), or for channels the compact form [id, name, number, logo, url?]
      * where a missing url follows the list's pattern tpl ("…/live/user/pass/{id}.ts"). */
@@ -169,6 +200,9 @@ public class PlayerActivity extends AppCompatActivity {
     private Ui.Ring chipRing;
     private Ui.Spinner spinner;
     private VodControls vod;
+    // a film's or an episode's copies: the hand-over, the not-ready rule, Quality's copies, Up next by binge group
+    Handover ho;
+    private DefaultHttpDataSource.Factory http;
     // subtitles from OpenSubtitles and the copy's real quality (design/ui-v1/subtitles): the settings, the downloads
     Subs subs;
     private JSONObject subSettings;
@@ -243,7 +277,8 @@ public class PlayerActivity extends AppCompatActivity {
             if (player != null && lp != null) lp.tick();
             if (player != null && !live && rp == null) {
                 long d = player.getDuration();
-                if (d != C.TIME_UNSET && d > 0) {
+                if (ho != null && d != C.TIME_UNSET) ho.tick(player.getCurrentPosition(), d);
+                if (d != C.TIME_UNSET && d > 0 && (ho == null || ho.progressAllowed())) {
                     JSObject e = event("progress");
                     e.put("t", player.getCurrentPosition() / 1000.0);
                     e.put("d", d / 1000.0);
@@ -320,12 +355,14 @@ public class PlayerActivity extends AppCompatActivity {
         buildOverlays();
         setContentView(root);
 
-        DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
+        uaDefault = ua;
+        http = new DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(15000)
                 .setReadTimeoutMs(live ? 12000 : 20000);   // (a weak Wi-Fi link can go quiet for longer than 8 s)
         if (!ua.isEmpty()) http.setUserAgent(ua);
         http.setTransferListener(health);
+        if (!live && !replayMode) { ho = new Handover(this, cur, cur.start > 30 ? cur.start * 1000 : 0); rd.source = cur.addon() ? cur.source : ""; }
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
         // Live: starts after 2 s of picture, and after a stall waits for 6 s so the next hiccup doesn't stall it again: a
         // live TS stream arrives at real time, so whatever is banked when it resumes is all the cushion it gets. Keeps a
@@ -366,6 +403,7 @@ public class PlayerActivity extends AppCompatActivity {
                     if (card.getVisibility() == View.VISIBLE) card.setVisibility(View.GONE);
                     if (open instanceof FailedCard) closeOverlay();
                     if (rp != null) rp.ready();
+                    if (ho != null && rp == null) ho.readyNow();
                     if (!live && rp == null && !askedVersions) { askedVersions = true; if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions"); }   // (the title block's line and Quality)
                 }
                 if (s == Player.STATE_ENDED && rp != null) { rp.onEnded(); return; }
@@ -385,6 +423,7 @@ public class PlayerActivity extends AppCompatActivity {
                 else if (playing && stallAt > 0) { lagMs += now - stallAt; stallAt = 0; sendLag(); }
             }
             @Override public void onRenderedFirstFrame() {
+                if (ho != null) ho.firstFrame();
                 if (guardLive) { guardLive = false; liveGuardUntil = SystemClock.uptimeMillis() + 800; }
                 long shown = SystemClock.uptimeMillis() - zapAt;
                 handler.removeCallbacks(hideZap);
@@ -398,6 +437,8 @@ public class PlayerActivity extends AppCompatActivity {
                     player.seekToDefaultPosition(); player.prepare(); return;
                 }
                 if (live) { liveError(e); return; }
+                // a film's other copies: the next one plays, or the hand-over card (PORT-NATIVE.md 2.2)
+                if (ho != null && ho.active() && ho.error(e)) return;
                 error = errorText(e);
                 JSObject ev = event("failed");
                 ev.put("error", error);
@@ -423,7 +464,10 @@ public class PlayerActivity extends AppCompatActivity {
                 if (live || rp != null) return;
                 index = player.getCurrentMediaItemIndex();
                 if (index < 0 || index >= ring.size()) return;
+                Entry was = cur;
                 cur = ring.get(index);
+                rd.source = cur.addon() ? cur.source : "";
+                if (ho != null && was != cur && reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) ho.reset(cur);   // (the next episode; a copy switch keeps the play's copies)
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && cur.start > 30) player.seekTo(cur.start * 1000);
                 if (chipUp && chipIsUpNext) hideChip();
                 if (subs != null) subs.itemChanged(index);   // (the app sends the next episode's subtitles)
@@ -450,9 +494,7 @@ public class PlayerActivity extends AppCompatActivity {
             handler.post(tick);
         } else {
             vod = new VodControls(this, player, root);
-            List<MediaItem> items = new ArrayList<>();
-            for (Entry e : ring) items.add(item(e));
-            player.setMediaItems(items, index, cur.start > 30 ? cur.start * 1000 : 0);
+            player.setMediaSources(sources(ring), index, cur.start > 30 ? cur.start * 1000 : 0);
             player.prepare();
             player.play();
             vod.setItem(cur, index < ring.size() - 1);
@@ -472,9 +514,40 @@ public class PlayerActivity extends AppCompatActivity {
                 .setUri(Uri.parse(e.url))
                 .setMediaMetadata(new MediaMetadata.Builder().setTitle(e.title).build());
         String u = e.url.toLowerCase(Locale.ROOT).split("\\?")[0];
-        if (u.endsWith(".m3u8")) b.setMimeType(MimeTypes.APPLICATION_M3U8);
+        String m = e.mime == null ? "" : e.mime.toLowerCase(Locale.ROOT);
+        if (m.equals("application/x-mpegurl") || m.equals("application/vnd.apple.mpegurl")) b.setMimeType(MimeTypes.APPLICATION_M3U8);
+        else if (m.equals("video/mp2t")) b.setMimeType(MimeTypes.VIDEO_MP2T);
+        else if (m.equals("video/x-matroska")) b.setMimeType(MimeTypes.VIDEO_MATROSKA);
+        else if (m.equals("video/mp4")) b.setMimeType(MimeTypes.VIDEO_MP4);
+        else if (m.equals("video/webm")) b.setMimeType(MimeTypes.VIDEO_WEBM);
+        else if (u.endsWith(".m3u8")) b.setMimeType(MimeTypes.APPLICATION_M3U8);
         else if (u.endsWith(".ts")) b.setMimeType(MimeTypes.VIDEO_MP2T);
         return b.build();
+    }
+    private String uaDefault = "";
+    /** A film's or an episode's source: an add-on copy's proxy headers go on its own data source (a User-Agent there
+     * wins over Account's); everything else shares the player's. */
+    private androidx.media3.exoplayer.source.MediaSource source(Entry e) {
+        DataSource.Factory f = http;
+        if (e.headers != null && !e.headers.isEmpty()) {
+            DefaultHttpDataSource.Factory h = new DefaultHttpDataSource.Factory()
+                    .setAllowCrossProtocolRedirects(true)
+                    .setConnectTimeoutMs(15000)
+                    .setReadTimeoutMs(20000);
+            Map<String, String> rest = new HashMap<>();
+            String agent = uaDefault;
+            for (Map.Entry<String, String> x : e.headers.entrySet()) { if ("user-agent".equalsIgnoreCase(x.getKey())) agent = x.getValue(); else rest.put(x.getKey(), x.getValue()); }
+            if (agent != null && !agent.isEmpty()) h.setUserAgent(agent);
+            if (!rest.isEmpty()) h.setDefaultRequestProperties(rest);
+            h.setTransferListener(health);
+            f = h;
+        }
+        return new DefaultMediaSourceFactory(this).setDataSourceFactory(f).createMediaSource(item(e));
+    }
+    private List<androidx.media3.exoplayer.source.MediaSource> sources(List<Entry> l) {
+        List<androidx.media3.exoplayer.source.MediaSource> out = new ArrayList<>(l.size());
+        for (Entry e : l) out.add(source(e));
+        return out;
     }
 
     // ---------- the overlays' views ----------
@@ -926,7 +999,7 @@ public class PlayerActivity extends AppCompatActivity {
         hintsChanged();
     }
     boolean isOpen(Overlay o) { return o != null && open == o; }
-    void cardGone(Card c) { if (rp != null) rp.cardClosed(c); }
+    void cardGone(Card c) { if (rp != null) rp.cardClosed(c); if (ho != null) ho.cardClosed(c); }
     void closeOverlay() {
         if (open == null) return;
         Overlay o = open;
@@ -1826,7 +1899,7 @@ public class PlayerActivity extends AppCompatActivity {
     }
     void recordSeek() {
         long d = player.getDuration();
-        if (d == C.TIME_UNSET || d <= 0) return;
+        if (d == C.TIME_UNSET || d <= 0 || (ho != null && !ho.progressAllowed())) return;
         JSObject e = event("progress");
         e.put("t", player.getCurrentPosition() / 1000.0);
         e.put("d", d / 1000.0);
@@ -2012,6 +2085,8 @@ public class PlayerActivity extends AppCompatActivity {
                 }
                 case "versions": versions = new JSONObject(arg); if (vod != null && vod.visible()) fillWhat(vod); if (open instanceof ListPanel && "Quality".contentEquals(((ListPanel) open).title.getText())) openQuality(qualityFromOptions); break;
                 case "subs": if (subs != null) subs.command(arg); break;
+                case "copy": if (ho != null) ho.copy(new JSONObject(arg)); break;   // a copy's link, asked for with need: copy
+                case "queue-next": queueNext(new JSONObject(arg)); break;
                 case "pinned": pinned = arg == null || arg.isEmpty() ? null : new JSONObject(arg); break;
                 case "games": liveGames = new JSONArray(arg); if (banner.getVisibility() == View.VISIBLE) hintsChanged(); break;
                 case "groups": groups = new JSONArray(arg); if (wantGroups) { wantGroups = false; openGroups(); } break;
@@ -2021,10 +2096,8 @@ public class PlayerActivity extends AppCompatActivity {
                 case "queue": {   // movies and episodes: more to play after the last one (Up next)
                     if (live || player == null) break;
                     List<Entry> more = parse(new JSONObject(arg).getJSONArray("entries"), "");
-                    List<MediaItem> items = new ArrayList<>();
-                    for (Entry e : more) items.add(item(e));
                     ring.addAll(more);
-                    player.addMediaItems(items);
+                    player.addMediaSources(sources(more));
                     vod.setItem(cur, index < ring.size() - 1);
                     break;
                 }
@@ -2273,7 +2346,8 @@ public class PlayerActivity extends AppCompatActivity {
             if (player != null) {
                 long d = player.getDuration();
                 e.put("t", player.getCurrentPosition() / 1000.0);
-                e.put("d", d == C.TIME_UNSET ? 0 : d / 1000.0);
+                // a "still downloading" placeholder saves nothing: the app ignores a zero duration (PORT-NATIVE.md 2.2)
+                e.put("d", d == C.TIME_UNSET || (ho != null && !ho.progressAllowed()) ? 0 : d / 1000.0);
             }
             e.put("played", played);
             if (!played && error != null) e.put("error", error);

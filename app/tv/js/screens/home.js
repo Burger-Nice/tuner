@@ -3,6 +3,7 @@
 // kept for 3 s so the focused button never changes under your thumb.
 import { $, esc, setHtml, ic } from '../util.js';
 import { S, on, store, scoped, favList, continueRows, toggleFav, isFav, markWatched, settings } from '../state.js';
+import { checkCopies } from '../subs.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
 import { gameById, nba, bestChannel, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
@@ -93,6 +94,8 @@ function draw() {
   rows = order.filter(([, , h]) => h).slice(0, 2);
   const rail = ([id, title, html], k) => `<div class="abs rowtitle" style="left:48px;top:${ROW_TOP[k]}px">${title}</div><div class="rail abs${k ? ' peek' : ''}" data-rail="${id}" style="top:${ROW_TOP[k] + 36}px;left:0;right:0"><div class="track" data-row data-mem>${html}</div></div>`;
   setHtml(page, `<div data-hero>${hero}</div>${rows.map(rail).join('')}`);
+  // Continue watching's copies get their quality checks in the background, 60 s apart (subtitles SPEC 5.3)
+  checkCopies(cont.map((x) => x.item).filter((it) => it.url && (it.kind === 'movie' || it.kind === 'episode')), 'continue');
   el.querySelector('.edgefade').hidden = rows.length < 2;
   placeRails();
 }

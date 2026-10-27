@@ -184,3 +184,32 @@ input.field[readonly]{caret-color:transparent}
 .hc .bt .cu-may{display:flex;align-items:center;gap:6px}.hc .bt .cu-may .ic{width:16px;height:16px;flex:none}
 .cu-noart{display:grid;place-items:center;background:var(--a-surface-2);color:var(--a-text-2)}
 .g-now .ellipsis>.ic.sm{margin-right:6px;vertical-align:-3px}
+
+/* ---------- subtitles and real quality (design/ui-v1/subtitles/subtitles.css, the TV parts). The shared pieces (the
+   tick, the checked / name-only tags, the Copies menu's two-line rows, Which film is this?) are addons.css's ad- set;
+   only what is the subtitles design's own is here. ---------- */
+/* port item 1 (SPEC 11): the clamp's box cut ~3 px off a one-line title's descenders (p, g, y): 4 px inside, taken back */
+.d-col .t-display.clamp2{padding-bottom:4px;margin-bottom:-4px}
+/* the pill-row slot: one text after the pills, never past x 912, ellipsis as the last resort (SPEC 4.2) */
+.st-side{display:block;flex:1 1 auto;min-width:0;margin-left:4px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-side .ic{width:18px;height:18px;flex:none;vertical-align:-4px;margin-right:6px}
+.st-side .dot-sep{vertical-align:middle}
+.st-run{display:inline-block;width:56px;height:4px;border-radius:999px;background:var(--a-surface-3);position:relative;overflow:hidden;vertical-align:2px;margin-right:8px}
+.st-run i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--a-grad)}
+/* a pill whose words aren't settled yet (checking, looking, none yet) */
+.pillbtn.st-wait{color:var(--a-text-2);border-style:dashed}
+.pillbtn .ad-tk{width:14px;height:14px;vertical-align:middle}
+/* the Subtitles sheet (right, 420): 8 px before the first row so a ring never crosses its heading (M7) */
+.sheet.st-sheet{gap:6px}
+.sheet.st-sheet .sec{margin-top:10px;margin-bottom:8px}
+.sheet.st-sheet .lr .v{margin-left:auto;display:flex;align-items:center;gap:4px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2)}
+.sheet.st-sheet .lr .v .ic{width:20px;height:20px}
+.sheet.st-sheet .lr.dim .a,.sheet.st-sheet .lr.dim .b{color:var(--a-text-3)}
+.sheet.st-sheet .lr .b .ad-spin{width:14px;height:14px;vertical-align:-2px;margin-right:6px}
+.sheet.st-sheet .st-note{margin-top:auto;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+/* S18: a tick on a row's second line, centred on it, 6 px from its text */
+.lr.ad-two .b .ad-tk{width:14px;height:14px;vertical-align:-2px;margin-right:6px}
+.lr.ad-two .b .ad-tk svg{width:9px;height:9px}
+/* posters: filled = checked, with no tick at that size; dashed = only a name says so (SPEC 6.1) */
+.pc .tl .tag.ad-ok{padding:0 7px}
+.pc .tl .tag.ad-ok,.pc .tl .tag.ad-name{height:22px}

@@ -1,8 +1,8 @@
 /* airglow TV: add-ons (design/ui-v1/addons/SPEC.md v1.2). The design's addons.css (new classes only, prefix ad-),
    with the player and phone-page parts left out (those are native), and the app's :focus rules at the end (the mocks
    mark focus with .f / .f-ring; SPEC 2.4). The ad- classes are the subtitles design's st- ones under the add-ons prefix
-   (.ad-tk = .st-tk, .tag.ad-name = .tag.st-name, .ad-two = .st-two ...); when the subtitles work ports its set, one of
-   the two can go. */
+   (.ad-tk = .st-tk, .tag.ad-name = .tag.st-name, .ad-two = .st-two ...); the subtitles port uses these ad- ones too, so
+   there is one set (app.css has the subtitles-only st- classes). */
 
 .ic.xs{width:16px;height:16px}
 .ad-spin{width:18px;height:18px;color:var(--a-pink);flex:none}
@@ -110,8 +110,9 @@
 .rrow .ad-mt span{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rrow .mini{width:30px;height:44px;border-radius:6px;overflow:hidden;position:relative;flex:none}
 
-/* ---------- shared with design/ui-v1/subtitles (st-tk, st-copies, st-match): the same look, ad- names so neither
-   folder depends on the other; the port keeps one class (SPEC 5.1) ---------- */
+/* ---------- shared with design/ui-v1/subtitles: the ONE set for both designs (the subtitles port merged its st-tk,
+   st-ok / st-name tags, st-two rows, st-copies and st-match into these; app.css keeps only the subtitles-only st- classes:
+   the pill-row slot, the progress line, the dashed pill, the Subtitles sheet) ---------- */
 .ad-tk{display:inline-grid;place-items:center;flex:none;width:16px;height:16px;border-radius:50%;background:var(--a-ok);vertical-align:-3px}
 .ad-tk svg{width:10px;height:10px;fill:none;stroke:var(--a-ink);stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
 .pillbtn .ad-tk{width:14px;height:14px}.pillbtn .ad-tk svg{width:9px;height:9px}
@@ -155,8 +156,6 @@
 .ad-gives span.dim{color:var(--a-text-2)}
 .ad-spin{animation:ad-spin 900ms linear infinite}
 @keyframes ad-spin{to{transform:rotate(360deg)}}
-.st-side{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:8px;min-width:0;flex:0 1 auto;margin-left:6px}
-.st-side .ic{width:18px;height:18px;flex:none}
 .menu.ad-copies .sheet-body{padding:6px 4px!important}
 .d-col .ad-wcap{font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
 .d-col .ad-wcap b{color:var(--a-text-1);font-weight:650}

@@ -2,8 +2,10 @@
 // page's tags, the Copies menu's rows and the posters. Only checked facts get the green tick; a claim that only the
 // provider's name makes is dashed. Posters and filters never ask for a check: they read what is kept (PORT-UI.md 1).
 import { esc } from './util.js';
-import { checkFor, checkedFor } from './subs.js';
+import { checkFor, checkedFor, loadChecks } from './subs.js';
 import { providerCopy, rank } from './copies.js';
+// the copy of a title most likely to play, by its name alone (Saved asks for its check: PORT-UI.md 1)
+export const byName = (t) => (t.versions?.length > 1 ? rank(t.versions.map((v) => providerCopy(v)), { langs: prefLangs() })[0].v : t.versions?.[0] || null);
 import { prefLangs, qualityHook } from './catalog.js';
 
 export const TICK = '<span class="ad-tk"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>';
@@ -39,6 +41,7 @@ const bestOf = (t) => {
   return rank(vs.map((v) => providerCopy(v, { checked: checkedFor(v) })), { langs: prefLangs() })[0];
 };
 export function posterTag(t) {
+  loadChecks();   // (once per account: the kept checks, read from storage)
   const c = bestOf(t);
   if (!c) return '';
   const res = c.checked?.res || '';

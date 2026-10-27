@@ -2,6 +2,8 @@
 // and history. On Channels, hold OK lifts a row; ▲▼ move it, OK drops it, Back puts it back.
 import { esc, ic, dot, logo, setHtml, leftText } from '../util.js';
 import { S, on, favList, setFavOrder, toggleFav, continueRows } from '../state.js';
+import { checkCopies } from '../subs.js';
+import { byName } from '../quality.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideNow, onNow, warm } from '../guide.js';
 import { gameOn } from '../games.js';
@@ -46,6 +48,9 @@ function draw() {
   } else if (tab === 'movie' || tab === 'series') {
     const list = titles(tab);
     el._list = list;
+    // Saved films get their quality checks after Continue watching's, 60 s apart (subtitles SPEC 5.3): the copy most
+    // likely to play
+    if (tab === 'movie') checkCopies(list.map(byName).filter((v) => v?.url), 'saved');
     body = list.length
       // (in a clip under the header, so scrolled posters never paint over it or the top bar)
       ? `<div class="abs" style="left:36px;right:36px;top:122px;bottom:0;overflow:hidden"><div class="lib-grid" data-grid data-cols="6" style="left:12px;top:12px;transform:translateY(${-gridTop}px);transition:transform 320ms var(--a-ease)">${list.map((t, i) => poster(t, i).replace('class="pc fx', `data-c="${i % 6}" class="pc fx`)).join('')}</div></div>`
@@ -98,6 +103,7 @@ export default {
     root.addEventListener('tvfocus', (e) => { place(); const t = e.target.dataset.tabS; if (t && t !== tab) { tab = t; lift = null; gridTop = 0; draw(); } });
     on('favs', () => { if (current() === 'saved' && lift == null) draw(); });
     on('progress', () => { if (current() === 'saved') draw(); });
+    on('probed', () => { if (current() === 'saved' && (tab === 'movie' || tab === 'series') && lift == null) draw(); });   // (the posters' real quality fills in)
   },
   enter(root) {
     lift = null; gridTop = 0;
