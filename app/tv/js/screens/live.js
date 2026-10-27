@@ -4,8 +4,11 @@
 import { $, esc, ic, dot, liveP, logo, hm, setHtml } from '../util.js';
 import { S, on, store, scoped, favList, toggleFav, isFav } from '../state.js';
 import { catalog, ensure, takeFresh } from '../catalog.js';
-import { guideFor, guideNow, guideFailed, onNow, warm, known } from '../guide.js';
-import { myGame, gameOn, hidden, feedsNow, findFeeds, liveGames, isMine, show } from '../games.js';
+import { guideFor, guideNow, guideFailed, onNow, warm, known, pastFor, pastNow, pastFailed, pastKnown } from '../guide.js';
+import { myGame, gameOn, hidden, feedsNow, findFeeds, liveGames, isMine, show, knownGames } from '../games.js';
+import { programmeView, keptWords, NOT_KEPT, nightLabel } from '../catchup.js';
+import { playProgramme, programmeProgress, watchOnChannel } from '../replay.js';
+const knownGamesNear = (p) => knownGames().filter((g) => Math.abs(g.date - p.start) < 3 * 3600e3);
 import { playLive, watching } from '../player.js';
 import { current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
@@ -13,6 +16,7 @@ import { openOverlay, toast, scrollList } from '../ui.js';
 
 const ROWS = 6, PITCH = 52, AXIS = 656, SPAN = 150 * 60e3, PX = AXIS / SPAN;
 let el, group = 'fav', chans = [], top = 0, r = 0, at = Date.now(), winStart = 0, nowFloor = 0, toastT = 0, digitBuf = '', digitT = 0;
+let inPast = false;   // the window was moved back before now (catch-up 4.1): it stays there until Back, or ▶ brings it back
 // The window starts at the half hour that holds now, so the programme on now shows whole (not cut to its last minutes).
 const floor30 = (t) => { const d = new Date(t); d.setMinutes(d.getMinutes() < 30 ? 0 : 30, 0, 0); return d.getTime(); };
 
@@ -63,58 +67,140 @@ function rebuild() {
 }
 
 const x = (t) => Math.round((t - winStart) * PX);
-function cells(ch, ri) {
+const DAY = 864e5;
+const shortName = (ch) => ch.name.replace(/^[A-Z]{2,4}\s*[:|]\s*/, '').replace(/\s+(HD|FHD|UHD|4K|SD)\b.*$/i, '').trim() || ch.name;
+const keptFrom = (ch) => Date.now() - ch.archive * DAY;
+// The programmes of a row: the full table before the short guide's first one (kept channels, catch-up 4.6), then the
+// short guide. past: 'loading' | 'failed' | null.
+function rowList(ch) {
   const list = guideNow(ch);
+  if (!ch.archive || !inPast || winStart >= Date.now()) return { list };
+  const t = pastNow(ch);
+  if (!t) return { list, past: pastFailed(ch) ? 'failed' : 'loading' };
+  const cut = list?.[0]?.start ?? Date.now();
+  return { list: [...t.filter((p) => p.end <= cut), ...(list || []).filter((p) => p.end > cut)].sort((a, b) => a.start - b.start), table: t };
+}
+// The past part of a row that isn't kept, or that's loading: one cell from the window's start to now (so ▲▼ keep the time).
+function pastCell(ch, ri, kind, until) {
+  const w = x(Math.min(until, winStart + SPAN)) - 4;
+  if (w < 52) return '';
+  const t = { gone: [NOT_KEPT, `OK watches ${esc(shortName(ch))} live`], none: ['No guide this far back', 'OK watches it live'], loading: ['Loading earlier programmes…', ''], failed: ['Earlier programmes didn’t load · OK still tunes', ''] }[kind];
+  return `<div class="g-cell fx ${kind === 'gone' || kind === 'none' ? 'cu-gone' : 'cu-load'}" tabindex="-1" data-hold data-r="${ri}" data-s="${winStart}" data-e="${until}" data-gone="${kind}" style="left:0;width:${w}px"><b>${t[0]}</b>${t[1] ? `<div class="sb">${t[1]}</div>` : ''}</div>`;
+}
+function cells(ch, ri) {
+  const rl = rowList(ch), list = rl.list;
   const end = winStart + SPAN;
   if (!list) return `<div class="g-cell fx" tabindex="-1" data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b style="color:var(--a-text-3);font-weight:500">Loading guide…</b></div>`;
-  const vis = list.filter((p) => p.end > winStart && p.start < end);
+  const now0 = Date.now();
+  // a window that starts before now: the row's past (not kept: one outlined cell; kept: the table's programmes)
+  let lead = '', from = winStart;
+  if (inPast && winStart < now0) {
+    const first = list.find((p) => p.end > winStart);
+    const nowStart = Math.min(now0, list.find((p) => p.start <= now0 && p.end > now0)?.start ?? now0);
+    if (!ch.archive) { if (nowStart > winStart) { lead = pastCell(ch, ri, 'gone', nowStart); from = nowStart; } }
+    else if (rl.past) { if (nowStart > winStart) { lead = pastCell(ch, ri, rl.past, nowStart); from = nowStart; } }
+    else if (!first || first.start > winStart + 60e3) { const until = Math.min(first ? first.start : nowStart, nowStart); if (until > winStart) { lead = pastCell(ch, ri, 'none', until); from = until; } }
+  }
+  const vis = list.filter((p) => p.end > from && p.start < end);
+  if (lead && !vis.length) return lead;
   // Say why there's nothing: offline, or the provider didn't answer this time (tried again soon), or it has no guide.
   const why = S.offline ? 'Offline · OK still tunes' : guideFailed(ch) ? "Guide didn't load · OK still tunes" : 'No guide information';
   if (!vis.length) return `<div class="g-cell empty fx" tabindex="-1" data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b>${why}</b></div>`;
   const now = Date.now();
-  return vis.map((p) => {
-    const s = Math.max(p.start, winStart), e = Math.min(p.end, end);
+  let clipTo = 0;   // a matched re-air of a hidden game is drawn 2 h 30 long; the programme starting inside that is clipped (S12, S3)
+  return lead + vis.map((p) => {
+    const v = programmeView(ch, p);
+    const reair = v.game && p.start > now && p.start > v.game.date + 2 * 3600e3;
+    let ps = p.start, pe = reair ? p.start + 2.5 * 3600e3 : p.end, dotStart = false;
+    if (clipTo && ps < clipTo) { ps = clipTo; dotStart = true; if (pe <= ps) return ''; }
+    if (reair) clipTo = pe;
+    const s = Math.max(ps, from), e = Math.min(pe, end);
+    if (e <= s) return '';
     const left = x(s), w = x(e) - left - 4;
     const isNow = p.start <= now && p.end > now;
+    const past = !isNow && p.end <= now && !!ch.archive;
+    const keptP = past && p.start >= keptFrom(ch) && p.kept !== false;   // in the archive: plays from its start
     const g = isNow ? gameOn(ch, [p]) : null;
     const live = !!(g && g.state === 'in');
-    const sub = live ? liveP(true) : `${p.start < winStart ? '◂ ' : ''}${hm(p.start)}${e - s >= 36 * 60e3 ? dot + hm(p.end) : ''}`;
+    const glyph = keptP ? ic('hist') : '';
+    const sub = live ? liveP(true) : dotStart ? '·' : reair ? hm(p.start) : `${p.start < winStart ? '◂ ' : ''}${glyph}${hm(p.start)}${e - s >= 36 * 60e3 ? dot + hm(p.end) : ''}`;
     const pg = isNow ? `<div class="prog"><i style="width:${Math.min(100, ((now - p.start) / (p.end - p.start)) * 100)}%"></i></div>` : '';
-    if (w < 52) return `<div class="g-cell sliver fx${isNow ? ' now' : ''}" tabindex="-1" data-hold data-r="${ri}" data-s="${p.start}" data-e="${p.end}" style="left:${left}px;width:${Math.max(4, w)}px"></div>`;
-    return `<div class="g-cell fx${isNow ? ' now' : ''}" tabindex="-1" data-hold data-r="${ri}" data-s="${p.start}" data-e="${p.end}" style="left:${left}px;width:${w}px"><b>${esc(p.title)}</b><div class="sb">${sub}</div>${pg}</div>`;
+    const wp = keptP && programmeProgress(ch, p);
+    const bar = wp && !wp.done ? `<div class="cu-wp"><i style="width:${Math.min(100, (wp.t / wp.d) * 100)}%"></i></div>` : '';
+    const cls = `${isNow ? ' now' : ''}${keptP ? ' cu-rp' : past ? ' cu-gone' : ''}`;
+    const data = `data-r="${ri}" data-s="${p.start}" data-e="${p.end}"${keptP ? ' data-past="1"' : past ? ' data-gone="old"' : ''}`;
+    if (w < 52) return `<div class="g-cell sliver fx${cls}" tabindex="-1" data-hold ${data} style="left:${left}px;width:${Math.max(4, w)}px"></div>`;
+    return `<div class="g-cell fx${cls}" tabindex="-1" data-hold ${data} style="left:${left}px;width:${w}px"><b>${esc(v.title)}</b><div class="sb">${sub}</div>${pg}${bar}</div>`;
   }).join('');
 }
 function row(ch, ri) {
   const pin = ri === top && chans._pin && ch.id === chans._pin.id;
   const mark = pin ? `<span class="fv">${ic('pin')}</span>` : isFav(ch) ? `<span class="fv">${ic('star')}</span>` : '';
-  return `<div class="g-row" data-row data-ri="${ri}"><div class="g-ch fx${ri === r ? ' sel' : ''}" tabindex="-1" data-hold data-ch data-r="${ri}"><span class="num">${ch.num}</span>${logo(ch.logo, ch.name, 'sm')}<div class="nm">${esc(ch.name)}</div>${mark}</div><div class="g-cells">${cells(ch, ri)}</div></div>`;
+  return `<div class="g-row" data-row data-ri="${ri}"><div class="g-ch fx${ri === r ? ' sel' : ''}" tabindex="-1" data-hold data-ch data-r="${ri}">${ch.archive ? `<span class="num cu-n">${ch.num}<span class="cu-arc">${ic('hist')}</span></span>` : `<span class="num">${ch.num}</span>`}${logo(ch.logo, ch.name, 'sm')}<div class="nm">${esc(ch.name)}</div>${mark}</div><div class="g-cells">${cells(ch, ri)}</div></div>`;
 }
 function ruler() {
   const ticks = [];
   const n = Date.now(), nx = n >= winStart && n < winStart + SPAN ? x(n) : -999;
-  // (a time label the Now pill would cover is left out)
-  for (let t = Math.ceil((winStart + 1) / 1800e3) * 1800e3; t < winStart + SPAN; t += 1800e3) if (x(t) > 40 && x(t) < AXIS - 40 && Math.abs(x(t) - nx) > 64) ticks.push(`<span style="left:${x(t)}px">${hm(t)}</span>`);
-  const flag = n >= winStart && n < winStart + SPAN ? `<span class="g-nowflag" style="left:${x(n)}px">Now</span>` : '';
-  return `<div class="g-ruler"><div class="g-corner" data-row><span class="chip lg fx" tabindex="-1" data-act="group">${ic(group === 'fav' ? 'star' : 'tv')}<span class="ellipsis" style="max-width:104px">${esc(groupName())}</span><span class="t-3" style="font-weight:500">${chans.length}</span></span></div><div class="g-time">${flag}${ticks.join('')}</div></div>`;
+  // in the past: the day pill names the day at the left edge (ticks under it dropped), and when now is off to the right
+  // the Now pill sits at the right end (ticks within 150 px of it dropped); a tick on another day than the pill names it
+  const pastDay = winStart < floor30(n), nowRight = n >= winStart + SPAN;
+  const dayOf = (t) => new Date(t).toDateString();
+  const day = pastDay ? `<span class="cu-day">${esc(new Date(winStart).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }))}</span>` : '';
+  let named = false;
+  for (let t = Math.ceil((winStart + 1) / 1800e3) * 1800e3; t < winStart + SPAN; t += 1800e3) {
+    if (x(t) <= (pastDay ? 112 : 40) || x(t) >= AXIS - (nowRight ? 150 : 40) || Math.abs(x(t) - nx) <= 64) continue;
+    const other = pastDay && !named && dayOf(t) !== dayOf(winStart);
+    if (other) named = true;
+    ticks.push(`<span style="left:${x(t)}px">${other ? `${new Date(t).toLocaleDateString('en-GB', { weekday: 'short' })} ` : ''}${hm(t)}</span>`);
+  }
+  const flag = n >= winStart && n < winStart + SPAN ? `<span class="g-nowflag" style="left:${x(n)}px">Now</span>` : nowRight ? `<span class="cu-nowr">Now ${hm(n)}${ic('chevR')}</span>` : '';
+  return `<div class="g-ruler"><div class="g-corner" data-row><span class="chip lg fx" tabindex="-1" data-act="group">${ic(group === 'fav' ? 'star' : 'tv')}<span class="ellipsis" style="max-width:104px">${esc(groupName())}</span><span class="t-3" style="font-weight:500">${chans.length}</span></span></div><div class="g-time">${day}${flag}${ticks.join('')}</div></div>`;
+}
+function pastPanel(ch, f) {
+  const tile = (glyph) => `<div class="pvtile" style="display:grid;place-items:center">${logo(ch.logo, ch.name, 'lg')}${glyph ? `<span class="cu-cor">${ic('hist')}</span>` : ''}</div>`;
+  const hint = (a) => `<div class="t-cap cu-hint">${a}<br>Back returns to now</div>`;
+  const line = (a, b) => `<div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span><span style="flex:none;display:flex;align-items:center">${a}</span></div>${b}`;
+  const third = (t, dim) => `<div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${dim ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${t}</span></div>`;
+  const kind = f.dataset.gone;
+  if (kind === 'gone' || (!f.dataset.past && kind)) {
+    const what = kind === 'gone' ? 'no replays on this channel' : kind === 'none' ? 'no guide this far back' : kind === 'old' ? 'not in the replays any more' : kind === 'failed' ? 'earlier programmes didn’t load' : 'loading earlier programmes';
+    return `${tile(false)}<div class="grow"><div class="row-flex" style="gap:12px"><span class="t-title ellipsis">Earlier on ${esc(shortName(ch))}</span></div>${line(`${dot}${what}`, third(kind === 'gone' ? 'Channels with replays show the history mark under their number.' : ''))}</div>${hint(`OK watch ${esc(shortName(ch))} live`)}`;
+  }
+  const p = (rowList(ch).list || []).find((q) => q.start === +f.dataset.s);
+  if (!p) return `${tile(true)}<div class="grow"></div>`;
+  const v = programmeView(ch, p);
+  const g = v.game && window.NBA.matchScore(p.title, v.game) >= 10 && Math.abs(v.game.date - p.start) < 3 * 3600e3 ? v.game : null;
+  const day = new Date(p.start).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const wp = programmeProgress(ch, p), mins = wp && !wp.done ? Math.round(wp.t / 60) : 0;
+  const badge = `<span class="cu-badge">${ic('hist')}Replay</span>`;
+  if (g) {
+    return `${tile(true)}<div class="grow"><div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(v.title)}</span>${badge}</div>${line(`${dot}${new Date(p.start).toLocaleDateString('en-GB', { weekday: 'short' })} ${hm(p.start)} to ${hm(p.end)}${dot}the ${esc(nightLabel(g.date))} game`, third(hidden(g) ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : esc(p.desc || ''), hidden(g)))}</div>${hint('OK watch from tip-off')}`;
+  }
+  const desc = v.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : v.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : esc(v.desc || '');
+  const watched = mins ? `${dot}watched ${mins} min<span class="prog" style="width:70px;margin-left:14px"><i style="width:${Math.min(100, (wp.t / wp.d) * 100)}%"></i></span>` : '';
+  return `${tile(true)}<div class="grow"><div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(v.title)}</span>${badge}</div>${line(`${dot}${day}${dot}${hm(p.start)} to ${hm(p.end)}${watched}`, third(desc, !!v.mask))}</div>${hint(mins ? `OK resume at ${hm(p.start + wp.t * 1000)}` : `OK play from ${hm(p.start)}`)}`;
 }
 function nowPanel() {
   const ch = chans[r];
   if (!ch) return '<div class="grow"><div class="t-title">No channels</div></div>';
   const f = document.activeElement;
+  if (f?.classList?.contains('g-cell') && (f.dataset.past || f.dataset.gone) && +f.dataset.e <= Date.now() + 60e3 && toastT <= Date.now()) return pastPanel(ch, f);
   const s = f?.classList?.contains('g-cell') ? +f.dataset.s : Date.now();
-  const list = guideNow(ch) || [];
+  const list = rowList(ch).list || [];
   const p = list.find((q) => q.start <= Math.max(s, winStart) && q.end > Math.max(s, winStart)) || onNow(list);
   const g = p && p.start <= Date.now() && p.end > Date.now() ? gameOn(ch, [p]) : null;
   const hide = g && hidden(g);
   const nowish = p && p.start <= Date.now() && p.end > Date.now();
   const left = p && nowish ? Math.max(1, Math.round((p.end - Date.now()) / 60000)) : 0;
   const pv = hide ? `<div class="pvtile off">${ic('eyeOff', 'sm')}<span>Preview off<br>for your game</span></div>` : `<div class="pvtile" style="display:grid;place-items:center">${logo(ch.logo, ch.name, 'lg')}</div>`;
-  const desc = hide ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : esc(p?.desc || '');
-  const right = toastT > Date.now() ? `<span class="toast"><b>${isFav(ch) ? 'Added to Favourites' : 'Removed from Favourites'}</b><span class="t-cap">Hold OK to undo</span></span>` : '<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune<br>Hold OK favourite</div>';
+  const pvw = p ? programmeView(ch, p) : null;
+  const desc = hide || pvw?.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : pvw?.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : esc(pvw?.desc || '');
+  const kept = ch.archive && nowish ? `<br>◀ earlier${dot}${keptWords(ch.archive)}` : '';
+  const right = toastT > Date.now() ? `<span class="toast"><b>${isFav(ch) ? 'Added to Favourites' : 'Removed from Favourites'}</b><span class="t-cap">Hold OK to undo</span></span>` : `<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune${kept ? dot : '<br>'}Hold OK favourite${kept}</div>`;
   return `${pv}<div class="grow">
-    <div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(p?.title || ch.name)}</span>${g?.state === 'in' ? liveP() : ''}</div>
+    <div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(pvw?.title || p?.title || ch.name)}</span>${g?.state === 'in' ? liveP() : ''}</div>
     <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${hm(p.start)} to ${hm(p.end)}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
-    <div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${desc}</span></div>
+    <div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide || pvw?.mask ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${desc}</span></div>
   </div>${right}`;
 }
 let warmT = 0, frame = 0, pendingFocus = null;
@@ -127,7 +213,8 @@ function draw(focusAt) {
   if (!el || el.hidden) return;
   if (!catalog.live) return;
   nowFloor = floor30(Date.now());
-  if (!winStart || winStart < nowFloor) winStart = nowFloor;
+  if (!winStart || (!inPast && winStart < nowFloor)) winStart = nowFloor;
+  if (inPast && winStart >= nowFloor) inPast = false;
   if (r < top) top = r;
   if (r >= top + ROWS) top = r - ROWS + 1;
   const vis = chans.slice(top, top + ROWS);
@@ -143,6 +230,8 @@ function draw(focusAt) {
   clearTimeout(warmT);
   warmT = setTimeout(() => {
     for (const ch of chans.slice(top, top + ROWS)) if (!known(ch)) guideFor(ch, { urgent: true }).then(() => { if (current() === 'live') drawSoon(); });
+    // in the past: the kept rows' full tables, on-screen rows first (catch-up 4.6)
+    if (inPast) for (const ch of chans.slice(top, top + ROWS)) if (ch.archive && !pastKnown(ch)) pastFor(ch, { urgent: true }).then(() => { if (current() === 'live') drawSoon(); });
     warm(chans.slice(top + ROWS, top + ROWS + 6), { still: () => current() === 'live' });
   }, 120);
 }
@@ -174,17 +263,32 @@ function hook(dir, cur, repeat) {
   }
   if (onCh) {
     if (dir === 'left') return false;
-    focusCell(ri, Math.max(Date.now(), winStart)); at = Math.max(Date.now(), winStart); return true;
+    const t = inPast ? Math.max(at, winStart) : Math.max(Date.now(), winStart);
+    focusCell(ri, t); at = t; return true;
   }
   const cs = [...cur.parentElement.querySelectorAll('.g-cell')];
   const i = cs.indexOf(cur);
   if (dir === 'left') {
-    if (i > 0) { at = +cs[i - 1].dataset.s; focus(cs[i - 1]); return true; }
+    if (i > 0) { at = Math.max(+cs[i - 1].dataset.s, winStart); focus(cs[i - 1]); return true; }
     if (winStart > nowFloor) { winStart = Math.max(nowFloor, winStart - 3600e3); at = Math.max(winStart, +cur.dataset.s - 1); draw(() => focusCell(ri, at)); return true; }
-    focus(el.querySelector(`.g-ch[data-r="${ri}"]`)); return true;   // ◀ at the now column goes to the channel, never the bar
+    // a kept row goes back in time, an hour of window at a time, to its archive's edge (or its table's first programme);
+    // a held ◀ draws once a frame (a day back in about 2 s). A row that isn't kept goes to its channel (catch-up 4.1).
+    const ch = chans[ri];
+    if (ch?.archive && !cur.dataset.gone?.match(/^(gone|none)$/)) {
+      const t = pastNow(ch), edge = Math.max(floor30(keptFrom(ch)), t?.length ? floor30(t[0].start) : 0);
+      if (winStart > edge) {
+        inPast = true;
+        winStart = Math.max(edge, winStart - 3600e3);
+        at = Math.max(winStart, Math.min(+cur.dataset.s, winStart + SPAN) - 1);
+        const to = () => focusCell(ri, at);
+        if (repeat) drawSoon(to); else draw(to);
+        return true;
+      }
+    }
+    focus(el.querySelector(`.g-ch[data-r="${ri}"]`)); return true;   // ◀ at the edge goes to the channel, never the bar
   }
   if (i < cs.length - 1) { at = Math.max(+cs[i + 1].dataset.s, winStart); focus(cs[i + 1]); return true; }
-  if (winStart + SPAN < nowFloor + 22 * 3600e3) { winStart += 3600e3; at = Math.max(+cur.dataset.e, winStart); draw(() => focusCell(ri, at)); return true; }
+  if (winStart + SPAN < nowFloor + 22 * 3600e3) { winStart += 3600e3; at = Math.max(+cur.dataset.e, winStart); const to = () => focusCell(ri, at); if (repeat) drawSoon(to); else draw(to); return true; }
   return false;
 }
 // (the last page is a full page, not one channel and empty rows)
@@ -195,6 +299,15 @@ function cellOk(cell) {
   const ch = chans[+cell.dataset.r];
   if (!ch) return;
   const s = +cell.dataset.s, n = Date.now();
+  // a kept programme from the past: from its start, or where you stopped; your game: from tip-off (catch-up 4.2)
+  if (cell.dataset.past && !cell.hasAttribute('data-ch')) {
+    if (S.offline) return toast('Offline · replays need the provider');
+    const p = (rowList(ch).list || []).find((q) => q.start === s);
+    if (!p) return tune(ch);
+    const v = programmeView(ch, p), g = v.game || window.NBA.matchGame(p.title, knownGamesNear(p));
+    if (g && window.NBA.matchScore(p.title, g) >= 10 && Math.abs(g.date - p.start) < 3 * 3600e3) return watchOnChannel(g, ch, p);
+    return playProgramme(ch, p);
+  }
   if (cell.hasAttribute('data-ch') || s <= n || cell.classList.contains('empty')) return tune(ch);
   // A later programme: its details, and the channel as it is now.
   const p = (guideNow(ch) || []).find((q) => q.start === s);
@@ -261,7 +374,8 @@ export default {
       const inGuide = el.contains(document.activeElement);
       draw(inGuide ? () => focusCell(r, at) : undefined);
     });
-    on('session', () => { group = 'fav'; r = 0; top = 0; winStart = 0; });
+    on('session', () => { group = 'fav'; r = 0; top = 0; winStart = 0; inPast = false; });
+    on('progress', () => { if (current() === 'live' && inPast) drawSoon(); });
     setInterval(() => { if (current() === 'live') draw(); }, 30000);
   },
   enter(root, params) {
@@ -285,6 +399,7 @@ export default {
     }
     top = Math.max(0, Math.min(r, chans.length - ROWS));
     at = Date.now();
+    if (!params.keep) { inPast = false; winStart = 0; }
     draw(() => { if (mayFocus()) focusCell(r, at); });
     if (params.digit) digit(params.digit);
   },
@@ -294,5 +409,12 @@ export default {
     if (k === 'digit') { digit(e.key); return true; }
     return false;
   },
-  toTop() { r = 0; top = 0; winStart = 0; draw(); },
+  toTop() { r = 0; top = 0; winStart = 0; inPast = false; draw(); },
+  // Back in the past: the window returns to now, on the same channel's programme on now (catch-up 4.1)
+  back() {
+    if (!inPast || !el.querySelector('.g-grid').contains(document.activeElement)) return false;
+    inPast = false; winStart = 0; at = Date.now();
+    draw(() => focusCell(r, Date.now()));
+    return true;
+  },
 };

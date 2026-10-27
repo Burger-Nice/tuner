@@ -282,7 +282,7 @@ const gameItem = (g, prev) => ({ ...(prev || {}), kind: 'rp', id: g.id, game: { 
 export async function watchFromTipoff(g, { source, ask = false, resume = false } = {}) {
   if (!g) return;
   const list = await findReplays(g);
-  if (!list.length) { toast(`No replay of ${gameName(g)} found yet. airglow keeps looking.`, 4000); return; }
+  if (!list.length && !source) { toast(`No replay of ${gameName(g)} found yet. airglow keeps looking.`, 4000); return; }
   if (!source && (ask || settings().replaysPlay === 'ask')) return sourcesSheet(g);
   const src = source || list[0];
   const p = replayProgress(g.id);
@@ -299,9 +299,16 @@ export async function watchFromTipoff(g, { source, ask = false, resume = false }
   }
   const item = gameItem(g, resume ? p?.item : null);
   if (!resume) { delete item.startedAt; delete item.pos; delete item.aired; }
-  return start({ g, src, sources: list, startAt, item });
+  return start({ g, src, sources: list.includes(src) ? list : [src, ...list], startAt, item });
 }
 export const resumeGame = (g) => watchFromTipoff(g, { resume: true });
+// A game from the guide's past: from tip-off on that channel (its own programme is the window, case 1 of 3.5).
+export async function watchOnChannel(g, ch, p) {
+  const list = await findReplays(g);
+  const src = list.find((x) => x.kind === 'channel' && x.id === String(ch.id))
+    || { kind: 'channel', id: String(ch.id), ch, prog: p, windowStart: p.start, days: ch.archive, name: ch.name, detail: 'Channel replay · quarter skips', confirmed: true };
+  return watchFromTipoff(g, { source: src });
+}
 // Back to live from the Home hero (5.1, S9): under the shield the same copy as the player's card, Stay focused.
 export function backToLive(g) {
   const p = replayProgress(g.id), ch = chOf(p?.item?.src?.startsWith('channel:') ? p.item.src.slice(8) : watchedOn(g.id));
