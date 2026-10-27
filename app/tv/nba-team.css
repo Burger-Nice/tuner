@@ -1,1 +1,42 @@
-/* NBA pages: team (see design/ui-v1/nba-pages/SPEC.md) */
+/* NBA pages: team (see design/ui-v1/nba-pages/SPEC.md 7). The page's blocks are siblings placed by their own top (as in
+   the mocks) and slide together by --sy, so the focused section's title can sit over the cover band at y 52. */
+.tp-clip{z-index:1}
+.tp-b{transform:translateY(calc(var(--sy, 0px) * -1));transition:transform 320ms var(--a-ease)}
+html.rep .tp-b,html.rep .tp-tr,html.rep .tp-roster>.nb-tr{transition:none!important}
+.tp-body .nb-cue{z-index:0}
+.tp-tr{display:flex;gap:24px;transition:transform 200ms var(--a-ease)}
+.tp-clipl{clip-path:inset(0 0 0 36px)}                                   /* cards slid off the left edge stay out of the margin */
+.tp-tr>.fx:first-child:focus{transform-origin:0 50%}
+.tp-roster>.nb-tr{transition:top 320ms var(--a-ease)}
+.tp-pill{position:absolute;right:0;top:0;height:28px}
+.tp-body .nb-head .nb-btns .btn,.tp-body .nb-head .nb-btns .btn2{flex:none}
+.tp-body .nb-rec .l2 .ic{width:16px;height:16px}
+.tp-body .nb-title small .ic{width:16px;height:16px}
+.nb-tools.tp-tools{z-index:6;transition:transform .32s var(--a-ease),opacity .2s}
+.nb-tools.tp-tools.away{transform:translateY(-72px);opacity:0;pointer-events:none}
+.nb-tools .pillbtn.dis{color:var(--a-text-2)}
+.tp-sortm .lr.dis{color:var(--a-text-4)}
+.tp-sortm .lr.dis small{color:var(--a-text-4)}
+
+/* the player sheet */
+.nb-pl .tp-pltm{position:absolute;left:286px;top:81px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.nb-pl .nb-plb{display:flex;flex-direction:column;min-height:0;outline:none}
+.nb-pl .nb-plb.fx:focus{box-shadow:none;outline:none}                      /* no button under the shield: the body has focus, no ring */
+.nb-pl .nb-plb .nb-hid .ic{width:18px;height:18px;flex:none;margin-top:1px}
+.nb-pl .btn .team{margin-left:-6px}
+
+/* the team picker: 30 crests, 6 to a row, by conference */
+.tp-pickbox{position:absolute;inset:0}
+.tp-picker{position:absolute;left:48px;right:48px;top:124px}
+.tp-pick{position:absolute;left:48px;right:48px;top:27px;bottom:27px;z-index:21;background:var(--a-bg-1);border:1px solid var(--a-border);border-radius:24px;padding:16px 20px}
+.tp-pkt{display:flex;align-items:baseline;gap:12px;margin-bottom:4px;font:700 22px/28px var(--a-font-display);color:var(--a-text-1)}
+.tp-pkt small{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.tp-pkh{height:20px;margin:6px 0 4px;font:650 14px/20px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
+.tp-pkg{display:grid;grid-template-columns:repeat(6,1fr);gap:6px 8px}
+.tp-pk{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:50px;padding:0 8px;border-radius:12px;background:var(--a-surface-1);border:1px solid var(--a-border);font:650 14px/16px var(--a-font-text);color:var(--a-text-1);min-width:0}
+.tp-pk>span:last-child{max-width:100%}
+.tp-pk .team{width:28px;height:28px}.tp-pk .team img{width:24px;height:24px}
+.tp-pk.mine{background:var(--a-surface-2)}
+.tp-pk.mine::after{content:"";position:absolute;left:10px;top:10px;width:6px;height:6px;border-radius:50%;background:var(--a-pink)}
+.tp-pk.cur{border-color:var(--a-border-strong)}
+.tp-pk.fx:focus{background:var(--a-surface-3);box-shadow:var(--a-focus-ring);z-index:3}

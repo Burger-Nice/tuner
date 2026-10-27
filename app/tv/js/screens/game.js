@@ -5,9 +5,9 @@ import { on } from '../state.js';
 import { catalog } from '../catalog.js';
 import { nba, bestChannel, gameById, show, clockText, ordinal, wantSummary, reveal, isMine, mySide, teamChannel, feedsNow, findFeeds, favTeam } from '../games.js';
 import { playLive, watching } from '../player.js';
-import { current } from '../router.js';
+import { current, push } from '../router.js';
 import { focus } from '../focus.js';
-import { toast } from '../ui.js';
+import { toast, contextMenu } from '../ui.js';
 import { ringFor, ringName } from './home.js';
 
 let el, id = null, tab = 'away', scroll = 0;
@@ -23,8 +23,11 @@ function table(s, abbr, g) {
   const played = team.players.filter((p) => !p.dnp);
   const rows = played.map((p) => `<tr class="${p.starter ? 'st' : ''}"><td>${esc(p.short || p.name)}<span class="pos">${esc(p.pos)}</span></td>${idx.map((i, k) => `<td${COLS[k] === 'PTS' ? ' class="b"' : ''}>${i >= 0 ? esc(p.stats[i] ?? '') : ''}</td>`).join('')}</tr>`).join('');
   const tot = team.totals.length ? `<tr class="tot"><td>Team</td>${idx.map((i, k) => `<td${COLS[k] === 'PTS' ? ' class="b"' : ''}>${i >= 0 ? esc(team.totals[i] ?? '') : ''}</td>`).join('')}</tr>` : '';
-  return `<table class="box"><thead><tr><th>Player</th>${COLS.map((c) => `<th>${c === '3PT' ? '3P' : c}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table>`;
+  const side = g.home.abbr === abbr ? g.home : g.away;
+  return `<table class="box"><thead><tr><th>Player</th>${COLS.map((c) => `<th>${c === '3PT' ? '3P' : c}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table>${teamRow(side)}`;
 }
+// Under the box score's Team totals: that team's page (SPEC 1; OK on a tab never navigates).
+const teamRow = (t) => `<div data-row style="padding:14px 0 6px"><span class="pillbtn fx gd-tp" tabindex="-1" data-act="teampage" data-abbr="${esc(t.abbr)}">${crest(t, 's24')}${esc(t.full || t.name)} page ›</span></div>`;
 function plays(s, g) {
   if (!s?.plays.length) return '<div class="t-body" style="padding:24px 0">No plays yet.</div>';
   return `<div class="plays">${s.plays.slice(0, 40).map((p) => `<div class="play"><span class="clk">${esc(ordinal(p.period))} ${esc(p.clock)}</span><span class="tm">${esc(p.team)}</span><span class="tx${p.scoring ? ' sc' : ''}">${p.scoring ? '<i></i>' : ''}${esc(p.text)}</span><span class="sco">${p.scoring ? `${esc(p.away)}–${esc(p.home)}` : ''}</span></div>`).join('')}</div>`;
@@ -62,7 +65,7 @@ function draw() {
       <div class="abs row-flex" style="left:20px;top:8px;gap:10px;height:24px">${status}</div>
       <div class="mt">${side(g.away)}<div class="sc">${mid}</div>${side(g.home, 1)}</div>
     </div>
-    <div class="gd-tabs" data-row>${tabs.map(([k, l]) => `<span class="chip lg fx${k === tab && !v.hidden ? ' sel' : ''}" tabindex="-1" data-tab-g="${k}">${esc(l)}</span>`).join('')}<span class="t-cap" style="margin-left:auto">${v.hidden ? '' : '▼ scroll'}</span>${watch.replace('class="btn fx"', 'class="btn sm fx" style="transform-origin:100% 50%"')}</div>
+    <div class="gd-tabs" data-row>${tabs.map(([k, l]) => `<span class="chip lg fx${k === tab && !v.hidden ? ' sel' : ''}" tabindex="-1" data-tab-g="${k}"${k === 'away' || k === 'home' ? ' data-hold' : ''}>${esc(l)}</span>`).join('')}<span class="t-cap" style="margin-left:auto">${v.hidden ? '' : '▼ scroll'}</span>${watch.replace('class="btn fx"', 'class="btn sm fx" style="transform-origin:100% 50%"')}</div>
     <div class="gd-body" style="bottom:27px;overflow:hidden"><div class="inner" style="transform:translateY(${-scroll}px);--sy:${scroll}px" ${v.hidden ? 'data-row' : ''}>${body}</div></div>`);
 }
 
@@ -75,6 +78,7 @@ export default {
       if (t) { tab = t.dataset.tabG; scroll = 0; draw(); focus(el.querySelector(`[data-tab-g="${tab}"]`)); return; }
       const b = e.target.closest('[data-act]');
       if (!b) return;
+      if (b.dataset.act === 'teampage') { push('team', { abbr: b.dataset.abbr }); return; }
       if (b.dataset.act === 'reveal') { reveal(id); draw(); focus(el.querySelector('[data-tab-g]')); }
       if (b.dataset.act === 'watch') {
         const g = gameById(id);
@@ -82,6 +86,13 @@ export default {
         if (!ch) { findFeeds(g).then((f) => { if (f[0]) playLive(f[0].ch, ringFor(f[0].ch), ringName(f[0].ch)); else toast('No channel found for this game. Pick it in the guide.', 5000); }); return; }
         playLive(ch, ringFor(ch), ringName(ch));
       }
+    });
+    // Hold OK on a team's tab: its page (the tab itself only switches the box score).
+    root.addEventListener('tvhold', (e) => {
+      const t = e.target.closest('[data-tab-g]'), g = gameById(id);
+      if (!t || !g || (t.dataset.tabG !== 'away' && t.dataset.tabG !== 'home')) return;
+      const side = g[t.dataset.tabG];
+      contextMenu(t, [{ icon: 'chevR', label: `${side.name} page`, run: () => push('team', { abbr: side.abbr }) }]);
     });
     // Moving along the tabs switches them; Down scrolls the table.
     root.addEventListener('tvfocus', (e) => { const t = e.target.dataset.tabG; if (t && t !== tab) { tab = t; scroll = 0; draw(); } });
@@ -104,13 +115,18 @@ export default {
   entry: (root) => root.querySelector('[data-act="reveal"]') || root.querySelector(`[data-tab-g="${tab}"]`),
   key(k) {
     const a = document.activeElement;
-    if (!a?.dataset?.tabG) return false;
     const inner = el.querySelector('.gd-body .inner');
+    if (a?.classList.contains('gd-tp')) {   // the team-page row under the table: Up goes back to the tabs
+      if (k === 'up') { focus(el.querySelector(`[data-tab-g="${tab}"]`)); return true; }
+      return k === 'down';
+    }
+    if (!a?.dataset?.tabG) return false;
     if (!inner) return false;
-    if (inner.querySelector('.fx')) return false;   // something to focus below (Reveal score): ▼ goes there
+    if (inner.querySelector('.fx:not(.gd-tp)')) return false;   // something to focus below (Reveal score): ▼ goes there
     const max = Math.max(0, inner.scrollHeight - (513 - 220));
     const to = (y) => { scroll = y; inner.style.transform = `translateY(${-scroll}px)`; inner.style.setProperty('--sy', `${scroll}px`); };
-    if (k === 'down') { if (scroll < max) to(Math.min(max, scroll + 120)); return true; }
+    const row = inner.querySelector('.gd-tp');
+    if (k === 'down') { if (scroll < max) to(Math.min(max, scroll + 120)); else if (row) focus(row); return true; }
     if (k === 'up' && scroll > 0) { to(Math.max(0, scroll - 120)); return true; }
     return false;
   },

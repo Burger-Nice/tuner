@@ -1,1 +1,36 @@
-/* NBA pages: league (see design/ui-v1/nba-pages/SPEC.md) */
+/* NBA pages: league (see design/ui-v1/nba-pages/SPEC.md 3-5): Standings, Leaders, Team stats. On top of nba.css. */
+
+/* a scrolling table: its rows sit in one box that slides by whole rows (320 ms; at once while a key repeats) */
+.lg .nb-in{position:absolute;left:0;right:0;top:0;transition:transform .32s var(--a-ease,ease)}
+.lg .nb-in>.nb-tr,.lg .nb-in>.nb-band{position:absolute;left:0;right:0}
+.lg .nb-in>.nb-tr.fx:focus{position:absolute}
+.lg .nb-in>.off{opacity:0}                                   /* only whole rows show (opacity: they stay focusable) */
+.lg .nb-sbar i{transition:top .32s var(--a-ease,ease)}
+.lg.fast .nb-in,.lg.fast .nb-tb,.lg.fast .nb-th,.lg.fast .nb-sbar i{transition:none}
+.lg .lg-cover{width:600px}
+.lg .legend .ic.sm{width:18px;height:18px;flex:none}
+.lg .legend .pillbtn .ic{width:18px;height:18px}
+
+/* ---------- Standings: the top layout, and the scrolled one (the bar and the chips step away) ---------- */
+.lg-st .st-tb,.lg-st .st-bar{transition:top .32s var(--a-ease,ease),height .32s var(--a-ease,ease)}
+.lg-st .st-th{transition:top .32s var(--a-ease,ease)}
+.lg-st .st-sub{transition:opacity .2s}
+.lg-st.sc .st-sub{opacity:0;pointer-events:none}
+.lg-st .st-cover,.lg-st .st-ctx{opacity:0;pointer-events:none;transition:opacity .2s}
+.lg-st.sc .st-cover,.lg-st.sc .st-ctx{opacity:1}
+
+/* ---------- Leaders: the leader card and rows 2-10 are one column ---------- */
+.ld-col{position:absolute;left:272px;top:128px;width:640px;height:378px}
+.ld-col .nb-lead{left:0;top:0}
+.ld-col .nb-lrows{left:0;top:108px;height:270px}
+.ld-col .nb-lead .hs{background:none}
+.ld-note{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.ld-note .row-flex{gap:6px;color:var(--a-text-2)}
+.ld-note .row-flex .ic{width:16px;height:16px;flex:none}
+.ld-note .pillbtn{height:32px;font-size:14px}
+.ld-note .pillbtn .ic{width:16px;height:16px}
+.lg-panel{position:absolute;left:224px;right:0;top:0}           /* a state card over the right side (x 272-912) */
+
+/* ---------- Team stats: the ranked list, 30 px rows ---------- */
+.ts-tb .nb-tr{height:30px}
+.ts-tb .nb-tr .tedge{top:6px}
