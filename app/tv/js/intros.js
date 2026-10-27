@@ -2,9 +2,7 @@
 // TheIntroDB (community timestamps, by IMDb id and season/episode), kept 30 days per title on the TV (a miss for a day).
 //   segmentsFor({ imdb, season, episode, durationMs }) -> { intro, recap, credits, preview } (each [{ start, end }] in ms;
 //   a credits or preview end of 0 runs to the end) | null (not in the database, not answering)
-import { store } from './state.js';
-
-const BASE = () => store.get('introBase', 'https://api.theintrodb.org/v4');   // (tuner.introBase: a fake one in the tests)
+const BASE = () => window.Core?.store?.get('introBase', null) || 'https://api.theintrodb.org/v4';   // (tuner.introBase: a fake one in the tests)
 const KEEP = 30 * 864e5, MISS = 864e5;
 const mem = new Map();
 const keyOf = ({ imdb, season, episode }) => `intro:${imdb}:${season ?? ''}:${episode ?? ''}`;
