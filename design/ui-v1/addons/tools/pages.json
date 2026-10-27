@@ -2,31 +2,25 @@
  {
   "file": "acct-addons.html",
   "title": "Account > Add-ons",
-  "note": "A new group under Provider. \"Add an add-on\" first, then the installed ones in order: what each gives, in plain words, and its state. OK opens an add-on's sheet; hold OK: Move, Turn off, Remove.",
+  "note": "A new group under Provider. \"Add an add-on\" first, then the installed ones in order: what each gives, in plain words, and its state. v1.1: \"copies\", never \"streams\"; the caption says what order does. OK opens an add-on's sheet; hold OK: Move, Turn off, Remove.",
   "group": "Account: Add-ons"
  },
  {
   "file": "acct-addon-sheet.html",
   "title": "An add-on's sheet: Cinemeta",
-  "note": "OK on Cinemeta. What it gives, an on/off switch, and one row per catalog saying where it shows. This is where a Home row or a Movies chip is switched off for good.",
-  "group": "Account: Add-ons"
- },
- {
-  "file": "acct-catalog-menu.html",
-  "title": "One catalog: where it shows",
-  "note": "OK on a catalog row: two checks. OK ticks, Back closes and keeps it. The same menu is reached from a Home row (hold OK, \"Hide this row\") so the owner never has to come here to tidy Home.",
+  "note": "OK on Cinemeta. What it gives, an on/off switch, and one switch per catalog: its chip in Movies or Series. v1.1 (review M1): Home keeps its two rows, so catalogs live on Movies and Series only, and the catalog menu is gone.",
   "group": "Account: Add-ons"
  },
  {
   "file": "acct-addon-move.html",
   "title": "Moving an add-on",
-  "note": "Hold OK on a row, then Move: the row lifts (the Saved reorder model), ▲▼ move it, OK drops. Order decides which rows come first and which add-on wins a tie in Sources.",
+  "note": "Hold OK on a row, then Move: the row lifts (the Saved reorder model), ▲▼ move it, OK drops. Order decides whose details win, the order of catalog chips, and the tie-break between equal copies.",
   "group": "Account: Add-ons"
  },
  {
   "file": "add-ways.html",
   "title": "Add an add-on: four ways",
-  "note": "OK on \"Add an add-on\". The Stremio account is first and marked Easiest: no typing, and it also carries add-ons that need setting up. Typing is last.",
+  "note": "OK on \"Add an add-on\". The Stremio account is first and marked Easiest: no typing, and it also carries add-ons that need setting up. v1.1 (review S17): the one thing he must know is said in his words: copies come from add-ons set up with a service like Real-Debrid.",
   "group": "Adding one"
  },
  {
@@ -38,7 +32,7 @@
  {
   "file": "add-stremio-found.html",
   "title": "Your Stremio add-ons",
-  "note": "The answer to addonCollectionGet, in plain words. What airglow can't use is named once, with why, never as a broken row. One OK adds them; the checks can be changed first.",
+  "note": "The answer to addonCollectionGet, in plain words. What airglow can't use is named once, with why, never as a broken row. v1.1 (review S20): an add-on known to give nothing playable (Public Domain Movies) starts unticked. One OK adds the ticked ones.",
   "group": "Adding one"
  },
  {
@@ -50,49 +44,49 @@
  {
   "file": "add-list.html",
   "title": "Stremio's list, on the TV",
-  "note": "Pick from Stremio's list (Cinemeta's addon_catalog, real data). Chips filter by what an add-on gives. OK on Add adds it after a confirm; \"Set up on your phone\" opens the setup card. 23 of the 44 subtitle add-ons need setting up.",
+  "note": "Pick from Stremio's list (Cinemeta's addon_catalog, real data). v1.1 (review M3): no \"Streams\" chip: none of the 19 community stream add-ons gives copies of films (they are ratings, after-credits and warnings: \"Extras\"). One line says where copies come from. Subtitles are filtered to his languages, so focus lands on something he can use.",
   "group": "Adding one"
  },
  {
   "file": "add-phone.html",
   "title": "Send a link from your phone",
-  "note": "For an add-on set up on a web page (most debrid ones), without a Stremio account. The TV app serves one small page on the Wi-Fi (the same page the first-run \"Use your phone\" sign-in was designed with, UI-SPEC 5.1).",
+  "note": "For an add-on set up on a web page (most debrid ones), without a Stremio account. The TV app serves one small page on the home network (the page the first-run \"Use your phone\" sign-in was designed with, UI-SPEC 5.1). v1.1 (review S13): a 6-digit code, locked after 5 wrong tries.",
   "group": "Adding one"
  },
  {
   "file": "add-confirm.html",
   "title": "Before adding: what it gives",
-  "note": "Every way in ends here: airglow reads the manifest first and says what the add-on gives. Nothing is added without this OK. A link that isn't an add-on gets a plain \"That link isn't an add-on\" instead.",
+  "note": "Every way in ends here: airglow reads the manifest first and says what the add-on gives. Nothing is added without this OK. v1.1 (review S15): it says plainly that the add-on sees what he opens. A link that isn't an add-on gets a plain \"That link isn't an add-on\" instead.",
   "group": "Adding one"
  },
  {
   "file": "add-setup.html",
   "title": "An add-on that needs setting up",
-  "note": "A configurable add-on with configurationRequired. The setup itself happens on the add-on's own page (Stremio's rule); airglow only carries the result back. Nothing to press on the TV, so nothing is focused.",
+  "note": "A configurable add-on with configurationRequired. The setup itself happens on the add-on's own page (Stremio's rule); airglow only carries the result back. v1.1 (review S8): while this is open and he is signed in to Stremio, airglow reads his collection every 5 s, so Install finishes it too. Nothing to press on the TV, so nothing is focused.",
   "group": "Adding one"
  },
  {
   "file": "phone-page.html",
   "title": "The page the TV serves to the phone",
-  "note": "Not a TV screen: the one page the TV serves on the Wi-Fi (http, port 8790, code in the link). Three states: paste and send, set up an add-on, sent. Phone text is 14 px and up; one column; big buttons.",
+  "note": "Not a TV screen: the one page the TV serves on the home network (http, port 8790, token in the link). Three states: paste and send, set up an add-on, sent. Phone text is 14 px and up; one column; big buttons.",
   "group": "Adding one"
- },
- {
-  "file": "home-rows.html",
-  "title": "Home: add-on rows",
-  "note": "Home scrolled down. Add-on rows come after airglow's own (Continue watching, On now, Tonight's games); two by default, the first movie and series catalogs. The catalog's name is the row, the add-on's is the small caption. A title the provider has too says so (here Obsession).",
-  "group": "Catalogs and Search"
- },
- {
-  "file": "home-row-menu.html",
-  "title": "Home: hiding an add-on row",
-  "note": "Hold OK on any add-on card: Save to Saved first and focused (the app-wide rule), Details, then \"Hide … from Home\". Hidden rows come back from Account > Add-ons > Cinemeta.",
-  "group": "Catalogs and Search"
  },
  {
   "file": "movies-addon.html",
   "title": "Movies: an add-on catalog chip",
-  "note": "Add-on catalogs are chips after the provider's, past a thin divider (the row scrolls). On an add-on chip the grid is that catalog, in its own order; Filters becomes the catalog's own Genre list; Sort and Jump go (an add-on has no total).",
+  "note": "Add-on catalogs are chips after the provider's, past a thin divider (the row scrolls). v1.1 (review M1): this is the only place catalogs show; Home is unchanged. On an add-on chip the grid is that catalog, in its own order; Filters becomes the catalog's own Genre list; Sort and Jump go (an add-on has no total).",
+  "group": "Catalogs and Search"
+ },
+ {
+  "file": "movies-chip-menu.html",
+  "title": "Movies: hiding an add-on chip",
+  "note": "v1.1 (review M1): hiding a catalog happens where it shows. Hold OK on an add-on chip: Hide this chip (focused, harmless: it comes back from the add-on's sheet), or the add-on's sheet itself.",
+  "group": "Catalogs and Search"
+ },
+ {
+  "file": "movies-addon-more.html",
+  "title": "Movies: the next page didn't come",
+  "note": "Scrolled down a catalog. While a page is on its way the next row is flat surface-2 blocks (no shimmer) and focus stays where it is, even under key repeat. If the page fails, that row becomes this one inline card: the titles above stay, ▼ reaches Try again, and the full \"isn't answering\" card is kept for a first page that fails.",
   "group": "Catalogs and Search"
  },
  {
@@ -104,31 +98,37 @@
  {
   "file": "search-addons.html",
   "title": "Search: provider first, then add-ons",
-  "note": "Real Cinemeta search for \"dune\". The provider's matches are instant and come first; add-on results arrive under \"From add-ons\" with the add-on named. A title in both shows once, as the provider's (Dune: Part Two is the top result with its 4K from Northlight).",
+  "note": "Real Cinemeta search for \"dune\". v1.1: titles not out yet are left out. The provider's matches are instant and come first; add-on results arrive under \"From add-ons\" with the add-on named. A title in both shows once, as the provider's (Dune: Part Two is the top result with its 4K from Northlight).",
   "group": "Catalogs and Search"
  },
  {
   "file": "detail-sources.html",
   "title": "Title page: Play takes the best source",
-  "note": "The version pill becomes the source pill: it names what Play will play (the best so far, here Northlight's 4K Dolby Vision over the provider's Full HD). Add-ons answer while the page is read; the pill updates in place, focus never moves.",
+  "note": "The Version pill names what Play will play: the best so far by the shared ranking (SPEC 5.0), here Northlight's 4K Blu-ray over the provider's checked 1080p. v1.1 (review M4): add-on copies are never opened before Play, so their pill and tags have no tick, only the dashed \"the name says\" look. The match is Sure (the provider copy's length agrees with Cinemeta's), so add-on copies may outrank it.",
   "group": "The title page"
  },
  {
   "file": "detail-sources-sheet.html",
   "title": "The Copies menu, provider and add-ons together",
-  "note": "OK on the Version pill: the subtitles design's Copies menu, with add-on copies in the same list. \"Always the best copy\" stays first and focused. Each copy says what airglow checked (the tick), where it comes from, its language, kind and size. A copy not yet checked has no tick.",
+  "note": "OK on the Version pill: the subtitles design's Copies menu, add-on copies in the same list, in the shared order (SPEC 5.0). v1.1: no add-on copy is ticked (never opened before Play, review M4); a name claiming Dolby Vision on a Blu-ray ranks and reads as HDR10 until checked (review S3: profile 7). Ticks only where airglow checked.",
   "group": "The title page"
  },
  {
   "file": "detail-play-wait.html",
   "title": "Play, while an add-on is still looking",
-  "note": "Play when the best so far isn't 4K and an add-on hasn't answered: up to 4 s for a better copy, counting down on the button. OK again plays the best so far at once; Back stops. With a 4K copy in hand, Play never waits.",
+  "note": "v1.1 (review M2): the one pre-play wait shared with the subtitles design (SPEC 5.0.2): one 4 s budget from the press, one caption, whatever it is waiting for. Here an add-on hasn't answered and the best known isn't 4K. The pill shows with one copy while an add-on is still asking.",
   "group": "The title page"
  },
  {
   "file": "detail-addon-only.html",
   "title": "A title only add-ons have",
-  "note": "Opened from a Cinemeta row. The same page: Cinemeta's details, Northlight's copies, More like this from both. One quiet line says the provider doesn't have it and where the details come from.",
+  "note": "Opened from a Cinemeta chip or Search. The same page: Cinemeta's details, Northlight's copies, More like this from both. One quiet line says the provider doesn't have it and where the details come from.",
+  "group": "The title page"
+ },
+ {
+  "file": "detail-copies-likely.html",
+  "title": "Copies when the match is only Likely",
+  "note": "The provider copy isn't checked yet, so the IMDb match is only Likely (same name, same year). Add-on copies, even 4K, wait below the provider's under \"might be another film\", naming the film they are for. When the check finds the same length (±8%), the match becomes Sure and they move up.",
   "group": "The title page"
  },
  {
@@ -152,31 +152,31 @@
  {
   "file": "player-source-failed.html",
   "title": "Player: a copy stops, the next one takes over",
-  "note": "After the player's own retries fail, a film moves to the next source by itself (3 s, OK sooner), 10 s before where it stopped. Live TV never does this (the score delay rule); films and episodes have no delay to break.",
-  "group": "Player, states, shield"
+  "note": "The hand-over card wins over the diagnosis cards for add-on copies (review M6): it names the add-on, never \"your provider\". v1.1 (review S7): the next copy comes from another source when it can, so a 1-connection provider is never asked twice in a row. Live TV never hands over (the score delay rule).",
+  "group": "Player and states"
+ },
+ {
+  "file": "player-not-ready.html",
+  "title": "Player: a copy that isn't ready yet",
+  "note": "v1.1 (review M4): debrid add-ons answer an uncached copy with a short placeholder video. A copy under half the film's length (Cinemeta's runtime or the provider's) is \"not ready\": no progress, no \"watched\", no tick, and the next copy plays. It drops to the bottom of Copies for the session.",
+  "group": "Player and states"
  },
  {
   "file": "player-sources.html",
   "title": "Player: Quality lists every copy",
-  "note": "Options > Quality, as the subtitles design draws it (Always the best copy first, the checked copies below), with each copy's source on its second line. The same list and order as the title page. Picking one here is for this film.",
-  "group": "Player, states, shield"
+  "note": "Options > Quality, the subtitles design's panel, with each copy's source. The playing add-on copy was checked when it started, so it has its tick now. The Blu-ray copy sent a placeholder (player-not-ready) and sits last, dimmed, for this session.",
+  "group": "Player and states"
  },
  {
   "file": "player-upnext.html",
   "title": "Player: Up next keeps the same source",
-  "note": "bingeGroup: the next episode's streams are fetched 2 min before the end, and the one with the same bingeGroup plays (same add-on, same quality). The card says so. With no match it takes the best, and says that instead.",
-  "group": "Player, states, shield"
+  "note": "bingeGroup: the next episode's copies are asked for 2 min before the end; the one with the same bingeGroup plays (same add-on, same quality). v1.1 (review S6): the player asks the app for it (need: next), since add-on episodes have no link until asked.",
+  "group": "Player and states"
  },
  {
   "file": "state-addon-down.html",
-  "title": "An add-on that stopped answering",
-  "note": "Real: Archivio now redirects to a web page. airglow keeps it, marks it \"Not answering\" with what it got and when it last worked, and stops asking it for 30 min. Public Domain Movies reads \"Catalog only\": real, its streams are all torrents.",
-  "group": "Player, states, shield"
- },
- {
-  "file": "sources-shield.html",
-  "title": "Shield: add-on replays in the sources sheet",
-  "note": "An add-on video matched to a hidden game is a \"full-game video\" (catch-up 3.1, 3.3): same ranking, same masking (5.7), and no size or length (either could tell overtime). \"Courtside\" is illustrative.",
-  "group": "Player, states, shield"
+  "title": "Add-ons that stopped working",
+  "note": "Real: Archivio's link now opens a web page, so it reads \"Not an add-on any more\" (review nit); \"Not answering\" is kept for timeouts (Kestrel, 3 in 10 min, not asked again for 30 min). Public Domain Movies reads \"Catalog only\": its films are all torrents.",
+  "group": "Player and states"
  }
 ]

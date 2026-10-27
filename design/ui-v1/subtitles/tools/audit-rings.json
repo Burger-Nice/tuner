@@ -1,7 +1,7 @@
 [
  {
   "f": "detail-ready.html",
-  "el": ".btn.f",
+  "el": ".btn.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -18,7 +18,7 @@
  },
  {
   "f": "detail-checking.html",
-  "el": ".btn.f",
+  "el": ".btn.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -35,7 +35,7 @@
  },
  {
   "f": "detail-copies.html",
-  "el": ".lr.st-two",
+  "el": ".lr.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -52,7 +52,7 @@
  },
  {
   "f": "detail-subs-sheet.html",
-  "el": ".lr.st-two",
+  "el": ".lr.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -61,15 +61,15 @@
   "min": 100,
   "ring": [
    508,
-   125,
+   133,
    896,
-   195
+   203
   ],
   "safe": 16
  },
  {
   "f": "detail-which-film.html",
-  "el": ".pillbtn.f-ring",
+  "el": ".pillbtn.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -78,15 +78,15 @@
   "min": 100,
   "ring": [
    43,
-   251,
+   275,
    300.6,
-   297
+   321
   ],
   "safe": -5
  },
  {
   "f": "detail-match.html",
-  "el": ".lr.st-two",
+  "el": ".lr.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -95,15 +95,15 @@
   "min": 100,
   "ring": [
    56,
-   120,
+   138,
    560,
-   190
+   208
   ],
   "safe": 8
  },
  {
   "f": "detail-subs-down.html",
-  "el": ".btn.f",
+  "el": ".btn.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -128,12 +128,12 @@
   "right": 100,
   "min": 100,
   "ring": [
-   42.8,
-   268,
-   263.3,
-   396
+   266.8,
+   310,
+   487.3,
+   438
   ],
-  "safe": -5.3
+  "safe": 75
  },
  {
   "f": "movies-tags.html",
@@ -154,7 +154,7 @@
  },
  {
   "f": "account-languages.html",
-  "el": ".arow.f-ring",
+  "el": ".arow.fx",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -180,9 +180,9 @@
   "min": 100,
   "ring": [
    53.6,
-   415,
+   411,
    85.6,
-   447
+   443
   ],
   "safe": 5.6
  },
@@ -197,9 +197,9 @@
   "min": 100,
   "ring": [
    59,
-   218,
+   266,
    421,
-   268
+   316
   ],
   "safe": 11
  },
@@ -231,9 +231,9 @@
   "min": 100,
   "ring": [
    59,
-   308,
+   302,
    421,
-   352
+   346
   ],
   "safe": 11
  },
@@ -248,9 +248,9 @@
   "min": 100,
   "ring": [
    59,
-   170,
-   437,
-   220
+   164,
+   421,
+   214
   ],
   "safe": 11
  }

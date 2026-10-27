@@ -199,6 +199,8 @@ const cache = new Map();   // gameId -> { at, list, looked: { at, tables, videos
 const jobs = new Map();
 on('catalog', (k) => { if (k === 'movie' || k === 'live') { for (const [id, c] of cache) if (!c.list.length || k === 'live') cache.delete(id); } });
 on('session', () => { cache.clear(); jobs.clear(); });
+// (the ranking changed: Account > NBA > Replays play)
+export function forgetReplays() { cache.clear(); emit('replays', null); }
 export const replaysOf = (g) => (g ? cache.get(g.id)?.list || null : null);
 export const replaysLooked = (g) => cache.get(g?.id)?.looked || null;
 export const bestReplay = (g) => replaysOf(g)?.[0] || null;

@@ -1,5 +1,6 @@
 // node tools/audit.js [--quiet] [--inject-st] [page ...]
-// design/ui-v1/subtitles: the diagnosis audit plus the subtitles checks ONE, TICK, BEST, STEP, SOURCE, JARGON, CLOCK, HUE (SPEC 12).
+// design/ui-v1/subtitles: the diagnosis audit plus the subtitles checks ONE, TICK, BEST, STEP, SOURCE, JARGON, CLOCK, HUE, and in v1.1 RINGTEXT, RAILFOCUS, TICKGAP (SPEC 12).
+// node tools/audit.js --quiet --inject-v10   puts the v1.0 faults back, to prove the v1.1 checks fire.
 // design/ui-v1/catchup/tools/audit.js (itself from nba-pages), run on the diagnosis mocks. Originally adapted to the catch-up mocks (cu- classes and the player's timeline), plus SPOILER:
 // on a mock marked <meta name="shield" content="unseen">, no visible score (\d{2,3}–\d{2,3}), remaining time (−m:ss) or
 // "OT" may show outside an element marked data-other (another game, shown by the My team rule, or a seen one) or
@@ -48,6 +49,12 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const ln = document.querySelector('.dg-card .dg-head span'); if (ln) ln.textContent += ' Restarting the router usually helps, and so does waiting a little.';
       if (document.querySelector('.nv-chip')) for (const k of document.querySelectorAll('.nv-hint .kbd')) if (k.textContent === '◀ ▼') k.textContent = '◀';
       const pr = document.querySelectorAll('.dg-panel .nv-row'); if (pr.length > 1) { pr.forEach((x) => x.classList.remove('f')); pr[0].classList.add('f'); }
+    });
+    // --inject-v10: put back the v1.0 faults review 1 found, to prove the v1.1 checks fire: the source line under the pills
+    // (More like this pushed to 392 / 426), the sheet heading with no air, the tick tight and low on its line
+    if (process.argv.includes('--inject-v10')) await p.evaluate(() => {
+      document.head.insertAdjacentHTML('beforeend', '<style>.sheet.st-sheet .sec{margin-bottom:0}.lr.st-two .b .st-tk,.nv-row .b .st-tk{margin-right:0;vertical-align:-6px}</style>');
+      const rt = document.querySelector('.rowtitle'), rl = rt && rt.nextElementSibling; if (rt && rl && rl.classList.contains('rail')) { rt.style.top = '392px'; rl.style.top = '426px'; }
     });
     // --inject-st: put in one fault per subtitles check, to prove each fires (SPEC 12)
     if (process.argv.includes('--inject-st')) await p.evaluate(() => {
@@ -334,7 +341,37 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       for (const t of document.querySelectorAll('[data-q]')) {
         const k = t.getAttribute('data-q'), tick = !!t.querySelector('.st-tk');
         if (k === 'named' && (tick || !t.classList.contains('st-name'))) issues.overlap.push(`TICK: the named claim "${t.textContent.trim()}" looks checked`);
-        if (k === 'checked' && !tick) issues.overlap.push(`TICK: the checked "${t.textContent.trim().slice(0, 20)}" has no tick`);
+        if (k === 'checked' && !tick && !t.closest('.pc')) issues.overlap.push(`TICK: the checked "${t.textContent.trim().slice(0, 20)}" has no tick`);
+      }
+      // v1.1 RINGTEXT (review M7): a focus ring's full extent (5 px outside, 7 with its gap) must not cross any text that
+      // isn't inside the focused element (a heading, a caption, a neighbour's label)
+      for (const fe of focusEls) {
+        const q = fe.getBoundingClientRect(), inset = getComputedStyle(fe).boxShadow.includes('inset') || fe.classList.contains('f-in');
+        const g = inset ? 0 : 6, R = { l: q.left - g, r: q.right + g, t: q.top - g, b: q.bottom + g };
+        const fl = fe.closest('.ctxmenu,.menu,.sheet,.nv-panel,.nv-card');
+        for (const t of texts) {
+          if (fe.contains(t.e) || t.e.contains(fe) || t.e.closest('.vid,.nv-hint,.art')) continue;
+          if (fl && !fl.contains(t.e)) continue;
+          if (!fl && t.e.closest('.ctxmenu,.menu,.sheet,.nv-panel,.nv-card')) continue;
+          const ox = Math.min(R.r, t.x1) - Math.max(R.l, t.x0), oy = Math.min(R.b, t.y1) - Math.max(R.t, t.y0);
+          if (ox > 1 && oy > 1) issues.overlap.push(`RINGTEXT: the ring of ${short(fe)} crosses "${t.txt}" (${Math.min(ox, oy).toFixed(1)} px)`);
+        }
+      }
+      // v1.1 RAILFOCUS (review M4): a rail that takes focus (not a .peek row) keeps every card inside the safe line when
+      // focused: card bottom <= 513, ring <= 519 (the 6 px ring allowance)
+      for (const rl of document.querySelectorAll('.rail:not(.peek)')) {
+        if (!rl.querySelector('[data-row]') && !rl.querySelector('.track')) continue;
+        for (const c of rl.querySelectorAll('.wc,.ep .th,.pc .box,.hc,.gc')) { const q = c.getBoundingClientRect(); if (q.left > 912 || q.right < 48) continue;
+          const lift = c.classList.contains('f') ? 0 : (q.height * 0.04) / 2;   // a lift grows the card ~4%
+          if (q.bottom + lift > 513.5 || q.bottom + lift + 5 > 519.5) { issues.safe.push(`RAILFOCUS: ${short(c)} would sit at y ${(q.bottom + lift).toFixed(0)} focused (ring ${(q.bottom + lift + 5).toFixed(0)}), past 513`); break; } }
+      }
+      // v1.1 TICKGAP (review S18): a tick is centred on its text line and 4 px or more from the text after it
+      for (const tk of document.querySelectorAll('.st-tk')) {
+        const q = tk.getBoundingClientRect(); let n = tk.nextSibling; while (n && n.nodeType === 3 && !n.textContent.trim()) n = n.nextSibling;
+        if (!n) continue; const rg = document.createRange(); if (n.nodeType === 3) rg.selectNodeContents(n); else rg.selectNodeContents(n);
+        const r0 = [...rg.getClientRects()][0]; if (!r0) continue;
+        const gap = r0.left - q.right, dc = Math.abs((q.top + q.bottom) / 2 - (r0.top + r0.bottom) / 2);
+        if (gap < 3.5 || dc > 3) issues.overlap.push(`TICKGAP: a tick ${gap.toFixed(1)} px from its text, ${dc.toFixed(1)} px off its line ("${(n.textContent || '').trim().slice(0, 20)}")`);
       }
       // BEST: in a list of copies, ranks run in order and exactly one Best, on rank 1
       const ranked = [...document.querySelectorAll('[data-rank]')];
@@ -406,7 +443,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       await q.close();
       for (const h of hits) { bad++; lines.push(`    DIVIDER  a row line at y ${h} touches a highlighted or focused row`); }
     }
-    if (!r.fr.length) lines.push(`    RING     none: the focused element is a text body (${r.textFocus.join(' ') || 'no .fx'}), scrolled with up/down, as the Full description sheet`);
+    if (!r.fr.length) lines.push(`    RING     none: a HUD with no focus ring by design (the timing strip, the chip)`);
     await p.close();
   }
   fs.writeFileSync(root + '/tools/audit-rings.json', JSON.stringify(rings, null, 1));

@@ -162,3 +162,8 @@
 .menu.ad-match .ad-qq{padding:0 8px 10px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
 .nv-row.ad-r{height:50px}
 .nv-row .a .ad-tk{margin-right:6px}
+
+/* v1.1: a tag only the copy's name claims (the subtitles design's .tag.st-name), and the Copies menu's group line */
+.tag.ad-name{background:rgba(21,19,29,.78);border:1px dashed var(--a-border-strong);color:var(--a-text-2)}
+.menu .ad-grp2{padding:8px 12px 2px;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3)}
+.t-cap .ic.xs{vertical-align:-3px}

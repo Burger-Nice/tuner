@@ -109,3 +109,8 @@
 .lr.st-two .b .st-tk svg,.nv-row .b .st-tk svg{width:9px;height:9px}
 /* S16: "Early or late" sits under the subtitle that's on, indented to its text */
 .nv-row.st-kid{padding-left:40px}
+/* S18: the tick on a panel row's first line, centred on it */
+.nv-row .a .st-tk{vertical-align:middle;position:relative;top:-1px}
+/* found by RINGTEXT (port item, SPEC 11): at the start of a film the seek thumb's ring touches the elapsed time under
+   it (VodControls today: labels 10 px under the bar). 14 px clears it. */
+.nv-vbar .seek+.row-flex{margin-top:14px!important}

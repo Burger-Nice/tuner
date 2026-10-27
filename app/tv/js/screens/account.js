@@ -11,9 +11,12 @@ import { focus } from '../focus.js';
 import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js';
 import { sfx } from '../sfx.js';
 import { connectionCheck } from '../conncheck.js';
+import { forgetReplays } from '../catchup.js';
 
 const GROUPS = [['provider', 'Provider'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
+// Owner decision 13.1 (catch-up): which source Watch from tip-off plays
+const REPLAYS = { channel: ['Channel replay first', 'Quarter skips and the as-aired score'], video: ['Full-game video first', 'From Movies, when there is one'], ask: ['Ask each time', 'Lists the sources'] };
 const LANGS = ['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Icelandic', 'Polish', 'Turkish', 'Arabic', 'Hindi'];
 let el, group = 'provider', scroll = 0;
 
@@ -63,7 +66,8 @@ function body() {
       ${row('team', 'Your team', more(t ? `${t.city} ${t.name}` : 'None'))}
       ${row('shield', 'Spoiler shield', more(mode), 'Hides scores, leaders, records and finals everywhere until you reveal them')}
       ${row('bug', 'Score on picture', toggle(!!s.scoreBug), 'A small score in the corner while you watch a game')}
-      ${row('delays', 'Score delay', more('Per channel'), esc(named || 'Set in the player: ◀ then Sync score. New channels start at 60 s'))}`;
+      ${row('delays', 'Score delay', more('Per channel'), esc(named || 'Set in the player: ◀ then Sync score. New channels start at 60 s'))}
+      ${row('replays', 'Replays play', more(REPLAYS[s.replaysPlay || 'channel'][0]), 'What Watch from tip-off plays. Hold OK on it lists every source')}`;
   }
   if (group === 'languages') {
     const langs = s.langs || ['English'];
@@ -154,6 +158,8 @@ function act(a) {
   else if (a === 'ua') radioMenu({ title: 'User agent', value: s.ua || '', rows: [{ v: '', l: 'Default' }, { v: 'VLC/3.0.20 LibVLC/3.0.20', l: 'VLC' }, { v: 'IPTVSmartersPlayer', l: 'IPTV Smarters' }, { v: 'TiviMate/4.7.0', l: 'TiviMate' }], onPick: (v) => { saveSettings({ ua: v }); draw(); } });
   else if (a === 'team') teamSheet(draw);
   else if (a === 'shield') radioMenu({ title: 'Spoiler shield', value: shieldMode(), rows: [{ v: 'off', l: 'Off', sub: 'Scores everywhere' }, { v: 'mine', l: 'My team', sub: 'Your team\'s games hidden' }, { v: 'all', l: 'All games', sub: 'Every game hidden' }], extra: '<div class="t-cap" style="padding:8px 8px 2px">Reveal a game with its Reveal score button. Watching it counts as revealing it.</div>', onPick: (v) => { setShield(v); draw(); } });
+  else if (a === 'replays') radioMenu({ title: 'Replays play', value: s.replaysPlay || 'channel', rows: Object.entries(REPLAYS).map(([v, [l, sub]]) => ({ v, l, sub })), style: 'right:48px;top:120px;width:420px',
+    extra: '<div class="t-cap" style="padding:8px 8px 2px">Hold OK on Watch from tip-off lists every source, whatever this says.</div>', onPick: (v) => { saveSettings({ replaysPlay: v }); forgetReplays(); draw(); } });
   else if (a === 'bug') { saveSettings({ scoreBug: !s.scoreBug }); flip(!s.scoreBug); draw(); }
   else if (a === 'delays') {
     const ds = store.get(`a:${S.acc?.id}:delays`, {});

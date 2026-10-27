@@ -60,7 +60,7 @@ const A = {
   nl: { ini: 'NL', name: 'Northlight', gives: 'Copies of films and series', ver: '2.4.1' },
   cm: { ini: 'CM', name: 'Cinemeta', gives: 'Catalogs and details · Popular, New, Featured', ver: D.cinemeta.version },
   os: { ini: 'OS', name: 'OpenSubtitles v3', gives: 'Subtitles for films and series', ver: D.os.version },
-  wh: { ini: 'WH', name: 'WatchHub', gives: 'Where else to watch: rent, buy or stream', ver: D.wh.version },
+  wh: { ini: 'WH', name: 'WatchHub', gives: 'Where else to watch it: rent, buy or subscribe', ver: D.wh.version },
   pd: { ini: 'PD', name: 'Public Domain Movies', gives: 'A catalog only: its films come as torrents', ver: D.pd.version },
   ar: { ini: 'AR', name: 'Archivio | ElfHosted', gives: 'Copies from the Internet Archive', ver: '–' },
   ks: { ini: 'KS', name: 'Kestrel', gives: 'Copies of films and series', ver: '1.0.3' },
@@ -101,7 +101,7 @@ function addons({ focus = 'nl', lift = false, scrolled = false } = {}) {
     <div class="arow${focus === 'add' ? ' f-ring' : ''}"><span class="grow" style="min-width:0">Add an add-on<div class="t-cap" style="margin-top:0">From your Stremio account, Stremio's list, or your phone</div></span><span class="av">${ic('plus', 'sm')}</span></div>`;
   let rows;
   if (lift) rows = `${SEC(7, '▲▼ move it · OK drops · Back puts it back')}${adrow('cm', 'On')}${adrow('nl', '2 of 6', { lift: true })}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}`;
-  else if (scrolled) rows = `${SEC(7, 'Order: whose details and catalogs come first · synced with Stremio 21:02')}${adrow('cm', 'On')}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}${adrow('ar', 'Not an add-on any more', { f: true, warn: true, sub: 'Its link now opens a web page · last worked Sat 24 Oct' })}${adrow('ks', 'Not answering', { warn: true, sub: 'No answer in 10 s, 3 times since 20:40 · tries again 21:40' })}`;
+  else if (scrolled) rows = `${SEC(7, 'Order: whose details and catalogs come first · synced with Stremio 21:02')}${adrow('cm', 'On')}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}${adrow('ar', 'Not an add-on any more', { f: true, warn: true, sub: 'Opens a web page now · last worked Sat 24 Oct' })}${adrow('ks', 'Not answering', { warn: true, sub: 'No answer in 10 s, 3 times since 20:40 · tries again 21:40' })}`;
   else rows = `${SEC(7, 'Order: whose details and catalogs come first · synced with Stremio 21:02')}${adrow('nl', 'On', { f: focus === 'nl' })}${adrow('cm', 'On', { f: focus === 'cm' })}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}`;
   return `${topbar('')}${side()}<div class="ad-pane">${head}${rows}</div>`;
 }
@@ -117,7 +117,7 @@ function cmSheet(focusRow = 0) {
     <div class="sheet-scroll">
       <div class="ad-lr${focusRow === 0 ? ' f-ring' : ''}"><span class="grow"><span class="a">Use this add-on</span></span>${toggle(true)}</div>
       <div class="sheet sec" style="all:unset;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3);padding:6px 12px 0">Catalogs · chips in Movies and Series</div>
-      ${catRow('Popular movies', 'A chip in Movies', true, focusRow === 1)}${catRow('New movies', 'A chip in Movies · opens on 2026', true)}${catRow('Featured movies', 'A chip in Movies', false)}
+      ${catRow('Popular movies', 'A chip in Movies', true, focusRow === 1)}${catRow('New movies', 'A chip in Movies · this year first', true)}${catRow('Featured movies', 'A chip in Movies', false)}
     </div><div class="t-cap" style="text-align:right">▼ 3 series catalogs, Move, Remove</div></div>`;
 }
 page('acct-addon-sheet.html', 'An add-on\'s sheet: Cinemeta', `${addons({ focus: '' })}${cmSheet(1)}`,
@@ -153,7 +153,7 @@ page('add-stremio-found.html', 'Your Stremio add-ons', `<div class="abs t-head" 
     ${imp('nl', 'Copies of films and series · already set up')}${imp('cm', 'Catalogs and details')}${imp('os', 'Subtitles')}${imp('wh', 'Where else to watch')}${imp('pd', 'A catalog only: its films come as torrents', false)}
     <div class="ad-why" style="padding:8px 12px 0;line-height:20px">Left out: <b style="color:var(--a-text-2)">YouTube</b> (channels aren't in airglow yet), <b style="color:var(--a-text-2)">OpenSubtitles</b> (an older kind of add-on; v3 does the same) and <b style="color:var(--a-text-2)">Local Files</b> (needs the Stremio app on this TV).</div></div>
   <div class="abs card" style="left:600px;top:128px;width:312px;padding:18px">
-    <div class="ad-lr" style="padding:0"><span class="grow"><span class="a">Keep in step</span><span class="b">with your Stremio account</span></span>${toggle(true)}</div>
+    <div class="ad-lr" style="padding:0"><span class="grow"><span class="a">Keep in step</span><span class="b">with Stremio</span></span>${toggle(true)}</div>
     <div class="ad-note" style="margin:8px 0 18px">Add or remove one in Stremio later, on any device, and it changes here too, the next time airglow starts.</div>
     <span class="btn f" style="transform-origin:0 50%">${ic('check')}Add 4 add-ons</span></div>`,
   'The answer to addonCollectionGet, in plain words. What airglow can\'t use is named once, with why, never as a broken row. v1.1 (review S20): an add-on known to give nothing playable (Public Domain Movies) starts unticked. One OK adds the ticked ones.', { group: G2 });
@@ -173,8 +173,8 @@ const S0 = D.communitySubs;
 const sd = (n) => (S0.find((a) => a.name === n) || {}).description || '';
 page('add-list.html', 'Stremio\'s list, on the TV', `${topbar('')}<div class="lib-head"><span class="t-head">Stremio's add-ons</span><span class="t-cap" style="margin-top:6px">Official ${D.addonCatalogOfficial.length}${dot}Community ${D.addonCatalogCommunity.count}</span></div>
   <div class="lib-chips" data-row><span class="chip lg">Official</span><span class="chip lg sel">Community</span><span class="ad-cut"></span><span class="chip lg">Catalogs</span><span class="chip lg sel">Subtitles<span class="n">English</span></span><span class="chip lg">Extras</span></div>
-  <div class="abs ad-cap" style="left:48px;top:176px;width:864px">Copies of films aren't in this list: they come from add-ons set up with a service like Real-Debrid. Add yours from your Stremio account or your phone.</div>
-  <div class="abs" style="left:48px;top:208px;width:864px">
+  <div class="abs ad-cap" style="left:48px;top:176px;width:864px">Copies of films come from add-ons set up with a service like Real-Debrid, not from this list.</div>
+  <div class="abs" style="left:48px;top:210px;width:864px">
     ${subsRow('MSubtitles', 'Your own subtitles, or ones other people follow · free', 'Add', true, 'MS')}${subsRow('opensubtitles PRO', sd('opensubtitles PRO'), 'Setup', false, 'OP')}${subsRow('SubDL Subtitles', sd('SubDL Subtitles'), 'Setup', false, 'SD')}${subsRow('Subtitle Sync', 'Finds subtitles in your language and times them to your copy', 'Setup', false, 'SY')}${subsRow('OpenSubtitles v3', 'Subtitles for films and series', 'Added', false, 'OS')}</div>`,
   'Pick from Stremio\'s list (Cinemeta\'s addon_catalog, real data). v1.1 (review M3): no "Streams" chip: none of the 19 community stream add-ons gives copies of films (they are ratings, after-credits and warnings: "Extras"). One line says where copies come from. Subtitles are filtered to his languages, so focus lands on something he can use.', { group: G2 });
 
@@ -218,27 +218,26 @@ const STY = ['sun', 'figure', 'waves', 'city', 'retro', 'peaks', 'forest', 'towe
 const hcT = (m, i, { f = false, mine = false } = {}) => `<div class="hc${f ? ' f' : ''}"><div class="art">${Art.art(m.id, { style: STY[i % STY.length] })}</div><div class="hs"></div><div class="tp">${mine ? '<span class="tag q">4K</span>' : ''}<span class="n">${m.imdbRating ? `★ ${m.imdbRating}` : ''}</span></div><div class="bt"><b>${esc(unent(m.name))}</b><span>${mine ? `<span class="ad-src">${ic('tv', 'xs')}Also on your provider</span>` : esc([yr(m), genre1(m)].filter(Boolean).join(' · '))}</span></div></div>`;
 const contCard = (kind, title, left, pct, seed) => `<div class="hc"><div class="art">${Art.art(seed)}</div><div class="hs"></div><div class="tp"><span class="t-label" style="line-height:22px">${kind}</span><span class="n">${left}</span></div><div class="bt"><b>${esc(title)}</b></div><div class="prog flush"><i style="width:${pct}%"></i></div></div>`;
 const rail = (title, cards, top, small = '') => `<div class="abs rowtitle" style="left:48px;top:${top}px">${title}${small ? `<small>${small}</small>` : ''}</div><div class="rail abs" style="top:${top + 36}px;left:0;right:0"><div class="track" data-row>${cards}</div></div>`;
-function homeRows(focusI = 1) {
-  return `${rail('Continue watching', `${contCard('S3 · E4', 'The Bear', '22 min left', 35, 'bear4')}${contCard('Film', 'Dune: Part Two', '1 h 35 min left', 43, 'dune2b')}${contCard('Film', 'Harbor Lights', '54 min left', 57, 'm1')}${contCard('S1 · E2', 'Night Circuit', '31 min left', 20, 'nc2')}`, 32)}
-  ${rail('Popular movies', TM.slice(0, 5).map((m, i) => hcT(m, i, { f: i === focusI, mine: i === 2 })).join(''), 176, 'Cinemeta')}
-  ${rail('Popular series', TS.slice(0, 5).map((m, i) => hcT(m, i + 3, { mine: i === 3 })).join(''), 320, 'Cinemeta')}`;
-}
-page('home-rows.html', 'Home: add-on rows', homeRows(1),
-  'Home scrolled down. Add-on rows come after airglow\'s own (Continue watching, On now, Tonight\'s games); two by default, the first movie and series catalogs. The catalog\'s name is the row, the add-on\'s is the small caption. A title the provider has too says so (here Obsession).', { group: G3 });
-
-page('home-row-menu.html', 'Home: hiding an add-on row', `${homeRows(-1)}<div class="ctxmenu" style="left:268px;top:330px"><div class="lr f-ring">${ic('saved', 'sm')}Save to Saved</div><div class="lr">${ic('info', 'sm')}Details</div><div class="lr">${ic('x', 'sm')}Hide "Popular movies" from Home</div></div>`,
-  'Hold OK on any add-on card: Save to Saved first and focused (the app-wide rule), Details, then "Hide … from Home". Hidden rows come back from Account > Add-ons > Cinemeta.', { group: G3 });
-
 const pcT = (m, i, { f = false, mine = false } = {}) => `<div class="pc"><div class="box${f ? ' f' : ''}"><div class="art">${Art.poster(m.id, { title: unent(m.name), style: STY[(i + 4) % STY.length] })}</div>${mine ? `<div class="tl"><span class="tag q">4K</span></div><div class="ad-mine">${ic('tv')}</div>` : ''}</div><div class="cap">${esc(unent(m.name))}</div><div class="cm">${esc([yr(m), m.imdbRating ? `★ ${m.imdbRating}` : genre1(m)].filter(Boolean).join(' · '))}</div></div>`;
-function moviesAddon({ down = false } = {}) {
+function moviesAddon({ down = false, focusChip = false } = {}) {
   const chips = `<div class="lib-chips scrolled" data-row style="left:42px"><span class="chip lg">Comedy</span><span class="chip lg">Drama</span><span class="chip lg">Thriller</span><span class="ad-cut"></span><span class="chip lg${down ? '' : ' sel'}">Popular<span class="ad-by">Cinemeta</span></span><span class="chip lg${down ? ' sel' : ''}">New<span class="ad-by">Cinemeta</span></span><span class="chip lg">Public Domain Movies</span></div>`;
   const head = `<div class="lib-head" data-row><span class="t-head">Movies</span><span class="t-cap" style="margin-top:6px">${down ? 'New' : 'Popular'} from Cinemeta${dot}<span class="ad-legend"><i>${ic('tv')}</i>also on your provider</span></span><span class="grow"></span><span class="pillbtn">${ic('sliders')}Genre<b>All</b></span></div>`;
   const grid = down ? `<div class="abs" style="left:48px;right:48px;top:200px"><div class="state big"><div class="ico">${bang}</div><b>Cinemeta isn't answering</b><p>Its catalogs come back when it does. Your provider's movies are all still here, under All.</p><div class="row-flex" style="gap:20px;justify-content:center"><span class="btn f">${ic('refresh')}Try again</span><span class="btn2">All movies</span></div></div></div>`
-    : `<div class="lib-grid">${TM.slice(0, 12).map((m, i) => pcT(m, i, { f: i === 1, mine: i === 2 || i === 13 })).join('')}</div>`;
+    : `<div class="lib-grid">${TM.slice(0, 12).map((m, i) => pcT(m, i, { f: !focusChip && i === 1, mine: i === 2 || i === 13 })).join('')}</div>`;
   return `${topbar('movie')}${head}${chips}${grid}`;
 }
 page('movies-addon.html', 'Movies: an add-on catalog chip', moviesAddon(),
-  'Add-on catalogs are chips after the provider\'s, past a thin divider (the row scrolls). On an add-on chip the grid is that catalog, in its own order; Filters becomes the catalog\'s own Genre list; Sort and Jump go (an add-on has no total).', { group: G3 });
+  'Add-on catalogs are chips after the provider\'s, past a thin divider (the row scrolls). v1.1 (review M1): this is the only place catalogs show; Home is unchanged. On an add-on chip the grid is that catalog, in its own order; Filters becomes the catalog\'s own Genre list; Sort and Jump go (an add-on has no total).', { group: G3 });
+
+page('movies-chip-menu.html', 'Movies: hiding an add-on chip', `${moviesAddon({ focusChip: true })}<div class="ctxmenu" style="left:340px;top:176px"><div class="lr f-ring">${ic('x', 'sm')}Hide this chip</div><div class="lr">${ic('puzzle', 'sm')}Cinemeta's catalogs</div></div>`,
+  'v1.1 (review M1): hiding a catalog happens where it shows. Hold OK on an add-on chip: Hide this chip (focused, harmless: it comes back from the add-on\'s sheet), or the add-on\'s sheet itself.', { group: G3 });
+
+// v1.1 (review S9): the next page, in the scrolled layout. Key repeat into a page not fetched yet shows a skeleton row
+// and focus stays; a failed page is one inline row, not the full card
+page('movies-addon-more.html', 'Movies: the next page didn\'t come', `<div class="ctxline">Movies · Popular from Cinemeta · 48 titles so far</div>
+  <div class="lib-grid" style="top:56px">${TM.slice(6, 12).map((m, i) => pcT(m, i + 6, { f: i === 3 })).join('')}</div>
+  <div class="abs card row-flex" style="left:48px;top:340px;width:864px;height:64px;padding:0 20px;gap:14px;box-sizing:border-box">${bang}<div class="grow"><b style="font:650 16px/20px var(--a-font-text)">Cinemeta didn't send the next page</b><div class="t-cap">The titles above stay. ▼ to try again</div></div><span class="btn2 sm">${ic('refresh', 'sm')}Try again</span></div>`,
+  'Scrolled down a catalog. While a page is on its way the next row is flat surface-2 blocks (no shimmer) and focus stays where it is, even under key repeat. If the page fails, that row becomes this one inline card: the titles above stay, ▼ reaches Try again, and the full "isn\'t answering" card is kept for a first page that fails.', { group: G3 });
 
 page('movies-addon-down.html', 'Movies: the add-on isn\'t answering', moviesAddon({ down: true }),
   'The add-on timed out (8 s) or sent no JSON. The card says whose fault, that the provider\'s movies are fine, and offers Try again (focused) and All movies. Nothing else on the screen changes.', { group: G3 });
@@ -259,11 +258,11 @@ function search() {
       <div class="rrow" style="height:84px"><div class="mini2"><div class="art">${Art.poster('tt15239678', { style: 'peaks', hue: 32 })}</div></div><div class="grow"><div class="t-sub" style="font-size:18px;line-height:24px">Dune: Part Two</div><div class="t-cap">Movie${dot}2024${dot}4K from Northlight</div></div><span class="btn sm">${ic('play')}Play</span></div>
       <div class="t-label" style="margin:14px 0 8px">Movies and series</div>
       ${r(SD[0], `Movie${dot}2021${dot}your provider`, { st: 'sun', hue: 28 })}
-      <div class="ad-rh"><span class="t-label">From add-ons</span><small>Cinemeta${dot}${SD.length + SS.length - 3} more below</small></div>
-      ${r(SD[1], `Movie${dot}${esc(SD[1].year)}${dot}not out yet`, { f: true, st: 'waves', hue: 250 })}${r(SS[0], `Series${dot}${esc(SS[0].year)}`, { st: 'tower', hue: 300 })}</div>`;
+      <div class="ad-rh"><span class="t-label">From add-ons</span><small>Cinemeta${dot}${SD.length + SS.length - 4} more below</small></div>
+      ${r(SD[3], `Movie${dot}${esc(SD[3].year)}${dot}David Lynch`, { f: true, st: 'waves', hue: 250 })}${r(SS[0], `Series${dot}${esc(SS[0].year)}`, { st: 'tower', hue: 300 })}</div>`;
 }
 page('search-addons.html', 'Search: provider first, then add-ons', search(),
-  'Real Cinemeta search for "dune". The provider\'s matches are instant and come first; add-on results arrive under "From add-ons" with the add-on named. A title in both shows once, as the provider\'s (Dune: Part Two is the top result with its 4K from Northlight).', { group: G3 });
+  'Real Cinemeta search for "dune". v1.1: titles not out yet are left out. The provider\'s matches are instant and come first; add-on results arrive under "From add-ons" with the add-on named. A title in both shows once, as the provider\'s (Dune: Part Two is the top result with its 4K from Northlight).', { group: G3 });
 
 // =====================================================================================================================
 // 4. THE TITLE PAGE (SPEC 5)
@@ -272,6 +271,7 @@ const DU = D.dune2;
 const wc = (t, y, g, seed, st) => `<div class="wc"><div class="art">${Art.art(seed, { style: st })}</div><div class="tx"><b>${esc(t)}</b><span>${y} · ${g}</span></div></div>`;
 const MORE = `<div class="abs rowtitle" style="left:48px;top:366px;font-size:20px">More like this</div><div class="rail abs" style="top:400px;left:0;right:0"><div class="track" data-row>${wc('Dune', '2021', 'Sci-Fi', 'dune1', 'peaks')}${wc('Blade Runner 2049', '2017', 'Sci-Fi', 'br', 'city')}${wc('Arrival', '2016', 'Drama', 'arr', 'waves')}${wc('Prisoners', '2013', 'Thriller', 'pri', 'forest')}${wc('Sicario', '2015', 'Crime', 'sic', 'sun')}</div></div>`;
 const tg = (t) => `<span class="tag q">${t}</span>`;
+const tn = (t) => `<span class="tag ad-name">${t}</span>`;   // only the copy's name says so (not checked)
 function detail({ title, eyebrow, meta, plot, credits, btns, pills, below = MORE, seed, style, hue }) {
   return `<div class="d-back"><div class="art">${Art.art(seed, { style, hue })}</div><div class="d-scrim"></div></div><div class="d-scrim2"></div>
   <div class="d-col"><div class="t-label t-2">${eyebrow}</div><div class="t-display clamp2" style="margin-top:6px">${esc(title)}</div>
@@ -281,29 +281,29 @@ function detail({ title, eyebrow, meta, plot, credits, btns, pills, below = MORE
     <div class="row-flex" data-row style="gap:20px;margin-top:20px;height:44px;padding-left:2px">${btns}</div>
     <div class="ad-pills" data-row style="margin-top:12px">${pills}</div></div>${below}`;
 }
-const duneMeta = `<span class="star">${ic('star')}${DU.imdbRating}</span>${dot}<span>${DU.year}</span>${dot}<span>2 h 47 min</span>${dot}<span class="tag ad-ok">${TK}4K</span><span class="tag ad-ok">${TK}DV</span><span class="tag ad-ok">${TK}Atmos</span>`;
+const duneMeta = `<span class="star">${ic('star')}${DU.imdbRating}</span>${dot}<span>${DU.year}</span>${dot}<span>2 h 47 min</span>${dot}${tn('4K')}${tn('HDR10')}<span class="tag">EN</span>`;   // v1.1: the best copy is an add-on copy, never checked before Play (review M4): dashed tags
 const duneBase = { title: DU.name, eyebrow: `Movie${dot}${DU.genres.join(' · ')}`, meta: duneMeta, plot: DU.description.replace(/\.\.\.$/, '…'), credits: `Directed by <span class="t-2">${esc(DU.director[0])}</span>${dot}<span class="t-2">${esc(DU.cast.join(', '))}</span>`, seed: 'dune-desert', style: 'peaks', hue: 30 };
 const srcPill = (t, f, of = '', tick = true) => `<span class="pillbtn${f ? ' f-ring' : ''}">${ic('film')}${tick ? TK : ''}${t}${of ? ` <span class="ad-of">${of}</span>` : ''} ${ic('chevD')}</span>`;
 const subPill = `<span class="pillbtn">${ic('cc')}Subtitles: English</span>`;
 page('detail-sources.html', 'Title page: Play takes the best source', detail({ ...duneBase,
   btns: `<span class="btn f">${ic('play')}Play</span><span class="btn2">${ic('saved')}Save</span>`,
-  pills: `${srcPill('4K Dolby Vision · Northlight', false, 'best of 9')}${subPill}<span class="ad-look">${spin()}Still asking Kestrel</span>` }),
-  'The version pill becomes the source pill: it names what Play will play (the best so far, here Northlight\'s 4K Dolby Vision over the provider\'s Full HD). Add-ons answer while the page is read; the pill updates in place, focus never moves.', { group: G4 });
+  pills: `${srcPill('4K Blu-ray · Northlight', false, 'best of 9', false)}${subPill}<span class="ad-look">${spin()}Still asking Kestrel</span>` }),
+  'The Version pill names what Play will play: the best so far by the shared ranking (SPEC 5.0), here Northlight\'s 4K Blu-ray over the provider\'s checked 1080p. v1.1 (review M4): add-on copies are never opened before Play, so their pill and tags have no tick, only the dashed "the name says" look. The match is Sure (the provider copy\'s length agrees with Cinemeta\'s), so add-on copies may outrank it.', { group: G4 });
 
 // the Copies menu (design/ui-v1/subtitles detail-copies, extended): "Always the best copy" first, then every copy,
 // provider and add-ons together, best first; a tick only on what airglow checked itself (its 64 KB read, subtitles SPEC 5)
 const cp = (a, b, { f = false, on = false, tick = true, best = false, ico = '' } = {}) => `<div class="lr ad-two${f ? ' f-ring' : ''}">${ico || `<span class="rd${on ? ' on' : ''}"></span>`}<span class="grow"><span class="a">${tick && !ico ? TK : ''}${a}</span><span class="b">${b}</span></span>${best ? '<span class="tag q ad-best">Best</span>' : ''}</div>`;
-const COPIES = `<div class="menu ad-copies"><h3>Copies of Dune: Part Two<small>9 so far · checked 21:08</small></h3>
-  ${cp('Always the best copy', 'Now: 4K · Dolby Vision · Northlight. Changes if a better copy shows up', { f: 1, on: 1, tick: false })}
+const COPIES = `<div class="menu ad-copies"><h3>Copies of Dune: Part Two<small>matched on IMDb · 9 so far</small></h3>
+  ${cp('Always the best copy', 'Now: 4K · Blu-ray · Northlight. Changes if a better copy shows up', { f: 1, on: 1, tick: false })}
   <div class="ad-sep"></div>
-  ${cp('4K · Dolby Vision · 41 Mb/s', '<em>Northlight</em> · English · Blu-ray · Atmos · 51.6 GB', { best: 1 })}
-  ${cp('4K · HDR10 · 19 Mb/s', '<em>Northlight</em> · English · web copy · 23.4 GB')}
+  ${cp('4K · HDR10 · Blu-ray', '<em>Northlight</em> · English · 51.6 GB · its name says Dolby Vision', { best: 1, tick: false })}
+  ${cp('4K · Dolby Vision · web copy', '<em>Northlight</em> · English · 23.4 GB · the name says', { tick: false })}
   ${cp('1080p · 7.1 Mb/s', '<em>Your provider</em> · English · named 4K · 6.1 GB')}
-  ${cp('1080p', '<em>Northlight</em> · English · Blu-ray · 14.2 GB · not checked yet', { tick: false })}
+  ${cp('1080p · Blu-ray', '<em>Northlight</em> · English · 14.2 GB · the name says', { tick: false })}
   ${cp('Kestrel is still looking', 'Its copies join this list as they come', { ico: spin(), tick: false })}
-  <div class="ad-foot">▼ 4 more, and Watch in another app · picking a copy keeps it for this film</div></div>`;
-page('detail-sources-sheet.html', 'The Copies menu, provider and add-ons together', `${detail({ ...duneBase, btns: `<span class="btn">${ic('play')}Play</span><span class="btn2">${ic('saved')}Save</span>`, pills: `${srcPill('4K Dolby Vision · Northlight', false, 'best of 9')}${subPill}` })}<div class="scrim"></div>${COPIES}`,
-  'OK on the Version pill: the subtitles design\'s Copies menu, with add-on copies in the same list. "Always the best copy" stays first and focused. Each copy says what airglow checked (the tick), where it comes from, its language, kind and size. A copy not yet checked has no tick.', { group: G4 });
+  <div class="ad-foot">Add-on copies are checked when they play · ▼ 4 more, and Watch in another app</div></div>`;
+page('detail-sources-sheet.html', 'The Copies menu, provider and add-ons together', `${detail({ ...duneBase, btns: `<span class="btn">${ic('play')}Play</span><span class="btn2">${ic('saved')}Save</span>`, pills: `${srcPill('4K Blu-ray · Northlight', false, 'best of 9', false)}${subPill}` })}<div class="scrim"></div>${COPIES}`,
+  'OK on the Version pill: the subtitles design\'s Copies menu, add-on copies in the same list, in the shared order (SPEC 5.0). v1.1: no add-on copy is ticked (never opened before Play, review M4); a name claiming Dolby Vision on a Blu-ray ranks and reads as HDR10 until checked (review S3: profile 7). Ticks only where airglow checked.', { group: G4 });
 
 // Play pressed while a better copy may still come
 const W = TM.find((m) => m.name === 'Weapons');
@@ -311,17 +311,32 @@ page('detail-play-wait.html', 'Play, while an add-on is still looking', detail({
   meta: `<span class="star">${ic('star')}${W.imdbRating}</span>${dot}<span>${W.year}</span>${dot}<span>2 h 9 min</span>${dot}<span class="tag ad-ok">${TK}HD</span><span class="tag">EN</span>`,
   plot: W.description, credits: '', seed: 'weapons', style: 'forest', hue: 270,
   btns: `<span class="btn f ad-wbtn">${ring(0.4)}Playing in 3 s</span><span class="btn2">${ic('saved')}Save</span>`,
-  pills: `${srcPill('1080p · Your provider', false, 'best of 1')}<span class="ad-look">${spin()}<span><b style="color:var(--a-text-1)">OK</b> plays Full HD now · <b style="color:var(--a-text-1)">Back</b> stops</span></span>` }),
-  'Play when the best so far isn\'t 4K and an add-on hasn\'t answered: up to 4 s for a better copy, counting down on the button. OK again plays the best so far at once; Back stops. With a 4K copy in hand, Play never waits.', { group: G4 });
+  pills: `${srcPill('1080p · Your provider')}<span class="ad-look">${spin()}<span>Looking for a better copy · <b style="color:var(--a-text-1)">OK</b> plays this one now · <b style="color:var(--a-text-1)">Back</b> stops</span></span>` }),
+  'v1.1 (review M2): the one pre-play wait shared with the subtitles design (SPEC 5.0.2): one 4 s budget from the press, one caption, whatever it is waiting for. Here an add-on hasn\'t answered and the best known isn\'t 4K. The pill shows with one copy while an add-on is still asking.', { group: G4 });
 
 // a title only add-ons have (Cinemeta's details, Northlight's streams)
 const TZ = TM.find((m) => m.name === 'Tenzing');
 page('detail-addon-only.html', 'A title only add-ons have', detail({ title: TZ.name, eyebrow: `Movie${dot}${TZ.genres.join(' · ')}`,
-  meta: `<span class="star">${ic('star')}${TZ.imdbRating}</span>${dot}<span>${TZ.year}</span>${dot}<span>2 h 6 min</span>${dot}${tg('4K')}${tg('HDR')}`,
+  meta: `<span class="star">${ic('star')}${TZ.imdbRating}</span>${dot}<span>${TZ.year}</span>${dot}<span>2 h 6 min</span>${dot}${tn('4K')}${tn('HDR10')}`,
   plot: TZ.description, credits: `${ic('puzzle', 'xs')} Not on your provider${dot}details from Cinemeta`, seed: 'tenzing', style: 'peaks', hue: 205,
   btns: `<span class="btn f">${ic('play')}Play</span><span class="btn2">${ic('saved')}Save</span>`,
-  pills: `${srcPill('4K HDR10 · Northlight', false, 'best of 4')}${subPill}` }),
-  'Opened from a Cinemeta row. The same page: Cinemeta\'s details, Northlight\'s copies, More like this from both. One quiet line says the provider doesn\'t have it and where the details come from.', { group: G4 });
+  pills: `${srcPill('4K HDR10 · Northlight', false, 'best of 4', false)}${subPill}` }),
+  'Opened from a Cinemeta chip or Search. The same page: Cinemeta\'s details, Northlight\'s copies, More like this from both. One quiet line says the provider doesn\'t have it and where the details come from.', { group: G4 });
+
+// v1.1 (review M5): a Likely match. Add-on copies are listed after the provider's, with the film they are for, until
+// the provider copy's length confirms it (Sure) or he picks one
+const INV = TM[0];
+page('detail-copies-likely.html', 'Copies when the match is only Likely', `${detail({ title: unent(INV.name), eyebrow: `Movie${dot}${INV.genres.join(' · ')}`, meta: `<span>${INV.year}</span>${dot}${tn('HD')}<span class="tag">EN</span>`, plot: INV.description, credits: '', seed: 'invite', style: 'sun', hue: 330,
+  btns: `<span class="btn">${ic('play')}Play</span><span class="btn2">${ic('saved')}Save</span>`, pills: `${srcPill('1080p · Your provider', false, 'best of 3', false)}${subPill}` })}<div class="scrim"></div>
+  <div class="menu ad-copies"><h3>Copies of The Invite<small>matched by name and year</small></h3>
+  ${cp('Always the best copy', 'Now: 1080p · Your provider. Changes if a better copy shows up', { f: 1, on: 1, tick: false })}
+  <div class="ad-sep"></div>
+  ${cp('1080p', '<em>Your provider</em> · English · 4.2 GB · not checked yet', { tick: false })}
+  <div class="ad-grp2">From add-ons · might be another film</div>
+  ${cp('4K · HDR10 · web copy', '<em>Northlight</em> · for The Invite (2026) · the name says', { tick: false })}
+  ${cp('1080p · web copy', '<em>Northlight</em> · for The Invite (2026) · the name says', { tick: false })}
+  <div class="ad-foot">Pick one to use it. Once your copy is checked, airglow knows if they're the same film.</div></div>`,
+  'The provider copy isn\'t checked yet, so the IMDb match is only Likely (same name, same year). Add-on copies, even 4K, wait below the provider\'s under "might be another film", naming the film they are for. When the check finds the same length (±8%), the match becomes Sure and they move up.', { group: G4 });
 
 // series: The Bear, season 3; the provider has E1 to E7, add-ons the rest (illustrative split)
 const BE = D.bear;
@@ -335,7 +350,7 @@ function bear() {
   <div class="d-col" style="top:32px"><div class="t-label t-2">Series${dot}Comedy · Drama</div><div class="t-display clamp2" style="margin-top:6px">${esc(BE.name)}</div>
     <div class="metaline" style="margin-top:10px"><span class="star">${ic('star')}${BE.imdbRating}</span>${dot}<span>${esc(BE.year)}</span>${dot}<span>5 seasons</span></div>
     <div class="t-body clamp1 clamp2" data-plot style="margin-top:12px;width:460px">A young chef from the fine-dining world comes home to Chicago to run his family's sandwich shop.</div>
-    <div class="row-flex" data-row style="gap:20px;margin-top:16px;height:44px;padding-left:2px"><span class="btn">${ic('play')}Resume S3 · E4</span><span class="btn2">${ic('saved')}Save</span>${srcPill('4K HDR10 · Northlight', false, 'S3 · E4')}</div></div>
+    <div class="row-flex" data-row style="gap:20px;margin-top:16px;height:44px;padding-left:2px"><span class="btn">${ic('play')}Resume S3 · E4</span><span class="btn2">${ic('saved')}Save</span>${srcPill('4K HDR10 · Northlight', false, 'S3 · E4', false)}</div></div>
   <div class="abs seas" data-row style="left:48px;right:48px;top:272px"><div style="display:flex;gap:8px"><span class="chip lg">Season 1</span><span class="chip lg">Season 2</span><span class="chip lg sel">Season 3</span><span class="chip lg">Season 4</span><span class="chip lg">Season 5</span><span class="chip lg">Specials</span><span class="t-cap" style="align-self:center;margin-left:8px;white-space:nowrap">10 episodes</span></div></div>
   <div class="rail abs" style="top:318px;left:0;right:0"><div class="track" data-row style="gap:24px;transform:translateX(-448px)">${eps}</div></div>
   <div class="abs epsyn" style="left:48px;top:486px;width:864px"><span class="ad-r">4K HDR10 · Northlight</span><b>E5 · ${esc(e5.name)}</b>${dot}${esc(e5.overview)}</div>`;
@@ -364,41 +379,32 @@ page('detail-nosources.html', 'No copy to play', detail({ title: NL.name, eyebro
   'Real: Public Domain Movies answers this film with one infoHash stream and no link. airglow hides torrents, so the page says plainly why there\'s nothing, names each add-on, and offers Look again (focused) instead of a Play that can\'t work.', { group: G4 });
 
 // =====================================================================================================================
-// 5. PLAYER, STATES, SHIELD (SPEC 8, 9, 10)
+// 5. PLAYER AND STATES (SPEC 8, 9)
 // =====================================================================================================================
 const video = (seed, style, hue) => `<div class="vid"><div class="art">${Art.art(seed, { style, hue })}</div></div>`;
 const hint = (items) => `<div class="nv-hint">${items.map(([k, t]) => `<span><span class="kbd">${k}</span>${t}</span>`).join('')}</div>`;
-page('player-source-failed.html', 'Player: a copy stops, the next one takes over', `${video('dune-desert', 'peaks', 30)}<div class="nv-card ad-fail"><div class="t"><b>This copy stopped at 1:12:40</b><span>Northlight's 4K Dolby Vision copy stopped sending. Your place is kept.</span></div>
-  <div class="ad-next">${ring(0.55, 1)}<div class="grow"><div class="a">Next best in 3 s: 4K · HDR · 23.4 GB</div><div class="b">Northlight · English · starts at 1:12:30</div></div></div>
-  <div class="cbtns"><span class="btn sm f">${ic('play')}Play it now</span><span class="btn2 sm">Choose another</span></div></div>${hint([['OK', 'Play it now'], ['◀ ▶', 'Move'], ['Back', 'Stop']])}`,
-  'After the player\'s own retries fail, a film moves to the next source by itself (3 s, OK sooner), 10 s before where it stopped. Live TV never does this (the score delay rule); films and episodes have no delay to break.', { group: G5 });
+const failCard = (t, sub, a, b) => `<div class="nv-card ad-fail"><div class="t"><b>${t}</b><span>${sub}</span></div>
+  <div class="ad-next">${ring(0.55, 1)}<div class="grow"><div class="a">${a}</div><div class="b">${b}</div></div></div>
+  <div class="cbtns"><span class="btn sm f">${ic('play')}Play it now</span><span class="btn2 sm">Choose another</span></div></div>${hint([['OK', 'Play it now'], ['◀ ▶', 'Move'], ['Back', 'Stop']])}`;
+page('player-source-failed.html', 'Player: a copy stops, the next one takes over', `${video('dune-desert', 'peaks', 30)}${failCard('This copy stopped at 1:12:40', 'Northlight stopped sending its 4K Dolby Vision copy. Your place is kept.', 'Next best in 3 s: 1080p · 7.1 Mb/s', 'Your provider · English · starts at 1:12:30')}`,
+  'The hand-over card wins over the diagnosis cards for add-on copies (review M6): it names the add-on, never "your provider". v1.1 (review S7): the next copy comes from another source when it can, so a 1-connection provider is never asked twice in a row. Live TV never hands over (the score delay rule).', { group: G5 });
 
-const prow2 = (a, b, { cur = false, f = false, on = false, tick = true } = {}) => `<div class="nv-row ad-r${cur ? ' cur' : ''}${f ? ' f' : ''}"><span class="rd${on ? ' on' : ''}"></span><div class="grow" style="min-width:0"><div class="a">${tick ? TK : ''}${a}</div><div class="b">${b}</div></div></div>`;
+page('player-not-ready.html', 'Player: a copy that isn\'t ready yet', `${video('dune-desert', 'peaks', 30)}${failCard('That copy isn\'t ready yet', 'Northlight sent a short "still downloading" clip instead of the film.', 'Playing the next best in 3 s: 4K · Dolby Vision', 'Northlight · web copy · nothing is saved from the clip')}`,
+  'v1.1 (review M4): debrid add-ons answer an uncached copy with a short placeholder video. A copy under half the film\'s length (Cinemeta\'s runtime or the provider\'s) is "not ready": no progress, no "watched", no tick, and the next copy plays. It drops to the bottom of Copies for the session.', { group: G5 });
+
+const prow2 = (a, b, { cur = false, f = false, on = false, tick = true, dis = false } = {}) => `<div class="nv-row ad-r${cur ? ' cur' : ''}${f ? ' f' : ''}${dis ? ' dis' : ''}"><span class="rd${on ? ' on' : ''}"></span><div class="grow" style="min-width:0"><div class="a">${tick ? TK : ''}${a}</div><div class="b">${b}</div></div></div>`;
 page('player-sources.html', 'Player: Quality lists every copy', `${video('dune-desert', 'peaks', 30)}<div class="nv-panel left" style="width:400px"><div class="nv-h">Quality</div>
   ${prow2('Always the best copy', 'Now: 4K · Dolby Vision · Northlight', { on: 1, tick: false })}<div class="ad-grp">Copies · best first</div>
-  ${prow2('4K · Dolby Vision · 41 Mb/s', 'Northlight · playing', { cur: 1 })}${prow2('4K · HDR10 · 19 Mb/s', 'Northlight · web copy', { f: 1 })}${prow2('1080p · 7.1 Mb/s', 'Your provider · named 4K')}${prow2('1080p', 'Northlight · Blu-ray · not checked yet', { tick: false })}
+  ${prow2('4K · Dolby Vision · 19 Mb/s', 'Northlight · web copy · playing', { cur: 1 })}${prow2('1080p · 7.1 Mb/s', 'Your provider · named 4K', { f: 1 })}${prow2('1080p · Blu-ray', 'Northlight · the name says', { tick: false })}${prow2('4K · Blu-ray', 'Northlight · wasn\'t ready yet', { tick: false, dis: true })}
   <div class="t-cap" style="padding:8px 12px 2px">Switching starts the other copy where you are.</div></div>${hint([['OK', 'Switch'], ['▲ ▼', 'Move'], ['Back', 'Options']])}`,
-  'Options > Quality, as the subtitles design draws it (Always the best copy first, the checked copies below), with each copy\'s source on its second line. The same list and order as the title page. Picking one here is for this film.', { group: G5 });
+  'Options > Quality, the subtitles design\'s panel, with each copy\'s source. The playing add-on copy was checked when it started, so it has its tick now. The Blu-ray copy sent a placeholder (player-not-ready) and sits last, dimmed, for this session.', { group: G5 });
 
 const e5 = BE.s3[4];
 page('player-upnext.html', 'Player: Up next keeps the same source', `${video('bear4', 'studio', 30)}<div class="ad-up">${ring(0.3, 1)}<div class="grow"><div class="a">Next episode in 7 s</div><div class="b">S3 · E5 · ${esc(e5.name)}</div><div class="b">Same source: Northlight 4K</div></div></div>${hint([['OK', 'Play now'], ['Back', 'Stay on this one']])}`,
-  'bingeGroup: the next episode\'s streams are fetched 2 min before the end, and the one with the same bingeGroup plays (same add-on, same quality). The card says so. With no match it takes the best, and says that instead.', { group: G5 });
+  'bingeGroup: the next episode\'s copies are asked for 2 min before the end; the one with the same bingeGroup plays (same add-on, same quality). v1.1 (review S6): the player asks the app for it (need: next), since add-on episodes have no link until asked.', { group: G5 });
 
-page('state-addon-down.html', 'An add-on that stopped answering', addons({ scrolled: true }),
-  'Real: Archivio now redirects to a web page. airglow keeps it, marks it "Not answering" with what it got and when it last worked, and stops asking it for 30 min. Public Domain Movies reads "Catalog only": real, its streams are all torrents.', { group: G5 });
-
-// the shield: an NBA replay from an add-on joins the catch-up sources sheet (catchup SPEC 5.6, 5.7)
-const IMG = '../nba-pages/img/';
-const crest = (a, s = '') => `<span class="team ${s}"><img src="${IMG}logo-${a}.png" alt=""></span>`;
-const eyeSm = `<svg class="ic xs" viewBox="0 0 24 24" aria-hidden="true" style="flex:none">${P.eyeOff}</svg>`;
-const partial = (r) => `<span class="nb-rp" style="display:inline-flex;align-items:center;gap:4px">${r}${eyeSm}</span>`;
-const hero = `<div class="hero-plate"><div class="abs row-flex" style="left:24px;top:12px;gap:12px;height:24px"><span class="t-label" style="color:var(--a-pink-text)">Your team</span><span class="t-label t-2">NBA${dot}Mon 26 Oct${dot}late</span></div>
-  <div class="mt"><div class="side" style="--tp:#4E6799;--ta:#F5B112;--tc:#F3EFE6">${crest('MEM', 'lg')}<div><div class="nm">Grizzlies</div><div class="rc">${partial('3-0')}</div></div></div><div class="sc"><span class="shield" style="height:44px;padding:0 12px;font-size:16px;gap:8px">${ic('eyeOff')}<span>Score hidden</span></span></div><div class="side r" style="--tp:#002B5C;--ta:#F9A01B;--tc:#F3EFE6"><div style="text-align:right"><div class="nm">Jazz</div><div class="rc">${partial('1-2')}</div></div>${crest('UTAH', 'lg')}</div></div>
-  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px;width:572px"><span class="btn" style="transform-origin:0 50%">${ic('play')}Watch from tip-off</span><span class="btn2">Game page</span></div>
-  <div class="slabbox" style="left:619px;width:243px"><div class="slabfill"></div><div class="slabcontent ink"><span class="big">REPLAY</span><span class="cap">Score hidden</span></div></div></div>`;
-const cs = [['hist', 'NBA League Pass 4', 'Channel replay · quarter skips', 'Best'], ['puzzle', 'Full game · Memphis feed', 'Courtside add-on · 1080p'], ['film', 'Full game · Utah feed', 'Your provider\'s Movies · 720p'], ['eyeOff', 'Video naming the Grizzlies and the Jazz', 'Courtside add-on · Name hidden'], ['search', 'Choose a video…', 'Every video naming either team']];
-page('sources-shield.html', 'Shield: add-on replays in the sources sheet', `${topbar('home')}${hero}<div class="scrim"></div><div class="sheet cu-srcs"><h3>Watch Grizzlies at Jazz</h3><div class="t-cap" style="margin-top:-6px">From tip-off${dot}Mon 26 Oct · late</div><div data-col style="display:flex;flex-direction:column;gap:2px">${cs.map(([i0, a, b, s], i) => `<div class="lr${i === 0 ? ' f-ring' : ''}"><span class="ico">${ic(i0)}</span><span class="grow"><span class="a">${esc(a)}</span><span class="b">${esc(b)}</span></span>${s ? `<small>${s}</small>` : ''}</div>`).join('')}</div><div class="t-cap" style="margin-top:auto">Add-on videos follow the same rules as your provider's: no sizes, no lengths, and a name that could tell is hidden.</div></div>`,
-  'An add-on video matched to a hidden game is a "full-game video" (catch-up 3.1, 3.3): same ranking, same masking (5.7), and no size or length (either could tell overtime). "Courtside" is illustrative.', { group: G5, shield: true, nba: true });
+page('state-addon-down.html', 'Add-ons that stopped working', addons({ scrolled: true }),
+  'Real: Archivio\'s link now opens a web page, so it reads "Not an add-on any more" (review nit); "Not answering" is kept for timeouts (Kestrel, 3 in 10 min, not asked again for 30 min). Public Domain Movies reads "Catalog only": its films are all torrents.', { group: G5 });
 
 fs.writeFileSync(path.join(root, 'tools', 'pages.json'), JSON.stringify(pages, null, 1));
 console.log(`wrote ${pages.length} mocks`);

@@ -87,7 +87,7 @@ function detail({ eyebrow, title, meta, tags, plot, credits = '', play = 'Play',
 <div class="d-col">
   <div class="t-label t-2">${eyebrow}</div>
   <div class="t-display clamp2" style="margin-top:6px">${esc(title)}</div>
-  <div class="metaline" style="margin-top:10px">${meta}${tags ? dot + tags : ''}</div>
+  <div class="metaline" style="margin-top:10px">${meta}${meta && tags ? dot : ''}${tags || ''}</div>
   <div style="margin-top:12px"><div class="t-body clamp2" style="width:460px">${esc(plot)}</div></div>
   ${credits ? `<div class="t-cap ellipsis" style="margin-top:8px;width:500px">${credits}</div>` : ''}
   ${btns}
@@ -144,14 +144,14 @@ page('detail-subs-sheet.html', 'The Subtitles sheet', detail({
   <div class="sec">More</div>
   ${sheetRow(null, 'Other languages', '', { v: '31' })}
   ${sheetRow(null, 'Not this film?', 'Match it again')}
-  </div><div class="st-note">None in this copy's file. A tick would mean the timing was checked against this copy itself.</div></div>`,
+  </div><div class="st-note">None in this copy's file.</div></div>`,
 }), 'OK on the Subtitles pill. v1.1 (M1): no ticks here. This copy\'s fingerprint isn\'t known to OpenSubtitles, so English was only lined up with other subtitles, and the Icelandic speed fix follows the copy\'s frame rate but its offset doesn\'t. A tick appears only for "Made for this copy" or "Lined up with this copy". The heading has 8 px of air above the ring (M7).', { group: G1 });
 
 // 5. which film? (no year, and the copy couldn't be checked, so its length can't decide)
 const lionPlot = 'Simba, a lion cub, flees his kingdom after his father\'s death, and must one day return to claim it.';
-const lionTags = `${tagPlain('EN')}${dot}${qt('1080p', false)}`;
+const lionTags = `${tagPlain('EN')}${qt('1080p', false)}`;
 page('detail-which-film.html', 'Subtitles: which film is it?', detail({
-  eyebrow: `Movie${dot}Family · Adventure`, title: 'The Lion King', meta: `<span>Not checked: your provider doesn't allow it</span>`, plot: lionPlot,
+  eyebrow: `Movie${dot}Family · Adventure`, title: 'The Lion King', meta: '', plot: lionPlot,
   tags: lionTags, focus: 'subs', art: ['lion', 'sun', 250],
   pills: (f) => `${subPill(f, 'Subtitles: which film is it?')}`,
   side: 'Two films are called The Lion King',
@@ -159,7 +159,7 @@ page('detail-which-film.html', 'Subtitles: which film is it?', detail({
 
 // 6. the match menu (shared with design/ui-v1/addons: .menu.st-match = .menu.ad-match)
 page('detail-match.html', 'Which film is this?', detail({
-  eyebrow: `Movie${dot}Family · Adventure`, title: 'The Lion King', meta: `<span>Not checked: your provider doesn't allow it</span>`, plot: lionPlot,
+  eyebrow: `Movie${dot}Family · Adventure`, title: 'The Lion King', meta: '', plot: lionPlot,
   tags: lionTags, focus: 'none', art: ['lion', 'sun', 250], pills: (f) => `${subPill(f, 'Subtitles: which film is it?')}`,
   overlay: `<div class="scrim"></div><div class="menu st-match" style="left:48px;top:44px"><h3>Which film is this?</h3><div class="st-q">From the Cinemeta search for “The Lion King” · this copy's length is unknown</div><div data-col>
   ${sheetRow(null, 'The Lion King', '1994 · 1 h 29 min · Roger Allers, Rob Minkoff', { f: true, v: false })}
@@ -174,7 +174,7 @@ page('detail-match.html', 'Which film is this?', detail({
 page('detail-subs-down.html', 'Subtitles: OpenSubtitles isn\'t answering', detail({
   eyebrow: `Movie${dot}Drama · History`, title: 'Oppenheimer', meta: oppMeta, plot: oppPlot, credits: oppCred,
   tags: oppTags, pills: (f) => `${verPill(f, `${TK}4K HDR10`)}${subPill(f, 'Subtitles: none yet', ' st-wait')}`,
-  side: `OpenSubtitles isn't answering${dot}again at 21:31`, below: moreRow(),
+  side: `OpenSubtitles isn't answering${dot}trying again at 21:31`, below: moreRow(),
 }), 'The add-on is down (or slow: 8 s). The pill row says so and when it tries again; nothing to press. Play still works: subtitles that come in later appear in the player, which says so once (SPEC 7.6). Lists already fetched are kept for 2 days.', { group: G1 });
 
 // 8. series, laid out as detail.js does (plot, chips 272, rail 318, synopsis 486); M4, S17
@@ -185,7 +185,7 @@ page('detail-series.html', 'A series: subtitles per episode', `<div class="d-bac
   <div class="t-label t-2">Series${dot}Drama · Mystery · Sci-Fi</div>
   <div class="t-display clamp2" style="margin-top:6px">Severance</div>
   <div class="metaline" style="margin-top:10px"><span class="star">${ic('star')}8.6</span>${dot}<span>2022</span>${dot}<span>2 seasons</span>${dot}${qt('4K')}${qt('HDR')}</div>
-  <div style="margin-top:12px"><div class="t-body clamp2" style="width:460px">Mark leads a team of office workers whose memories have been surgically divided between their work and their lives at home.</div></div>
+  <div style="margin-top:12px"><div class="t-body clamp2" style="width:460px">Mark leads a team of office workers whose memories are split between work and home.</div></div>
   <div class="row-flex" data-row style="gap:20px;margin-top:16px;height:44px;padding-left:2px"><span class="btn fx">${ic('play')}Play S1 · E1</span><span class="btn2 fx">${ic('saved')}Save</span>${subPill(() => '', 'Subtitles: English')}</div>
 </div>
 <div class="abs seas" data-row style="left:48px;right:48px;top:272px"><div style="display:flex;gap:8px"><span class="chip lg fx sel">Season 1</span><span class="chip lg fx">Season 2</span><span class="t-cap" style="align-self:center;margin-left:8px;white-space:nowrap">9 episodes</span></div></div>

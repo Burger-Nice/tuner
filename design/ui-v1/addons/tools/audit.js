@@ -3,6 +3,7 @@
 //   JARGON  protocol words a non-technical owner shouldn't meet (infoHash, magnet, bingeGroup, manifest fields, tt ids, JSON, API…);
 //           "manifest.json" is allowed only where he is told what a link looks like
 //   SECRET  a configured add-on link (a long path segment) shown in full: it holds his debrid or account key
+//   CUT     (v1.1) a row's text in a menu, sheet, panel or add-on list cut by an ellipsis
 // --inject adds a jargon line and a full configured link to every page, to prove both fire.
 // From catch-up: SPOILER:
 // on a mock marked <meta name="shield" content="unseen">, no visible score (\d{2,3}–\d{2,3}), remaining time (−m:ss) or
@@ -214,9 +215,14 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       { const all = []; const tw = document.createTreeWalker(document.querySelector('.screen'), NodeFilter.SHOW_TEXT);
         for (let n = tw.nextNode(); n; n = tw.nextNode()) { const pe = n.parentElement; let vis = true; for (let a = pe; a && a !== document.body; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) { vis = false; break; } } if (vis && n.textContent.trim()) all.push(n.textContent); }
         const txt = all.join(' ').replace(/\s+/g, ' ');
-        const jar = txt.replace(/manifest\.json/g, '').match(/\b(tt\d{6,}|infoHash|info hash|magnet:?|bingeGroup|proxyHeaders|notWebReady|behaviorHints|idPrefixes|JSON|API|endpoint|transport(Url)?|resources?|catalog id|meta(data)? object|stream object|P2P|codec|HEVC|x26[45]|remux)\b/i);
+        const jar = txt.replace(/manifest\.json/g, '').match(/\b(tt\d{6,}|streams?|infoHash|info hash|magnet:?|bingeGroup|proxyHeaders|notWebReady|behaviorHints|idPrefixes|JSON|API|endpoint|transport(Url)?|resources?|catalog id|meta(data)? object|stream object|P2P|codec|HEVC|x26[45]|remux)\b/i);
         if (jar) issues.overlap.push(`JARGON: "${jar[0]}" on screen`);
         for (const m of txt.matchAll(/https?:\/\/[^\s]+/g)) { if (m[0].split('/').some((seg) => seg.length > 16 && !/…/.test(seg) && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(seg))) issues.overlap.push(`SECRET: a configured link shown in full ("${m[0].slice(0, 40)}")`); }
+      }
+      // ---- add-ons v1.1 (review S18): CUT, a row's text cut by an ellipsis inside a menu, sheet, panel or add-on list
+      for (const e of document.querySelectorAll('.menu .a,.menu .b,.sheet .a,.sheet .b,.ad-row .a,.ad-row .b,.ad-lr .a,.ad-lr .b,.nv-row .a,.nv-row .b,.card .a,.card .b')) {
+        const cs = getComputedStyle(e); if (cs.textOverflow !== 'ellipsis' || e.closest('.scrim ~ * .sheet-scroll') && false) continue;
+        if (e.scrollWidth > e.clientWidth + 1) issues.clip.push(`CUT: "${e.textContent.trim().slice(0, 40)}" is cut by an ellipsis`);
       }
       // ---- contrast on flat backgrounds
       const parse = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return { r: v[0], g: v[1], b: v[2], a: v[3] == null || isNaN(v[3]) ? 1 : v[3] }; };

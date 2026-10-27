@@ -34,23 +34,6 @@
   "safe": 16
  },
  {
-  "f": "acct-catalog-menu.html",
-  "el": ".ad-lr.f-ring",
-  "inset": false,
-  "top": 100,
-  "bottom": 100,
-  "left": 100,
-  "right": 100,
-  "min": 100,
-  "ring": [
-   158,
-   198,
-   462,
-   256
-  ],
-  "safe": 110
- },
- {
   "f": "acct-addon-move.html",
   "el": ".ad-row.lift",
   "inset": false,
@@ -78,11 +61,11 @@
   "min": 100,
   "ring": [
    192,
-   144,
+   133,
    768,
-   218
+   207
   ],
-  "safe": 117
+  "safe": 106
  },
  {
   "f": "add-stremio-code.html",
@@ -111,12 +94,12 @@
   "right": 100,
   "min": 100,
   "ring": [
-   613.7,
-   274.6,
-   825.9,
-   331.4
+   613.8,
+   274.7,
+   826.8,
+   331.3
   ],
-  "safe": 86.1
+  "safe": 85.2
  },
  {
   "f": "add-stremio-email.html",
@@ -146,9 +129,9 @@
   "min": 100,
   "ring": [
    43,
-   179,
+   205,
    917,
-   241
+   267
   ],
   "safe": -5
  },
@@ -187,40 +170,6 @@
   "safe": 129.7
  },
  {
-  "f": "home-rows.html",
-  "el": ".hc.f",
-  "inset": false,
-  "top": 100,
-  "bottom": 100,
-  "left": 100,
-  "right": 100,
-  "min": 100,
-  "ring": [
-   264.8,
-   204.3,
-   483.1,
-   319.7
-  ],
-  "safe": 177.3
- },
- {
-  "f": "home-row-menu.html",
-  "el": ".lr.f-ring",
-  "inset": false,
-  "top": 100,
-  "bottom": 100,
-  "left": 100,
-  "right": 100,
-  "min": 100,
-  "ring": [
-   272,
-   334,
-   600.5,
-   392
-  ],
-  "safe": 121
- },
- {
   "f": "movies-addon.html",
   "el": ".box.f",
   "inset": false,
@@ -236,6 +185,40 @@
    371.9
   ],
   "safe": 139.1
+ },
+ {
+  "f": "movies-chip-menu.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   344,
+   180,
+   572,
+   238
+  ],
+  "safe": 153
+ },
+ {
+  "f": "movies-addon-more.html",
+  "el": ".box.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   483.6,
+   46.1,
+   624.3,
+   251.9
+  ],
+  "safe": 19.1
  },
  {
   "f": "movies-addon-down.html",
@@ -333,11 +316,28 @@
   "min": 100,
   "ring": [
    44.7,
-   245.6,
+   243.6,
    173.2,
-   302.4
+   300.4
   ],
   "safe": -3.3
+ },
+ {
+  "f": "detail-copies-likely.html",
+  "el": ".lr.ad-two",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   56,
+   75,
+   640,
+   145
+  ],
+  "safe": 8
  },
  {
   "f": "detail-series.html",
@@ -408,6 +408,23 @@
   "safe": 77.9
  },
  {
+  "f": "player-not-ready.html",
+  "el": ".btn.sm",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   210.2,
+   386.9,
+   368.5,
+   435.1
+  ],
+  "safe": 77.9
+ },
+ {
   "f": "player-sources.html",
   "el": ".nv-row.ad-r",
   "inset": true,
@@ -435,27 +452,10 @@
   "min": 100,
   "ring": [
    267,
-   407,
+   349,
    911,
-   469
+   411
   ],
   "safe": 1
- },
- {
-  "f": "sources-shield.html",
-  "el": ".lr.f-ring",
-  "inset": false,
-  "top": 100,
-  "bottom": 100,
-  "left": 100,
-  "right": 100,
-  "min": 100,
-  "ring": [
-   508,
-   103,
-   896,
-   177
-  ],
-  "safe": 16
  }
 ]
