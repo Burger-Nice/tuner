@@ -336,15 +336,14 @@ async function imdbOf(it) {
 }
 const segQuery = (it, imdb) => ({ imdb, ...(it.kind === 'episode' ? { season: +it.season, episode: +it.ep } : {}) });
 // the episode before this one, watched in the last 3 days (S.progress): watched = finished or past 80%; the episode
-// before = the same season's previous number, or for an E1 the highest-numbered watched episode of the season before
+// before = the same season's previous number. A season's E1 never skips its recap by itself (the episode before is the
+// last season's finale, and which number that is isn't known here): it gets the button.
 function watchedBefore(it) {
   if (it.kind !== 'episode') return false;
   const S0 = +it.season, E0 = +it.ep, recent = Date.now() - 3 * 864e5;
   const watched = Object.values(S.progress || {}).filter((p) => p?.item?.kind === 'episode' && String(p.item.seriesId) === String(it.seriesId)
     && (p.done || (p.d > 0 && p.t / p.d >= 0.8)) && (p.at || 0) >= recent);
-  if (E0 > 1) return watched.some((p) => +p.item.season === S0 && +p.item.ep === E0 - 1);
-  const prev = watched.filter((p) => +p.item.season === S0 - 1);
-  return prev.length > 0;   // (its highest-numbered watched one: the season's last he saw)
+  return E0 > 1 && watched.some((p) => +p.item.season === S0 && +p.item.ep === E0 - 1);
 }
 async function sendSegments(it) {
   if (!it || !native?.info?.()?.segments || settings().skipIntro === 'off') return;

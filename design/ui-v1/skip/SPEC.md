@@ -45,7 +45,7 @@ stated here.
 | 5 | The way-back chip's 5 s isn't 5 s; pausing kills it | **5 s of playing time from the first frame after the jump** (4.2); during the rebuffer it shows with its key cap dimmed. **OK guard 0.5 s** from that first frame, key cap at 40% until it binds. **With the controls up** its life stops and the row has `Back to intro` in the Skip pill's slot (mock 4); when they hide, the chip comes back with what it had left. AC SK-22 |
 | 6 | ▲ lands on the Skip pill after he chose to watch | ▲ lands on the Skip pill only while the window is **fresh**: not hidden with Back, not gone back from. Otherwise ▲ lands on Play, and the pill is one ▶ along (3.3). The owner's "10 s, then ▲ OK" still holds for a fresh window |
 | 7 | Up next binds OK earlier, unguarded | **Up next gets the same guard** (2.2, 5.1): it waits for 1.5 s without a key press, OK pauses for its first 0.7 s, and OK does nothing for 0.7 s after it goes. AC SK-23 |
-| 8 | "Watched the episode before" was too loose | **Fixed in the web code by the lead; the rule** (4.3, 9.5): watched = finished, or played past 80%, in the last 3 days. The episode before = the same season's previous number; for an E1, a watched episode of the season before (the highest-numbered one he watched). Test cases in `tests/intros-test.js` (10) |
+| 8 | "Watched the episode before" was too loose | **Fixed in the web code by the lead; the rule** (4.3, 9.5): watched = finished, or played past 80%, in the last 3 days. The episode before = the same season's previous number; a season's E1 never skips its recap by itself (the season before's finale can't be told apart from any episode of it), it gets the chip. Test cases in `tests/intros-test.js` (10) |
 | 9 | Autoplay leaves the episode "in progress" | **When Up next moves on** (OK, the count, or OK on the end card) the episode it leaves is marked watched (`markWatched`). Reaching the credits alone still marks nothing (5.1) |
 | 10 | Two names for one choice; inherited values | **`Skip by itself` everywhere** (Account's `Skip automatically` is renamed; code change in 10), with the same lines everywhere (`One press skips it`, `You can go back for 5 s`). The show panel has a third choice, **`Same as Account`** (the default, line `Now: Show a button`), so an inherited value is never mistaken for a choice he made (mocks 7 and 9). The Account line is rewritten in plain words (4.1) |
 | 11 | Keys that matter go off screen after 5 views | **Back is on the Up next card** (`Back stop`, stacked under `OK play now`, mock 6) **and on the offer** (`Back not now`). The 5-view counts are named per chip: `hint:skip`, `hint:skipback`, `hint:offer`, `hint:upnext` (2.2) |
@@ -285,8 +285,8 @@ The recap rule is the same whatever the intro choice.
   window. With no file, a file that isn't ready by the window's start, or a file that isn't anchored, it skips: the
   way-back chip covers a wrong jump. A Likely match never skips by itself: the chip.
 - **A recap** skips by itself when the episode before was **watched** in the last 3 days and the match is Sure.
-  Watched = finished, or played past 80%. The episode before = the same season's previous episode; for an E1, a
-  watched episode of the season before (the highest-numbered he watched) (built: `recapAuto`, the lead's fix). Recaps
+  Watched = finished, or played past 80%. The episode before = the same season's previous episode; a season's E1
+  never skips its recap by itself, it gets the chip (built: `recapAuto`, the lead's fix). Recaps
   aren't checked against speech (they are speech).
 - **Never** after a late answer once the window started (3.6), with another chip up, or on a window skipped or gone
   back to in this play.
@@ -452,7 +452,7 @@ Severance S1 E2, so the list's choice of version can't be relied on; it isn't se
   prefetch; nothing when Off; saves `skipIntro` from the player); `screens/account.js` (the row and its radio menu).
 - **To change:** rename `Skip automatically` to `Skip by itself` (the row's value and the radio); the `t-cap` under the
   Playback rows (4.1); the show's choice, the press count, the offer and `watched` (9.5); `tests/intros-test.js` cases
-  for 4.3's "episode before" (E−1 at 80%, an E1 after the season before, 5 s of the episode before doesn't count).
+  for 4.3's "episode before" (E−1 at 80%, an E1 gets the chip, 5 s of the episode before doesn't count).
 
 **Native (`android/.../player/`), to build:** `PlayerActivity`: chip kinds `CHIP_SKIP`, `CHIP_SKIPBACK` and
 `CHIP_OFFER` (48 / 60 high, the drain line), the OK guard for them and for Up next, the 10 s / 5 s / 8 s lives on

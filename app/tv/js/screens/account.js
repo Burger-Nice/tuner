@@ -50,7 +50,7 @@ function body() {
     const maxC = accountFacts().maxCons;
     return `<div class="t-title" style="margin-bottom:10px">Playback</div>
       ${row('zap', 'Up arrow in the player', more(s.zapUp === 'prev' ? 'Previous channel' : 'Next channel'), 'Down goes the other way. Also in the channel list')}
-      ${row('skip', 'Skip intros and recaps', more({ auto: 'Skip automatically', off: 'Off' }[s.skipIntro] || 'Show a button'), 'In series, from TheIntroDB')}
+      ${row('skip', 'Skip intros and recaps', more({ auto: 'Skip by itself', off: 'Off' }[s.skipIntro] || 'Show a button'), 'In series, from TheIntroDB')}
       ${row('format', 'Stream format', more(s.liveFormat === 'ts' ? 'Transport stream' : 'HLS'), 'Try the other one if a channel stutters')}
       ${row('ua', 'User agent', more(s.ua || 'Default'), 'Some providers only answer known players')}
       <div class="t-cap" style="margin-top:4px">Subtitles, audio, picture size and Match frame rate are in the player: press ▼ in a movie.</div>`;
@@ -170,7 +170,7 @@ function act(a) {
   } else if (a === 'add') go('first', { add: true });
   else if (a === 'refresh') { toast('Refreshing channels, movies and series…'); forget().then(() => { resetGuides(); return ensure('live'); }).then(() => { draw(); toast('Channels are up to date'); }).catch((e) => toast(e.message, 5000)); }
   else if (a === 'signout') confirmMenu({ title: 'Sign out?', text: `airglow forgets ${S.acc?.name || 'this account'} on this TV. Your saved channels and progress go with it.`, yes: 'Sign out', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first'); } });
-  else if (a === 'skip') radioMenu({ title: 'Skip intros and recaps', value: s.skipIntro || 'button', rows: [{ v: 'button', l: 'Show a button', sub: 'One press skips it' }, { v: 'auto', l: 'Skip automatically', sub: 'You can go back for 5 s' }, { v: 'off', l: 'Off', sub: 'No buttons' }], onPick: (v) => { saveSettings({ skipIntro: v }); draw(); } });   // (design/ui-v1/skip/SPEC.md 4.1)
+  else if (a === 'skip') radioMenu({ title: 'Skip intros and recaps', value: s.skipIntro || 'button', rows: [{ v: 'button', l: 'Show a button', sub: 'One press skips it' }, { v: 'auto', l: 'Skip by itself', sub: 'You can go back for 5 s' }, { v: 'off', l: 'Off', sub: 'No buttons' }], onPick: (v) => { saveSettings({ skipIntro: v }); draw(); } });   // (design/ui-v1/skip/SPEC.md 4.1)
   else if (a === 'zap') radioMenu({ title: 'Up arrow in the player', value: s.zapUp || 'next', rows: [{ v: 'next', l: 'Next channel' }, { v: 'prev', l: 'Previous channel' }], onPick: (v) => { saveSettings({ zapUp: v }); draw(); } });
   else if (a === 'format') radioMenu({ title: 'Stream format', value: s.liveFormat, rows: [{ v: 'hls', l: 'HLS', sub: 'Most providers' }, { v: 'ts', l: 'Transport stream', sub: 'Steadier on some' }], onPick: (v) => { saveSettings({ liveFormat: v }); resetCatalogs(); draw(); } });
   else if (a === 'previews') { saveSettings({ previews: !s.previews }); flip(!s.previews); draw(); }
