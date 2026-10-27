@@ -22,4 +22,6 @@ module.exports = async (ctx) => {
   await p.waitForTimeout(6000);
   console.log('unseen later:', await L.G((m) => m.unseenFor().map((g) => `${g.away.abbr}@${g.home.abbr}`)));
   await L.scan('home, schedule in'); await shot('home-fresh');
+  await p.clock.fastForward('02:05'); await p.waitForTimeout(1500);
+  await L.scan('home, after the next poll'); await shot('home-after-poll');
 };

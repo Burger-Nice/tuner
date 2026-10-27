@@ -31,6 +31,20 @@ module.exports = async (c) => {
   console.log('  table now:', await text('.st-ctx'), '| legend:', await text('.st-sub .legend'));
   await key('ArrowRight', 1, 400); a = await where('Right again'); await shot('st-reveal-reach');
   check(a.act === 'reveal', `Standings: the West copy's Reveal is reachable at a normal pace (${a.act || a.conf})`);
+  // Leaders (10 rows): the 'Reveal it' pill under the column
+  await H.go('leaders'); await p.waitForTimeout(1500); await shot('ld-copy');
+  console.log('  note:', await text('.ld-note'), JSON.stringify(await boxes('.ld-note .fx')));
+  let got = false;
+  await key('ArrowDown', 1, 400); await key('ArrowRight', 1, 300); await key('ArrowDown', 9, 200); await key('ArrowDown', 1, 300); a = await where('ld: Down from row 10'); got = got || a.act === 'reveal';
+  await key('ArrowLeft', 1, 300); await key('ArrowDown', 1, 300); a = await where('ld: Left, Down'); got = got || a.act === 'reveal';
+  console.log('  category now:', await ev(() => document.querySelector('.nb-cats .sel')?.dataset.cat));
+  check(got, 'Leaders: the copy\'s Reveal is reachable from Points');
+  // Team stats: the notice above the list
+  await H.go('teamstats'); await p.waitForTimeout(1500); await shot('ts-copy');
+  await key('ArrowDown', 1, 400); await key('ArrowRight', 1, 400);
+  for (let i = 0; i < 31; i++) { await key('ArrowUp', 1, 150); a = await H.act(); if (!a.key) break; }
+  a = await where('ts: Up from the list'); check(a.act === 'reveal', `Team stats: Up from the list reaches the Reveal (${a.act || a.sec})`);
+  await H.go('standings'); await p.waitForTimeout(800);
   // fast: Right Right
   await key('ArrowLeft', 1, 600); await key('ArrowRight', 1, 80); await key('ArrowRight', 1, 400); a = await where('fast Right Right');
   if (a.act === 'reveal') {

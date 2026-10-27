@@ -13,6 +13,7 @@ module.exports = async (ctx) => {
   const fail = (r) => r.fulfill({ status: 503, headers: CORS, body: 'down' });
   if (sc === 'sched503') await p.route('**/espn/teams/*/schedule', fail);
   if (sc === 'roster503') { await p.route('**/espn/teams/*/roster', fail); await p.route('**/espn/teams/*/athletes/statistics', fail); }
+  if (sc === 'news503') await p.route('**/espn/news*', fail);
   if (sc === 'nonews') await p.route('**/espn/news*', (r) => json(r, { articles: [] }));
   if (sc === 'stats503') await p.route('**/espnweb/common/v3/sports/basketball/nba/statistics/byteam*', fail);
   if (sc === 'empty') await p.route('**/espn/teams/*/schedule', (r) => { const s = JSON.parse(fs.readFileSync(`${F}/schedule-29.json`, 'utf8')); s.events = []; json(r, s); });
