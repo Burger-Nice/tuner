@@ -244,12 +244,14 @@ function handleReplayEvent(e) {
       const seenAt = airedOf(src, +e.played || replay.played);
       const clocks = recentClocks(g.id, seenAt);
       if (!clocks.length) { playerCommand('show-text', 'ESPN has no plays from around this moment'); return; }
-      playerCommand('clocks', { seenAt, list: clocks, current: 0, replay: true, note: `Stored for ${src.ch.name}'s replays.` });
+      playerCommand('clocks', { seenAt, played: +e.played || replay.played, list: clocks, current: 0, replay: true, note: `Stored for ${src.ch.name}'s replays.` });
     });
   } else if (e.type === 'sync' && g && cur.src.kind === 'channel') {
-    // seenAt: the aired moment the picture showed (played → aired with the old delay); at: the play's ESPN wallclock
-    const src = cur.src, shown = +e.seenAt || airedOf(src, replay.played);
-    const sec = Math.max(0, Math.min(600, Math.round(replayDelay(src.ch.id) + (shown - (+e.at || shown)) / 1000)));
+    // played: where in the window the picture showed the clock you picked; at: that play's ESPN wallclock. A moment sits
+    // at wallclock − window start + replayDelay, so replayDelay = played − (at − window start).
+    const src = cur.src, played = e.played != null ? +e.played : replay.played;
+    if (!+e.at) return;
+    const sec = Math.max(0, Math.min(600, Math.round((played - (+e.at - src.windowStart)) / 1000)));
     setReplayDelay(src.ch.id, sec);
     playerCommand('show-text', `Synced · the replay runs ${sec} s behind ESPN`);
     playerCommand('replay-links', { source: cur.sources.indexOf(src), links: linksOf(src, cur.windowMs), windowStart: src.windowStart, tipoffAt: tipoffAt(g, src), chapters: chapterMarks(g, src), keepPosition: true });
@@ -412,6 +414,8 @@ export function chooseVideo(g, { focusId } = {}) {
 // ---------- the game page and Look again ----------
 export const lookAgain = (g) => findReplays(g, { force: true });
 on('session', () => { cur = null; });
+// From tip-off asked for in the live player (PORT-NATIVE.md 3: a 'tipoff' event, or an exit with then: 'tipoff')
+on('tipoff-request', (id) => { const g = gameById(id); if (g) watchFromTipoff(g); });
 
 // ---------- the heroes' catch-up rows (Home, the hub, the team header): what their buttons do (5.1) ----------
 // kind: the hero's data-row-kind. Returns true when the press was a catch-up one (the caller handles the rest:

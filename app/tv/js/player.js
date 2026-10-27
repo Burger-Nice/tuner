@@ -365,7 +365,11 @@ native?.player.onEvent((e) => {
   } else if (e.type === 'setting') {
     if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
     if (e.key === 'sub') { const n = subName(String(e.value)); if (n) saveSettings({ subLang: n }); }   // picked in the player: the same choice everywhere (a language the app doesn't list stays the player's own)
+  } else if (e.type === 'tipoff' && watch.gameId) {
+    // From tip-off in the live player (Options, the game panel's foot button): replay.js starts the game's replay
+    emit('tipoff-request', watch.gameId);
   } else if (e.type === 'exit') {
+    if (e.then === 'tipoff' && watch.gameId) setTimeout(() => emit('tipoff-request', watch.gameId), 0);
     ctx.cur = null;
     sfx.zone('ui');
     if (c.kind === 'vod') { recordProgress(c.items[e.index], e.t, e.d, true); if (e.error) toast(`This video would not play. ${e.error}`, 6000); }

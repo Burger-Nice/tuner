@@ -2,7 +2,7 @@
 // full-game videos in the provider's Movies), matching videos to games, the shield's masks for guide text and video
 // titles, the hero state rows and the one "replays until" formatter. No DOM in here; replay.js plays what this finds.
 import { S, settings, emit, on } from './state.js';
-import { catalog, ensure, qualityOf, langOf, prefLangs } from './catalog.js';
+import { catalog, ensure, qualityOf, langOf, prefLangs, prettyCat } from './catalog.js';
 import { pastFor, pastNow } from './guide.js';
 import { launchDone } from './launch.js';
 import {
@@ -271,7 +271,7 @@ async function scan(g) {
     const cat = catOf(m);
     vids.push({ kind: 'video', id: String(m.id), video: m, condensed: r.condensed, feed: r.feed, q: r.q, lang: r.lang, confirmed: true,
       name: r.condensed ? 'Condensed game' : `Full game${r.feed ? ` · ${NBA.team(r.feed.abbr)?.city || r.feed.name} feed` : ''}`,
-      detail: ['Movies', cat.replace(/^[A-Z]{2,4}\s*[|:\-–]\s*/, ''), r.q === 'Full HD' ? '1080p' : r.q === 'HD' ? '720p' : r.q === '4K' ? '4K' : ''].filter(Boolean).join(' · ') });
+      detail: ['Movies', prettyCat(cat).name, r.q === 'Full HD' ? '1080p' : r.q === 'HD' ? '720p' : r.q === '4K' ? '4K' : ''].filter(Boolean).join(' · ') });
   }
   const mineSide = isMine(g) ? mySide(g).abbr : null, langs = prefLangs();
   const qn = (q) => ({ '4K': 4, 'Full HD': 3, HD: 2, SD: 1 }[q] || 1.5);

@@ -11,7 +11,7 @@ import { focus } from '../focus.js';
 import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js';
 import { sfx } from '../sfx.js';
 import { connectionCheck } from '../conncheck.js';
-import { forgetReplays } from '../catchup.js';
+import { forgetReplays, keptWords, NOT_KEPT } from '../catchup.js';
 
 const GROUPS = [['provider', 'Provider'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
@@ -131,6 +131,8 @@ async function guideCheck() {
     ['First entry', list[0] ? `${list[0].title} · ${t(list[0].start)}` : '—'],
     ['Last entry', list.length ? `${list[list.length - 1].title} · ${t(list[list.length - 1].end)}` : '—'],
     ['TV time', `${t(now)} · provider time zone ${S.acc?.tz || 'not sent'}`],
+    // catch-up (SPEC 12.1): does the provider keep this channel, and how many channels it keeps
+    ['Replays', `${ch.archive ? keptWords(ch.archive) : NOT_KEPT} · ${(catalog.live?.items || []).filter((c) => c.archive > 0).length} channels have replays`],
   ];
   if (!ov.el.isConnected) return;
   ov.el.querySelector('.inner').innerHTML = lines.map(([k, v], i) => `<div class="lr fx" tabindex="-1"${i ? '' : ' data-first'}><span style="width:120px;flex:none" class="t-3">${k}</span><span class="grow ellipsis">${esc(v)}</span></div>`).join('');
