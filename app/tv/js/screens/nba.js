@@ -3,7 +3,7 @@
 import { $, esc, ic, dot, setHtml } from '../util.js';
 import { on } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
-import { nba, dayGames, dayLabel, isMine, mySide, show, shieldMode, findFeeds, feedsNow, teamChannel, reveal, startNba } from '../games.js';
+import { nba, bestChannel, dayGames, dayLabel, isMine, mySide, show, shieldMode, findFeeds, feedsNow, teamChannel, reveal, startNba } from '../games.js';
 import { gameCard, gameHero } from '../cards.js';
 import { playLive, watching } from '../player.js';
 import { push, current, mayFocus, barHidden } from '../router.js';
@@ -17,7 +17,7 @@ const counts = (list) => {
   const n = (s) => list.filter((g) => g.state === s).length;
   return [n('in') && `${n('in')} live`, n('pre') && `${n('pre')} later`, n('post') && `${n('post')} final`].filter(Boolean).join(dot) || (err ? '' : 'No games');
 };
-const channelFor = (g) => { const id = teamChannel(mySide(g).abbr); return (id && catalog.live?.byId.get(id)) || feedsNow(g)[0]?.ch || null; };
+const channelFor = (g) => bestChannel(g);
 
 let behind = false;
 on('player-closed', () => { if (behind) { behind = false; draw(); } });

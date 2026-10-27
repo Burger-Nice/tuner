@@ -3,7 +3,7 @@
 import { esc, ic, dot, liveP, crest, teamVars, setHtml } from '../util.js';
 import { on } from '../state.js';
 import { catalog } from '../catalog.js';
-import { nba, gameById, show, clockText, ordinal, wantSummary, reveal, isMine, mySide, teamChannel, feedsNow, findFeeds, favTeam } from '../games.js';
+import { nba, bestChannel, gameById, show, clockText, ordinal, wantSummary, reveal, isMine, mySide, teamChannel, feedsNow, findFeeds, favTeam } from '../games.js';
 import { playLive, watching } from '../player.js';
 import { current } from '../router.js';
 import { focus } from '../focus.js';
@@ -78,8 +78,7 @@ export default {
       if (b.dataset.act === 'reveal') { reveal(id); draw(); focus(el.querySelector('[data-tab-g]')); }
       if (b.dataset.act === 'watch') {
         const g = gameById(id);
-        const pick = isMine(g) && teamChannel(mySide(g).abbr);
-        const ch = (pick && catalog.live?.byId.get(pick)) || feedsNow(g)[0]?.ch;
+        const ch = bestChannel(g);   // the best-quality channel that carries it
         if (!ch) { findFeeds(g).then((f) => { if (f[0]) playLive(f[0].ch, ringFor(f[0].ch), ringName(f[0].ch)); else toast('No channel found for this game. Pick it in the guide.', 5000); }); return; }
         playLive(ch, ringFor(ch), ringName(ch));
       }

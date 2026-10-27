@@ -184,6 +184,17 @@ export const teamChannel = (abbr) => store.get(teamChKey(), {})[abbr] || null;
 export function setTeamChannel(abbr, chId) { const m = store.get(teamChKey(), {}); m[abbr] = chId; store.set(teamChKey(), m); emit('nba'); }
 const feedCache = new Map();   // gameId -> { at, list }
 export function feedsNow(g) { return feedCache.get(g?.id)?.list || []; }
+// How good a channel's picture is, from its name: 4K 4, Full HD 3, HD 2, no tag 1.5, SD 1.
+export const quality = (name) => (/\b(4k|uhd|2160p?)\b/i.test(name) ? 4 : /\b(fhd|full ?hd|1080p?)\b/i.test(name) ? 3 : /\b(hd|720p?)\b/i.test(name) ? 2 : /\bsd\b/i.test(name) ? 1 : 1.5);
+// The channel to watch a game on: the best-quality channel known to carry it (your pick is one of them, so a 4K twin
+// of the channel you picked wins over it), else your pick.
+export function bestChannel(g) {
+  const live = catalog.live;
+  const pick = isMine(g) ? teamChannel(mySide(g).abbr) : null;
+  const best = feedsNow(g)[0]?.ch;
+  const picked = pick && live?.byId.get(pick);
+  return best && (!picked || quality(best.name) > quality(picked.name)) ? best : picked || best || null;
+}
 export const feedsKnown = (g) => feedCache.has(g?.id);
 const feedJobs = new Map();   // gameId -> the scan in progress, so callers that poll don't start another
 export function findFeeds(g) {
@@ -217,6 +228,10 @@ async function scanFeeds(g) {
   if (picked) add(live.byId.get(picked), 'Your pick');
   named.forEach((ch) => add(ch, 'Named for this game'));
   guided.forEach((ch) => add(ch, 'Guide match'));
+  // Best picture first: of the channels that carry it, the highest quality the name promises (4K, then Full HD, HD, a
+  // channel with no tag, SD), and within the same quality the order above (your pick, named for the game, the guide).
+  const ranked = list.map((f, i) => ({ f, i, q: quality(f.ch.name) })).sort((a, b) => b.q - a.q || a.i - b.i).map((x) => x.f);
+  list.splice(0, list.length, ...ranked);
   feedCache.set(g.id, { at: Date.now(), list });
   emit('feeds', g.id);
   return list;

@@ -5,7 +5,7 @@ import { $, esc, setHtml, ic } from '../util.js';
 import { S, on, store, scoped, favList, continueRows, toggleFav, isFav, markWatched, settings } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideFor, guideNow, onNow, warm } from '../guide.js';
-import { nba, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
+import { nba, bestChannel, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, teamChannel, setTeamChannel, channelCandidates, reveal, gameOn, liveGames, show } from '../games.js';
 import { gameHero, resumeHero, channelHero, liveCard, contCard, gameCard } from '../cards.js';
 import { playLive, playVod, watching } from '../player.js';
 import { push, go, current, barHidden } from '../router.js';
@@ -28,10 +28,7 @@ function heroGame() {
   return null;
 }
 function channelFor(g) {
-  const live = catalog.live;
-  const pick = teamChannel(mySide(g).abbr);
-  if (pick && live?.byId.get(pick)) return live.byId.get(pick);
-  return feedsNow(g)[0]?.ch || null;
+  return bestChannel(g);
 }
 const lastChannel = () => catalog.live?.byId.get(store.get(scoped('lastLive'), '')) || null;
 
