@@ -10,7 +10,7 @@ import { focus } from '../focus.js';
 import { toast, contextMenu } from '../ui.js';
 import { ringFor, ringName } from './home.js';
 import { findReplays, replaysOf, replaysLooked, replaysBusy, keptUntil, nightLabel } from '../catchup.js';
-import { watchFromTipoff, resumeGame, backToLive, sourcesSheet, chooseVideo, lookAgain } from '../replay.js';
+import { watchFromTipoff, resumeGame, backToLive, sourcesSheet, chooseVideo, lookAgain, pickChannel } from '../replay.js';
 import { behindReplay, shielded, replayPick, liveByClock, replayProgress } from '../games.js';
 
 let el, id = null, tab = 'away', scroll = 0;
@@ -66,6 +66,8 @@ function draw() {
   if (behind && g.state !== 'pre') watch = `<span class="btn fx" tabindex="-1" data-act="resume" data-hold>${ic('play')}Resume</span>${liveByClock(g0) ? '<span class="btn2 fx" tabindex="-1" data-act="golive">Back to live</span>' : `<span class="btn2 fx" tabindex="-1" data-act="tipoff">${ic('tipoff')}From tip-off</span>`}`;
   else if (g.state === 'in' && best) watch += `<span class="btn2 fx" tabindex="-1" data-act="tipoff" data-hold>${ic('tipoff')}From tip-off</span>`;
   else if (g.state === 'post' && !v.hidden && best) watch = `${until ? `<span class="t-cap" style="margin-left:auto">Replays until ${esc(until)}</span>` : ''}<span class="btn fx" tabindex="-1" data-act="again" data-hold>${ic('play')}Watch again</span>`;
+  // no replay found by itself: he can say which channel showed it (its replays), or pick a video
+  else if (g.state !== 'pre' && !v.hidden && reps && !reps.length) watch += `<span class="btn2 fx" tabindex="-1" data-act="rewatch">${ic('hist')}Rewatch…</span>`;
   const tabs = [['away', g.away.name], ['home', g.home.name], ...(v.hidden ? [] : [['plays', 'Plays']]), ['team', 'Team stats']];
   if (!tabs.some(([k]) => k === tab)) tab = 'away';
   let body;
@@ -81,7 +83,7 @@ function draw() {
     const lk = replaysLooked(g0), day = new Date(g0.date + 3 * 864e5 - 6 * 3600e3).toLocaleDateString('en-GB', { weekday: 'short' });
     const still = Date.now() < g0.date + 3 * 864e5;
     body = card('No replay of this game yet', `Full games often reach Movies a few hours after the final. ${still ? `airglow looks every hour until ${day}.` : 'Look again when one may have arrived.'}`,
-      `<span class="btn fx" tabindex="-1" data-act="look">${ic('refresh')}${replaysBusy(g0) ? 'Looking…' : 'Look again'}</span><span class="btn2 fx" tabindex="-1" data-act="choose">${ic('search')}Choose a video</span>${revealB}`,
+      `<span class="btn fx" tabindex="-1" data-act="pickch">${ic('live')}Pick the channel</span><span class="btn2 fx" tabindex="-1" data-act="look">${ic('refresh')}${replaysBusy(g0) ? 'Looking…' : 'Look again'}</span><span class="btn2 fx" tabindex="-1" data-act="choose">${ic('search')}Choose a video</span>${revealB}`,
       lk ? `Looked at ${hm(lk.at)} in ${lk.tables} channel archive${lk.tables === 1 ? '' : 's'} and ${lk.videos} NBA video${lk.videos === 1 ? '' : 's'}` : '');
   } else if (v.hidden && g.state === 'post') body = card(`${name} is hidden`, 'Looking for a replay of it…', revealB, '');
   else if (v.hidden) body = `<div class="state" style="margin:28px auto 0;width:520px"><div class="ico">${ic('eyeOff')}</div><b>Box score is hidden</b><p>The spoiler shield covers this game. Revealing it shows its score everywhere, from now on.</p><span class="btn fx" tabindex="-1" data-act="reveal">Reveal ${esc(g.away.name)} at ${esc(g.home.name)}</span></div>`;
@@ -112,6 +114,8 @@ export default {
       if (b.dataset.act === 'resume') return resumeGame(gg);
       if (b.dataset.act === 'golive') return backToLive(gg);
       if (b.dataset.act === 'choose') return chooseVideo(gg);
+      if (b.dataset.act === 'pickch') return pickChannel(gg);
+      if (b.dataset.act === 'rewatch') return sourcesSheet(gg);   // (none found: Pick the channel, Choose a video)
       if (b.dataset.act === 'look') { lookAgain(gg).then(() => { if (current() === 'game') { draw(); focus(el.querySelector('.cu-state .btn') || el.querySelector('[data-tab-g]')); } }); draw(); return; }
       if (b.dataset.act === 'watch') {
         const g = gameById(id);

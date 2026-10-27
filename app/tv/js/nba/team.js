@@ -21,7 +21,7 @@ import { pickerHtml, openPicker, confOf } from './picker.js';
 import * as newsMod from './news.js';
 import * as statsMod from './teamstats.js';
 import { heroRow, findReplays, replaysOf, sourceCaption } from '../catchup.js';
-import { watchFromTipoff, resumeGame, backToLive, sourcesSheet } from '../replay.js';
+import { watchFromTipoff, resumeGame, backToLive, sourcesSheet, pickChannel } from '../replay.js';
 
 const svg = (p) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
 const INJ = svg('<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M12 8v8M8 12h8"/>');
@@ -135,7 +135,7 @@ export function teamPage({ pushed = false } = {}) {
       if (k === 'behind') return { btns: [['rp:resume', `${ic('play')}Resume`], ['rp:golive', 'Back to live'], ['game', 'Game page']], cap: '' };
       if (k === 'resume') return { btns: [['rp:resume', `${ic('play')}Resume`], ['rp:tipoff', `${ic('tipoff')}From tip-off`], ['game', 'Game page']], cap: '' };
       if (k === 'morning') return { btns: [['rp:tipoff', `${ic('play')}Watch from tip-off`], ['game', 'Game page']], cap: sourceCaption(row.src) };
-      if (k === 'looking') return { btns: [['game', 'Game page']], cap: 'No replay yet<br>airglow keeps looking' };
+      if (k === 'looking') return { btns: row.busy ? [['game', 'Game page']] : [['game', 'Game page'], ['rp:pickch', `${ic('live')}Pick the channel`]], cap: row.busy ? 'Looking for a replay…' : 'No replay found<br>airglow keeps looking' };
       if (k === 'seen') return { btns: [['game', `${ic('score')}Box score`], ['rp:again', `${ic('play')}Watch again`]], cap: `Final${dot}${s.won ? 'W' : 'L'} ${esc(s.me.score)}–${esc(s.op.score)}` };
     }
     if (g.state === 'pre') {
@@ -442,6 +442,7 @@ export function teamPage({ pushed = false } = {}) {
     if (act === 'rp:tipoff' || act === 'rp:again') return watchFromTipoff(g);
     if (act === 'rp:resume') return resumeGame(g);
     if (act === 'rp:golive') return backToLive(g);
+    if (act === 'rp:pickch') return pickChannel(g);
     if (act === 'watch') {
       const ch = bestChannel(g);
       if (ch) return playLive(ch, ringFor(ch), ringName(ch));

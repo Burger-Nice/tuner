@@ -13,7 +13,7 @@ import {
   chapterAt, archiveShift, setArchiveShift, shiftKnown, replayDelay, setReplayDelay, setReplayPick, replayPick, wantSummary,
   fetchSummary, recentClocks, ordinal, isSporty, shieldMode, behindReplay, liveByClock, watchedOn,
 } from './games.js';
-import { findReplays, replaysOf, bestReplay, nightLabel, keptUntil, videosNaming, videoMask, matchVideo, WINDOW, etDate, datesIn, programmeView } from './catchup.js';
+import { findReplays, replaysOf, bestReplay, nightLabel, keptUntil, videosNaming, videoMask, matchVideo, WINDOW, etDate, datesIn, programmeView, keptFor, keptWords } from './catchup.js';
 import { playLive, playVod, ctx, replayNative, playerCommand, startReplaySession } from './player.js';
 import { push } from './router.js';
 import { openOverlay, toast, confirmMenu, scrollList } from './ui.js';
@@ -393,12 +393,13 @@ export async function sourcesSheet(g) {
   const row = (x, i) => `<div class="lr fx" tabindex="-1" data-act="${i}"><span class="ico">${ic(x.kind === 'channel' ? 'hist' : 'film')}</span><span class="grow"><span class="a">${esc(x.name)}</span><span class="b">${esc(x.detail)}</span></span>${x.best ? '<small>Best</small>' : x.badge ? `<small>${esc(x.badge)}</small>` : ''}</div>`;
   const first = settings().replaysPlay === 'video' ? 'Full-game videos come first (Account › NBA › Replays play).' : 'The channel replay comes first: it has the quarter skips and the synced score.';
   const ov = openOverlay(`<div class="sheet cu-srcs"><h3>Watch ${esc(gameName(g))}</h3><div class="t-cap" style="margin-top:-6px">From tip-off${dot}${esc(nightLabel(g.date))}</div>
-    <div class="sheet-body"><div class="inner" data-col style="display:flex;flex-direction:column;gap:2px">${list.map(row).join('')}<div class="lr fx" tabindex="-1" data-act="choose"><span class="ico">${ic('search')}</span><span class="grow"><span class="a">Choose a video…</span><span class="b">Every video naming either team</span></span></div></div></div>
+    <div class="sheet-body"><div class="inner" data-col style="display:flex;flex-direction:column;gap:2px">${list.map(row).join('')}<div class="lr fx" tabindex="-1" data-act="pickch"><span class="ico">${ic('live')}</span><span class="grow"><span class="a">Pick the channel…</span><span class="b">The channel that showed it, from its replays</span></span></div><div class="lr fx" tabindex="-1" data-act="choose"><span class="ico">${ic('search')}</span><span class="grow"><span class="a">Choose a video…</span><span class="b">Every video naming either team</span></span></div></div></div>
     <div class="t-cap">Your pick is remembered for this game. ${first}</div></div>`, {
     focusSel: `[data-act="${curI}"]`,
     onClick: (act) => {
       ov.close(false);
       if (act === 'choose') return chooseVideo(g);
+      if (act === 'pickch') return pickChannel(g);
       const x = list[+act];
       if (!x) return;
       setReplayPick(g.id, x);
@@ -407,6 +408,32 @@ export async function sourcesSheet(g) {
   });
   scrollList(ov.el);
   return ov;
+}
+
+// ---------- Pick the channel: when the guide can't tell which kept channel showed the game ----------
+// The channels whose replays reach back to its tip-off (NBA and sports first); his pick is remembered for the game and
+// plays from tip-off (from 15 min before it: the channel's guide can't place it, so the tip-off point is a guess).
+export function pickChannel(g) {
+  if (!g) return;
+  const { list, kept, days } = keptFor(g);
+  if (!kept) { toast('Your provider keeps no channels for replays, so there\'s nothing to rewatch from. Account › Provider › Check the guide shows it.', 7000); return; }
+  if (!list.length) { toast(`Your provider keeps replays for ${days} day${days === 1 ? '' : 's'}: this game is older than that.`, 6000); return; }
+  const row = (ch, i) => `<div class="lr fx" tabindex="-1" data-act="${i}" style="height:56px"><span class="logo sm">${ch.logo ? `<img src="${esc(ch.logo)}" alt="">` : esc(ch.name.slice(0, 2).toUpperCase())}</span><span class="grow"><span class="a ellipsis">${esc(ch.name)}</span><span class="b">${esc(keptWords(ch.archive))}</span></span></div>`;
+  const ov = openOverlay(`<div class="sheet cu-srcs"><h3>Which channel showed ${esc(gameName(g))}?</h3><div class="t-cap" style="margin-top:-6px">${esc(nightLabel(g.date))}${dot}channels with replays</div>
+    <div class="sheet-body"><div class="inner" data-col style="display:flex;flex-direction:column;gap:2px">${list.map(row).join('')}</div></div>
+    <div class="t-cap">Your pick is remembered for this game. It starts a little before tip-off.</div></div>`, {
+    onClick: async (act) => {
+      const ch = list[+act];
+      if (!ch) return;
+      ov.close(false);
+      setReplayPick(g.id, { kind: 'channel', id: String(ch.id) });
+      const l = await findReplays(g, { force: true });
+      const src = l.find((x) => x.kind === 'channel' && x.id === String(ch.id));
+      if (src) watchFromTipoff(g, { source: src });
+      else toast(`${ch.name}'s replays don't reach back to this game`, 5000);
+    },
+  });
+  scrollList(ov.el);
 }
 
 // ---------- Choose a video (5.7) ----------
@@ -473,6 +500,7 @@ export function heroAct(g, kind, act) {
   if (act === 'tipoff' || act === 'again') { watchFromTipoff(g); return true; }
   if (act === 'golive') { backToLive(g); return true; }
   if (act === 'game') { push('game', { id: g.id }); return true; }
+  if (act === 'pickch') { pickChannel(g); return true; }
   return false;
 }
 // Hold OK on a watch button: the sources sheet, whatever the setting (13.1).

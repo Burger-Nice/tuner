@@ -278,6 +278,12 @@ async function scan(g) {
     else if (list.length && p && !NBA.matchGame(p.title, knownGames())) addCh(tch, null, 'Your team\'s channel');
     else if (!list.length && inArchive(tch, tip - 15 * MIN)) unconfirmed = { kind: 'channel', id: String(tch.id), ch: tch, prog: null, windowStart: tip - 15 * MIN, days: tch.archive, name: tch.name, why: 'Your team\'s channel', confirmed: false, q: quality(tch.name), detail: 'Your team\'s channel · no guide to check', badge: 'Not confirmed' };
   }
+  // his own pick of a channel for this game (Pick the channel: the guide couldn't tell which one carried it)
+  const pk = replayPick(g.id);
+  if (pk?.kind === 'channel' && !seen.has(String(pk.id))) {
+    const ch = live?.byId.get(pk.id) || live?.byId.get(+pk.id);
+    if (ch?.archive > 0) { addCh(ch, null, 'Your pick'); const x = chans.find((c) => c.id === String(ch.id)); if (x) Object.assign(x, { detail: 'Your pick · from tip-off', badge: '' }); }
+  }
   // 6. full-game videos in Movies
   const vids = [], pool = nbaVideos();
   for (const m of pool) {
@@ -340,6 +346,14 @@ export function morningGame() {
   if (mine.some((g) => g.state !== 'post' && g.date > last.date && g.date - now < 3 * H)) return null;
   if (!replaysOf(last)) { findReplays(last); return null; }
   return bestReplay(last) || (replayProgress(last.id)?.t > 30 ? last : null) ? gameById(last.id) || last : null;
+}
+// The channels he can pick for a game's replay (Pick the channel): kept ones that reach back to its tip-off, NBA /
+// League Pass first, then sports, then the rest (60 at most). { list, kept (how many keep anything at all) }
+export function keptFor(g) {
+  const all = (catalog.live?.items || []).filter((ch) => ch.archive > 0 && !ch._sep);
+  const ok = all.filter((ch) => inArchive(ch, g.date - 15 * MIN));
+  const list = [...ok.filter((c) => NBA_CH.test(c.name)), ...ok.filter((c) => !NBA_CH.test(c.name) && isSporty(c)), ...ok.filter((c) => !NBA_CH.test(c.name) && !isSporty(c))].slice(0, 60);
+  return { list, kept: all.length, days: Math.max(0, ...all.map((c) => c.archive)) };
 }
 // The day row's caption on the hub (5.3): '⟲ = replay' while the day shown has one.
 export const dayHasReplay = (games) => games.some((g) => replaysOf(g)?.length);

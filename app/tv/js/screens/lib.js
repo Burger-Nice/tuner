@@ -5,7 +5,7 @@ import { $, esc, ic, dot, setHtml, compact } from '../util.js';
 import { S, on, store, scoped, toggleFav, isFav, markWatched } from '../state.js';
 import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, facetCounts, filterCount, jumpTargets, prefLangs, genresOf } from '../catalog.js';
 import { poster } from '../cards.js';
-import { push, barHidden, current, mayFocus } from '../router.js';
+import { push, go, barHidden, current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
 import { openDetail } from '../actions.js';
 import { videoMask } from '../catchup.js';
@@ -63,6 +63,7 @@ export default function lib(kind) {
     const fc = filterCount(view.f);
     const langNote = view.langFirst && view.sort !== 'az' ? `${dot}${prefLangs()[0]} first` : '';
     return `<div class="lib-head" data-row><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px">${list.length === n ? `${n.toLocaleString()} titles` : `${list.length.toLocaleString()} of ${n.toLocaleString()}`}${langNote}</span><span class="grow"></span>
+      <span class="pillbtn fx" tabindex="-1" data-act="search">${ic('search')}Search</span>
       <span class="pillbtn fx" tabindex="-1" data-act="sort">${ic('sort')}Sort<b>${esc(sortL)}</b></span>
       <span class="pillbtn fx" tabindex="-1" data-act="filters">${ic('sliders')}Filters${fc > 0 ? `<span class="cnt">${fc}</span>` : ''}</span>
       <span class="pillbtn fx" tabindex="-1" data-act="jump">${ic('chevD')}Jump</span></div>
@@ -331,6 +332,7 @@ export default function lib(kind) {
         if (b?.dataset.act === 'sort') return sortMenu(b);
         if (b?.dataset.act === 'filters') return filterSheet();
         if (b?.dataset.act === 'jump') return jumpMenu();
+        if (b?.dataset.act === 'search') { go('search', { scope: kind, from: kind }); return; }   // (only this tab's titles; Back returns here)
         if (b?.dataset.act === 'clear') { ad = null; setView({ f: {} }, 'All'); focus(el.querySelector('[data-chip="All"]')); return; }
         if (b?.dataset.act === 'genre') return genreMenu();
         if (b?.dataset.act === 'adretry') { const cs = adChips().find((x) => x.key === ad?.key); if (cs) { ad = null; refreshList(); focus(el.querySelector('.lib-chips .chip.sel')); } return; }

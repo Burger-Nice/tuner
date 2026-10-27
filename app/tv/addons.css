@@ -51,7 +51,7 @@
 .ad-note{font:500 14px/20px var(--a-font-text);color:var(--a-text-2)}
 
 /* "Add an add-on": the four ways (a centred menu) */
-.menu.ad-ways{left:50%;top:50%;width:600px;transform:translate(-50%,-50%);padding:20px 16px 14px}
+.menu.ad-ways{left:180px;top:60px;width:600px;padding:20px 16px 14px}   /* (placed, not translated: the menus' open animation owns transform) */
 .ad-ways .ad-lr{height:64px}
 
 /* ---------- full-screen steps (Stremio code, phone, setup) ---------- */

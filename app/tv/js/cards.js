@@ -191,8 +191,8 @@ export function replayHero(g0, row, { channel, top, hub = false } = {}) {
     big = ['REPLAY', '']; small = 'Score hidden';
   } else if (k === 'looking') {
     status = `${mine}${day}`;
-    btns = [['primary', 'Game page']];
-    cap = row.busy ? 'Looking for a replay…' : 'No replay yet<br>airglow keeps looking';
+    btns = row.busy ? [['primary', 'Game page']] : [['primary', 'Game page'], ['pickch', `${ic('live')}Pick the channel`]];   // (none found: he can say which channel showed it)
+    cap = row.busy ? 'Looking for a replay…' : 'No replay found<br>airglow keeps looking';
     big = ['END', '']; small = 'Score hidden';
   } else {   // seen
     const me = isMine(g0) ? mySide(g) : null, op = me ? (me === g.home ? g.away : g.home) : null;

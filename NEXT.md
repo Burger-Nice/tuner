@@ -30,6 +30,9 @@ per copy, add-ons (Stremio protocol, direct links only).
 
 ## Next features
 
+0. **Skip intro** (the owner asked, 27 Oct). A "Skip intro" button on series episodes: from the file's chapters when it has
+   an "Intro"/"Opening" chapter; otherwise learnt per series (he skips the intro once, by hand, and the next episodes
+   offer the same skip at the same time). Needs a design pass first (the owner's process).
 1. **Reminders.** Set from a guide programme or a game. In the app: a card at the right moment. Over other apps
    (PS5 on HDMI): an overlay card ("tips off in 5 min · OK to watch") using "Display over other apps", fired by an
    exact alarm even when airglow isn't open; OK switches to airglow and tunes. If the TV won't draw over HDMI,
