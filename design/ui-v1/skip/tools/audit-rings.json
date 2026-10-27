@@ -1,0 +1,53 @@
+[
+ {
+  "f": "player-skip-bar.html",
+  "el": ".vb.sk-pill",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   391,
+   363.8,
+   535.9,
+   416.2
+  ],
+  "safe": 96.8
+ },
+ {
+  "f": "player-options-skip.html",
+  "el": ".nv-row.st-r",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   80,
+   421,
+   130
+  ],
+  "safe": 11
+ },
+ {
+  "f": "player-options.html",
+  "el": ".nv-row.st-r",
+  "inset": true,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   59,
+   368,
+   457,
+   412
+  ],
+  "safe": 11
+ }
+]

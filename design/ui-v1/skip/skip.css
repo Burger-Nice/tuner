@@ -22,13 +22,13 @@
 .vb.sk-pill{width:auto;height:40px;border-radius:999px;padding:0 18px 0 14px;display:inline-flex;gap:8px;font:700 16px/1 var(--a-font-display);color:var(--a-text-1)}
 .vb.sk-pill .ic{width:18px;height:18px}
 
-/* ---------- seek bar: 2 dp gaps at the known segments' edges (no labels on the bar) ---------- */
-.seek .sk-gap{position:absolute;top:-1px;bottom:-1px;width:2px;margin-left:-1px;background:rgba(30,27,40,1);z-index:1}
-.seek .thumbf{z-index:2}
-.seek .bub small{font:650 14px/20px var(--a-font-text);margin-left:6px;opacity:.8}
+/* the slot after Next episode: 16 either side, so the 5 px ring and the 1.05 lift keep 2 px of air (REVIEW 10) */
+.vb.sk-slot{margin-left:6px}
+/* (v1.0's seek bar gaps and the bubble's part names are "later", SPEC 12) */
 
-/* ---------- subtitles lift above a bottom-right chip while one is up (bottom 70 -> 120) ---------- */
-.nv-sub.sk-lift{bottom:120px}
+/* ---------- subtitles rise only when their box would touch a bottom-right chip: bottom edge 8 above the chip's top ---------- */
+.nv-sub.sk-lift{bottom:120px}            /* a 48 high chip (top y 428): line bottom y 420 */
+.nv-sub.sk-lift2{bottom:132px}           /* a 60 high chip (top y 416): line bottom y 408 */
 
 /* ---------- Options > Skip intros (384 wide, as the subtitles' panels) ---------- */
 .nv-panel.sk-panel{width:384px}

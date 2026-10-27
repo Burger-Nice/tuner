@@ -7,26 +7,36 @@
  {
   "file": "player-skip-bar.html",
   "title": "Skip intro in the button row",
-  "note": "The controls are up during the intro (▲ pressed at 1:52). The floating chip moves into the row and ▲ lands on it. Small gaps on the bar mark the intro and the credits; no labels."
+  "note": "The controls are up during the intro (▲ pressed at 1:52). The floating chip moves into the row, after Next episode so nothing else moves, and ▲ lands on it. When the intro ends the pill goes and focus returns to the seek thumb."
  },
  {
   "file": "player-skipped.html",
-  "title": "Skipped automatically",
-  "note": "Skip automatically is on. S1 E2's intro (1:19 to 1:46) was skipped; for 5 s OK goes back to 1:19. The subtitle line rises above the chip while it shows."
+  "title": "After a skip: the way back",
+  "note": "After every skip, pressed or automatic. S1 E2's 28 s intro was skipped; for 5 s OK goes back to its start (OK does nothing for the first 1.5 s). The two-line subtitle would touch the chip, so it rises to 8 above it."
  },
  {
   "file": "player-recap.html",
   "title": "Skip recap",
-  "note": "Lost S2 E1 at 0:06. The recap runs 0:02 to 0:28. Recaps have speech, so the subtitles show and rise above the chip. After 5 views the hint bar stops; the key cap on the chip says what OK does."
+  "note": "Lost S2 E1 at 0:06. The recap runs 0:02 to 0:28. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does."
  },
  {
   "file": "player-upnext-credits.html",
   "title": "Up next when the credits start",
-  "note": "S1 E1 at 21:30. The credits start at 21:28 (TheIntroDB) and no one speaks after it, so Up next comes then (not 40 s from the end) and counts 15 s. Unchanged: OK plays now, Back stays on this one."
+  "note": "Checked credits: the match is Sure and the downloaded subtitles end before 21:28 (TheIntroDB). Up next comes at 21:28 and counts 15 s. Unchanged: OK plays now, Back stays on this one."
  },
  {
   "file": "player-options-skip.html",
-  "title": "Options > Skip intros",
-  "note": "From ▼ Options in an episode. The same setting as Account > Playback > Skip intros. The foot says whether this episode is known."
+  "title": "Options > Skip intros and recaps",
+  "note": "OK on the Options row. The same setting as Account > Playback. The foot says what is known for this episode."
+ },
+ {
+  "file": "player-upnext-quiet.html",
+  "title": "Up next on unchecked credits",
+  "note": "S1 E1 at 21:30 with the file's own subtitles (they can't be read ahead), so the credits time is unchecked. The card shows at 21:28 without a count; from the last 40 s it counts to the end as today."
+ },
+ {
+  "file": "player-options.html",
+  "title": "Options in an episode",
+  "note": "▼ in an episode. Skip intros and recaps is the last row (episodes only), with the setting as its value."
  }
 ]
