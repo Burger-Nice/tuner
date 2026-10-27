@@ -336,25 +336,33 @@ async function imdbOf(it) {
 }
 const segQuery = (it, imdb) => ({ imdb, ...(it.kind === 'episode' ? { season: +it.season, episode: +it.ep } : {}) });
 // the episode before this one, watched in the last 3 days (S.progress): watched = finished or past 80%; the episode
-// before = the same season's previous number. A season's E1 never skips its recap by itself (the episode before is the
-// last season's finale, and which number that is isn't known here): it gets the button.
-function watchedBefore(it) {
+// before = the one just before it in this play's queue (a binge: a season's E1 after the last season's finale too),
+// else the same season's previous number. Without either (an E1 started on its own) the recap gets the button.
+const watchedP = (p) => !!p && (p.done || (p.d > 0 && p.t / p.d >= 0.8)) && (p.at || 0) >= Date.now() - 3 * 864e5;
+function watchedBefore(it, prevInQueue) {
   if (it.kind !== 'episode') return false;
-  const S0 = +it.season, E0 = +it.ep, recent = Date.now() - 3 * 864e5;
-  const watched = Object.values(S.progress || {}).filter((p) => p?.item?.kind === 'episode' && String(p.item.seriesId) === String(it.seriesId)
-    && (p.done || (p.d > 0 && p.t / p.d >= 0.8)) && (p.at || 0) >= recent);
-  return E0 > 1 && watched.some((p) => +p.item.season === S0 && +p.item.ep === E0 - 1);
+  if (prevInQueue?.kind === 'episode' && String(prevInQueue.seriesId) === String(it.seriesId)) return watchedP(progressOf(prevInQueue));
+  const S0 = +it.season, E0 = +it.ep;
+  return E0 > 1 && Object.values(S.progress || {}).some((p) => p?.item?.kind === 'episode' && String(p.item.seriesId) === String(it.seriesId)
+    && +p.item.season === S0 && +p.item.ep === E0 - 1 && watchedP(p));
+}
+// what an item's times look like to the player (its id, the times, the match level, the setting, the recap rule)
+async function segmentsMsg(it, prev) {
+  const id = await imdbOf(it);
+  if (!id) return null;
+  const seg = await segmentsFor(segQuery(it, id.imdb));
+  return seg ? { id: `${it.kind}:${it.id}`, ...seg, level: id.level, recapAuto: watchedBefore(it, prev), mode: settings().skipIntro || 'button' } : null;
 }
 async function sendSegments(it) {
   if (!it || !native?.info?.()?.segments || settings().skipIntro === 'off') return;
-  const c = ctx.cur;
-  const id = await imdbOf(it);
-  if (!id) return;
-  const seg = await segmentsFor(segQuery(it, id.imdb));
-  if (seg && ctx.cur === c && playingVod() === it) cmd('segments', { id: `${it.kind}:${it.id}`, ...seg, level: id.level, recapAuto: watchedBefore(it), mode: settings().skipIntro || 'button' });
-  // the next one, ahead (kept, so the track event's ask answers at once)
-  const next = c?.items?.[c.items.indexOf(it) + 1];
-  if (next && next.kind === 'episode') imdbOf(next).then((n) => n && segmentsFor(segQuery(next, n.imdb))).catch(() => {});
+  const c = ctx.cur, i = c?.items?.indexOf(it) ?? -1;
+  const m = await segmentsMsg(it, i > 0 ? c.items[i - 1] : null);
+  if (m && ctx.cur === c && playingVod() === it) cmd('segments', m);
+  // the next one, ahead: sent now under its own id, so a recap at 0:00 is known before its first frame (the player
+  // keeps it for that item; its recap rule is decided again when it starts)
+  const next = c?.items?.[i + 1];
+  // recapAuto 'prev': the player decides when it starts (this one, the one before it, finished or played past 80%)
+  if (next?.kind === 'episode') segmentsMsg(next, it).then((n) => { if (n && ctx.cur === c) cmd('segments', { ...n, ahead: true, recapAuto: 'prev' }); }).catch(() => {});
 }
 
 // ---------- Options > Quality: the copies of the film with what their checks found (SPEC 7.7, RANKING.md) ----------
