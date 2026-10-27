@@ -24,17 +24,7 @@ module.exports = async (c) => {
   check(!a.none && !a.hid, 'Standings: focus after Try again is on something visible');
   console.log('  legend now:', await H.text('.st-sub .legend'));
 
-  // Leaders: the column's last category, Down -> Try again?
-  await H.go('leaders'); await p.waitForTimeout(1200);
-  net.fail = true; await force('leaders:pts'); await p.waitForTimeout(500);
-  await key('ArrowDown', 1, 300); await key('ArrowDown', 8, 300); a = await where('leaders: down past Field goal %');
-  check(a.act === 'retry', 'Leaders: Try again is reached with Down from the last category');
-  hits.length = 0; await tick(180e3);
-  console.log('  leaders requests in 3 min:', hits.length, hits.slice(0, 3));
-  check(hits.some((u) => /byathlete/.test(u)), 'Leaders: retries within 3 minutes while ESPN is down');
-  net.fail = false; await key('Enter', 1, 1500); a = await where('leaders: Try again worked');
-  check(!a.none && !a.hid && !a.ov, 'Leaders: focus after Try again is on something visible');
-
+  // (Leaders' Try again under the column: hunt-league-leaders.js)
   // Team stats: Right from the column lands on your row; Up from the list's first visible row -> the notice?
   await H.go('teamstats'); await p.waitForTimeout(1200);
   net.fail = true; await force('teamStats'); await p.waitForTimeout(500);

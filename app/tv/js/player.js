@@ -233,6 +233,7 @@ export function queueAfter(item, more) {
 export async function playVod(item, { queue, restart } = {}) {
   const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
   const entries = list.map((it, i) => vodEntry(it, i === 0 && restart));
+  setWatching(null, null);   // a film or an episode: no game on screen (its final buzzer isn't yours to see)
   if (!native) { toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
   const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua, ...playerSettings() }).catch((e) => ({ ok: false, error: e?.message }));
   if (!r?.ok) { toast(r?.error || 'This video would not play.', 4000); return; }

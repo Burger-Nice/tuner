@@ -212,6 +212,7 @@ export default {
     };
     on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('progress', redraw); on('favs', redraw);
     on('catalog', (k) => { if (k === 'live') { redraw(); warmRails(); } });
+    on('league', (k) => { if (k.startsWith('schedule:') || k === 'standings') redraw(); });   // (records under the shield)
     setInterval(redraw, 30000);
   },
   enter(root, params, { fresh }) {

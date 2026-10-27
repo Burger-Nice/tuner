@@ -1,7 +1,7 @@
 // The NBA tab's Games section (SPEC 1.1): your team's current or next game as the broadcast-graphic hero (whatever day is
 // picked), the day chips under it (◀▶ change day), then that day's games as a 3-up grid ordered live, upcoming, final.
 // Under the shield nothing here gives a score away (counts included). Hold OK on a card: its teams' pages.
-import { esc, ic, dot, setHtml } from '../util.js';
+import { esc, ic, dot, setHtml, hm } from '../util.js';
 import { on } from '../state.js';
 import { ensure } from '../catalog.js';
 import { nba, bestChannel, dayGames, dayLabel, isMine, favTeam, show, findFeeds, feedsNow, reveal, startNba, myGame } from '../games.js';
@@ -31,7 +31,16 @@ export function heroGame() {
   if (!d) return null;
   const now = Date.now();
   const recent = [...d.games].reverse().find((g) => g.state === 'post' && now - g.date < 15 * 3600e3);
-  return recent || d.games.find((g) => g.state !== 'post' && g.date > now - 4 * 3600e3) || null;
+  const g = recent || d.games.find((x) => x.state !== 'post' && x.date > now - 4 * 3600e3);
+  return g ? withRecords(g) : null;
+}
+// A schedule's game carries no records: the standings have them (recordFor still decides what may show).
+function withRecords(g) {
+  if (g.home.record && g.away.record) return g;
+  const st = peek('standings')?.data;
+  if (!st) { want('standings'); return g; }
+  const rec = (abbr) => { const t = st.confs.flatMap((c) => c.teams).find((x) => x.abbr === abbr); return t ? `${t.w}-${t.l}` : ''; };
+  return { ...g, home: { ...g.home, record: g.home.record || rec(g.home.abbr) }, away: { ...g.away, record: g.away.record || rec(g.away.abbr) } };
 }
 
 let behind = false;
@@ -55,7 +64,7 @@ function draw() {
 }
 // Rows past the first slide up into view, but never past the last row: it stops at the bottom of the screen, so there's
 // no empty space under it. Scrolled, the top bar and section row step away and the rows above fade under the top edge.
-const ROW = 140, CARD = 124, BOTTOM = 516, COVER = 84;
+const ROW = 140, CARD = 124, BOTTOM = 508, COVER = 84;   // (a focused card's ring reaches the safe line, 513)
 function place() {
   const a = document.activeElement, grid = el.querySelector('.nba-grid');
   let shift = 0;
@@ -86,8 +95,8 @@ function heroAct(act) {
   const g = el._mine;
   if (!g) return;
   if (act === 'primary') {
-    if (g.state === 'post') return push('game', { id: g.id });
     const ch = bestChannel(g);
+    if (g.state === 'post' || (g.state === 'pre' && (g.date - Date.now() > 3 * 3600e3 || !ch))) return push('game', { id: g.id });   // (the hero's "Game page")
     if (!ch) { toast('No channel found for this game yet. Pick it from Home or the guide and it will be remembered.', 5000); return; }
     return playLive(ch, ringFor(ch), ringName(ch));
   }
@@ -110,7 +119,7 @@ export default {
   label: () => 'Games',
   mount(root, c) {
     el = root; ctx = c;
-    root.innerHTML = '<div class="page"></div><div class="lib-cover hub-cover" hidden></div>';
+    root.innerHTML = '<div class="nb-clip"><div class="page"></div></div><div class="lib-cover hub-cover" hidden></div>';   // (nothing below y 513)
     root.addEventListener('click', (e) => {
       const d = e.target.closest('[data-day]');
       if (d) { const v = +d.dataset.day; if (v) load(offset + v); return; }
@@ -126,7 +135,7 @@ export default {
     root.addEventListener('tvfocus', place);
     const redraw = () => { if (ctx.visible()) { if (!offset) games = nba.today; draw(); } };
     on('nba', redraw); on('summary', redraw); on('feeds', redraw);
-    on('league', (k) => { if (k === `schedule:${favTeam()}`) redraw(); });
+    on('league', (k) => { if (k === `schedule:${favTeam()}` || k === 'standings') redraw(); });
   },
   enter() {
     startNba();
@@ -136,6 +145,7 @@ export default {
     else load(offset);
   },
   leave() {},
+  meta: () => (nba.at ? `ESPN · ${hm(nba.at)}` : nba.err ? 'ESPN' : ''),
   entry: (root) => root.querySelector('.hero-plate .btn') || root.querySelector('.gc') || root.querySelector('[data-day="0"]'),
   key(k) {
     const a = document.activeElement;

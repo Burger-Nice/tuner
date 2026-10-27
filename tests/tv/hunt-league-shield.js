@@ -39,6 +39,7 @@ module.exports = async (c) => {
   await key('ArrowLeft', 1, 300); await key('ArrowDown', 1, 300); a = await where('ld: Left, Down'); got = got || a.act === 'reveal';
   console.log('  category now:', await ev(() => document.querySelector('.nb-cats .sel')?.dataset.cat));
   check(got, 'Leaders: the copy\'s Reveal is reachable from Points');
+  // (the player sheet under the shield: hunt-league-sheet.js)
   // Team stats: the notice above the list
   await H.go('teamstats'); await p.waitForTimeout(1500); await shot('ts-copy');
   await key('ArrowDown', 1, 400); await key('ArrowRight', 1, 400);

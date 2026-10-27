@@ -123,7 +123,7 @@ export function teamPage({ pushed = false } = {}) {
   // ---------- header (7.1) and the hero state table ----------
   function heroParts(g) {
     if (!sched() && failed(`schedule:${abbr}`)) return { btns: [['retry', `${ic('refresh')}Try again`]], cap: 'ESPN isn’t answering<br>airglow tries again every minute' };
-    if (!g) return { btns: [], cap: sched() ? 'Off-season<br>Schedule out in August' : '' };
+    if (!g) return { btns: [], cap: '' };   // (off-season: the next-game block says so)
     const v = show(g), s = sideOf(v.g, abbr);
     if (g.state === 'pre') {
       const ch = bestChannel(g), soon = g.date - Date.now() <= 3 * 3600e3;
@@ -132,16 +132,18 @@ export function teamPage({ pushed = false } = {}) {
     }
     if (g.state === 'in') {
       return {
-        btns: [['watch', `${ic('play')}Watch live`], v.hidden ? ['reveal', `${ic('eyeOff', 'sm')}Reveal ${esc(gameName(g))}`] : ['box', 'Box score']],
+        btns: [['watch', `${ic('play')}Watch live`], v.hidden ? ['reveal', `${ic('eyeOff', 'sm')}Reveal ${esc(gameName(g))}`] : ['game', 'Box score']],
         cap: v.hidden ? 'Score hidden' : `${esc(clockText(v.g))}${dot}${esc(s.me.score)}–${esc(s.op.score)}`,
       };
     }
-    return { btns: [['box', `${ic('score')}Box score`]], cap: v.hidden ? 'Ended · result hidden' : `Final${dot}${s.won ? 'W' : 'L'} ${esc(s.me.score)}–${esc(s.op.score)}` };
+    return { btns: [['game', `${ic('score')}Box score`]], cap: v.hidden ? 'Ended · result hidden' : `Final${dot}${s.won ? 'W' : 'L'} ${esc(s.me.score)}–${esc(s.op.score)}` };
   }
   function headHtml(games, hero) {
     const n = names(abbr), mine = abbr === favTeam(), data = !!sched();
     const v = hero && show(hero), s = hero && sideOf(v.g, abbr);
-    const kind = /post|playoff/i.test(hero?.season || '') ? 'Playoffs' : /pre/i.test(hero?.season || '') ? 'Preseason' : /play-?in/i.test(hero?.season || '') ? 'Play-in' : 'Regular season';
+    const sk = (hero || games[games.length - 1])?.season || '';
+    const off = data && !hero && !nextOf(games, hero);
+    const kind = off ? 'Off-season' : /post|playoff/i.test(sk) ? 'Playoffs' : /pre/i.test(sk) ? 'Preseason' : /play-?in/i.test(sk) ? 'Play-in' : 'Regular season';
     const season = `${esc(sched()?.season || seasonOf())}${dot}${kind}`;
     const status = hero?.state === 'in'
       ? `${mine ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${liveP()}<span class="t-label t-2">${esc(clockText(v.g))} ${s.word} ${esc(s.op.name)}</span>`
@@ -179,7 +181,7 @@ export function teamPage({ pushed = false } = {}) {
     if (g.state === 'post') r = v.hidden ? `<span class="nb-hid">${ic('eyeOff')}Result hidden</span>` : `<b class="${s.won ? '' : 'l'}">${s.won ? 'W' : 'L'}</b><b class="${s.won ? '' : 'l'}" style="font-weight:650">${esc(s.me.score)}–${esc(s.op.score)}</b>`;
     else if (g.state === 'in') r = `${liveP()}<span>${esc(clockText(v.g))}</span>`;
     else r = `<span>${hm(g.date)}${g.tv[0] ? `${dot}${esc(shortTv(g.tv[0]))}` : ''}</span>`;
-    return `<div class="nb-gt${g === next ? ' next' : ''}${pk ? ' pk' : ' fx'}"${pk ? '' : ' tabindex="-1" data-hold'} data-key="g:${esc(g.id)}" data-g="${esc(g.id)}"><div class="d">${d}</div><div class="o">${tc(s.op, 's32')}<span>${s.word} ${esc(s.op.name)}</span></div><div class="r">${r}</div></div>`;
+    return `<div class="nb-gt${g === next ? ' next' : ''}${pk ? ' pk' : ' fx'}${k === 3 ? ' edge' : ''}"${pk ? '' : ' tabindex="-1" data-hold'} data-key="g:${esc(g.id)}" data-g="${esc(g.id)}"><div class="d">${d}</div><div class="o">${tc(s.op, 's32')}<span>${s.word} ${esc(s.op.name)}</span></div><div class="r">${r}</div></div>`;
   }
   const clampWs = (fi, n) => Math.max(0, Math.min(fi - 2, n - 4));
   function railTiles(games, hero) {
@@ -197,7 +199,8 @@ export function teamPage({ pushed = false } = {}) {
     const un = unseenFor(abbr), left = games.filter((g) => g.state === 'pre').length;
     const rec = recordFor({ abbr, record: espnRecord() });
     const seen = games.filter((g) => g.state === 'post').length - un.filter((g) => g.state === 'post').length;
-    const fail = failed(`schedule:${abbr}`) && sched();
+    const fail = failed(`schedule:${abbr}`);
+    if (fail && !sched()) return `<div class="nb-title tp-b" style="top:${Y.sched}px">Schedule<small>Couldn’t load from ESPN · trying again</small></div>`;
     const small = fail ? 'Couldn’t load from ESPN · trying again'
       : !games.length ? (sched() ? 'No games on the schedule yet' : 'Loading…')
       : [un.length ? `${seen} seen${dot}${un.length} hidden` : esc(rec.text), `${left} to go`, '◀ results', '▶ coming up'].filter(Boolean).join(dot);
@@ -211,7 +214,7 @@ export function teamPage({ pushed = false } = {}) {
   // ---------- Season ranks (7.3) ----------
   function ranksHtml() {
     const v = pinView([abbr]);
-    const failedNow = failed('teamStats') && !peek('teamStats');
+    const failedNow = failed('teamStats') && !peek('teamStats')?.data;
     let small = 'out of 30 teams · OK opens Team stats', tiles = '', note = '';
     let stats = peek('teamStats')?.data;
     if (v) {
@@ -223,13 +226,13 @@ export function teamPage({ pushed = false } = {}) {
         note = `<div class="nb-notice tp-b" data-row data-area="ranks" style="top:${Y.ranksRail + 24}px">${ic('eyeOff')}<span>Season ranks are hidden: they include ${esc(gameName(v.game))}</span>${revealBtn(v.games)}</div>`;
       }
     }
-    if (failedNow) small = 'Couldn’t load from ESPN · trying again';
+    if (failedNow && !v) small = 'Couldn’t load from ESPN · trying again';
     if (stats) {
       tiles = rankCats().map((c) => {
         const r = rankIn(stats, abbr, c);
         return r ? `<div class="nb-rk fx" tabindex="-1" data-cat="${esc(c.key)}" data-key="rk:${esc(c.key)}"><div class="k">${esc(c.label)}</div><div class="o">${esc(r.rank)}</div><div class="v">${esc(statText(c, r.value))}</div></div>` : '';
       }).join('');
-    } else if (!note) tiles = Array.from({ length: 6 }, () => '<div class="nb-rk" style="background:var(--a-surface-1)"></div>').join('');
+    } else if (!note && !failedNow) tiles = Array.from({ length: 6 }, () => '<div class="nb-rk" style="background:var(--a-surface-1)"></div>').join('');
     return `<div class="nb-title tp-b" style="top:${Y.ranks}px">Season ranks<small class="row-flex" style="gap:6px">${small}</small></div>
   ${note || `<div class="nb-rail rail tp-b tp-clipl" data-area="ranks" style="top:${Y.ranksRail}px;margin-top:0"><div class="tp-tr tp-ranks" data-row style="gap:16px">${tiles}</div></div>`}`;
   }
@@ -250,10 +253,11 @@ export function teamPage({ pushed = false } = {}) {
   function newsHtml() {
     const list = stories(), n = names(abbr);
     const covered = list.filter((s) => storyCover(s)).length;
-    const small = failed(`news:${abbr}`) && !peek(`news:${abbr}`) ? 'Couldn’t load from ESPN · trying again'
-      : !peek(`news:${abbr}`) ? 'Loading…' : !list.length ? 'No ESPN stories in the last week'
+    const kept = !!peek(`news:${abbr}`)?.data;
+    const small = failed(`news:${abbr}`) && !kept ? 'Couldn’t load from ESPN · trying again'
+      : !kept ? 'Loading…' : !list.length ? 'No ESPN stories in the last week'
       : covered ? `${covered} ${covered === 1 ? 'story' : 'stories'} hidden by the shield` : `ESPN${dot}${esc(n.name)}`;
-    const cards = peek(`news:${abbr}`) ? list.map(newsCard).join('') : Array.from({ length: 4 }, () => '<div class="nb-nc"></div>').join('');
+    const cards = kept ? list.map(newsCard).join('') : failed(`news:${abbr}`) ? '' : Array.from({ length: 4 }, () => '<div class="nb-nc"></div>').join('');
     return `<div class="nb-title tp-b" style="top:${Y.news}px">News<small>${small}</small></div>
   <div class="nb-rail rail tp-b tp-clipl" data-area="news" style="top:${Y.newsRail}px;margin-top:0"><div class="tp-tr tp-news" data-row>${cards}</div></div>`;
   }
@@ -293,15 +297,19 @@ export function teamPage({ pushed = false } = {}) {
     if (!root || !abbr || !ctx?.visible() || body.parentElement.hidden) return;   // (the section's picker is showing instead)
     if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
     const games = list(), hero = heroOf(games);
-    let html;
-    if (!sched() && failed(`schedule:${abbr}`)) html = headHtml([], null) + `<div class="nb-title tp-b" style="top:${Y.sched}px">Schedule<small>Scores aren’t reachable · trying again</small></div>`;
-    else html = headHtml(games, hero) + schedHtml(games, hero) + ranksHtml() + newsHtml() + rosterHtml();
-    if (setHtml(body, html)) hooks();
+    // each part is redrawn only when it changed, so a tick of the clock doesn't replace the tile you're holding OK on
+    let changed = false;
+    changed = setHtml(part('head'), headHtml(games, hero)) || changed;
+    changed = drawSched(games, hero) || changed;
+    changed = setHtml(part('ranks'), ranksHtml()) || changed;
+    changed = setHtml(part('news'), newsHtml()) || changed;
+    changed = setHtml(part('roster'), rosterHtml()) || changed;
+    if (changed) hooks();
     if (pushed) drawTools();
     place();
     // a pushed page opened before its data came: focus went to the tools row; the header's primary takes it once it's drawn
     const a = document.activeElement;
-    if (st.needEntry && pushed && page0.entry() && (a === document.body || tools.contains(a) && a === tools.querySelector('.fx'))) { st.needEntry = false; focus(page0.entry()); }
+    if (st.needEntry && pushed && page0.entry() && (a === document.body || a === st.waitEl || (!st.waitEl && tools.contains(a)))) { st.needEntry = false; focus(page0.entry()); }
   }
   function drawTools() {
     if (!tools) return;
@@ -309,36 +317,43 @@ export function teamPage({ pushed = false } = {}) {
     setHtml(tools, `${mine ? `<span class="pillbtn dis" style="border-color:var(--a-border)">${ic('check')}Your team</span>` : `<span class="pillbtn fx" tabindex="-1" data-act="mine">${ic('starO')}Make the ${esc(n.name)} my team</span>`}<span class="pillbtn fx" tabindex="-1" data-act="all">${GRID}All teams</span><span class="t-cap">${st.opened ? `Opened from ${esc(st.opened)}${dot}Back returns there` : ''}</span>`);
   }
   const $ = (s) => body.querySelector(s);
+  const PARTS = ['head', 'sched', 'ranks', 'news', 'roster'];
+  const part = (k) => body.querySelector(`:scope>[data-part="${k}"]`);
+  function drawSched(games = list(), hero = heroOf(games), restore = true) { return setHtml(part('sched'), schedHtml(games, hero), restore); }
   const visibleFx = (box) => (box ? [...box.querySelectorAll('.fx')].filter((e) => !e.classList.contains('dis')) : []);
   const firstOf = (box) => (box?._mem?.isConnected && box.contains(box._mem) ? box._mem : visibleFx(box)[0]) || null;
   const schedTile = () => { const t = $('.tp-sched'); return t?.querySelector(t.dataset.entry || '.fx') || firstOf(t); };
   const rosterRow = () => { const b = $('.tp-roster'); return b?._mem?.isConnected && b.contains(b._mem) ? b._mem : b?.children[st.rowOff] || null; };
-  const ranksFirst = () => ($('.tp-ranks .nb-rk.fx') ? firstOf($('.tp-ranks')) : null);
-  const go2 = (...fs) => { for (const f of fs) { const el = f(); if (el) return focus(el); } return true; };
+  const ranksFirst = () => ($('.tp-ranks .nb-rk.fx') ? firstOf($('.tp-ranks')) : $('.nb-notice[data-area="ranks"] .fx'));
+  const btnFirst = () => $('.nb-btns .fx');
+  const pillBtn = () => $('.tp-pill .fx');
+  // the page's parts top to bottom; Up and Down go to the nearest one that has something to focus
+  const ORDER = [btnFirst, schedTile, ranksFirst, () => firstOf($('.tp-news')), rosterRow];
+  const go2 = (...fs) => { for (const f of fs) { const el = f(); if (el) return focus(el); } return false; };
+  const below = (i) => go2(...ORDER.slice(i + 1));
+  const above = (i) => go2(...ORDER.slice(0, i).reverse());
   // The page's own moves (SPEC 7.2, 7.8): the schedule's window, and Up/Down between the rails and the roster.
   function hooks() {
-    const btns = $('.nb-btns'), sch = $('.tp-sched'), rk = $('.tp-ranks'), nw = $('.tp-news'), pill = $('.tp-pill'), ro = $('.tp-roster');
-    if (btns) btns.navHook = (dir, cur, rep) => (dir === 'down' && !rep ? go2(schedTile) : undefined);
-    if (sch) sch.navHook = (dir) => {
+    const btns = $('.nb-btns'), sch = $('.tp-sched'), rk = $('.tp-ranks') || $('.nb-notice[data-area="ranks"]'), nw = $('.tp-news'), pill = $('.tp-pill'), ro = $('.tp-roster');
+    const vert = (i) => (dir, cur, rep) => (dir === 'down' ? (rep && i === 0 ? undefined : below(i)) : dir === 'up' && i > 0 ? above(i) : undefined);
+    if (btns) btns.navHook = vert(0);
+    if (sch) sch.navHook = (dir, cur, rep) => {
       if (dir === 'left' || dir === 'right') { moveSched(dir === 'right' ? 1 : -1); return true; }
-      if (dir === 'down') return go2(ranksFirst, () => firstOf(nw), rosterRow);
-      return undefined;
+      return vert(1)(dir, cur, rep);
     };
-    if (rk) rk.navHook = (dir) => (dir === 'up' ? go2(schedTile) : dir === 'down' ? go2(() => firstOf(nw), rosterRow) : undefined);
-    if (nw) nw.navHook = (dir) => (dir === 'up' ? go2(ranksFirst, schedTile) : dir === 'down' ? go2(rosterRow) : undefined);
-    if (pill) pill.navHook = (dir) => (dir === 'up' ? go2(() => firstOf(nw), ranksFirst, schedTile) : dir === 'down' ? go2(rosterRow) : undefined);
-    if (ro) ro.navHook = (dir, cur) => (dir === 'up' && cur === ro.firstElementChild ? go2(() => pill?.querySelector('.fx')) : dir === 'left' || dir === 'right' ? false : undefined);
+    if (rk) rk.navHook = vert(2);
+    if (nw) nw.navHook = vert(3);
+    if (pill) pill.navHook = (dir) => (dir === 'up' ? above(4) : dir === 'down' ? go2(rosterRow) : undefined);
+    if (ro) ro.navHook = (dir, cur) => (dir === 'up' && cur === ro.firstElementChild ? go2(pillBtn) || above(4) : dir === 'down' && cur === ro.lastElementChild ? false : dir === 'left' || dir === 'right' ? false : undefined);
   }
   function moveSched(d, to) {
     const games = list();
     const fi = Math.max(0, Math.min(games.length - 1, to ?? st.fi + d));
     if (fi === st.fi || !games.length) return;
     st.fi = fi; st.ws = clampWs(fi, games.length);
-    const tr = $('.tp-sched');
-    setHtml(tr, railTiles(games, heroOf(games)), false);
-    tr.dataset.entry = `[data-key="g:${games[fi].id}"]`;
-    body._html = null;   // (the next draw writes it all again)
-    focus(tr.querySelector(tr.dataset.entry));
+    drawSched(games, heroOf(games), false);
+    hooks();
+    focus($(`.tp-sched [data-key="g:${games[fi].id}"]`));
   }
   // CH± on the schedule: a month on, or back.
   function jumpMonth(dir) {
@@ -388,7 +403,7 @@ export function teamPage({ pushed = false } = {}) {
     const i = f ? items.indexOf(f) : 0;
     const start = Math.max(0, Math.min(i - (vis - 2), items.length - vis));
     tr.style.transform = start > 0 ? `translateX(${-start * step}px)` : '';
-    items.forEach((el, k) => el.classList.toggle('pk', k < start || k >= start + vis));
+    items.forEach((el, k) => { el.classList.toggle('pk', k < start || k >= start + vis); el.classList.toggle('edge', k === start + vis - 1); });
   }
 
   // ---------- actions ----------
@@ -443,7 +458,7 @@ export function teamPage({ pushed = false } = {}) {
   return {
     mount(r, c) {
       root = r; ctx = c;
-      root.insertAdjacentHTML('beforeend', `${pushed ? '<div class="nb-tools tp-tools" data-row></div>' : ''}<div class="nb-clip tp-clip"><div class="tp-body"></div><div class="nb-cover" hidden></div><div class="nb-ctx" hidden></div></div>`);
+      root.insertAdjacentHTML('beforeend', `${pushed ? '<div class="nb-tools tp-tools" data-row></div>' : ''}<div class="nb-clip tp-clip"><div class="tp-body">${['head', 'sched', 'ranks', 'news', 'roster'].map((k) => `<div data-part="${k}"></div>`).join('')}</div><div class="nb-cover" hidden></div><div class="nb-ctx" hidden></div></div>`);
       body = root.querySelector('.tp-body'); cover = root.querySelector('.nb-cover'); ctxLine = root.querySelector('.nb-ctx'); tools = root.querySelector('.tp-tools');
       root.addEventListener('click', (e) => {
         const b = e.target.closest('[data-act]');
@@ -483,20 +498,29 @@ export function teamPage({ pushed = false } = {}) {
     },
     // Draw this team (state: the page's own place, kept per pushed page so Back to it lands where you were).
     show(a, state) {
-      if (a !== abbr) { body._html = null; }
+      if (a !== abbr) for (const k of PARTS) part(k)._html = null;
       abbr = a; st = state || fresh();
       for (const k of keys()) want(k);
       ensure('live').catch(() => {});
       const games = list(), hero = heroOf(games);
       if (hero && (hero.state === 'in' || (hero.state === 'pre' && hero.date - Date.now() < 3 * 3600e3))) findFeeds(hero);
       draw();
-      st.needEntry = !page0.entry();
+      st.needEntry = !page0.entry(); st.waitEl = null;
+      // where the opening focus went (after the router's own): moving on from there yourself cancels the hand-over
+      if (st.needEntry) requestAnimationFrame(() => requestAnimationFrame(() => { st.waitEl = document.activeElement; }));
     },
     state: () => st,
     abbr: () => abbr,
     draw,
     entry: page0.entry,
-    toTop() { if (!st) return; st.area = 'top'; st.rowOff = 0; body.querySelectorAll('[data-row],[data-col]').forEach((b) => (b._mem = null)); place(false); },
+    toTop() {
+      if (!st) return;
+      st.area = 'top'; st.rowOff = 0;
+      st.fi = -1;   // the next game back in the third slot
+      if (abbr && sched()) { drawSched(undefined, undefined, false); hooks(); }
+      body.querySelectorAll('[data-row],[data-col]').forEach((b) => (b._mem = null));
+      place(false);
+    },
     key(k) {
       const a = document.activeElement;
       if ((k === 'chup' || k === 'chdown') && a?.closest('.tp-sched')) { jumpMonth(k === 'chup' ? 1 : -1); return true; }

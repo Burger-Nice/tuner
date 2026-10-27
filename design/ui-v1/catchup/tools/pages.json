@@ -188,7 +188,7 @@
  {
   "file": "player-notgame.html",
   "title": "Player: Not the game?",
-  "note": "v1.1 (review M6): a panel whose clock is an hour off. One OK moves the replay and stores the correction per account (archiveShift), so the next one starts right.",
+  "note": "v1.2: each row leads with what you can see, then what it does. One OK moves the replay and stores the correction per channel, applied to every later replay.",
   "group": "Player"
  },
  {

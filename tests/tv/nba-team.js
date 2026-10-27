@@ -104,7 +104,7 @@ module.exports = async ({ p, shot, key, log }) => {
   console.log('sheet:', await ev(() => document.querySelector('.nb-pl')?.innerText.replace(/\s+/g, ' ')));
   await key('Escape', 1, 500);
   // the Kings' page, from the tile's menu
-  await key('Escape', 1, 600); await key('ArrowDown', 2, 500); await ok('the Kings tile again', 'g:401909867'); await hold(); await key('Enter', 1, 1500);
+  await key('Escape', 1, 600); await key('ArrowDown', 2, 500); await ok('Back reset the window: the next game', 'g:401909875'); await key('ArrowLeft', 1, 400); await ok('the Kings tile again', 'g:401909867'); await hold(); await key('Enter', 1, 1500);
   await shot('team-opponent-shield');
   console.log('kings header:', await ev(() => document.querySelector('[data-screen="team"] .nb-rec')?.innerText.replace(/\s+/g, ' ')));
   await key('Escape', 1, 1000); await ok('back: the Kings tile', 'g:401909867');

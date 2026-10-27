@@ -73,9 +73,15 @@ export default {
     el = root;
     root.innerHTML = '<div class="nb-sec" data-row></div>';
     row = root.querySelector('.nb-sec');
-    // Down from the row goes to the section's entry (neighbour() would pick whatever overlaps the chip: SPEC 2.2).
+    // Coming up into the row lands on the section showing, never the chip nearest in line (which would then switch).
+    row.dataset.entry = '.chip.sel';
+    row.dataset.mem = 'off';
+    // Down from the row goes to the section's entry (neighbour() would pick whatever overlaps the chip: SPEC 2.2); from a
+    // chip whose section hasn't switched in yet (Down within 250 ms), that section first.
     row.navHook = (dir, cur, repeat) => {
       if (dir !== 'down' || repeat) return undefined;
+      const k = cur.dataset.sec;
+      if (k && k !== sec) { clearTimeout(dwell); select(k); }
       const to = def().entry?.(rootOf());
       return to ? focus(to) : undefined;
     };

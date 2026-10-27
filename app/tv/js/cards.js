@@ -75,7 +75,8 @@ export function gameCard(g0, i) {
 export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimary = true, searching = false } = {}) {
   const v = show(g0), g = v.g;
   const pre = g.state === 'pre', shield = v.hidden, choose = !channel && !pre && g.state !== 'post';
-  // more than 3 h before tip-off, or no channel yet: the hub's hero opens the game page (Remind me comes with Reminders)
+  // more than 3 h before tip-off, or no channel yet: the hub's hero opens the game page (Remind me comes with Reminders).
+  // (its primary stays data-act="primary" whatever it says, so focus stays on it when the state changes: hubFar())
   const far = hub && pre && (g.date - Date.now() > 3 * 3600e3 || !channel);
   const post = g.state === 'post';
   const side = (t, right) => `<div class="side${right ? ' r' : ''}" style="${teamVars(t)}">${right ? '' : crest(t, 'lg')}<div${right ? ' style="text-align:right"' : ''}><div class="nm">${esc(t.name)}</div><div class="rc">${recText(t)}</div></div>${right ? crest(t, 'lg') : ''}</div>`;
@@ -97,11 +98,11 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   const d = Math.round((g.date - Date.now()) / 60000);
   if (pre) slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${d > 0 && d < 600 ? `${d} MIN` : hm(g.date)}</span><span class="cap">${nba.stale ? 'Scores unavailable' : `Tip-off ${hm(g.date)}`}</span></div>`;
   else if (post) slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${shield ? 'END' : 'FINAL'}</span><span class="cap">${shield ? 'Score hidden' : nba.stale ? 'Scores unavailable' : g.period > 4 ? 'After overtime' : 'Full time'}</span></div>`;
-  else { const c = /half/i.test(g.detail) ? ['HALF', ''] : [ordinal(g.period), g.clock]; slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${esc(c[0])}</span>${c[1] ? `<span class="big">${esc(c[1])}</span>` : ''}<span class="cap">${shield ? 'Score hidden' : nba.stale ? 'Scores unavailable' : choose ? 'Game clock' : v.synced != null ? 'Live · synced' : 'Live'}</span></div>`; }
+  else { const c = /half/i.test(g.detail) ? ['HALF', ''] : shield && g.period > 4 ? ['LIVE', ''] : [ordinal(g.period), g.clock]; slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${esc(c[0])}</span>${c[1] ? `<span class="big">${esc(c[1])}</span>` : ''}<span class="cap">${shield ? 'Score hidden' : nba.stale ? 'Scores unavailable' : choose ? 'Game clock' : v.synced != null ? 'Live · synced' : 'Live'}</span></div>`; }
   return `<div class="hero-plate"${top ? ` style="top:${top}px"` : ''}>
   <div class="abs row-flex" style="left:24px;top:12px;gap:12px;height:24px">${hub ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${status}</div>
   <div class="mt">${side(g.away)}<div class="sc">${score}</div>${side(g.home, 1)}</div>
-  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px;width:572px"><span class="btn fx" tabindex="-1" data-act="${far ? 'box' : 'primary'}"${channel && !pre ? ' data-hold' : ''}>${primary}</span>${secondary ? `<span class="btn2 fx" tabindex="-1" data-act="${secondary[0]}">${secondary[1]}</span>` : ''}${hub && !shield && !pre ? '<span class="btn2 fx" tabindex="-1" data-act="plays">Plays</span>' : ''}<span class="t-cap clamp2" style="margin-left:4px;line-height:18px;flex:1;min-width:0">${cap}</span></div>
+  <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px;width:572px"><span class="btn fx" tabindex="-1" data-act="primary"${channel && !pre ? ' data-hold' : ''}>${primary}</span>${secondary ? `<span class="btn2 fx" tabindex="-1" data-act="${secondary[0]}">${secondary[1]}</span>` : ''}${hub && !shield && !pre ? '<span class="btn2 fx" tabindex="-1" data-act="plays">Plays</span>' : ''}<span class="t-cap clamp2" style="margin-left:4px;line-height:18px;flex:1;min-width:0">${cap}</span></div>
   <div class="slabbox" style="left:619px;width:243px">${slab}</div>
 </div>`;
 }

@@ -77,7 +77,7 @@ module.exports = function lib({ p, key }) {
       localStorage.setItem(k, JSON.stringify(v));
       if (seen === null) localStorage.removeItem('tuner.nbaSeen');
       else localStorage.setItem('tuner.nbaSeen', JSON.stringify(seen || { upTo: Date.parse('2026-10-25T12:00:00Z'), ids: [] }));
-      localStorage.removeItem('tuner.nbaPins');
+      localStorage.removeItem('tuner.nbaPins'); localStorage.removeItem('tuner.nba:today');
     }, { shield, seen });
     if (pin) await ev(async () => { const t = Date.parse('2026-10-26T01:00:00Z'); await window.Core.cache.set(`nba:pin:${t}`, { at: t, standings: await window.NBA.standings(), teamStats: await window.NBA.teamStats(), leaders: {} }); localStorage.setItem('tuner.nbaPins', JSON.stringify([t])); });
     if (before) await before();

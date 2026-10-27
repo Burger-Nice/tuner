@@ -22,7 +22,8 @@ export const gameById = (id) => nba.today.find((g) => g.id === id) || [...nba.ot
 export const myGame = () => nba.today.find(isMine) || null;
 export const liveGames = () => nba.today.filter((g) => g.state === 'in');
 export const ordinal = (n) => (n <= 4 ? `Q${n}` : n === 5 ? 'OT' : `${n - 4}OT`);
-export const clockText = (g) => (g.state === 'in' ? (/half/i.test(g.detail) ? 'Halftime' : /end of/i.test(g.detail) ? `End ${ordinal(g.period)}` : `${ordinal(g.period)} ${g.clock}`) : g.state === 'post' ? 'Final' : '');
+// (a hidden game in overtime reads 'Live': "OT" would say it was tied)
+export const clockText = (g) => (g.state === 'in' ? (g.period > 4 && hidden(g) ? 'Live' : /half/i.test(g.detail) ? 'Halftime' : /end of/i.test(g.detail) ? `End ${ordinal(g.period)}` : `${ordinal(g.period)} ${g.clock}`) : g.state === 'post' ? 'Final' : '');
 
 function sortGames(list) {
   const rank = (g) => (isMine(g) ? 0 : g.state === 'in' ? 1 : g.state === 'pre' ? 2 : 3);
@@ -52,8 +53,18 @@ export function startNba() {
   if (favTeam()) wantData(`schedule:${favTeam()}`);
   refreshToday();
   sumTick();
-  // in All games mode the last two nights' finals can be unseen too: their scoreboards are needed to know them
-  if (shieldMode() === 'all') setTimeout(() => { dayGames(-1).catch(() => {}); dayGames(-2).catch(() => {}); }, 4000);
+  setTimeout(recentNights, 4000);
+}
+// In All games mode the last three nights' finals can be unseen too (the auto-seen window): their scoreboards are needed
+// to know them. Retried every minute until they come; asked again whenever ESPN's day moves on.
+let nightsT = 0, nightsDay = '';
+async function recentNights() {
+  clearTimeout(nightsT);
+  if (shieldMode() !== 'all') return;
+  nightsDay = nba.todayDay;
+  const r = await Promise.allSettled([-1, -2, -3].map((o) => dayGames(o)));
+  if (r.some((x) => x.status === 'rejected')) nightsT = setTimeout(recentNights, 60000);
+  else emit('nba');
 }
 async function refreshToday() {
   clearTimeout(timer);
@@ -69,7 +80,8 @@ async function refreshToday() {
     nba.todayDay = r.day;
     tipOffs(before);
     prunePins();
-    nba.err = ''; nba.stale = false;
+    if (nightsDay && nightsDay !== r.day) setTimeout(recentNights, 0);
+    nba.err = ''; nba.stale = false; nba.at = Date.now();
     for (const g of nba.today) remember(g);
     store.set(SAVED, { at: Date.now(), day: r.day, games: r.games });
   } catch (e) { nba.err = e.message; }
@@ -86,7 +98,9 @@ function tipOffs(before) {
     if (g.state === 'post' && was && was !== 'post') buzzer(g);
   }
 }
-function buzzer(g) { if (watch.gameId === g.id) markSeen(g.id); }
+// (only while the player is up on it: a tune-in you left earlier stays revealed for this session only)
+function buzzer(g) { if (watch.gameId === g.id && watch.up) markSeen(g.id); }
+on('player-closed', () => { watch.up = false; });
 // Keep a summary's fresher score on the scoreboard entry.
 function merge(g) {
   const s = nba.sums.get(g.id);
@@ -113,8 +127,8 @@ export function dayLabel(offset) {
   const d = nba.todayDay ? new Date(nba.todayDay + 'T12:00:00') : new Date();
   d.setDate(d.getDate() + offset);
   const rel = { '-1': 'Yesterday', 0: 'Today', 1: 'Tomorrow' }[offset];
-  const date = d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-  return rel ? `${rel} · ${d.toLocaleDateString([], { day: 'numeric', month: 'short' })}` : date;
+  const date = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });   // 'Mon 26 Oct'
+  return rel ? `${rel} · ${date}` : date;
 }
 
 // Box scores: fetched every 10 s for the games someone is looking at.
@@ -149,7 +163,7 @@ const lastSeen = new Map();   // gameId -> the channel you last watched it on: i
 export function setWatching(gameId, chId) {
   if (gameId && chId) lastSeen.set(gameId, chId);
   if (watch.gameId && watch.gameId !== gameId) wantSummary(watch.gameId, false);
-  watch.gameId = gameId; watch.chId = chId;
+  watch.gameId = gameId; watch.chId = chId; watch.up = !!gameId;
   if (gameId) { wantSummary(gameId); revealed.add(gameId); }   // watching the game is choosing to see it
   emit('nba');
 }
@@ -188,6 +202,9 @@ on('nba', bump); on('league', bump); on('summary', bump);
 export const shieldMode = () => modeMem || (modeMem = settings().shield || 'off');   // off | mine | all
 // Played: live, or over. ESPN sends a postponed or cancelled game as 'post' without completed (no score): not a result.
 export const played = (g) => g.state === 'in' || (g.state === 'post' && g.final !== false);
+// Maybe played: what airglow has on it may be old (a schedule kept from yesterday, ESPN slow): a game whose tip-off is
+// over 10 min gone counts, under the shield, as a result you haven't seen until a fresh copy says otherwise.
+const maybePlayed = (g) => played(g) || (g.state === 'pre' && Date.now() - g.date > 10 * 60e3);
 // ---------- seen games (design/ui-v1/nba-pages/SPEC.md 8.1) ----------
 // Seen is kept across launches as { upTo, ids }: every game that tipped off before upTo is seen, and ids ([id, tip-off])
 // are the seen games after it. A game becomes seen when you reveal it (a button that names it) or when its final buzzer
@@ -247,7 +264,7 @@ export function knownGames() {
 // The finished (or live) games in the shield's scope you haven't seen, optionally only those with this team, newest first.
 // (worked out once per change: see bump())
 export function unseenFor(abbr) {
-  if (!unseenMem) unseenMem = shieldMode() === 'off' ? [] : knownGames().filter((g) => played(g) && shielded(g) && !isSeen(g)).sort((a, b) => b.date - a.date);
+  if (!unseenMem) unseenMem = shieldMode() === 'off' ? [] : knownGames().filter((g) => maybePlayed(g) && shielded(g) && !isSeen(g)).sort((a, b) => b.date - a.date);
   return abbr ? unseenMem.filter((g) => g.home.abbr === abbr || g.away.abbr === abbr) : unseenMem.slice();
 }
 // A team's record as you may see it: ESPN's, or, when it played a game you haven't seen, counted from the finals you have
@@ -255,6 +272,11 @@ export function unseenFor(abbr) {
 // until it's on hand the record is left out ('').
 export function recordFor(t) {
   const un = unseenFor(t?.abbr);
+  // in the shield's scope, a team whose schedule isn't on hand may have played a game airglow doesn't know about yet
+  if (!un.length && t?.abbr && shielded({ home: t, away: t }) && !peek(`schedule:${t.abbr}`)?.data && shieldMode() !== 'off') {
+    wantData(`schedule:${t.abbr}`);
+    if (!nba.today.some((g) => g.home.abbr === t.abbr || g.away.abbr === t.abbr)) return { text: '', partial: true, hidden: 0 };
+  }
   if (!un.length) return { text: t?.record || '', partial: false, hidden: 0 };
   const d = peek(`schedule:${t.abbr}`)?.data;
   wantData(`schedule:${t.abbr}`);   // (fetches only when it's over 10 min old)
@@ -306,7 +328,7 @@ function prunePins() {
 }
 
 // ---------- news under the shield (SPEC 8.3) ----------
-const RESULT = /\b(win|wins|won|winning|loss|losses|lost|beat|beats|fell|falls|straight|streak|swept|sweep|clinch\w*|rout\w*|upset)\b/i;
+const RESULT = /\b(win|wins|won|winning|loss|losses|lost|beat|beats|beaten|fell|falls|straight|streak|swept|sweep|clinch\w*|rout\w*|upset|defeat\w*|victor\w*|topped|tops|edged|edges|outlast\w*|rall(y|ied|ies)|held off|holds off|blew out|blow out|cruis\w*|dominat\w*|downed|downs)\b/i;
 const SCORE = /\b\d{1,3}\s?[-–]\s?\d{1,3}\b/;
 const namesMem = new Map(), coverMem = new Map();   // per game / per story, for this version (see bump())
 let memVer = -1;
@@ -319,7 +341,13 @@ function namesOf(g) {
   for (const s of [g.home, g.away]) {
     const t = NBA.team(s.abbr);
     if (t) { out.push(t.nameRe); if (t.cityRe) out.push(t.cityRe); }
-    for (const p of peek(`roster:${s.abbr}`)?.data || []) if (p.name) out.push(new RegExp(`\\b${p.name.split(' ').pop().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
+    const roster = peek(`roster:${s.abbr}`)?.data;
+    if (!roster) wantData(`roster:${s.abbr}`);
+    // a player by his surname ("Jr." and the like aren't one)
+    for (const p of roster || []) {
+      const last = p.name?.split(' ').filter((w) => !/^(jr|sr|ii|iii|iv|v)\.?$/i.test(w)).pop();
+      if (last && last.length > 2) out.push(new RegExp(`\\b${last.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'));
+    }
   }
   return out;
 }
@@ -355,7 +383,13 @@ function coverOf(story) {
     // tagged with your team: covered however long ago the game was; with only the opponent: for 72 h after its tip-off
     const mine = favTeam() && teams.includes(favTeam()) && (story.teams?.includes(favTeam()) || story.players?.some((p) => (peek(`roster:${favTeam()}`)?.data || []).some((r) => r.id === p.id)));
     if (tagged && !roundup && story.published >= g.date && (mine || story.published <= g.date + 72 * 3600e3)) return g;
-    if (telling(`${story.headline} ${story.description}`, names)) return g;
+    // tagged with a player while a roster isn't on hand yet: he may be on either team
+    const rostersIn = teams.every((a) => peek(`roster:${a}`)?.data);
+    if (!rostersIn && !roundup && story.players?.length && story.published >= g.date && story.published <= g.date + 72 * 3600e3) return g;
+    const text = `${story.headline} ${story.description}`;
+    // a round-up is covered when its headline or summary names either team or one of their players (SPEC 8.3 rule 3)
+    if (roundup && story.published >= g.date && names.some((re) => re.test(text))) return g;
+    if (telling(text, names)) return g;
     if (!roundup && !tagged && SCORE.test(`${story.headline} ${story.description}`) && shieldMode() === 'all') return g;
   }
   return null;
@@ -365,7 +399,8 @@ export function shieldParagraphs(paras) {
   const un = unseenFor();
   if (!un.length) return paras;
   const names = un.flatMap(namesOf);
-  return paras.map((p) => (telling(p, names) || (shieldMode() === 'all' && SCORE.test(p)) ? null : p));
+  // any score or record in a paragraph hides it (SPEC 8.3), as does a result word near either team or their players
+  return paras.map((p) => (telling(p, names) || SCORE.test(p) ? null : p));
 }
 
 // Turning the shield on hides games you revealed earlier too (the one on your screen stays: you're watching it), and
@@ -373,9 +408,11 @@ export function shieldParagraphs(paras) {
 export const setShield = (m) => {
   if (m !== 'off' && m !== shieldMode()) {
     for (const id of [...revealed]) if (id !== watch.gameId) revealed.delete(id);
-    saveSeen({ upTo: Date.now() - 12 * 3600e3, ids: watch.gameId ? [[watch.gameId, gameById(watch.gameId)?.date || Date.now()]] : [] });
+    // (never later than it was: a stricter mode, or turning it back on, mustn't count anything new as seen)
+    saveSeen({ upTo: Math.min(seenStore().upTo, Date.now() - 12 * 3600e3), ids: watch.gameId ? [[watch.gameId, gameById(watch.gameId)?.date || Date.now()]] : [] });
   }
   saveSettings({ shield: m }); emit('nba');
+  if (m === 'all' && nba.started) recentNights();
 };
 export const shielded = (g) => { const m = shieldMode(); return m === 'all' || (m === 'mine' && isMine(g)); };
 // Hidden: no score, no leaders, no records changing, no winner, no "OT".

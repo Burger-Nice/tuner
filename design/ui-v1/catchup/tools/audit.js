@@ -30,9 +30,10 @@ const { chromium } = require('playwright'); const path = require('path'); const 
     // "Live is in Q2" line, to prove CONTAIN and SPOILER catch them
     if (injectV10) await p.evaluate(() => {
       document.head.insertAdjacentHTML('beforeend', '<style>.state.big.cu-state{width:560px}.nv-tabs.cu-t{gap:6px}.nv-tabs.cu-t span,.nv-tabs.cu-t span.act{padding:0 12px}</style>');
+      const cap = document.querySelector('.hero-btns .clamp2'); if (cap && /Until/.test(cap.textContent)) cap.innerHTML = 'NBA League Pass 4<br>Kept until Thu 29 Oct · late';   // the v1.1 caption
       const pos = document.querySelector('.cu-pos span'); if (pos && document.querySelector('meta[name="shield"]')) pos.textContent = 'Live is in Q2';
     });
-    if (inject) await p.evaluate(() => { if (!document.querySelector('meta[name="shield"]')) return; const s = document.querySelector('.screen'); s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112 · −12:40</div><span class="btn2 f" style="position:absolute;left:600px;top:470px;z-index:30">Reveal score</span>'); });
+    if (inject) await p.evaluate(() => { if (!document.querySelector('meta[name="shield"]')) return; const s = document.querySelector('.screen'); s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112 · −12:40</div><div style="position:absolute;left:300px;top:52px;font:500 16px Inter;color:#F3EFE6;z-index:30">Grizzlies vs Jazz 2026-10-26</div><div style="position:absolute;left:300px;top:74px;font:500 16px Inter;color:#F3EFE6;z-index:30">Jazz 118:112</div><span class="btn2 f" style="position:absolute;left:600px;top:470px;z-index:30">Reveal score</span>'); });
     const r = await p.evaluate(() => {
       const SAFE = { l: 48, r: 912, t: 27, b: 513 }, TOL = 1.5;
       const sel = '.f,.f-ring,.f-in,.lift,.nv-row.f,.field.ring,.vb.f,.thumbf';
@@ -164,6 +165,8 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         const out = Math.max(inner.l - q.left - sc, q.right - inner.r - sc, inner.t - q.top - sc, q.bottom - inner.b - sc);
         if (out > 1) issues.clip.push(`CONTAIN: ${short(c)} "${(c.textContent || '').trim().slice(0, 24)}" pokes ${out.toFixed(0)} px out of ${short(box)}`);
       }
+      // ---- catch-up v1.2: TRUNC, a two-line caption cut by its clamp (the hero caption "Kept until Thu 29 Oct ·…")
+      for (const e of document.querySelectorAll('.clamp2,.clamp3')) { if (e.closest('.rail,.art')) continue; if (e.scrollHeight > e.clientHeight + 1) issues.clip.push(`TRUNC: "${e.textContent.trim().slice(0, 30)}" is cut by its line clamp`); }
       // ---- catch-up: SPOILER on shield mocks (scores, remaining time, OT) outside data-other / data-moment
       if (document.querySelector('meta[name="shield"]')) {
         const vis = (e) => { for (let a = e; a && a !== document.body; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return false; } return true; };
@@ -172,8 +175,14 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         for (let n = walker.nextNode(); n; n = walker.nextNode()) { const host = n.parentElement.closest('[data-other],[data-moment]') ? null : n.parentElement.closest('.plate,.gc,.nb-gt,.x,div,span,b'); if (host && vis(n.parentElement)) runs.set(host, (runs.get(host) || '') + n.textContent); }
         for (const [host, txt0] of runs) {
           // dates are not scores (review S6): drop yyyy-mm-dd, dd.mm.yyyy, mm/dd and the like first
+          // v1.2 (review 2, N2): a provider-style numeric date near the hidden game (ET date − 1 day on) beside a hidden team's name
+          { const raw = txt0.replace(/\s+/g, ' '), et = document.querySelector('meta[name="hidden-et"]')?.content;
+            if (et && /grizzlies|memphis|jazz|utah/i.test(raw)) for (const m of raw.matchAll(/\b(20\d\d)-(\d\d)-(\d\d)\b|\b(\d\d)\.(\d\d)\.(20\d\d)\b/g)) {
+              const d = m[1] ? `${m[1]}-${m[2]}-${m[3]}` : `${m[6]}-${m[5]}-${m[4]}`;
+              if (Date.parse(d) >= Date.parse(et) - 864e5) issues.overlap.push(`SPOILER: a provider title dated ${d}, around the hidden game ("${raw.trim().slice(0, 34)}")`);
+            } }
           const txt = txt0.replace(/\s+/g, ' ').replace(/\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b(?=\s|$|·)/g, ' ');
-          if (/\b\d{2,3}\s?[-–]\s?\d{2,3}\b/.test(txt)) issues.overlap.push(`SPOILER: a score "${txt.trim().slice(0, 30)}" on a shield mock`);
+          if (/\b\d{2,3}\s?[-–]\s?\d{2,3}\b/.test(txt) || /\b(6\d|[7-9]\d|1\d\d)\s?(:|—|–|-|\bto\b)\s?(6\d|[7-9]\d|1\d\d)\b/.test(txt)) issues.overlap.push(`SPOILER: a score "${txt.trim().slice(0, 30)}" on a shield mock`);
           if (/[−-]\d{1,2}:\d\d/.test(txt)) issues.overlap.push(`SPOILER: a remaining time "${txt.trim().slice(0, 30)}" on a shield mock`);
           if (/\bOT\b|\b\dOT\b|overtime/i.test(txt)) issues.overlap.push(`SPOILER: "OT" on a shield mock`);
           // v1.1 (review M3, M5, S9): the live state while you're behind, an end time, minutes left, a result word

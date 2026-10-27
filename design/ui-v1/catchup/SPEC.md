@@ -1,4 +1,4 @@
-# airglow TV: catch-up, v1.1
+# airglow TV: catch-up, v1.2
 
 The design spec for watching past broadcasts: the guide before now, "Watch from tip-off", finished games, replays from the
 provider's Movies when it keeps no archive, and the player's timeline (pause, rewind, skip, back to live). It extends
@@ -28,8 +28,95 @@ nba-pages 8.1, this spec wins.**
 | `catchup.css` | the new CSS |
 | `tools/build.js` | builds every mock from one scenario (so times agree across mocks), and `tools/pages.json` |
 | `tools/render.js` | the PNGs and the contact sheet |
-| `tools/audit.js` | the self-check (section 11): the nba-pages audit plus SPOILER and CONTAIN |
+| `tools/audit.js` | the self-check (section 11): the nba-pages audit plus SPOILER, CONTAIN and TRUNC |
 | `REVIEW-independent.md` | the review of v1.0 (6.3 / 10) that v1.1 answers |
+| `REVIEW-independent-2.md` | the review of v1.1 (7.4 / 10) that v1.2 answers |
+
+## v1.2 changes: an answer to the second review
+
+### Must fix (all six accepted)
+
+**N1. Watching live, then going back to tip-off, kept the session reveal. Accepted.** Opening a replay of a game
+**deletes its session reveal** (`revealed.delete(gameId)`). Watching live first and then `From tip-off` (the flow of
+`player-panel-live` and `player-options-live`) hides it again. 7.2 now keys on `behindReplay(g)` for a game in scope,
+**whatever the session reveal**. In 6.10 and port 10.4; the shield script (10.11) adds this exact flow.
+
+**N2. "Dated from its tip-off on" used the wrong date for late tip-offs. Accepted.** Every date comparison about videos
+uses the game's **US Eastern date** (Mon 26 Oct for a Tue 01:00 UTC tip-off). A title dated from **ET date − 1 day** on
+counts as "from the tip-off on"; only dates two or more days before it keep their title. Written in 3.3 and 5.7. The
+audit checks it: on a shield mock, a numeric provider-style date from 25 Oct on beside a hidden team's name fails
+(`SPOILER: a provider title dated 2026-10-26`).
+
+**N3. The M4 rule stopped at Choose a video. Accepted.** The title rule runs **wherever a movie title or poster is
+drawn while a game is hidden**: Movies (the grid, Recently added), Search, Saved, Continue watching. A hidden name reads
+`Video naming the Grizzlies and the Jazz`, with the neutral no-art tile instead of the poster and no detail page: OK
+opens Choose a video on that row, Play uses the hidden `video` timeline (5.8).
+
+**N4. Chapter state had no margin. Accepted.** Every chapter-based display (line 2 `You're in …`, ticks and labels, the
+chapter row's highlight, the Quarters rows, the skip label, `Stopped in …`) comes from the same
+`airedAt(position) − 90 s` as `asAired`. A chapter may show up to 90 s late, never early (6.4).
+
+**N5. Two clocks still ran on the real final while behind. Accepted.** For a game with `behindReplay`, Home's hero
+hand-over and the ESPN day flip (`refreshToday`) follow **tip-off + 3 h 30**, the LIVE-pill rule, never the
+scoreboard, and in All games mode `sortGames()` ranks it as live (the nit). At tip-off + 3 h 30 the behind row becomes
+the "stopped partway" row (`Resume` · `From tip-off` · `Game page`), without `Back to live`. The 12 h limit only ends
+the row's priority (5.1, 7.2).
+
+**N6. `Not the game?` stored a correction case 1 never applied. Accepted.** The correction is now **`archiveShift` per
+channel** (an account value is the default for channels without one), applied in **both** cases. In case 1 it moves the
+raw panel-time string by whole hours (`2026-10-27:01-00` → `2026-10-27:02-00`) (3.5, 9).
+
+### Should fix
+
+**S1. The first wrong replay still spoiled. Accepted.** Before the first game replay on an account under the shield,
+airglow asks once: `Check that replays line up` / `airglow plays 10 s of BBC One's 20:00 Coastline. Is it Coastline?`.
+`Yes` stores shift 0 as the account default; `No` offers `It's the show before` / `It's the show after` (± 1 h). Then
+it plays the game. One OK, once per account (6.6, 8, 12.4).
+
+**S2. Sync can't measure a 10-minute error. Accepted: the claim is dropped.** `recentClocks()` looks 8 minutes back,
+so a replay Sync only refines `replayDelay`; whole-hour errors are `Not the game?`'s job (3.5, 6.4).
+
+**S3. A re-air's next cell told its length. Accepted.** When the next programme starts inside a matched re-air's drawn
+span (start + 2 h 30), its cell is clipped to the span's end and shows `·` for its start time, in the cell and in its
+Now panel (4.2).
+
+**S4. The score pattern missed separators. Accepted.** `:`, `—` and ` to ` join `-` and `–`, both sides 60 to 199:
+`\b(6\d|[7-9]\d|1\d\d)\s?(:|—|–|-|to)\s?(6\d|[7-9]\d|1\d\d)\b`. No clock time matches (none has both sides at 60 or
+more). The audit uses it; `--inject` now also adds `Jazz 118:112`, and it fails on all 33 shield mocks.
+
+**S5. From a Movies video to the game page. Accepted.** Opening the game page from a video card sets `replayPick` to
+that video, and the shield card's caption names it (`Full game · Memphis feed`) (5.8).
+
+**S6. "An NBA studio show" wasn't defined. Accepted.** A programme on a sports channel from a hidden game's tip-off to
+12 h after its final whose title matches
+`sportscenter|first take|nba today|gametime|inside the nba|the jump|highlights|sports news`. Its On now card says
+`[eye-off] May show results` in place of the channel name (now drawn in `home-replay`, `home-live-tipoff`,
+`home-behind`), and its Now panel shows the line of 4.3.
+
+**S7. `Not the game?` copy. Accepted.** Each row leads with what you can see: `Showing what was on before the game?` /
+`Move the replay 1 hour later`; `Started mid-game, or after it?` / `Move the replay 1 hour earlier`
+(`player-notgame`, redrawn, 420 dp wide, "remembers this for the channel").
+
+**S8. Feasibility notes. Accepted, both.** The seekable live span comes from the live `Timeline.Window`
+(`window.getDurationMs()`, `player.getCurrentLiveOffset()`); there is no `getSeekableRange()` (6.8). On an unseekable
+progressive `.ts` link, airglow **starts from the minute** (up to 59 s early, the safe side) instead of seeking the
+seconds (6.5).
+
+**S9. `Back to live` on the Home hero. Accepted.** The web hero shows the same copy in a `confirmMenu`, with
+`Stay in the replay` focused (5.1).
+
+### Nits (all fixed)
+- `Game` focused: the hint bar reads `OK Game panel` (6.2).
+- `player-connlimit`: `allows 1 stream` comes from `max_connections`; when it's unknown, `Your provider's stream limit
+  is reached` (6.7).
+- One expiry rule: the window starts at the matched programme's own start (01:00), so Jazz is kept to Fri 01:00, read
+  `Thu 29 Oct · late`. Heroes use the short form `Until Thu 29 · late`: the full form was cut by the two-line caption,
+  which the audit's new TRUNC check now catches (`--inject-v10` restores it, and it fails).
+- `Replay ended` also shows at the window's end once the buzzer has played (6.7).
+- `sortGames()` ranks `behindReplay` games as live (N5).
+
+**Self-check v1.2:** 33 pages, 0 findings. New: the wider score pattern (S4), the ET-date title check (N2), and TRUNC
+(a caption cut by its line clamp). Section 11.
 
 ## v1.1 changes: an answer to every review point
 
@@ -91,7 +178,7 @@ are dropped and ▶ is ignored for 800 ms, so a held ▶ that reaches the live p
 
 **M9. Rewinding a channel that isn't kept doesn't work as written. Accepted: option (a).** A channel the provider
 doesn't keep **rewinds only inside the stream's own seekable window**: on HLS, ◀ works inside
-`player.getSeekableRange()` (30 to 60 s on most Xtream panels) and the bar shows that real span (`player-paused-local`,
+the live window's span (30 to 60 s on most Xtream panels; v1.2: from the live `Timeline.Window`, S8) and the bar shows that real span (`player-paused-local`,
 redrawn: `This channel rewinds 45 s`). On a progressive `.ts` stream it **pauses only**; resuming after the buffer has
 run out goes back to live with the toast `Back to live: this channel doesn't rewind`. A local ring cache (option b) is
 a separate milestone, costed in 12.7.
@@ -277,7 +364,7 @@ The mocks use `.f` / `.f-ring` / `.f-in`; the app uses `:focus` on `.fx`. Add:
 |---|---|---|---|
 | **Channel replay** | what a kept channel broadcast | `S.src.catchup(ch, start, end)` (`core.js`): Xtream links (`timeshift/…ts`, `…m3u8`, `timeshift.php`), M3U by its `catchup` mode | any start inside the channel's `archive` days; quarter marks and the as-aired score |
 | **Full-game video** | a video in the provider's Movies named for the game | `catalog.movie`, matched by 3.3 | a file: seek anywhere; no quarter marks |
-| **Live window** | what a live stream lets you seek | HLS `getSeekableRange()` | 30 to 60 s of rewind on a channel that isn't kept (M9) |
+| **Live window** | what a live stream lets you seek | the live `Timeline.Window` (`getDurationMs()`, `getCurrentLiveOffset()`) | 30 to 60 s of rewind on a channel that isn't kept (M9) |
 
 ### 3.2 Which channel carried a game (`replaySources(g)`, cached per game for 1 h)
 
@@ -303,14 +390,16 @@ and, when the table says so, the programme's `has_archive` is 1.
 A video in `catalog.movie` is a **full-game video** of game `g` when:
 - **both teams** are named: `matchScore(name, g) ≥ 10` (nickname or city of each side; `@`, `at`, `vs`, `v` between
   them, either order). `NBA.matchGame` returns a game, not a score, so the port adds `matchScore` beside it;
-- **a date** in the title matches the game's US Eastern or UTC date, within a day: `2026-10-26`, `26.10.2026`,
+- **a date** in the title matches the game's **US Eastern date** (the provider's usual date; Mon 26 Oct for a Tue 01:00
+  UTC tip-off), within a day: `2026-10-26`, `26.10.2026`,
   `26-10-2026`, `10/26/2026`, `10/26`, `26 Oct`, `Oct 26`, with or without the year. With **no date**, only if it was
   added (Xtream `added`) within 3 days after the tip-off and those teams played only once in that window;
 - it isn't **highlights** (`highlights|top plays|recap`).
 
 Then: **condensed** (`condensed|mini|in 20 min`); **feed** (the team whose city, nickname or broadcaster, e.g.
 ESPN's `FDSSE`, `KJZZ`, appears next to `feed|home|away`, or alone); **quality** (the tags `titles.js` strips);
-**language** (the prefix). A category named `NBA`, `Basketball` or `Replays` relaxes the date to 2 days. Matching is in
+**language** (the prefix). **Every date comparison about videos uses the ET date** (v1.2, N2): in 5.7 and 5.8, a
+title dated from ET date − 1 day on counts as "from the tip-off on". A category named `NBA`, `Basketball` or `Replays` relaxes the date to 2 days. Matching is in
 memory, so on a videos-only provider every card can show its mark at once.
 
 ### 3.4 Ranking (what `Watch from tip-off` plays)
@@ -330,12 +419,15 @@ up, on the failure card. The order is owner decision 13.1.
 
 **The clock, in this order:**
 1. **The table's programme**, when the game was matched in it: the link gets that programme's `start` string as the
-   panel wrote it (`2026-10-27 01:00:00` → `2026-10-27:01-00`), with no zone conversion and no `epgShift`. The panel's
-   archive is cut by its own clock, so its own string is the one thing sure to line up.
+   panel wrote it (`2026-10-27 01:00:00` → `2026-10-27:01-00`), with no zone conversion and no `epgShift`, **moved by
+   the channel's `archiveShift` in whole hours** (+1 h → `2026-10-27:02-00`). The panel's archive is cut by its own
+   clock, so its own string is the one thing sure to line up.
 2. **Otherwise** (named channels, M3U, a programme not in the table): ESPN's time in the panel's zone (`acc.tz`) +
-   **`archiveShift`**, a new per-account value (default 0) learnt from `Not the game?` (± 1 h) or a replay Sync that
-   disagrees with the guess by more than 10 min. `catchup()` stops taking `epgShift` off: the guide's offset is a
-   different clock.
+   **`archiveShift`**. `catchup()` stops taking `epgShift` off: the guide's offset is a different clock.
+- **`archiveShift`** (v1.2, N6) is kept **per channel**, with an account value as the default for channels that have
+  none. It is learnt from `Not the game?` (± 1 h) and from the first-replay check (6.6), and applied in both cases.
+  Sync never changes it: `recentClocks()` looks only 8 minutes back, so Sync refines `replayDelay`, it can't find an
+  hour.
 3. **Positions inside the window:** tip-off at `first play wallclock − window start (true time) + replayDelay − 10 s`,
    where the true window start is the guide start + `epgShift` (case 1) or the ESPN-based guess (case 2), and
    `replayDelay` starts at `delayFor(ch) − 20 s` (S7). Without plays: the scheduled tip-off.
@@ -369,6 +461,7 @@ up, on the failure card. The order is owner decision 13.1.
 | Past, nothing this far back | outlined, `No guide this far back` | `OK watches it live` | tunes live | – |
 | Later | as today | times | the details card | as today |
 | Later, a matched re-air of a hidden game (S12) | drawn from its start to start + 2 h 30 | its start only | the details card | as today |
+| Later, the programme after such a re-air, starting inside its drawn span (v1.2, S3) | clipped to the span's end | `·` instead of its start | the details card | its start shown as `·` |
 
 Hold OK still favourites the channel, anywhere in the row.
 
@@ -380,8 +473,11 @@ Hold OK still favourites the channel, anywhere in the row.
   `[eye-off] Description hidden (spoiler shield)`.
 - **A sports programme from a hidden game's tip-off to + 72 h** (S4): its title and description go through `telling()`;
   a match is replaced (`[eye-off] May show last night's results (spoiler shield)` for the description; the title
-  becomes the channel's generic one, `NBA League Pass 4 · studio show`). An NBA studio show on now always gets the line
-  (`live-archive`).
+  becomes the channel's generic one, `NBA League Pass 4 · studio show`).
+- **A studio or news show** (v1.2, S6): a programme on a sports channel from a hidden game's tip-off to 12 h after its
+  final, whose title matches `sportscenter|first take|nba today|gametime|inside the nba|the jump|highlights|sports
+  news`, always gets the line in the Now panel (`live-archive`), and its On now card says `[eye-off] May show results`
+  instead of the channel name (`home-replay`).
 - **Not kept:** `Earlier on ESPN` / `not kept by your provider` / `Kept channels show the history mark under their
   number.` (`live-past-gone`).
 
@@ -418,8 +514,8 @@ These extend nba-pages 7.1; the primary is the entry focus.
 | When | Primary | Secondary | Third | Caption | Slab |
 |---|---|---|---|---|---|
 | Live, not started by you, a replay source exists | `▶ Watch live` (decision 13.7) | `⏮ From tip-off` | `Box score` (shield: `Reveal score`) | moves to the status row: `LIVE · NBA · NBA League Pass 4` (`home-live-tipoff`) | the live clock, as today |
-| **Live, you're behind in a replay** (you left it unfinished) | `▶ Resume` | `Back to live` (shield: the card of 6.7) | `Game page` | moves to the status row | **your position**: `Q1` `8:20` / `You stopped here` (`home-behind`) |
-| **The morning after:** final, hidden, a replay exists | `▶ Watch from tip-off` | `Game page` | – | `NBA League Pass 4` / `Kept until Thu 29 Oct · late`, or `Full game in Movies` / `Memphis feed` | `REPLAY` / `Score hidden` (`home-replay`) |
+| **Live, you're behind in a replay** (you left it unfinished), until tip-off + 3 h 30 | `▶ Resume` | `Back to live` (shield: a `confirmMenu` with the copy of 6.7, `Stay in the replay` focused) | `Game page` | moves to the status row | **your position**: `Q1` `8:20` / `You stopped here` (`home-behind`) |
+| **The morning after:** final, hidden, a replay exists | `▶ Watch from tip-off` | `Game page` | – | `NBA League Pass 4` / `Until Thu 29 · late` (heroes use the short form; it fits the two-line caption), or `Full game in Movies` / `Memphis feed` | `REPLAY` / `Score hidden` (`home-replay`) |
 | Final, hidden, you stopped partway | `▶ Resume` | `⏮ From tip-off` | `Game page` | – | `Q3` `6:41` / `You stopped here` (`home-replay-resume`) |
 | Final, hidden, no replay found yet | `Game page` | – | – | `No replay yet` / `airglow keeps looking` | `END` / `Score hidden` |
 | Final, seen (or shield off), within 12 h, a replay exists | `Box score` | `▶ Watch again` | – | `Final · W 123–112` | `FINAL` / `Full time` |
@@ -429,8 +525,11 @@ These extend nba-pages 7.1; the primary is the entry focus.
   the behind-in-a-replay row) > **your team's last game, hidden, with a replay**, from 30 min after the final until the
   first of: its buzzer has played in a replay or you reveal it; its replay expires; 48 h pass; the next game's 3 h
   window opens > resume > the last channel.
-- **"Behind in a replay"** lasts until the replay's buzzer plays, you reveal, or 12 h pass. During it, for that game
-  (7.2): no live clock anywhere, LIVE pills on the clock, the channel's title held.
+- **"Behind in a replay"** (v1.2, N5) runs on the clock, never the scoreboard: until **tip-off + 3 h 30** it is the
+  behind row and counts as "live" for Home's hero priority; then it becomes the "stopped partway" row (`Resume` ·
+  `From tip-off` · `Game page`, no `Back to live`). It ends when the replay's buzzer plays or you reveal; the 12 h limit
+  only ends the row's priority. During it, for that game (7.2): no live clock anywhere, LIVE pills on the clock, the
+  channel's title held, the ESPN day held.
 - Records stay `recordFor` (partial with the eye-off) on heroes and the team header.
 
 ### 5.2 Continue watching
@@ -489,7 +588,8 @@ cards under the menu aren't focusable while it is open (the menu is a layer), so
 - You reach it from `game-noreplay` (nothing matched) or the sheet. It lists every video naming either team, newest
   first. Up to 40 rows; the list scrolls.
 - **The shield rule (M4), whatever the scope:** a title naming either team of a hidden game, or one of their players,
-  that is undated or dated from its tip-off on, goes through `telling()` + the score pattern of S6 +
+  that is undated or dated from **ET date − 1 day** on (v1.2, N2: providers date by the US date, so a Tue 01:00 UTC
+  game's videos say `2026-10-26`), goes through `telling()` + the score pattern of S4 (v1.2) +
   `OT|2OT|overtime|W |L |win|beat|lost`. If anything matches, or the title can't be read with certainty, the row reads
   `Video naming the Grizzlies and the Jazz` / `added Tue 27 Oct 08:14 · 1080p` / `Name hidden` with the eye-off as its
   icon. Videos dated before the tip-off (a preview, a game you've seen) keep their title.
@@ -502,6 +602,12 @@ A video matched to a hidden game:
 - **OK opens the game page**, never the movie detail page (whose duration, rating, plot, backdrop and More like this,
   full of other copies of the game, would all tell).
 - **Play** from anywhere uses the `video` timeline (6.3), progress under `rp:<gameId>`.
+- **Opening the game page from a video** sets `replayPick` to that video, and the shield card's caption names it
+  (`Full game · Memphis feed`), so `Watch from tip-off` plays what he chose (v1.2, S5).
+- **Unmatched videos too** (v1.2, N3): wherever a movie title or poster is drawn while a game is hidden (Movies' grid
+  and Recently added, Search, Saved, Continue watching), the title rule of 5.7 runs. A hidden name reads `Video naming
+  the Grizzlies and the Jazz`, with the neutral no-art tile instead of the poster and no detail page: OK opens Choose a
+  video on that row; Play uses the hidden `video` timeline.
 - When the game is seen, the video goes back to the provider's title, poster and detail page.
 
 ## 6. The player (native: `PlayerActivity`, `VodControls`, `GamePanel`, `Ui`)
@@ -534,7 +640,7 @@ A video matched to a hidden game:
 | Chapter ticks | 2 x 14 dp `text-2` at each chapter start: Tip-off, Q2, Half, Q3, Q4; OT only once **played** |
 | Chapter row | 24 high: labels Inter 500 14 `text-3` centred on their ticks; the chapter you're in chalk 650. Ends: elapsed `34:10` and remaining `−25:50` (programmes, movies), or `[eye-off] End hidden` (a hidden game) |
 | Scrubbing | the bubble above the bar (chalk, ink 700 15/20), centred on the thumb: `Q3 · 1:12:00`; **never a chapter past Q4** (M7); the speed chip `▶▶ ×8` beside it |
-| Hint bar | `OK Pause · ◀ ▶ 10 s, hold for faster · ▲ Buttons · ▼ Options · Back Hide`; on the buttons it names what OK does (`OK Skip to Q3`) |
+| Hint bar | `OK Pause · ◀ ▶ 10 s, hold for faster · ▲ Buttons · ▼ Options · Back Hide`; on the buttons it names what OK does (`OK Skip to Q3`, and `OK Game panel` on the `Game` glyph) |
 | Hides | after 4 s while playing; never while paused |
 
 ### 6.3 Buttons, per kind
@@ -562,12 +668,15 @@ Q3 `Skip to Q4`. **From Q4 on there is none, shield or not.** It lands 10 s befo
   game.
 - **"Reached" means played** (M7): a chapter counts when the **played** position passes it; a scrub, a seek or the thumb
   never does. OT ticks and rows appear only once played.
+- **The same margin for every chapter display** (v1.2, N4): line 2 (`You're in …`), the ticks and labels, the chapter
+  row's highlight, the Quarters rows, the skip label and Continue watching's `Stopped in …` all read the chapter at
+  `airedAt(position) − 90 s`, the same time `asAired` uses. A chapter may show up to 90 s late, never early.
 - **Seen:** when the played position passes the buzzer (the last play's wallclock) + 2 min, the replay calls
   `markSeen`. **Nothing in the player changes at that moment**: `Score hidden` stays until you leave or the window
   ends; the box score appears the next time the panel opens.
 - **Videos** have no chapters: no ticks, no skip; seen when playback reaches the video's last 2 %.
 - **Sync** in a replay passes the replay's aired time as `seenAt` to `recentClocks()` and stores `replayDelay` for the
-  channel (S7). A Sync that moves the guess by more than 10 min updates `archiveShift` instead (3.5).
+  channel (S7). It never changes `archiveShift` (v1.2, S2: its clock list covers 8 minutes, so it can't see an hour).
 
 ### 6.5 Seeking (M10)
 
@@ -576,7 +685,7 @@ Q3 `Skip to Q4`. **From Q4 on there is none, shield or not.** It lands 10 s befo
 | Taps (◀▶, ±1m, skip) | coalesce: one request 600 ms after the last press; the thumb moves at once |
 | A scrub (held ◀▶) | moves only the thumb and the bubble; one request on release |
 | Inside what is buffered | a local seek, no request |
-| The link | replays try the `.m3u8` link first (usually a VOD playlist that seeks), then `.ts` / `timeshift.php`. A `.ts` link is minute-granular: ask from the minute, then seek the seconds locally |
+| The link | replays try the `.m3u8` link first (usually a VOD playlist that seeks), then `.ts` / `timeshift.php`. A `.ts` link is minute-granular and often unseekable: **start from the minute** (up to 59 s early, the safe side), never seek the seconds inside it (v1.2, S8) |
 | Each new request | the old stream is released first (`player.stop()`), then the new link is asked for; the reconnect spinner (no text) shows after 1 s |
 | Connection limit (403, "max connections") | `player-connlimit`: `Your provider allows 1 stream` / `Close it on your other devices, or wait a few seconds. Trying again in 5 s.` / `Try again now`; retries by itself 3 times |
 | A video past its end (M5) | a scrub can run on to the end of the bar; on release past the real end it jumps to the last 5 s |
@@ -590,9 +699,16 @@ Q3 `Skip to Q4`. **From Q4 on there is none, shield or not.** It lands 10 s befo
 | A game replay (`player-replay-options`) | **`Game panel`** · **`Other sources (3)`** · **`Not the game?`** · `Sync score` · Subtitles · Audio · Picture size |
 | A kept programme | Subtitles · Audio · Picture size · Speed |
 
-**`Not the game?`** (`player-notgame`): `If the replay starts on the wrong show, move it. airglow remembers this for your
-provider.` / `Go 1 hour later` (`It shows what was on before the game`) / `Go 1 hour earlier` (`It starts mid-game, or
-after the game`) / `Other sources`. OK moves the window by an hour, restarts at tip-off and stores `archiveShift ± 1 h`.
+**`Not the game?`** (`player-notgame`, 420 dp, v1.2 copy): `If the replay starts on the wrong show, move it. airglow
+remembers this for the channel.` / `Showing what was on before the game?` (`Move the replay 1 hour later`) / `Started
+mid-game, or after it?` (`Move the replay 1 hour earlier`) / `Other sources`. OK moves the window by an hour, restarts at
+tip-off and stores the channel's `archiveShift ± 1 h` (3.5).
+
+**The first-replay check** (v1.2, S1): before the first game replay on an account with the shield on, airglow asks once,
+as a native card: `Check that replays line up` / `airglow plays 10 s of BBC One's 20:00 Coastline. Is it Coastline?` /
+`Yes` (focused) · `It's the show before` · `It's the show after`. It uses the most recent finished programme with a
+known start on a kept non-sports channel, so it can never show a score. `Yes` stores 0 as the account's
+`archiveShift`; the others store ∓ 1 h. Then the game plays. Account > Provider > `Try a replay` runs it again.
 
 ### 6.7 Cards
 
@@ -600,19 +716,19 @@ after the game`) / `Other sources`. OK moves the window by an hour, restarts at 
 |---|---|---|---|
 | **Going live may show the score** (`player-golive`) | under the shield, `Back to live` in a hidden game's replay, **always** (S1) | `Going live may show the score` / `NBA League Pass 4 is live now. Your replay stays where you left it.` / `Stay in the replay` · `Go live` | **Stay**; Back stays |
 | **The replay didn't start** (`player-replay-failed`) | every link of a channel replay failed | `This replay didn't start` / `NBA League Pass 4's replay didn't start.` / the next source as a row / `Try again`, `Back closes` | the next source |
-| **One stream** (`player-connlimit`) | the provider answered "max connections" | 6.5 | Try again now |
+| **One stream** (`player-connlimit`) | the provider answered "max connections" | 6.5; the number comes from the login's `max_connections`, and when it's unknown the title is `Your provider's stream limit is reached` | Try again now |
 | **Not ready yet** | rewind or `From tip-off` within the last minutes, and the archive answers 404 | `The last few minutes aren't in the replay yet` / `Try again in a minute` / `Back to live` | Back to live |
 | **The video didn't start** | a video failed | as the replay card, with the next source | the next source |
 | **Every source failed** | nothing left | `Grizzlies at Jazz didn't start from any source` / `Choose a video` · `Game page` · `Back closes` | Choose a video |
 | **Up next** (programmes) | the last 10 s of a kept programme | `Next on BBC One · 21:00 Night Circuit` (titles through `telling()` the morning after, S4) | – |
-| **Replay ended** | the window's end, after up to two silent 60-min extensions without reaching the buzzer (M6.4) | `Replay ended` / `Box score` · `Watch again` (or `Reveal` naming the game, if still hidden) | Box score |
+| **Replay ended** | the window's end: once the buzzer has played, or after up to two silent 60-min extensions without reaching it (M6.4) | `Replay ended` / `Box score` · `Watch again` (or `Reveal` naming the game, if still hidden) | Box score |
 
 ### 6.8 Pause and rewind live TV (M9)
 
 - **Kept channel** (`player-paused`): pausing keeps the live link paused while its buffer holds. Seeking back past the
   buffer, or resuming after it ran out, switches to a channel replay from that moment (3.5). The bar is the programme,
   the live point and how far behind you are; `Back to live` returns to the live link.
-- **Not kept, HLS** (`player-paused-local`): ◀ and `−10` work inside `getSeekableRange()`; the bar is that span
+- **Not kept, HLS** (`player-paused-local`): ◀ and `−10` work inside the live window (`Timeline.Window`: its `getDurationMs()` and `player.getCurrentLiveOffset()`; v1.2, S8); the bar is that span
   (`45 s ago` to LIVE); `This channel rewinds 45 s`.
 - **Not kept, progressive `.ts`**: pause only. Resuming after the buffer has run out goes back to live with the toast
   `Back to live: this channel doesn't rewind`.
@@ -636,10 +752,14 @@ after the game`) / `Other sources`. OK moves the window by an hour, restarts at 
 `games.js` gets `replay = { gameId, chId, kind, windowStart, played, airedAt }`, set by the player's `position` events.
 - It **never** calls `setWatching` or `revealed.add`; a replay reveals nothing, not even for the session (overrides
   nba-pages 8.1).
-- `watch` stays for live watching only. Opening a replay clears `watch` for that game.
+- `watch` stays for live watching only. Opening a replay clears `watch` for that game **and deletes its session reveal**
+  (`revealed.delete(gameId)`, v1.2, N1): watching live first, then `From tip-off` (`player-panel-live`,
+  `player-options-live`), hides the game again.
 - `buzzer(g)` marks seen only when `watch.gameId === g.id` **and** the player is at the live point (no replay open for
   that game).
-- `behindReplay(g)` is true while a replay of a live or recent game is unfinished; it drives 5.1, 5.3 and 7.2.
+- `behindReplay(g)` is true while a replay of a live or recent game is unfinished; it drives 5.1, 5.3 and 7.2. Until
+  tip-off + 3 h 30 such a game counts as live for Home's hero, the ESPN day (`refreshToday` doesn't move "today" past
+  it) and `sortGames()` (v1.2, N5).
 
 ### 6.11 One connection
 
@@ -673,12 +793,14 @@ Scope, seen and Reveal are nba-pages 8.1, except: **a replay never reveals, not 
 
 ### 7.2 Outside the player while you're behind in a replay (M3)
 
-While `behindReplay(g)` and `g` is hidden:
+While `behindReplay(g)` for a game in scope, **whatever its session reveal** (v1.2, N1):
 - **That game's** hero, card and Live-games row show `You're in Q1`, never the live clock; the slab shows your position.
 - **The LIVE pills** for that game (top-bar NBA tab, hero, card) follow the clock: shown from tip-off to tip-off + 3 h 30,
   whatever the game does, so their going away tells nothing.
 - **The channel's on-now title** (On now card, guide cell and Now panel, banner) is the game's own (`NBA: Grizzlies at
   Jazz`) from tip-off to tip-off + 3 h 30, never the post-game show's.
+- **The clocks around it** (v1.2, N5): Home's hero hand-over, the ESPN day (`refreshToday`), `Tonight's games` and the
+  hub's Today, and `sortGames()` treat the game as live until tip-off + 3 h 30, never by the scoreboard.
 - Other games keep the My team rule (their scores show).
 
 **With the shield off** nothing is hidden, and a replay still never shows the box score ahead of the moment you're
@@ -689,7 +811,8 @@ watching: a replay is watched as if live.
 | State | What shows | Focus |
 |---|---|---|
 | No archive, no matching video | no marks; the "no replay found yet" hero row; the game page says so (`game-noreplay`) | Look again |
-| The replay landed on the wrong show | `Not the game?` in Options (`player-notgame`); the correction is kept per account | Go 1 hour later |
+| The first game replay on an account | the first-replay check (6.6) | Yes |
+| The replay landed on the wrong show | `Not the game?` in Options (`player-notgame`); the correction is kept per channel | the first row |
 | The archive fails, the video fails, every source fails, one stream, not ready yet | the cards of 6.7 | per 6.7 |
 | The window ends before the buzzer | up to two silent 60-min extensions, then `Replay ended` | Box score |
 | A replay expired | the mark goes; a hidden game's card says `The channel replay expired Thu 29 Oct · late` when nothing else is left | – |
@@ -711,7 +834,7 @@ watching: a replay is watched as if live.
 | Past programmes | `get_simple_data_table`, lazily per kept row | `has_archive`, raw `start` |
 | Tip-off, chapters, buzzer, as aired | ESPN summary plays, `wallclock` (`at`) | fetched when a replay starts; read only through `asAired` |
 | Delays | `delayFor(ch)` (live), new `replayDelay[ch]` (replays) | `replayDelay` starts at `delayFor − 20 s` |
-| Clock correction | new `archiveShift` per account | `Not the game?`, a replay Sync |
+| Clock correction | new `archiveShift` per channel, with an account default | `Not the game?`, the first-replay check; applied in both cases of 3.5 (v1.2, N6) |
 | Seen | `markSeen` from the replay's played buzzer + 2 min | `{ upTo, ids }` |
 | The replay | new `replay` state (6.10) | never `watch` / `revealed` |
 | Watched on | new `nbaWatchedOn` `{ gameId: chId }`, persisted | replaces in-memory `lastSeen` for 3.2 |
@@ -730,17 +853,19 @@ watching: a replay is watched as if live.
 4. **`games.js`:**
    - `matchScore(text, g)` beside `NBA.matchGame`;
    - `replaySources(g)` (3.2 to 3.4), `nbaWatchedOn`, `replayPick`;
-   - **the `replay` state** (6.10): no `setWatching`, no `revealed.add`; `buzzer()` only at the live point;
-     `behindReplay(g)`;
-   - **`asAired(g, wallclock)`** and the chapter list from plays;
+   - **the `replay` state** (6.10): no `setWatching`, no `revealed.add`, and `revealed.delete` when a replay opens;
+     `buzzer()` only at the live point; `behindReplay(g)`, which also holds `refreshToday` and `sortGames()` to the
+     clock (N5);
+   - **`asAired(g, wallclock)`** and the chapter list from plays, both read at `airedAt(position) − 90 s` (N4);
    - seen from the played buzzer + 2 min; `replayDelay`; `archiveShift`;
-   - the morning-after hero rule; the text masks (S6, M4).
+   - the morning-after hero rule; the text masks (S4's score pattern, M4's title rule with ET dates, N2); the studio-show
+     pattern (S6).
 5. **`cards.js`:** the hero rows of 5.1 (with behind-in-a-replay); `⟲ Replay`; hidden cards drop records; `You're in
    Q1` on that game's card; LIVE pills on the clock (7.2); the replay card for Continue watching.
 6. **`game.js`:** the tab-row buttons and the shield cards of 5.5; the entry fix (never Reveal).
 7. **Team page tiles:** the mark; the hold-OK rows. **`ui.js` `contextMenu()`:** the placement rule of 5.4.
-8. **Sheets:** the sources sheet (5.6), Choose a video with the M4 rule (5.7). **Movies / Search / Continue watching:**
-   5.8 (the game page instead of the detail page).
+8. **Sheets:** the sources sheet (5.6), Choose a video with the M4 rule (5.7). **Movies / Search / Saved / Continue
+   watching:** 5.8, for matched **and** unmatched videos (N3); a video card opening the game page sets `replayPick` (S5).
 9. **`player.js` → native:** a `replay` command (`{ kind, links, windowStart, windowMs, startAt, chapters, buzzerAt, live,
    hidden }`); events `position` (played and aired time), `seen`, `source-failed`, `conn-limit`; **during a replay the
    `meta` / `game` commands carry `asAired` data only**.
@@ -751,7 +876,8 @@ watching: a replay is watched as if live.
 11. **`tests/tv/drive.js` scripts:** the guide to the archive edge and Back to now; OK on each cell kind; the
     morning-after hero; **a shield script** that walks every surface of section 7, in and out of a replay behind live,
     and fails on any score, remaining time, end time, OT, result word or live state of the hidden game (the audit's
-    SPOILER rule, run on the app); a seek-flood script (20 taps in 2 s must make one request).
+    SPOILER rule, run on the app), **including the flow watch live → `From tip-off` → leave in Q1 → Home** (N1); a
+    seek-flood script (20 taps in 2 s must make one request).
 
 ## 11. Self-check (`node tools/audit.js`; ring data in `tools/audit-rings.json`)
 
@@ -763,25 +889,38 @@ shield cards, the timeline bar, native panels and cards**); a focused Reveal; pe
 **New in v1.1: CONTAIN.** A control (button, pill, chip, menu row, native row, tab, badge, LIVE pill) whose box pokes
 more than 1 px out of its card, panel, bar or tab row fails (a lifted control may grow by its own lift).
 
-**SPOILER, extended in v1.1.** On a mock marked `<meta name="shield" content="unseen">` (**33 of 33**: every mock is the
-morning after or the live game), after dates are stripped (S6), it fails any visible score (`\d{2,3}–\d{2,3}`), score
+**SPOILER, extended in v1.1 and v1.2.** On a mock marked `<meta name="shield" content="unseen">` (**33 of 33**: every mock is the
+morning after or the live game), after dates are stripped (S6), it fails any visible score (`\d{2,3}–\d{2,3}`, and v1.2's
+`(6\d|[7-9]\d|1\d\d)(:|—|–|-|to)(6\d|[7-9]\d|1\d\d)`, which catches `118:112`, `118 — 112`, `118 to 112`), score
 plate, remaining time (`−m:ss`), `Ends at`, `n min left`, OT spelled any way, a result word (`Final`, `won`, `beat`,
 `W 1…`), and the live state (`Live is in …`), outside an element marked `data-other` (another game, a seen game, a
-programme that isn't the game) or `data-moment` (the score as aired, 6.9).
+programme that isn't the game) or `data-moment` (the score as aired, 6.9). **v1.2, N2:** a numeric provider-style date
+(`2026-10-26`, `26.10.2026`) from the hidden game's ET date − 1 day on, beside a hidden team's name, fails as a
+provider title that could carry the result (`<meta name="hidden-et">`).
+
+**New in v1.2: TRUNC.** A two- or three-line caption (`.clamp2`, `.clamp3`) whose text is cut by its clamp fails. It
+found the hero's `Kept until Thu 29 Oct · ...` caption, cut since the S2 formatter of v1.1.
 
 **Tested by injecting faults:**
-- `node tools/audit.js --inject` adds a score, a remaining time and a focused Reveal to every shield mock: **all 33**
-  fail with `SPOILER: a score`, `SPOILER: a remaining time` and `SHIELD: the focused element is a Reveal`.
+- `node tools/audit.js --inject` adds a score, a remaining time, a focused Reveal, and (v1.2) `Grizzlies vs Jazz
+  2026-10-26` and `Jazz 118:112` to every shield mock: **all 33** fail with `SPOILER: a score` (both forms),
+  `SPOILER: a remaining time`, `SPOILER: a provider title dated 2026-10-26` and `SHIELD: the focused element is a
+  Reveal`.
 - `node tools/audit.js --inject-v10` puts the v1.0 CSS back and the v1.0 line `Live is in Q2`: it reports
   `CONTAIN: .btn.f "Look again" pokes 36 px out of .state.big`, `.btn2 "Reveal Grizzlies at Jazz" pokes 35 px`,
   `.act "Sync" pokes 24 px out of .nv-tabs.cu-t` (the two visual bugs the review found), and `SPOILER: the live state
-  "Live is in Q2"` on the 5 timeline mocks with a position line.
+  "Live is in Q2"` on the 5 timeline mocks with a position line. v1.2: it also restores the v1.1 hero caption, and
+  TRUNC fails it (`"NBA League Pass 4Kept until Th" is cut by its line clamp`).
 
 **Result: 33 pages, 0 findings.**
 
 **Fixed during v1.1, from the audit and the renders:** the two review bugs (M11); a CONTAIN-clean `Not the game?` panel
 (a cut sub-line, shortened); the whole-page `data-other` marking on four mocks was too broad (an injected score passed
 on them), now only their bars and headers are marked.
+
+**Fixed during v1.2:** the hero's expiry caption (TRUNC, now the short form); the studio-show line on On now cards
+first sat in the peek row's sliced edge in `home-replay-resume` (SAFE), now hidden there like the channel name it
+replaces; `Not the game?` widened to 420 dp for the new two-part rows.
 
 | Mock | Focused | Ring white, all sides | Ring box | To the safe edge |
 |---|---|---|---|---|
@@ -807,7 +946,7 @@ on them), now only their bars and headers are marked.
 | player-replay-panel | Q3 row (inset) | 100% | 643, 326, 901, 374 | 11 |
 | player-options-live | Watch from tip-off (inset) | 100% | 59, 132, 377, 180 | 11 |
 | player-replay-options | Not the game? (inset) | 100% | 59, 184, 377, 232 | 11 |
-| player-notgame | Go 1 hour later (inset) | 100% | 59, 124, 397, 172 | 11 |
+| player-notgame | Showing what was on before the game? (inset) | 100% | 59, 124, 457, 172 | 11 |
 | player-golive | Stay in the replay | 100% | 344, 385, 517, 433 | 79.9 |
 | player-replay-failed | the next source (inset) | 100% | 249, 327, 711, 383 | 130 |
 | player-connlimit | Try again now | 100% | 240, 387, 418, 435 | 77.8 |
@@ -832,7 +971,8 @@ tokens, not Java views); contrast over real video; that ESPN's `wallclock` lines
 3. **A window that runs into the future** (from tip-off on a live game): does the panel accept 210 min ending after now
    and play up to the live point? If not, airglow asks again from the current position near the end of what it has.
 4. **The panel's clock:** whether the table's raw `start` string lines up with the archive (3.5 case 1), and how often
-   `archiveShift` is needed. A first replay of a non-game programme with a known start is the test.
+   `archiveShift` is needed, per channel or panel-wide. The first-replay check (6.6) is the test, and it runs before a
+   game replay can go wrong.
 5. **`has_archive` and the table's depth** on this panel.
 6. **"Not ready yet":** how many minutes behind now the archive answers (panels write it in chunks).
 7. **A local ring cache** (the deferred option b of M9): a `CacheDataSource` over a bounded disk cache. At the provider's

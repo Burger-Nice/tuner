@@ -53,10 +53,11 @@ const edge = (a) => `<span class="tedge" style="background:${pal(a).a}"></span>`
 // ---------- time: Reykjavik = UTC ----------
 const T = (s) => Date.parse(s);
 const hm = (t) => { const d = new Date(t); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
-// One formatter for "kept until" (review S2): the archive keeps a replay while its window start (tip-off − 15 min) is
-// inside the channel's days; the end reads with the night rule, as game dates do.
+// One formatter for "kept until" (review S2; v1.2: from the window start, here the programme's own 01:00 start, SPEC 3.5):
+// the archive keeps a replay while its window start is inside the channel's days; the end reads with the night rule.
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const keptUntil = (tip, days) => { const u = tip - 15 * 60e3 + days * 864e5, n = new Date(u - 6 * 3600e3), late = new Date(u).getUTCHours() < 6; return `${DAYS[n.getUTCDay()]} ${n.getUTCDate()} ${MON[n.getUTCMonth()]}${late ? ' · late' : ''}`; };
+const keptUntil = (start, days) => { const u = start + days * 864e5, n = new Date(u - 6 * 3600e3), late = new Date(u).getUTCHours() < 6; return `${DAYS[n.getUTCDay()]} ${n.getUTCDate()} ${MON[n.getUTCMonth()]}${late ? ' · late' : ''}`; };
+const keptShort = (start, days) => keptUntil(start, days).replace(/ (Oct|Nov|Dec|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep)\b/, '');   // heroes: 'Thu 29 · late'
 const JAZZ_KEPT = keptUntil(Date.parse('2026-10-27T01:00:00Z'), 3), KINGS_KEPT = keptUntil(Date.parse('2026-10-26T01:00:00Z'), 3);
 const eyeSm = `<svg class="ic xs" viewBox="0 0 24 24" aria-hidden="true" style="flex:none">${P.eyeOff}</svg>`;
 const partial = (r) => `<span class="nb-rp" style="display:inline-flex;align-items:center;gap:4px">${r}${eyeSm}</span>`;
@@ -69,7 +70,7 @@ function topbar(sel, { nbaLive = false } = {}) {
 const pages = [];
 function page(file, title, body, note, { group = '', shield = false, other = false } = {}) {
   fs.writeFileSync(path.join(root, file), `<!doctype html>
-<html lang="en" class="tv"><head><meta charset="utf-8"><meta name="viewport" content="width=960,height=540"><meta name="mock-size" content="960x540@2">${shield ? '\n<meta name="shield" content="unseen">' : ''}
+<html lang="en" class="tv"><head><meta charset="utf-8"><meta name="viewport" content="width=960,height=540"><meta name="mock-size" content="960x540@2">${shield ? '\n<meta name="shield" content="unseen"><meta name="hidden-et" content="2026-10-26">' : ''}
 <title>${esc(title)}</title>
 <link rel="stylesheet" href="../../../app/tv/brand/fonts.css"><link rel="stylesheet" href="../../../app/tv/brand/tokens.css">
 <link rel="stylesheet" href="../../../app/tv/ui.css"><link rel="stylesheet" href="../../../app/tv/app.css"><link rel="stylesheet" href="../../../app/tv/nba.css"><link rel="stylesheet" href="catchup.css">
@@ -222,8 +223,12 @@ const hidTile = `<span class="shield" style="height:44px;padding:0 12px;font-siz
 const recM = partial('3-0'), recU = partial('1-2');
 // Home rails: row titles at y 278 / 422, cards at 314 / 458 (home.js ROW_TOP)
 const progArt = (seed) => `<div class="art">${Art.art(seed)}</div>`;
+// v1.2 (review 2, S6): a sports studio or news show from a hidden game's tip-off to 12 h after its final may show the
+// result; its card keeps the title and says so instead of the channel name
+const STUDIO = /sportscenter|first take|nba today|gametime|inside the nba|the jump|highlights|sports news/i;
 function onNowCard(c, i, { f = false } = {}) {
-  return `<div class="hc${f ? ' f' : ''}">${progArt(c[3] || c[0])}<div class="hs"></div><div class="tp"><span class="logo sm">${c[2]}</span>${c[4] ? liveP() : ''}<span class="n">${c[1]}</span></div><div class="bt"><b>${esc(c[5])}</b><span>${esc(c[0])}</span></div><div class="prog flush"><i style="width:${c[6]}%"></i></div></div>`;
+  const warn = STUDIO.test(c[5]);
+  return `<div class="hc${f ? ' f' : ''}">${progArt(c[3] || c[0])}<div class="hs"></div><div class="tp"><span class="logo sm">${c[2]}</span>${c[4] ? liveP() : ''}<span class="n">${c[1]}</span></div><div class="bt"><b>${esc(c[5])}</b><span>${warn ? `<span style="display:flex;align-items:center;gap:5px">${eyeSm}May show results</span>` : esc(c[0])}</span></div><div class="prog flush"><i style="width:${c[6]}%"></i></div></div>`;
 }
 const ONNOW = [['US: ESPN HD', 210, 'ES', 'espn', 0, 'SportsCenter', 66], ['Sky Sports Main Event', 402, 'SS', 'sky', 0, 'Sky Sports News', 44], ['BBC One HD', 101, 'BBC', 'bbc', 0, 'Bargain Street', 55], ['CNN International', 115, 'CNN', 'cnn', 0, 'CNN Newsroom', 66], ['Viaplay Sport 1', 431, 'VS', 'via', 0, 'Ligue 1: Lens v Lille', 60]];
 const rail = (title, cards, top, peek) => `<div class="abs rowtitle" style="left:48px;top:${top}px">${title}</div><div class="rail abs${peek ? ' peek' : ''}" style="top:${top + 36}px;left:0;right:0"><div class="track" data-row>${cards}</div></div>`;
@@ -235,7 +240,7 @@ const tonightPeek = () => ['WSH', 'MIN', 'BOS', 'DAL'].map((a, i) => `<div class
 // ---- N1: the morning after, shield on. Home opens on the replay ----
 page('home-replay.html', 'Home: the morning after', `${topbar('home')}${hero({
   label: 1, status: `<span class="t-label t-2">NBA${dot}Mon 26 Oct${dot}late</span>`, ar: recM, hr: recU, score: hidTile,
-  btns: [{ t: 'Watch from tip-off', i: 'play', f: 1 }, { t: 'Game page' }], cap: `NBA League Pass 4<br>Kept until ${JAZZ_KEPT}`,
+  btns: [{ t: 'Watch from tip-off', i: 'play', f: 1 }, { t: 'Game page' }], cap: `NBA League Pass 4<br>Until ${keptShort(Date.parse('2026-10-27T01:00:00Z'), 3)}`,
   slab: '<span class="big">REPLAY</span><span class="cap">Score hidden</span>',
 })}${rail('On now', ONNOW.map((c, i) => onNowCard(c, i)).join(''), 278)}${rail('Tonight\'s games', tonightPeek(), 422, 1)}<div class="edgefade"></div>`,
 '10:40, shield My team. Last night\'s game is unseen and kept, so Home opens on it: Watch from tip-off is focused. No score, no record past the seen games.', { group: 'NBA', shield: true });
@@ -328,7 +333,7 @@ page('choose-video.html', 'Choose a video', `${topbar('nba')}${gameHead({ status
 const srcs = [['hist', 'NBA League Pass 4', 'Channel replay · quarter skips', 'Best'], ['film', 'Full game · Memphis feed', 'Movies · NBA Replays · 1080p'], ['film', 'Full game · Utah feed', 'Movies · NBA Replays · 720p'], ['film', 'Condensed game', 'Movies · NBA Replays'], ['search', 'Choose a video…', 'Every video naming either team']];
 page('sources-sheet.html', 'Where to watch it from', `${topbar('home')}${hero({
   label: 1, status: `<span class="t-label t-2">NBA${dot}Mon 26 Oct${dot}late</span>`, ar: recM, hr: recU, score: hidTile,
-  btns: [{ t: 'Watch from tip-off', i: 'play' }, { t: 'Game page' }], cap: `NBA League Pass 4<br>Kept until ${JAZZ_KEPT}`,
+  btns: [{ t: 'Watch from tip-off', i: 'play' }, { t: 'Game page' }], cap: `NBA League Pass 4<br>Until ${keptShort(Date.parse('2026-10-27T01:00:00Z'), 3)}`,
   slab: '<span class="big">REPLAY</span><span class="cap">Score hidden</span>',
 })}${rail('On now', ONNOW.map((c, i) => onNowCard(c, i)).join(''), 278)}<div class="scrim"></div><div class="sheet cu-srcs"><h3>Watch Grizzlies at Jazz</h3><div class="t-cap" style="margin-top:-6px">From tip-off${dot}Mon 26 Oct · late</div><div data-col style="display:flex;flex-direction:column;gap:2px">${srcs.map(([i0, a, b, s], i) => `<div class="lr${i === 0 ? ' f-ring' : ''}"><span class="ico">${ic(i0)}</span><span class="grow"><span class="a">${esc(a)}</span><span class="b">${esc(b)}</span></span>${s ? `<small>${s}</small>` : ''}</div>`).join('')}</div><div class="t-cap" style="margin-top:auto">Your pick is remembered for this game. The channel replay comes first: it has the quarter skips and the synced score.</div></div>`,
 'Hold OK on Watch from tip-off: every source airglow found, best first and focused. OK plays it from tip-off.', { group: 'NBA', shield: true });
@@ -340,7 +345,7 @@ function teamHead() {
   <div class="nb-plate" style="${tvars('MEM')}">${crest('MEM', 'xl')}<div><div class="loc">Memphis</div><div class="nk">Grizzlies</div></div></div>
   <div class="nb-rec"><div class="big">3-0</div><div><div class="l1">1 result hidden</div><div class="l2 row-flex" style="gap:6px">${eyeSm}Mon, at Jazz</div></div></div>
   <div class="nb-next"><span class="t-label">Next${dot}Thu night 02:00</span><div class="mu">${crest('POR', 's28')}<span>at Trail Blazers</span></div><div class="tv">NBA League Pass</div></div>
-  <div class="nb-btns" data-row><span class="btn" style="transform-origin:0 50%">${ic('play')}Watch from tip-off</span><span class="btn2">Game page</span><span class="t-cap clamp2">NBA League Pass 4<br>Kept until ${JAZZ_KEPT}</span></div>
+  <div class="nb-btns" data-row><span class="btn" style="transform-origin:0 50%">${ic('play')}Watch from tip-off</span><span class="btn2">Game page</span><span class="t-cap clamp2">NBA League Pass 4<br>Until ${keptShort(Date.parse('2026-10-27T01:00:00Z'), 3)}</span></div>
 </div>`;
 }
 const tileG = (d, op, r, { f = false, g = false, next = false, pk = false, other = false } = {}) => `<div class="nb-gt${f ? ' f' : ''}${next ? ' next' : ''}${pk ? ' pk' : ''}"${other ? ' data-other="1"' : ''}><div class="d">${next ? '<span class="n">Next</span><span>Thu 29 · late</span>' : `<span>${d}</span>`}</div><div class="o">${crest(op[0], 's32')}<span>${op[1]}</span></div><div class="r">${r}${g ? `<span class="cu-g">${ic('hist')}</span>` : ''}</div></div>`;
@@ -506,10 +511,10 @@ page('player-panel-live.html', 'Player: game panel, from tip-off', `${video('are
 page('player-replay-options.html', 'Player: Options in a replay', `${video('arena2', 'arena')}<div class="nv-panel left" style="width:340px"><div class="nv-h">Options</div>
   ${orow('score', 'Game panel', 'Quarters and plays, as aired', '')}${orow('film', 'Other sources', 'Full game in Movies, 2 more', '3')}${orow('clock', 'Not the game?', 'It starts on the wrong show', '', { f: 1 })}${orow('refresh', 'Sync score', 'Match the game clock', '22 s')}${orow('cc', 'Subtitles', '', 'Off')}${orow('audio', 'Audio', '', 'English')}${orow('pic', 'Picture size', 'This channel', 'Zoom')}</div>${hint([['OK', 'Open'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
 'v1.1: ▼ in a game replay. Game panel (the panel\'s second way in, M8), Other sources, and Not the game? for a replay that lands on the wrong show (M6).', { group: 'Player', shield: true });
-page('player-notgame.html', 'Player: Not the game?', `${video('studio', 'arena')}<div class="nv-panel left" style="width:360px"><div class="nv-h">Not the game?</div>
-  <div class="t-cap" style="padding:2px 10px 6px">If the replay starts on the wrong show, move it. airglow remembers this for your provider.</div>
-  ${orow('chevR', 'Go 1 hour later', 'It shows what was on before the game', '', { f: 1 })}${orow('chevL', 'Go 1 hour earlier', 'It starts mid-game, or after the game', '')}${orow('film', 'Other sources', 'Full game in Movies, 2 more', '3')}</div>${hint([['OK', 'Move the replay'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
-'v1.1 (review M6): a panel whose clock is an hour off. One OK moves the replay and stores the correction per account (archiveShift), so the next one starts right.', { group: 'Player', shield: true });
+page('player-notgame.html', 'Player: Not the game?', `${video('studio', 'arena')}<div class="nv-panel left" style="width:420px"><div class="nv-h">Not the game?</div>
+  <div class="t-cap" style="padding:2px 10px 6px">If the replay starts on the wrong show, move it. airglow remembers this for the channel.</div>
+  ${orow('chevR', 'Showing what was on before the game?', 'Move the replay 1 hour later', '', { f: 1 })}${orow('chevL', 'Started mid-game, or after it?', 'Move the replay 1 hour earlier', '')}${orow('film', 'Other sources', 'Full game in Movies, 2 more', '3')}</div>${hint([['OK', 'Move the replay'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`,
+'v1.2: each row leads with what you can see, then what it does. One OK moves the replay and stores the correction per channel, applied to every later replay.', { group: 'Player', shield: true });
 // ---- P15: the connection limit (S3) ----
 page('player-connlimit.html', 'Player: one stream at a time', `${video('arena2', 'arena')}<div class="nv-card cu-wide" style="align-items:stretch;gap:12px;padding:18px 18px 14px"><div class="t" style="text-align:left"><b>Your provider allows 1 stream</b><span>Close it on your other devices, or wait a few seconds. Trying again in 5 s.</span></div>
   <div class="row-flex" style="gap:10px;justify-content:space-between"><span class="btn sm f">${ic('refresh', 'sm')}Try again now</span><span class="t-cap">Back closes</span></div></div>`,

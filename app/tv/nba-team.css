@@ -41,3 +41,4 @@ html.rep .tp-b,html.rep .tp-tr,html.rep .tp-roster>.nb-tr{transition:none!import
 .tp-pk.cur{border-color:var(--a-border-strong)}
 .tp-pk.fx:focus{background:var(--a-surface-3);box-shadow:var(--a-focus-ring);z-index:3}
 .tp-body:not(.at-roster) .tp-pill{visibility:hidden}                        /* Sort shows once you're in the roster */
+.tp-tr>.fx.edge:focus{transform-origin:100% 50%}                            /* the card on the right edge lifts inwards, inside x 912 */

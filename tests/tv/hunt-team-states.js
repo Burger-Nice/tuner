@@ -61,6 +61,13 @@ module.exports = async (ctx) => {
   check(!a.none && !a.hid && a.scr === 'nba' && !a.sec, `Down from the chip lands on something in the page (${a.act || a.key || a.text})`);
   check(a.rect[3] <= 513 && a.rect[1] >= 27, `and it's on screen (${a.rect})`);
   await shot(`${sc}-down`);
+  if (sc === 'offseason' || sc === 'empty') {
+    const x0 = a.key || a.act;
+    await key('ArrowUp', 1, 600); const x = await where('up from there');
+    check((x.key || x.act) !== x0 || x.sec, `Up from the first thing below the chip moves (it was ${x0}, now ${x.key || x.act || x.sec})`);
+    await key('ArrowUp', 1, 600); await where('up again');
+    await key('Escape', 1, 500); await key('ArrowDown', 1, 500); a = await where('down again');
+  }
   const path = [];
   for (let i = 0; i < 6; i++) { await key('ArrowDown', 1, 600); const x = await h.act(); path.push(x.key || x.act || x.text.slice(0, 12)); if (x.none || x.hid) { check(false, `focus lost going down (${i})`); break; } }
   console.log('   down path:', path.join(' > '));

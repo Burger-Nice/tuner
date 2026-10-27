@@ -39,7 +39,8 @@ export async function want(key, { force = false } = {}) {
     const saved = await window.Core.cache.get(dbKey(key)).catch(() => null);
     if (saved && Date.now() - saved.at < (KEEP[kind(key)] || 7 * 24 * 60 * MIN)) { hit = { data: saved.data, at: saved.at }; mem.set(key, hit); emit('league', key); }
   }
-  const stale = !hit || force || Date.now() - hit.at > (AGE[kind(key)] || 10 * MIN);
+  // (after a failed try: again a minute later, whatever the copy's age)
+  const stale = !hit || force || Date.now() - hit.at > (AGE[kind(key)] || 10 * MIN) || (hit.err && Date.now() - hit.errAt > 55e3);
   if (!stale || (watching() && hit)) return hit?.data ?? null;
   if (!flight.has(key)) {
     const f = FETCH[kind(key)];
