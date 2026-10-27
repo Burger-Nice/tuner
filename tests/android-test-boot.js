@@ -122,6 +122,57 @@ window.TUNER_TEST = true;
       await press(['BACK'], 'back-to-tab');
       check('back focuses the tab', document.activeElement?.classList.contains('tab'));
 
+      // Catch-up (design/ui-v1/catchup): the native player's side. US: ESPN HD keeps 3 days at the fake provider and carries
+      // LA Clippers at Los Angeles Lakers, live (ESPN's plays are moved to now), so: live Options and the game panel with
+      // Watch from tip-off, live TV paused on the timeline, then the game's replay from tip-off on that channel (the
+      // guide's own call for a past game, watchOnChannel), its timeline bar, a quarter skip, the game panel, Back to live.
+      try {
+        const mod = (m) => import(`./tv/js/${m}.js`);
+        const [{ catalog }, G, RP, PL, GD] = await Promise.all([mod('catalog'), mod('games'), mod('replay'), mod('player'), mod('guide')]);
+        const espn = catalog.live?.items.find((c) => c.archive > 0 && /ESPN/.test(c.name));
+        check('catch-up: the native player speaks the replay protocol', PL.replayNative());
+        await PL.playLive(espn, catalog.live.items, 'All channels');
+        await until(() => state()?.watching && G.watch.gameId, 15000);
+        await wait(3000);
+        const g = G.gameById(G.watch.gameId) || G.gameById('401909851');
+        await press(['DPAD_LEFT'], 'player-catchup-live-options', 800);   // a kept channel with a game: Watch from tip-off focused
+        await press(['BACK'], 'player-catchup-live-options-closed');
+        await press(['DPAD_RIGHT', 'DPAD_DOWN', 'DPAD_DOWN'], 'player-catchup-live-panel', 800);   // the game panel's From tip-off
+        await press(['BACK'], 'player-catchup-live-panel-closed');
+        await press(['MEDIA_PLAY_PAUSE'], 'player-catchup-live-paused', 1500);   // live TV paused, on the timeline
+        await press(['DPAD_UP', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'player-catchup-live-paused-buttons');
+        await press(['DPAD_CENTER'], 'player-catchup-back-to-live', 1500);
+        check('catch-up: still live after Back to live', state()?.watching && PL.ctx.cur?.kind === 'live');
+        // the game's replay from tip-off on ESPN: the programme on at tip-off is the window (case 1 of 3.5)
+        await G.fetchSummary(g.id);
+        const tip = G.chaptersOf(g.id).list.find((c) => c.key === 'tip')?.at || g.date;
+        const table = await GD.pastFor(espn, { urgent: true }).catch(() => []);
+        const prog = table.find((x) => x.start <= tip && x.end > tip) || { start: Math.floor(tip / 3600e3) * 3600e3, end: Math.floor(tip / 3600e3) * 3600e3 + 3 * 3600e3, title: `NBA: ${g.away.name} at ${g.home.name}`, raw: '' };
+        window.__replayTest?.state();
+        await RP.watchOnChannel(g, espn, prog);
+        await until(() => PL.ctx.cur?.kind === 'replay' && window.__replayTest?.state()?.played > 0, 20000);
+        const R = window.__replay?.R;
+        check('catch-up: a game replay started in the native player', !!R && !window.__replay.standIn && PL.ctx.cur?.kind === 'replay' && window.__replayTest?.state()?.played > 0,
+          { kind: R?.kind, tipoffAt: R?.tipoffAt, chapters: (R?.chapters || []).map((c) => `${c.key}@${Math.round(c.at / 1000)}s`).join(' '), link: R?.sources?.[R.source]?.links?.[0]?.url, played: window.__replayTest?.state()?.played });
+        await press(['DPAD_CENTER'], 'player-replay-timeline', 1500);   // OK pauses: the bar stays up (the archive's clip is 30 s long)
+        await press(['DPAD_UP', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'player-replay-skip-focused');
+        const q2 = (R?.chapters || []).find((c) => c.key === 'q2');
+        await press(['DPAD_CENTER'], 'player-replay-skipped', 3000);
+        await until(() => q2 && window.__replayTest?.state()?.played >= q2.at - 15000, 10000);
+        check('catch-up: Skip to Q2 lands 10 s before Q2', !!q2 && Math.abs(window.__replayTest?.state()?.played - (q2.at - 10000)) < 61000, { played: window.__replayTest?.state()?.played, q2: q2?.at });
+        await press(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_CENTER'], 'player-replay-game-panel', 1000);   // the Game button (after Back to live)
+        await press(['DPAD_DOWN', 'DPAD_DOWN'], 'player-replay-panel-quarters');
+        await press(['BACK'], 'player-replay-panel-closed');
+        await press(['DPAD_DOWN'], 'player-replay-options', 800);   // ▼ Options: Game panel, Other sources, Not the game?, Sync score
+        await press(['BACK'], 'player-replay-options-closed');
+        await press(['DPAD_UP', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'player-replay-golive-focused');
+        await press(['DPAD_CENTER'], 'player-replay-back-to-live', 4000);
+        await until(() => PL.ctx.cur?.kind === 'live', 15000);
+        check('catch-up: Back to live tunes the channel live', state()?.watching && PL.ctx.cur?.kind === 'live');
+      } catch (e) { report('error', `catch-up: ${(e && e.stack) || e}`); }
+      for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-catchup-closed-${k + 1}`, 1500);
+      await press(['BACK'], 'back-to-tab-2');
+
       // NBA hub and a game page (each section starts from its tab, so one miss doesn't carry over)
       const tab = async (name) => { window.__tunerTest.go(name); await wait(1500); document.querySelector(`#topbar [data-tab="${name}"]`)?.focus(); };
       await tab('nba');

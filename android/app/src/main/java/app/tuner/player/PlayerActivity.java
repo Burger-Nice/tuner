@@ -715,6 +715,16 @@ public class PlayerActivity extends AppCompatActivity {
         if (!quality.isEmpty()) bTags.addView(withGap(Ui.tag(this, quality, true)));
         if (hdr) bTags.addView(withGap(Ui.tag(this, "HDR", true)));
         if (textTracks > 0) bTags.addView(withGap(Ui.tag(this, "CC", false)));
+        if (keptDays() > 0) {   // a kept channel: the history glyph as a tag (catch-up 6.8)
+            FrameLayout k = new FrameLayout(this);
+            GradientDrawable kb = Ui.round(0xC715131D, 8);
+            kb.setStroke(Math.max(1, Ui.dp(1)), Ui.BORDER_STRONG);
+            k.setBackground(kb);
+            k.addView(Ui.iconView(this, "hist", Ui.T1, 16), new FrameLayout.LayoutParams(Ui.dp(16), Ui.dp(16), Gravity.CENTER));
+            LinearLayout.LayoutParams kl = new LinearLayout.LayoutParams(Ui.dp(30), Ui.dp(22));
+            kl.setMarginEnd(Ui.dp(8));
+            bTags.addView(k, kl);
+        }
         if (m != null && m.optBoolean("live")) bTags.addView(Ui.livePill(this, false));
     }
     private View withGap(TextView t) {
@@ -768,8 +778,11 @@ public class PlayerActivity extends AppCompatActivity {
                     : new String[][] { { "OK", actLabel }, { "◀", "Details" }, { "Back", "Hide" }, { "▲ ▼", "Zap" } };
         else if (tl != null && tlActive() && tl.visible()) h = hintsOn ? tl.hints() : null;
         else if (!live && vod != null && vod.visible()) h = hintsOn ? vod.hints() : null;
-        else if (live && banner.getVisibility() == View.VISIBLE && hintsOn)
+        else if (live && banner.getVisibility() == View.VISIBLE && hintsOn) {
             h = new String[][] { { "OK", "Channels" }, { "◀", "Options" }, { "▶", gameLinked ? "Game" : liveGames.length() > 0 ? "Live games" : "Info" }, { "▲ ▼", "Zap" }, { "Hold OK", "Last" } };
+            // a kept channel, on a remote with ⏯: Pause leads (catch-up 6.8); without it, ◀ Options has Rewind and pause
+            if (keptDays() > 0 && hasPlayPause()) h = new String[][] { { "OK", "Channels" }, { "⏯", "Pause" }, { "◀", "Options" }, { "▶", h[2][1] }, { "▲ ▼", "Zap" } };
+        }
         if (h == null) { hint.setVisibility(View.GONE); hintNow = null; if (open == null && !chipUp && (banner.getVisibility() != View.VISIBLE)) hintsOn = false; return; }
         if (!java.util.Arrays.deepEquals(h, hintNow)) {
             hintNow = h;
@@ -1210,8 +1223,8 @@ public class PlayerActivity extends AppCompatActivity {
         if (tl != null) tl.hide();
         liveGuardUntil = SystemClock.uptimeMillis() + 800;
         if (droppedWhilePaused) { resumeDropped(); return; }
-        player.seekToDefaultPosition();
-        player.play();
+        if (lp.hls()) { player.seekToDefaultPosition(); player.play(); }
+        else { retries = 0; tryNow(); player.play(); }   // a .ts stream can't skip ahead: a fresh connection at the live edge
         showBanner();
     }
     void zapFromPause(int dir) { zap(dir, false); }
@@ -2258,6 +2271,11 @@ public class PlayerActivity extends AppCompatActivity {
     boolean decoderFault() { return rd.decoder > 0; }
     /** The account check (max_connections for the stream-limit card), in the background. */
     boolean online() { return rd.connected; }
+    private Boolean playPauseKey;
+    private boolean hasPlayPause() {
+        if (playPauseKey == null) { try { playPauseKey = android.view.KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); } catch (Exception e) { playPauseKey = false; } }
+        return playPauseKey;
+    }
     /** A replay's link failed with the network gone: the diagnosis card says so (offline, the router, the Wi-Fi). */
     void showOffline() { showCause(Diag.decide(rd, what(), title())); }
     void checkAccount() { if (!apiUrl.isEmpty() && !checkRunning) runChecks(false); }

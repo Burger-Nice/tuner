@@ -42,7 +42,7 @@ final class LivePause implements Timeline.Model {
     void tick() {}
 
     private int keptDays() { return a.keptDays(); }
-    private boolean hls() {
+    boolean hls() {
         androidx.media3.common.Timeline t = p.getCurrentTimeline();
         if (t.isEmpty()) return false;
         t.getWindow(p.getCurrentMediaItemIndex(), w);

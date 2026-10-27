@@ -174,6 +174,7 @@ final class GamePanel extends Overlay {
 
     // ---------- in a replay ----------
     private void refreshReplay() {
+        box.removeAllViews();
         Context c = a;
         Replay r = a.rp;
         JSONObject away = d == null ? null : d.optJSONObject("away"), home = d == null ? null : d.optJSONObject("home");

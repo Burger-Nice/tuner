@@ -35,7 +35,7 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
 (async () => {
   const seen = new Set();
   const start = Date.now();
-  while (Date.now() - start < 840000) {
+  while (Date.now() - start < 1020000) {   // (17 min: the emulator step has 22)
     let reports = [];
     try { reports = await (await fetch('http://127.0.0.1:8899/_reports')).json(); } catch {}
     for (const [i, r] of reports.entries()) {

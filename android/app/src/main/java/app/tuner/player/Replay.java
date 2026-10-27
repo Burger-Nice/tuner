@@ -60,6 +60,7 @@ final class Replay implements Timeline.Model {
     final JSONObject live, programme;
     private JSONObject check;
     private final boolean firstSeenNote;
+    private boolean noteSaved;
 
     // the media
     private long offset;        // where the playing link starts, in the window
@@ -267,6 +268,7 @@ final class Replay implements Timeline.Model {
     void tick() {
         if (opening || checking || waitingLinks) return;
         played = played();
+        if (p.isPlaying() && SystemClock.uptimeMillis() - openedAt > 6000) quickEnds = 0;
         if (p.isPlaying() && ++posTick % 2 == 0) emitPosition();
         if (isGame() && !waitingExt && !ended && played >= windowMs - 1500) windowEnded();
         if (isProgramme() && !onNow() && programme != null && programme.optJSONObject("next") != null) {
@@ -282,8 +284,17 @@ final class Replay implements Timeline.Model {
         TunerPlayerPlugin.emit(e);
     }
     private long openTarget;
+    private int quickEnds;
     void onEnded() {
         if (checking) { p.pause(); return; }
+        // a link that ends as soon as it opens, again: the archive doesn't have this part (yet); stop here, don't loop
+        if (SystemClock.uptimeMillis() - openedAt < 4000 && ++quickEnds >= 3) {
+            quickEnds = 0;
+            p.pause();
+            a.showText(livePos() >= 0 ? "This part isn't in the replay yet" : "The replay stops here", 4000);
+            a.showTimeline();
+            return;
+        }
         long d = p.getDuration(), end = offset + (d != C.TIME_UNSET && d > 0 ? d : p.getCurrentPosition());
         long want = Math.max(openTarget, end);   // where it should go on from: what the link was asked for, or its end
         played = Math.min(want, Math.max(played(), end));
@@ -621,7 +632,7 @@ final class Replay implements Timeline.Model {
             JSONObject k = l == null ? null : l.optJSONObject(Math.min(li, l.length() - 1));
             if (k == null) { linkFailed(0, "error"); return; }
             fromUrl = k.optString("url");
-            play(fromUrl, f, Math.max(f, target >= 0 ? target : f));
+            play(fromUrl, f, f);   // from the minute, up to 59 s early (the safe side), never the seconds inside it (6.5)
             return;
         }
         boolean keep = o.optBoolean("keepPosition");
@@ -763,7 +774,7 @@ final class Replay implements Timeline.Model {
         }
         if (isVideo()) return hidden ? "Seen at the end of the video" : "";
         if (livePos() < 0 && hidden) {
-            if (firstSeenNote) prefs.edit().putBoolean("rpSeenNote", true).apply();
+            if (firstSeenNote && !noteSaved) { noteSaved = true; prefs.edit().putBoolean("rpSeenNote", true).apply(); }
             return firstSeenNote ? "Seen at the final buzzer (the scores show then)" : "Seen at the final buzzer";
         }
         return position();
