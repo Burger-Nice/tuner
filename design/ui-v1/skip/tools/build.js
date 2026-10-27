@@ -40,7 +40,7 @@ const skippedChip = (words, span, left) => `<div class="sk-chip two">${ic('skipB
 // Up next as built (PlayerActivity.showUpNext): ring, "Next episode in N s", the episode, OK play now
 const upNext = (secs, ep) => {
   const off = (94.2 * (1 - secs / 15)).toFixed(1);
-  return `<div class="nv-chip"><svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="none" stroke="#3D3B45" stroke-width="4"/><circle cx="20" cy="20" r="15" fill="none" stroke="#F95BAC" stroke-width="4" stroke-dasharray="94.2" stroke-dashoffset="${off}" transform="rotate(-90 20 20)"/></svg><div class="grow" style="white-space:nowrap;min-width:0"><b>Next episode in ${secs} s</b><span style="overflow:hidden;text-overflow:ellipsis">${esc(ep)}</span></div><div class="sk-keycol"><span>${kbd('OK')}play now</span><span>${kbd('Back')}stop</span></div></div>`;
+  return `<div class="nv-chip"><svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="none" stroke="#3D3B45" stroke-width="4"/><circle cx="20" cy="20" r="15" fill="none" stroke="#F95BAC" stroke-width="4" stroke-dasharray="94.2" stroke-dashoffset="${off}" transform="rotate(-90 20 20)"/></svg><div class="grow" style="white-space:nowrap;min-width:0"><b>Next episode in ${secs} s</b><span style="overflow:hidden;text-overflow:ellipsis">${esc(ep)}</span></div><div class="sk-keycol"><span>${kbd('OK')}play now</span><span>${kbd('Back')}stay here</span></div></div>`;
 };
 
 const pages = [];
@@ -89,16 +89,16 @@ page('player-back-pill.html', 'Back to intro, with the controls up', 'He paused 
 ${hint([['OK', 'Play'], ['◀ ▶', 'Seek 10 s'], ['▲', 'Buttons'], ['▼', 'Options'], ['Back', 'Hide']])}`);
 
 // 4. Skip recap: Lost S2 E1, recap 0:02 to 0:28 (TheIntroDB); now 0:06; the hint bar has gone (after 5 views) and the chip's key cap carries OK
-page('player-recap.html', 'Skip recap', 'Lost S2 E1 at 0:06, the first episode he has watched in weeks, so the recap (0:02 to 0:28) gets the button; after S1 E24 last night it would skip by itself, with the way-back chip. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does.',
+page('player-recap.html', 'Skip recap', 'Lost S2 E1 at 0:06, opened on its own from the series page: a season\'s first episode with no queue before it, so the recap (0:02 to 0:28) gets the button. Reached by Up next from S1\'s finale it would skip by itself, with the way-back chip. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does.',
   `${video('lost-recap', 'forest', 150)}
 ${sub('Previously on Lost', false)}
 ${skipChip('Skip recap', 60)}`);
 
 // 5. Up next at the credits: S1 E1's credits start at 21:28 (TheIntroDB); no speech after it, so the 15 s count starts there
-page('player-upnext-credits.html', 'Up next when the credits start', 'The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it. Up next comes after 1.5 s without a key, counts 15 s and plays the next one. OK plays now (after 0.7 s); Back stops the count and keeps the queue.',
+page('player-upnext-credits.html', 'Up next when the credits start', 'The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it. Up next comes after 1.5 s without a key, counts 15 s and plays the next one. OK plays now (after 0.7 s); Back (stay here) stops the count and keeps the queue. With the controls up the key column goes; the count goes on.',
   `${video('sunny-credits', 'city', 250)}
 ${upNext(13, 'S1 · E2 · Charlie Wants an Abortion')}
-${hint([['OK', 'Play now'], ['Back', 'Stop the timer']])}`);
+${hint([['OK', 'Play now'], ['Back', 'Stay here']])}`);
 
 // 6. The setting, in the player: Options (▼) > Skip intros. Same setting as Account > Playback
 page('player-options-skip.html', 'Intros in this show', 'OK on the Options row. Same as Account (the default) follows Account; a choice made here wins over it; Account\'s Off wins over everything. Recaps follow their own rule (foot).',
@@ -111,7 +111,7 @@ page('player-options-skip.html', 'Intros in this show', 'OK on the Options row. 
 ${hint([['OK', 'Choose'], ['▲ ▼', 'Move'], ['Back', 'Up one level']])}`);
 
 // 7. The one-time offer, after his second Skip intro press in this show (10 s after the way-back chip, well past the intro)
-const offer = (series, left) => `<div class="sk-chip two">${ic('skipFwd')}<div class="tx"><b>Always skip this show's intro?</b><small class="sk-keys">${kbd('OK')}yes<span class="sk-sep"></span>${kbd('Back')}not now</small></div>${drain(left)}</div>`;
+const offer = (series, left) => `<div class="sk-chip two keys">${ic('skipFwd')}<div class="tx"><b>Always skip this show's intro?</b><small class="sk-keys">${kbd('OK')}yes<span class="sk-sep"></span>${kbd('Back')}not now</small></div>${drain(left)}</div>`;
 page('player-offer.html', 'The offer: this show by itself', 'After his Skip intro press in a second episode of the show, 10 s after the way-back chip went (never in an intro). 8 s of playing time. OK yes; Back not now (like letting it run out: asked once more, then never). The explicit No is in ▼ Options.',
   `${video('sunny-bar', 'theatre', 30)}
 ${offer("It's Always Sunny in Philadelphia", 65)}

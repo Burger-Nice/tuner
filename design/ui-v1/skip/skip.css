@@ -1,4 +1,4 @@
-/* airglow TV: Skip intro / recap, and Up next at the credits v1.0 (design/ui-v1/skip/SPEC.md). New classes only, prefix sk-.
+/* airglow TV: Skip intro / recap, and Up next at the credits v1.3 (design/ui-v1/skip/SPEC.md). New classes only, prefix sk-.
    Built on tv/brand/tokens.css + tv/ui.css + tv/app.css (+ the subtitles panel rows). Everything here is a native view
    (PlayerActivity, VodControls, ListPanel), drawn as HTML for measuring: dp = CSS px on the 960 x 540 canvas.
    Colour: pink only for the drain line (progress) and radio dots; no new colours. Only transform and opacity animate. */
@@ -7,7 +7,7 @@
 .sk-chip{position:absolute;right:48px;bottom:64px;height:48px;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;
   border-radius:16px;background:rgba(30,27,40,.94);border:1px solid var(--a-border);z-index:7;overflow:hidden;white-space:nowrap}
 .sk-chip .ic{width:20px;height:20px;color:var(--a-text-1)}
-.sk-chip b{font:700 16px/20px var(--a-font-display);color:var(--a-text-1)}
+.sk-chip b{font:650 16px/20px var(--a-font-text);color:var(--a-text-1)}   /* Inter 650 16, as Up next's and the action chip's titles (chipTitle) */
 .sk-chip .kbd{margin:0 0 0 4px}
 .sk-chip .t-cap{color:var(--a-text-1);margin-left:-4px}
 .sk-chip small{font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
@@ -41,3 +41,5 @@
 .nv-chip .sk-keycol{display:flex;flex-direction:column;gap:4px;flex:none}
 .nv-chip .sk-keycol>span{display:flex!important;align-items:center;gap:6px;font:500 14px/20px var(--a-font-text)!important;color:var(--a-text-1)!important}
 .nv-chip .sk-keycol .kbd{margin:0;height:20px;min-width:44px;justify-content:center}
+.sk-chip.two.keys{height:64px}           /* two-line chips with key caps (the offer): 64 high, so the caps clear the drain line */
+.sk-chip.two.keys .sk-drain{bottom:4px}

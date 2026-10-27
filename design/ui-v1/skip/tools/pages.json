@@ -22,12 +22,12 @@
  {
   "file": "player-recap.html",
   "title": "Skip recap",
-  "note": "Lost S2 E1 at 0:06, the first episode he has watched in weeks, so the recap (0:02 to 0:28) gets the button; after S1 E24 last night it would skip by itself, with the way-back chip. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does."
+  "note": "Lost S2 E1 at 0:06, opened on its own from the series page: a season's first episode with no queue before it, so the recap (0:02 to 0:28) gets the button. Reached by Up next from S1's finale it would skip by itself, with the way-back chip. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does."
  },
  {
   "file": "player-upnext-credits.html",
   "title": "Up next when the credits start",
-  "note": "The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it. Up next comes after 1.5 s without a key, counts 15 s and plays the next one. OK plays now (after 0.7 s); Back stops the count and keeps the queue."
+  "note": "The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it. Up next comes after 1.5 s without a key, counts 15 s and plays the next one. OK plays now (after 0.7 s); Back (stay here) stops the count and keeps the queue. With the controls up the key column goes; the count goes on."
  },
  {
   "file": "player-options-skip.html",
