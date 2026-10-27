@@ -2,13 +2,14 @@
 // This module sends it the channel ring (the group you tuned from), tells it what the player can't know (what's on,
 // the game on this channel at the synced delay, live games, groups, favourites) and acts on what you pick in its panels.
 // It also records where you got to in movies and episodes.
-import { S, settings, emit, on, store, scoped, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
+import { S, settings, emit, on, store, scoped, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings, markWatched } from './state.js';
 import { busy, catalog, versionLabel, pickVersion, forget, ensure, prefLangs } from './catalog.js';
 import { subSettings, subState, forPlayer, prepare, retryNow, subMemory, cancelChecks, checkFor, checkedFor, playable, noteStart } from './subs.js';
 import { NAME_ISO1 } from './subs/lang.js';
 import { providerCopy, rank, copyLine, cutLabel } from './copies.js';
 import { matchTitle } from './imdb.js';
 import { segmentsFor } from './intros.js';
+import { showStore, introMode, offerDue, doubtful, episodeKey, afterSkip, afterChoice, afterLetGo, watchedBefore } from './skipshow.js';
 import { keyOf } from './util.js';
 import { native } from './native.js';
 import { programmeView } from './catchup.js';
@@ -323,9 +324,10 @@ on('subs', (key) => { const it = playingVod(); if (it && subsKey(it) === key) se
 
 // ---------- Skip intro / recap, the credits (design/ui-v1/skip/SPEC.md 9) ----------
 // The item's IMDb id (an add-on item has it; a provider film or episode: its title's match, Sure or Likely), then its
-// segments, sent once per item with the match level, the setting and whether a recap may be skipped by itself (the
-// episode before was watched in the last 3 days). With the setting Off nothing is asked (no network: Up next keeps
-// the subtitle rule). The next episode's are asked for at once, so its recap is known before its first frame.
+// segments, sent once per item with the match level, Account's setting, this show's intro mode and record, and whether a
+// recap may be skipped by itself (the episode before was watched). With Account Off nothing is asked (no network: Up
+// next keeps the subtitle rule); an episode still gets { mode: 'off' } so the player's Options row can say so. The next
+// episode's are asked for at once, so its recap is known before its first frame.
 async function imdbOf(it) {
   const ep = it.kind === 'episode';
   const own = ep ? it.imdbSeries : /^tt\d+$/.test(String(it.id)) ? String(it.id) : '';
@@ -335,34 +337,44 @@ async function imdbOf(it) {
   return m?.id && m.level !== 'unsure' ? { imdb: m.id, level: m.level === 'sure' ? 'sure' : 'likely' } : null;
 }
 const segQuery = (it, imdb) => ({ imdb, ...(it.kind === 'episode' ? { season: +it.season, episode: +it.ep } : {}) });
-// the episode before this one, watched in the last 3 days (S.progress): watched = finished or past 80%; the episode
-// before = the one just before it in this play's queue (a binge: a season's E1 after the last season's finale too),
-// else the same season's previous number. Without either (an E1 started on its own) the recap gets the button.
-const watchedP = (p) => !!p && (p.done || (p.d > 0 && p.t / p.d >= 0.8)) && (p.at || 0) >= Date.now() - 3 * 864e5;
-function watchedBefore(it, prevInQueue) {
-  if (it.kind !== 'episode') return false;
-  if (prevInQueue?.kind === 'episode' && String(prevInQueue.seriesId) === String(it.seriesId)) return watchedP(progressOf(prevInQueue));
-  const S0 = +it.season, E0 = +it.ep;
-  return E0 > 1 && Object.values(S.progress || {}).some((p) => p?.item?.kind === 'episode' && String(p.item.seriesId) === String(it.seriesId)
-    && +p.item.season === S0 && +p.item.ep === E0 - 1 && watchedP(p));
-}
-// what an item's times look like to the player (its id, the times, the match level, the setting, the recap rule)
+// per show (skipshow.js): the choice, the presses counted for the offer, the offers let go, the doubtful mark
+const shows = () => showStore(store, scoped('skipShows'));
+const showKeyOf = (it, imdb) => (it.kind !== 'episode' ? '' : imdb || `sid:${it.seriesId}`);
+const progressList = { of: progressOf, all: () => Object.values(S.progress || {}) };
+// what an item's times look like to the player (9.5): its id, the times (empty when the list has nothing: known false),
+// the match level, Account's setting, the intro mode for this show, the show, and the recap rule
 async function segmentsMsg(it, prev) {
-  const id = await imdbOf(it);
-  if (!id) return null;
-  const seg = await segmentsFor(segQuery(it, id.imdb));
-  return seg ? { id: `${it.kind}:${it.id}`, ...seg, level: id.level, recapAuto: watchedBefore(it, prev), mode: settings().skipIntro || 'button' } : null;
+  const account = settings().skipIntro || 'button';
+  const base = { id: `${it.kind}:${it.id}`, account, intro: [], recap: [], credits: [], preview: [], known: false, level: '' };
+  if (account === 'off') return it.kind === 'episode' ? { ...base, mode: 'off', show: null, recapAuto: false } : null;
+  const id = await imdbOf(it).catch(() => null);
+  const key = showKeyOf(it, id?.imdb), sh = shows().get(key), ek = episodeKey(it);
+  const show = key ? { key, name: seriesOf(it)?.name || it.seriesName || '', episode: ek, choice: sh?.choice || null, offer: offerDue(account, sh, ek), doubtful: doubtful(sh) } : null;
+  const seg = id ? await segmentsFor(segQuery(it, id.imdb)) : null;
+  if (!seg && !show) return null;
+  return { ...base, ...(seg || {}), known: !!seg, level: id?.level || '', mode: introMode(account, sh), show, recapAuto: !show?.doubtful && watchedBefore(it, prev, progressList) };
 }
 async function sendSegments(it) {
-  if (!it || !native?.info?.()?.segments || settings().skipIntro === 'off') return;
+  if (!it || !native?.info?.()?.segments) return;
   const c = ctx.cur, i = c?.items?.indexOf(it) ?? -1;
-  const m = await segmentsMsg(it, i > 0 ? c.items[i - 1] : null);
+  const m = await segmentsMsg(it, i > 0 ? c.items[i - 1] : null).catch(() => null);
   if (m && ctx.cur === c && playingVod() === it) cmd('segments', m);
   // the next one, ahead: sent now under its own id, so a recap at 0:00 is known before its first frame (the player
-  // keeps it for that item; its recap rule is decided again when it starts)
+  // keeps it for that item; its recap rule, recapAuto 'prev', is decided when it starts: the item before it ended or
+  // played past 80%)
   const next = c?.items?.[i + 1];
-  // recapAuto 'prev': the player decides when it starts (this one, the one before it, finished or played past 80%)
-  if (next?.kind === 'episode') segmentsMsg(next, it).then((n) => { if (n && ctx.cur === c) cmd('segments', { ...n, ahead: true, recapAuto: 'prev' }); }).catch(() => {});
+  if (next?.kind === 'episode') segmentsMsg(next, it).then((n) => { if (n && ctx.cur === c) cmd('segments', { ...n, ahead: true, recapAuto: n.show?.doubtful || n.mode === 'off' ? false : 'prev' }); }).catch(() => {});
+}
+// the player's skip events (9.5): a press or a go-back once the way-back chip is over, yes or not now on the offer, a
+// pick in Options > Intros in this show (then the times go again, with the show's new mode)
+function skipEvent(e, c) {
+  const S2 = shows(), name = (it) => seriesOf(it)?.name || it?.seriesName || '';
+  if (e.type === 'skip' && e.show) S2.put(e.show, { ...afterSkip(S2.get(e.show), e), name: name(c.items[e.index]) || S2.get(e.show)?.name || '' });
+  else if (e.type === 'offer' && e.show && e.letGo) S2.put(e.show, afterLetGo(S2.get(e.show)));
+  else if (e.type === 'setting' && e.key === 'skipShow' && e.show) {
+    S2.put(e.show, { ...afterChoice(S2.get(e.show), e.value), name: name(c.items[e.index]) || S2.get(e.show)?.name || '' });
+    sendSegments(playingVod());
+  }
 }
 
 // ---------- Options > Quality: the copies of the film with what their checks found (SPEC 7.7, RANKING.md) ----------
@@ -559,11 +571,19 @@ native?.player.onEvent((e) => {
   } else if (e.type === 'file' && c.kind === 'vod') {   // the file's size and ETag at play start: a changed file is checked again
     const v = c.items[e.index];
     if (v && e.id === `${v.kind}:${v.id}`) noteStart(v, { size: +e.size || 0, etag: e.etag || '' });   // (not a copy handed over to)
+  } else if ((e.type === 'skip' || e.type === 'offer') && c.kind === 'vod') {
+    skipEvent(e, c);
+  } else if (e.type === 'watched' && c.kind === 'vod') {   // Up next moved on (OK, its count, the end card): the episode it leaves (5.1)
+    const it = c.items[e.index];
+    if (it) markWatched(it);
+  } else if (e.type === 'skip-state') {
+    window.__skip = { state: e.state, at: Date.now() };   // (the emulator test reads it)
   } else if (e.type === 'progress' && c.kind === 'vod') {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {
     if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
     if (e.key === 'skipIntro' && ['button', 'auto', 'off'].includes(e.value)) saveSettings({ skipIntro: e.value });   // (the player's Options > Skip intros)
+    if (e.key === 'skipShow' && c.kind === 'vod') skipEvent(e, c);   // (Options > Intros in this show, the offer's yes)
     if (e.key === 'sub') { const n = subName(String(e.value)); if (n) saveSettings({ subLang: n }); }   // picked in the player: the same choice everywhere (a language the app doesn't list stays the player's own)
     // subtitles: his Early or late steps (each saved as he makes it) and his pick, per title (PORT-NATIVE.md 2.4)
     if (e.key === 'subtime' && e.title) { const it = playingVod(); const sr = it && seriesOf(it); subMemory()?.setOffset(e.title, e.copy || '', e.sub, +e.value || 0, { series: sr ? keyOf(sr) : undefined, release: e.release }); }

@@ -53,6 +53,7 @@ function body() {
       ${row('skip', 'Skip intros and recaps', more({ auto: 'Skip by itself', off: 'Off' }[s.skipIntro] || 'Show a button'), 'In series, from TheIntroDB')}
       ${row('format', 'Stream format', more(s.liveFormat === 'ts' ? 'Transport stream' : 'HLS'), 'Try the other one if a channel stutters')}
       ${row('ua', 'User agent', more(s.ua || 'Default'), 'Some providers only answer known players')}
+      <div class="t-cap" style="margin-top:4px">Recaps skip by themselves when you just watched the episode before. A show can have its own choice for intros: press ▼ in an episode.</div>
       <div class="t-cap" style="margin-top:4px">Subtitles, audio, picture size and Match frame rate are in the player: press ▼ in a movie.</div>`;
   }
   if (group === 'sound') {
