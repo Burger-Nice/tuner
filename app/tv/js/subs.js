@@ -209,7 +209,10 @@ export async function prepare(req, { again = false } = {}) {
   if (reqs.size > 30) reqs.delete(reqs.keys().next().value);
   const prefs = subSettings();
   // a language picked in the player's Other languages is fetched for this title too (after his own)
-  if (req.alsoLang && !prefs.langs.includes(req.alsoLang)) prefs.langs = [...prefs.langs, req.alsoLang];
+  // (his kept pick counts too, so it's fetched again after a restart)
+  const kept = subMemory()?.pick(req.key);
+  const also = req.alsoLang || (kept?.source === 'opensubtitles' && kept.lang && !prefs.langs.includes(kept.lang) ? kept.lang : '');
+  if (also && !prefs.langs.includes(also)) prefs.langs = [...prefs.langs, also];
   const v = req.version || null;
   const entry = v ? checkFor(v) : null;
   const checked = checkedOf(entry);
@@ -229,8 +232,9 @@ export async function prepare(req, { again = false } = {}) {
   if (stale()) return states.get(req.key) || null;
   if (!list.ok && !list.stale) { const st = put(finish({ ...base, status: 'down', retryAt: list.retryAt || 0, triedAt: Date.now(), choice: choose(prefs, copy, []) })); retryLater(st); return st; }
   const files = list.ok ? list.files : list.stale;
-  const ctx = { copyFps: checked?.fps || 0, copyLen: checked?.len || 0, pairCache: new Map() };
+  const ctx = { copyFps: checked?.fps || 0, copyLen: checked?.len || 0, pairCache: new Map(), also };
   const got = new Map(), tried = new Set();   // id -> a downloaded file with its cues
+  let down = 0;
   // up to 3 rounds: a file that fails to parse, is in another language or is off against an anchor is skipped and the
   // next one is tried
   for (let round = 0; round < 3; round++) {
@@ -239,7 +243,8 @@ export async function prepare(req, { again = false } = {}) {
     todo.forEach((f) => tried.add(f.id));
     await Promise.all(todo.map(async (f) => {
       const p = await getFile(f);
-      if (!p || !p.cues.length) { f.dropped = 'parse'; return; }
+      if (!p) { f.dropped = 'down'; down++; return; }   // (the download failed: not the file's fault)
+      if (!p.cues.length) { f.dropped = 'parse'; return; }
       f.cues = p.cues; f.format = p.format;
       f.sounds = hasSounds(f.fileName, p.cues); f.soundsShare = soundsShare(p.cues);
       const lv = langVerdict(p.cues, f.lang);
@@ -256,8 +261,13 @@ export async function prepare(req, { again = false } = {}) {
     }
   }
   if (stale()) return states.get(req.key) || null;
+  const failedNow = files.filter((f) => f.dropped === 'down');
+  const unfail = () => failedNow.forEach((f) => delete f.dropped);   // (a failed download is tried again next time)
+  // every download failed: OpenSubtitles' files aren't answering, which isn't "none" (tried again in a minute)
+  if (down && !got.size) { unfail(); const st = put(finish({ ...base, status: 'down', retryAt: Date.now() + 60e3, triedAt: Date.now(), choice: choose(prefs, copy, []) })); retryLater(st); return st; }
   const choice = choose(prefs, copy, files.filter((f) => !f.dropped), ctx);
   const others = [...new Set(files.filter((f) => !f.dropped && f.lang && !prefs.langs.includes(f.lang)).map((f) => f.lang))];
+  unfail();
   const anyMine = choice.perLang.some((p) => p.source);
   const st = put(finish({ ...base, files: [...got.values()], others, choice, status: anyMine ? 'ready' : 'none', retryAt: list.ok ? 0 : list.retryAt || 0, down: !list.ok }));
   retryLater(st);

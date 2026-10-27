@@ -368,7 +368,7 @@ export function copiesMenu(tc, { title, onDone, row, which }) {
       if (act === 'copy') { ov.close(); tc.pick(el.dataset.v); onDone?.(); }
       else if (act === 'apps') otherApps(tc.others());
       else if (act === 'trailer') openUri(`vnd.youtube:${tc.trailers()[0].ytId}`, 'YouTube');
-      else if (act === 'which') { ov.close(false); whichFilm(tc, onDone); }
+      else if (act === 'which') { ov.close(); whichFilm(tc, onDone); }   // (focus back on the opener first: the picker returns there)
     },
   });
   scrollList(ov.el);

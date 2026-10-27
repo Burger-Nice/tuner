@@ -134,6 +134,9 @@ export function downloadPlan(prefs, copy, files, opts = {}) {
   const want = [];
   const add = (f) => { if (f && !want.includes(f) && want.length < 4) want.push(f); };
   for (const p of c.perLang.slice(0, 2)) if (p.source === 'opensubtitles') add(p.file);
+  // a language he picked from Other languages (after his own, so past the first two)
+  const also = opts.also && c.perLang.find((p) => p.lang === opts.also);
+  if (also?.source === 'opensubtitles') add(also.file);
   const usable = files.filter((f) => !f.dropped && f.lang);
   const hashFile = usable.find((f) => f.m === 'h');
   if (hashFile) add(hashFile);

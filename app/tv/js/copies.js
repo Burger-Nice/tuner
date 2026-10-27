@@ -202,7 +202,8 @@ export function providerCopy(v, { pinned = false, checked = null } = {}) {
   const claim = readName({ name: v.name });
   if (!claim.res && v._q) claim.res = Q_RES[v._q] || '';
   if (!claim.hdr && v._hdr) claim.hdr = 'HDR10';
-  return { id: v.id, key: `cp:provider:${v.id}`, source: 'provider', order: 0, lang: v._lang || '', claim, checked, pinned, size: 0, v };
+  // (the name's own claim, "MULTI|" too, wins over a language the provider's category gave it)
+  return { id: v.id, key: `cp:provider:${v.id}`, source: 'provider', order: 0, lang: claim.lang ? '' : v._lang || '', claim, checked, pinned, size: 0, v };
 }
 // Words for a copy's first line: "4K · HDR10 · Blu-ray" (claims) or the checked facts. Tags say 1080p, never HD.
 const KIND_WORD = { bluray: 'Blu-ray', web: 'web copy', tv: 'TV copy', dvd: 'DVD copy', cinema: 'cinema recording' };

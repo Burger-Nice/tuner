@@ -380,7 +380,7 @@ async function versionsNow() {
     const cut = k ? cutLabel(k.len, best.checked?.len || 0, k.fps) : '';
     if (cut) bits.push(cut);
     const snd = SOUND(au[0]);
-    if (snd) bits.push(x && !x.audio ? `${snd.split(' ')[0]} only` : snd);
+    if (snd) bits.push(x && !x.audio ? `${snd.split(' ').slice(0, -1).join(' ') || snd} only` : snd);   // ('Dolby TrueHD only': the channels left out)
     if (!k) bits.push(e?.status === 'couldnt' ? 'Couldn\'t check' : 'not checked');
     return {
       id: `${v.kind}:${v.id}`, name: versionLabel(v), label: v.year ? String(v.year) : '',

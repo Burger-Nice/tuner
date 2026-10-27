@@ -425,6 +425,7 @@ public class PlayerActivity extends AppCompatActivity {
                 else if (playing && stallAt > 0) { lagMs += now - stallAt; stallAt = 0; sendLag(); }
             }
             @Override public void onRenderedFirstFrame() {
+                vodWaits = 0;
                 if (ho != null) ho.firstFrame();
                 if (guardLive) { guardLive = false; liveGuardUntil = SystemClock.uptimeMillis() + 800; }
                 long shown = SystemClock.uptimeMillis() - zapAt;
@@ -439,6 +440,14 @@ public class PlayerActivity extends AppCompatActivity {
                     player.seekToDefaultPosition(); player.prepare(); return;
                 }
                 if (live) { liveError(e); return; }
+                // refused just after a stream of this TV closed (a copy check, the last film): the provider's count
+                // hasn't dropped yet; tried again at 2, 5 and 10 s (subtitles SPEC 5.3)
+                if (vodWaits < VOD_WAITS.length && Diag.closedAt > 0 && SystemClock.elapsedRealtime() - Diag.closedAt < 12000 && refused(e)) {
+                    long at = VOD_WAITS[vodWaits++];
+                    showText("Waiting for your provider", (int) at + 1500);
+                    handler.postDelayed(() -> { if (!isFinishing() && player != null) player.prepare(); }, at);
+                    return;
+                }
                 // a film's other copies: the next one plays, or the hand-over card (PORT-NATIVE.md 2.2)
                 if (ho != null && ho.active() && ho.error(e)) return;
                 error = errorText(e);
@@ -1879,6 +1888,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (cur != null && !cur.id.equals(e.id) && !repeat && played) last = cur;
         if (played) Diag.closedAt = SystemClock.elapsedRealtime();   // the stream this TV had closes now
         index = i;
+        vodWaits = 0;
         cur = e;
         error = null; quality = ""; hdr = false; textTracks = audioTracks = 0; retries = 0; played = false;
         resetLag();
@@ -2532,6 +2542,15 @@ public class PlayerActivity extends AppCompatActivity {
     // A film's or an episode's file, once per copy: its full size and ETag, so a check from before of a file that has
     // changed since is forgotten (subtitles PORT-NATIVE.md: noteStart)
     private volatile String fileSent = "";
+    private static final long[] VOD_WAITS = { 2000, 5000, 10000 };
+    private int vodWaits;
+    /** The provider said no (401, 403, 429, 503...) rather than the file being bad. */
+    private static boolean refused(PlaybackException e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof HttpDataSource.InvalidResponseCodeException) { int c = ((HttpDataSource.InvalidResponseCodeException) t).responseCode; return c == 401 || c == 403 || c == 429 || c == 456 || c == 458 || c == 503 || c == 509; }
+        }
+        return false;
+    }
     private void fileFacts(DataSource s, DataSpec d) {
         Entry e = cur;
         if (live || rp != null || e == null || e.id.equals(fileSent) || !d.uri.toString().equals(e.url)) return;

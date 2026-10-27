@@ -36,7 +36,7 @@ export function makeProbes(deps) {
   let cache = null, loading = null, dirty = false;
   const queue = [];          // { key, url, headers, prio, at }
   let running = null;        // { job, ctl }
-  let timer = null, lastEnd = 0, batchOpen = false;
+  let timer = null, lastEnd = 0, batchOpen = false, inUseAt = 0;   // (inUseAt: another device was seen using the account)
   const subs = new Set();
 
   const ensure = () => cache ? Promise.resolve(cache) : (loading || (loading = Promise.resolve(D.load()).then((c) => { cache = (c && typeof c === 'object') ? c : {}; for (const k of Object.keys(cache)) if (!fresh(cache[k])) { delete cache[k]; dirty = true; } return cache; })));   // (checks past their 60 days go)
@@ -44,7 +44,8 @@ export function makeProbes(deps) {
   const budget = () => { const b = D.budgetStore.get() || {}; const day = dayOf(D.now()); return b.day === day ? b : { day, n: 0, refusals: 0, until: b.until || 0 }; };
   const setBudget = (b) => D.budgetStore.set(b);
 
-  function fresh(e) { return e && D.now() - e.at < KEEP; }
+  // (a check that couldn't finish, the provider busy or slow, is tried again the next day)
+  function fresh(e) { return e && D.now() - e.at < (e.status === 'couldnt' ? 864e5 : KEEP); }
   function get(key) {
     const e = cache?.[key];
     if (!fresh(e)) return null;
@@ -87,7 +88,8 @@ export function makeProbes(deps) {
     if (!batchOpen) {
       let cons = 0;
       try { cons = +(await D.activeCons()) || 0; } catch { cons = 0; }
-      if (cons > 0) { schedule(5 * 60e3); emit({ type: 'waiting', why: 'account in use' }); return; }
+      if (cons > 0) { inUseAt = D.now(); schedule(5 * 60e3); emit({ type: 'waiting', why: 'account in use' }); return; }
+      inUseAt = 0;
       if (running || D.streamsInUse() > 0) return pump();
       batchOpen = true;
     }
@@ -148,7 +150,7 @@ export function makeProbes(deps) {
     },
     // the player closed, a preview stopped: try again
     poke() { if (!running && queue.length) schedule(1000); },
-    status: () => ({ queued: queue.length, running: running?.job.key || '', budget: budget(), why: queue.length ? blocked(queue[0].prio > 0) : '' }),
+    status: () => ({ queued: queue.length, running: running?.job.key || '', budget: budget(), why: !queue.length ? '' : inUseAt && D.now() - inUseAt < 5 * 60e3 + 5000 ? 'account in use' : blocked(queue[0].prio > 0) }),
     on: (f) => { subs.add(f); return () => subs.delete(f); },
     _queue: queue,
   };

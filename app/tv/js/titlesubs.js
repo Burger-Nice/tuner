@@ -9,7 +9,7 @@ import { esc, ic, keyOf, hm } from './util.js';
 import { prepare, subState, subSettings, subMemory, forgetSubs, retryNow, checkCopies, leaveCopies, checkFor, checkedFor, probeStatus, probeKey, playable, cancelChecks } from './subs.js';
 import { noteLength } from './imdb.js';
 import { isDub, readName, rank, providerCopy } from './copies.js';
-import { prefLangs } from './catalog.js';
+import { prefLangs, langOf } from './catalog.js';
 import { openOverlay, scrollList } from './ui.js';
 import { whichFilm, tagsHtml } from './titlecopies.js';
 import { SPIN } from './screens/addons.js';
@@ -48,8 +48,10 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
       return { ...base, key: keyOf(ep), season: +ep.season, episode: +ep.ep, series: keyOf(t), episodeKnown: !!vid, version: ep.url ? ep : null, soundLang: checkedFor(ep)?.lang || '', dub: false, alsoLang: ts.also.get(keyOf(ep)) };
     }
     const v = ts.version(), b = tc.best(), k = v ? checkedFor(v) : null;
-    const soundLang = k?.lang || v?._lang || b?.lang || '';
-    const dub = isDub({ nameSaysDub: readName({ name: v?.name || b?.filename || '' }).dub, prefixLang: v?._lang && v._lang !== 'English' ? v._lang : '', taggedSound: k?.taggedSound || '', country: tc.meta?.country || '' });
+    // only the copy's own name prefix says its sound (RANKING.md 5): an "IS | … með íslenskum texta" category is about subtitles
+    const own = v ? langOf(v.name, true) : '';
+    const soundLang = k?.lang || own || (v ? '' : b?.lang) || '';
+    const dub = isDub({ nameSaysDub: readName({ name: v?.name || b?.filename || '' }).dub, prefixLang: own && own !== 'English' ? own : '', taggedSound: k?.taggedSound || '', country: tc.meta?.country || '' });
     return { ...base, key: keyOf(t), version: v, soundLang, dub, alsoLang: ts.also.get(keyOf(t)) };
   }
   function want(req) {
@@ -229,7 +231,7 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
         else if (act === 'off') { mem?.setPick(key, { source: 'off' }); ov.close(); changed(); onDone?.(); }
         else if (act === 'retry') { ov.close(); if (!retryNow(key)) { sent.delete(key); ts.sync(); } changed(); onDone?.(); }
         else if (act === 'others') othersMenu(key, st.others, onDone, ov);   // (over the sheet: Back returns to it)
-        else if (act === 'match') { ov.close(false); ts.match(onDone); }
+        else if (act === 'match') { ov.close(); ts.match(onDone); }   // (focus back on the pill first: the picker returns there)
       },
     });
     scrollList(ov.el);

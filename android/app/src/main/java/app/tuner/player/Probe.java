@@ -155,6 +155,7 @@ final class Probe {
         synchronized (Probe.class) { if (running == this) running = null; }
         HttpURLConnection c = conn;
         if (c != null) try { c.disconnect(); } catch (Exception ignored) {}
+        Diag.closedAt = SystemClock.elapsedRealtime();   // the provider's count of this TV's streams takes a moment to drop
         // the parse is released on its own thread, then the thread ends
         Handler hh = h;
         if (hh != null) hh.post(() -> {
