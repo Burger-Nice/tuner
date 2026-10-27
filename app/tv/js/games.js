@@ -297,7 +297,9 @@ export function storyCover(story) {
     const roster = new Set(teams.flatMap((a) => (peek(`roster:${a}`)?.data || []).map((p) => p.id)));
     const tagged = story.teams?.some((a) => teams.includes(a)) || story.players?.some((p) => roster.has(p.id));
     const roundup = (story.teams?.length || 0) >= 6;
-    if (tagged && !roundup && story.published >= g.date) return g;
+    // tagged with your team: covered however long ago the game was; with only the opponent: for 72 h after its tip-off
+    const mine = favTeam() && teams.includes(favTeam()) && (story.teams?.includes(favTeam()) || story.players?.some((p) => (peek(`roster:${favTeam()}`)?.data || []).some((r) => r.id === p.id)));
+    if (tagged && !roundup && story.published >= g.date && (mine || story.published <= g.date + 72 * 3600e3)) return g;
     if (telling(`${story.headline} ${story.description}`, names)) return g;
     if (!roundup && !tagged && SCORE.test(`${story.headline} ${story.description}`) && shieldMode() === 'all') return g;
   }

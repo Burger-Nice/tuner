@@ -1,1 +1,40 @@
-/* NBA pages: news (see design/ui-v1/nba-pages/SPEC.md) */
+/* NBA pages: news (see design/ui-v1/nba-pages/SPEC.md 6, 8.3) */
+/* the list: whole rows slide; rows outside the six fade out (nothing is drawn below 513) */
+.nb-s[data-s="news"] .nb-nlist{transition:transform 320ms var(--a-ease)}
+html.rep .nb-s[data-s="news"] .nb-nlist{transition:none}
+.nb-nlist .nb-nrow{flex:none;transition:opacity 200ms var(--a-ease)}
+.nb-nlist .nb-nrow.off{opacity:0}
+.nb-nrow b .ic{width:16px;height:16px;flex:none;vertical-align:-3px;margin-right:6px}
+.nb-nrow .m .nb-plus{color:var(--a-text-2);font-weight:650}
+.nb-s.nw-empty .nb-prev,.nb-s.nw-empty .nb-sbar{display:none}
+/* ESPN isn't answering, with the list kept: the note and Try again where the preview's summary was */
+.nw-down{position:absolute;left:464px;top:452px;display:flex;align-items:center;gap:12px}
+.nw-down:empty{display:none}
+.nb-s.nw-down-on .nb-prev p{display:none}
+
+/* photo-less stories: the teams' crests, centred in the preview and the reader */
+.nb-prev .nb-noph,.nb-read .nb-noph{align-items:center;padding-top:0;gap:28px}
+.nb-prev .nb-noph .team,.nb-read .nb-noph .team{width:96px;height:96px}
+.nb-prev .ph .nb-noph .team img,.nb-read .ph .nb-noph .team img{position:static;inset:auto;width:80px;height:80px;object-fit:contain}
+.nb-prev .nb-noph i,.nb-read .nb-noph i{font-size:28px}
+.nb-read .ph .nb-noph{padding-bottom:24px}
+
+/* the covered news card in a rail (team page) */
+.nb-nc.cov{background:var(--a-surface-2)}
+.nb-nc.cov .nb-cov{justify-content:flex-start;padding-top:22px}
+.nb-nc.cov .tx{background:none}
+.nb-nc.cov .tx b{color:var(--a-text-2);font-weight:500}
+
+/* the reader: the body is the focus (no ring); its teams' pages at the end */
+.nb-read .in{padding-bottom:44px;transition:transform 240ms var(--a-ease)}
+html.rep .nb-read .in{transition:none}
+.nb-read .bd.fx:focus{box-shadow:none}
+.nb-read .bd p.hidp .ic{width:16px;height:16px;flex:none}
+.nb-read .nb-rnote{color:var(--a-text-3)}
+.nb-read .foot .ic{width:15px;height:15px;flex:none}
+.nb-read .rbar[hidden]{display:none}
+.nb-rbtns{display:flex;gap:20px;padding:24px 40px 4px}
+.nb-rbtns .btn2 .ic{width:20px;height:20px;margin-right:-6px}
+.nb-rbtns .fx:first-child:focus,.nb-covcard .fx:first-child:focus{transform-origin:0 50%}
+#overlays .ov .nb-read{opacity:0;transform:translateY(12px);transition:opacity 240ms var(--a-ease),transform 240ms var(--a-ease)}
+#overlays .ov.in .nb-read{opacity:1;transform:none}

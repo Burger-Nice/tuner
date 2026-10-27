@@ -48,6 +48,7 @@ export async function want(key, { force = false } = {}) {
       const e = { data, at: Date.now() };
       mem.set(key, e);
       window.Core.cache.set(dbKey(key), e);
+      if (kind(key) === 'story') pruneStories();
       emit('league', key);
       return data;
     }, (err) => {
@@ -60,6 +61,11 @@ export async function want(key, { force = false } = {}) {
   return hit ? hit.data : flight.get(key);
 }
 export const loading = (key) => flight.has(key);
+// Story texts: the newest 30 are kept (SPEC 11).
+function pruneStories() {
+  const st = [...mem].filter(([k]) => kind(k) === 'story').sort((a, b) => b[1].at - a[1].at);
+  for (const [k] of st.slice(30)) { mem.delete(k); window.Core.cache.set(dbKey(k), null); }
+}
 // Every kept entry whose key starts with prefix ('schedule:'): [key, data] pairs.
 export const peekAll = (prefix) => [...mem].filter(([k, v]) => k.startsWith(prefix) && v.data).map(([k, v]) => [k, v.data]);
 // Clock text for "ESPN · 23:37": when this key's data was fetched.
