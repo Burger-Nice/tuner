@@ -11,7 +11,7 @@ import { toast, contextMenu } from '../ui.js';
 import { ringFor, ringName } from './home.js';
 import { findReplays, replaysOf, replaysLooked, replaysBusy, keptUntil, nightLabel } from '../catchup.js';
 import { watchFromTipoff, resumeGame, backToLive, sourcesSheet, chooseVideo, lookAgain } from '../replay.js';
-import { behindReplay, shielded, replayPick } from '../games.js';
+import { behindReplay, shielded, replayPick, liveByClock, replayProgress } from '../games.js';
 
 let el, id = null, tab = 'away', scroll = 0;
 const STATS = [['fieldGoalPct', 'Field goal %'], ['threePointFieldGoalPct', '3-point %'], ['freeThrowPct', 'Free throw %'], ['totalRebounds', 'Rebounds'], ['assists', 'Assists'], ['totalTurnovers', 'Turnovers'], ['steals', 'Steals'], ['blocks', 'Blocks'], ['pointsInPaint', 'Points in the paint'], ['fastBreakPoints', 'Fast-break points'], ['largestLead', 'Largest lead']];
@@ -56,7 +56,8 @@ function draw() {
   const side = (t, right) => `<div class="side${right ? ' r' : ''}" style="${teamVars(t)}">${right ? '' : crest(t, 'md')}<div class="nm">${esc(t.name)}</div>${right ? crest(t, 'md') : ''}</div>`;
   const mid = v.hidden ? `<span class="shield">${ic('eyeOff')}<span>Score hidden</span></span>` : g.state === 'pre' ? '<span class="score md">VS</span>' : `<span class="score md">${esc(g.away.score)}</span><span class="t-3" style="font:700 20px var(--a-font-display)">–</span><span class="score md">${esc(g.home.score)}</span>`;
   const night = nightLabel(g0.date);
-  const status = g.state === 'in' ? `${liveP()}<span class="t-label t-2">${esc(clockText(g))}</span>${!v.hidden && v.delayed != null ? `<span class="synced">${ic('clock')}${v.synced != null ? `Synced · ${v.synced} s behind live` : `Delayed ${v.delayed} s (default)`}</span>` : ''}` : `<span class="t-label t-2">${g.state === 'pre' ? `Tip-off ${new Date(g.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : `${v.hidden ? 'Ended' : 'Final'}${dot}${esc(night)}`}</span>`;
+  const status = behindReplay(g0) && shielded(g0) && g.state !== 'pre' ? `${liveByClock(g0) ? liveP() : ''}<span class="t-label t-2">You're in ${esc(replayProgress(g0.id)?.item?.pos?.chapter || 'the replay')}</span>`   // (7.2: never the live clock)
+    : g.state === 'in' ? `${liveP()}<span class="t-label t-2">${esc(clockText(g))}</span>${!v.hidden && v.delayed != null ? `<span class="synced">${ic('clock')}${v.synced != null ? `Synced · ${v.synced} s behind live` : `Delayed ${v.delayed} s (default)`}</span>` : ''}` : `<span class="t-label t-2">${g.state === 'pre' ? `Tip-off ${new Date(g.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : `${v.hidden ? 'Ended' : 'Final'}${dot}${esc(night)}`}</span>`;
   // catch-up (5.5): the tab row's watch buttons, and the shield cards
   const reps = replaysOf(g0), best = reps?.[0] || null, behind = behindReplay(g0);
   const until = best?.kind === 'channel' ? keptUntil(best.windowStart, best.days) : '';

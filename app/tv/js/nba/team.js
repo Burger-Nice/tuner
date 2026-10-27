@@ -6,7 +6,7 @@
 // before tip-off, the roster hides points and shooting, and so does the player sheet.
 import { esc, ic, dot, liveP, hm, teamVars, setHtml } from '../util.js';
 import { on, emit, saveSettings } from '../state.js';
-import { nba, favTeam, bestChannel, findFeeds, unseenFor, recordFor, show, clockText, storyCover } from '../games.js';
+import { nba, favTeam, bestChannel, findFeeds, unseenFor, recordFor, show, clockText, storyCover, shielded, behindReplay, liveByClock, replayProgress } from '../games.js';
 import { peek, want, failed, loading } from '../league.js';
 import { ensure } from '../catalog.js';
 import { playLive, watching } from '../player.js';
@@ -158,7 +158,10 @@ export function teamPage({ pushed = false } = {}) {
     const off = data && !hero && !nextOf(games, hero);
     const kind = off ? 'Off-season' : /post|playoff/i.test(sk) ? 'Playoffs' : /pre/i.test(sk) ? 'Preseason' : /play-?in/i.test(sk) ? 'Play-in' : 'Regular season';
     const season = `${esc(sched()?.season || seasonOf())}${dot}${kind}`;
-    const status = hero?.state === 'in'
+    const behind = hero && shielded(hero) && behindReplay(hero);
+    const status = behind
+      ? `${mine ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${liveByClock(hero) ? liveP() : ''}<span class="t-label t-2">You're in ${esc(replayProgress(hero.id)?.item?.pos?.chapter || 'the replay')} ${s.word} ${esc(s.op.name)}</span>`   // (catch-up 7.2)
+      : hero?.state === 'in'
       ? `${mine ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${liveP()}<span class="t-label t-2">${esc(clockText(v.g))} ${s.word} ${esc(s.op.name)}</span>`
       : `${mine ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}<span class="t-label t-2">${season}</span>`;
     const rec = recordFor({ abbr, record: espnRecord() });
@@ -192,6 +195,7 @@ export function teamPage({ pushed = false } = {}) {
     const d = g === next && (ww === 'TONIGHT' || ww === 'TOMORROW') ? `<span class="n">${ww}</span><span>Next</span>` : `<span>${esc(tileDate(g.date))}</span>`;
     let r;
     if (g.state === 'post') r = v.hidden ? `<span class="nb-hid">${ic('eyeOff')}Result hidden</span>` : `<b class="${s.won ? '' : 'l'}">${s.won ? 'W' : 'L'}</b><b class="${s.won ? '' : 'l'}" style="font-weight:650">${esc(s.me.score)}–${esc(s.op.score)}</b>`;
+    else if (shielded(g) && behindReplay(g)) r = `${liveByClock(g) ? liveP() : ''}<span>You're in ${esc(replayProgress(g.id)?.item?.pos?.chapter || 'the replay')}</span>`;
     else if (g.state === 'in') r = `${liveP()}<span>${esc(clockText(v.g))}</span>`;
     else r = `<span>${hm(g.date)}${g.tv[0] ? `${dot}${esc(shortTv(g.tv[0]))}` : ''}</span>`;
     if (g.state !== 'pre' && replaysOf(g)?.length) r += `<span class="cu-g">${ic('hist')}</span>`;   // (catch-up 5.3: a replay)

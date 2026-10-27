@@ -15,7 +15,14 @@ module.exports = async (ctx) => {
   let fails = 0;
   const ok = (label, cond, extra = '') => { if (!cond) fails++; console.log(`${cond ? 'OK  ' : 'FAIL'} ${label} ${extra}`); };
   const hold = async () => { await p.keyboard.down('Enter'); await p.waitForTimeout(650); await p.keyboard.up('Enter'); await p.waitForTimeout(800); };
-  const sweep = async (label) => { await p.waitForTimeout(600); const s = spoilers(await screenText(p)); ok(`sweep: ${label}`, !s.length, s.join(' ; ')); };
+  // (behind in the replay, nothing may show the live game's clock: the fixture has it at Q2 6:41)
+  let behindNow = false;
+  const sweep = async (label) => {
+    await p.waitForTimeout(600);
+    const t = await screenText(p), s = spoilers(t);
+    if (behindNow) { const m = t.match(/Q2 6:41|6:41/); if (m) s.push(`live clock: "${t.slice(Math.max(0, m.index - 50), m.index + 20)}"`); }
+    ok(`sweep: ${label}`, !s.length, s.join(' ; '));
+  };
   const go = async (s, wait = 2500) => { await ev((x) => window.__tunerTest.go(x), s); await p.waitForTimeout(wait); };
   const focused = () => ev(() => { const a = document.activeElement; return `${a.className} ${a.dataset.act || a.dataset.key || ''} "${(a.textContent || '').trim().slice(0, 40)}"`; });
 
@@ -55,6 +62,7 @@ module.exports = async (ctx) => {
   ok('as aired: Q1, no box score', /^Q1/.test(g?.game?.clock || '') && !g?.game?.box?.away?.rows?.length);
   await ev(() => window.__replayTest.event({ type: 'exit', played: 24 * 60e3 }));
   await p.clock.fastForward('35:00');
+  behindNow = true;
   await go('home', 3000); await sweep('B home, behind'); await shot('B-home-behind');
   ok('B hero: behind', (await ev(() => document.querySelector('[data-screen="home"] .hero-plate')?.dataset.rowKind)) === 'behind');
   await go('nba', 3500); await sweep('B hub, behind');
@@ -69,6 +77,7 @@ module.exports = async (ctx) => {
   ok('B game page: Resume first', (await focused()).includes('Resume'));
 
   // ---------- the replay's buzzer + 2 min plays: seen for good ----------
+  behindNow = false;
   await setup(ctx);
   await go('home', 4000); await key('Enter', 1, 3000);
   const R = await ev(() => window.__replay?.R);
