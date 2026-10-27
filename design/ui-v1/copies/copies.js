@@ -38,31 +38,42 @@ function readName(stream) {
 //   playsNow(copy) -> true|false|undefined (decided now, from the stored formats and the audio route; RANKING.md 2 key 3) }
 const CLASS = { '4K': 4, '1080p': 3, '720p': 2, SD: 1, '': 0 };
 const KIND = { bluray: 3, web: 2, '': 1, tv: 0, dvd: 0, cinema: 0 };          // RANKING.md key 8: unknown above TV and DVD
+// RANKING.md 2 key 10 and band b: the picture's bitrate. Checked: measured. Unchecked: estimated from size x 8 / IMDb
+// runtime (add-ons review 2, S1), so the speed band and the bitrate key reach add-on copies before they have played.
+function mbpsOf(c, ctx) {
+  const k = c.checked; if (k && k.mbps) return { v: k.mbps, est: false };
+  const size = c.size || c.claim.size || 0, rt = ctx.runtime || 0;
+  return size && rt ? { v: (size * 8) / rt / 1e6, est: true } : { v: 0, est: true };
+}
+// Diag's last measured speed counts only when it is under 7 days old (add-ons review 2, S1); with none, there is no cap
+const speedOf = (ctx) => (ctx.speedMbps && (!ctx.speedAgeDays || ctx.speedAgeDays <= 7) ? ctx.speedMbps : 0);
 function facts(c, ctx) {
-  const k = c.checked;
+  const k = c.checked, m = mbpsOf(c, ctx), sp = speedOf(ctx);
   let cls = CLASS[(k && k.res) || c.claim.res || ''];
-  if (k && k.mbps && ((cls === 4 && k.mbps < 8) || (cls === 3 && k.mbps < 2.5))) cls -= 1;   // a starved copy drops a class
-  const tooFast = !!(k && k.mbps && ctx.speedMbps && k.mbps > 0.7 * ctx.speedMbps);
+  if (k && k.mbps && ((cls === 4 && k.mbps < 8) || (cls === 3 && k.mbps < 2.5))) cls -= 1;   // a starved copy drops a class (measured only)
+  const tooFast = !!(m.v && sp && m.v > 0.7 * sp);
   // range: Dolby Vision (the TV plays its profile) > HDR10 (HDR10+ counts as HDR10) > HLG > none.
   // A name claiming DV on a Blu-ray or remux counts as HDR10 until the check reads the profile (usually profile 7).
   const range = k ? (k.dv && (k.dvProfile !== 7 || ctx.dv7) ? 3 : k.hdr === 'HDR10' || k.hdr === 'HDR10+' ? 2 : k.hdr === 'HLG' ? 1 : 0)
     : (c.claim.dv && !(c.claim.kind === 'bluray' || c.claim.remux) ? 3 : c.claim.dv || c.claim.hdr ? 2 : 0);
-  const sound = k && k.ch ? (k.ch >= 8 ? 2 : k.ch >= 6 ? 1 : 0) : 0;
-  return { tooFast, cls, range, kind: KIND[c.claim.kind || ''], checked: !!k, mbps: (k && k.mbps) || 0, sound, size: c.size || c.claim.size || 0 };
+  // sound: 7.1 > 5.1 > stereo; Atmos counts only when parsed (k.atmos)
+  const sound = k ? (k.atmos ? 3 : k.ch >= 8 ? 2 : k.ch >= 6 ? 1 : 0) : 0;
+  return { tooFast, cls, range, kind: KIND[c.claim.kind || ''], checked: !!k, mbps: m.v, sound, size: c.size || c.claim.size || 0 };
 }
 const langOf = (c) => (c.checked && c.checked.lang) || c.lang || c.claim.lang || '';
 // key 4: the index in Shown first; Multi or unknown after his languages and before others
 function langRank(c, langs) { const l = langOf(c); const i = langs.indexOf(l); return i >= 0 ? i : !l || l === 'Multi' ? langs.length : langs.length + 1; }
 // key 3: plays on this TV, decided now. Unknown (unchecked) counts as playing.
 const plays = (c, ctx) => { const v = ctx.playsNow ? ctx.playsNow(c) : c.checked ? c.checked.plays : undefined; return v === false ? false : true; };
-// key 5: the main cut = IMDb's runtime ± 8%, else the most common checked length (± 3%) among the copies
+// key 5: the main cut. ONE tolerance for "the same cut", everywhere: 5% (a PAL copy of the same cut runs 4% short).
+// The main cut = within 5% of IMDb's runtime, else the most common checked length.
+const CUT = 0.05;
 function mainCut(copies, ctx) {
   const lens = copies.map((c) => c.checked && c.checked.len).filter(Boolean);
-  if (ctx.runtime) return (len) => !len || Math.abs(len - ctx.runtime) / ctx.runtime <= 0.08;
-  if (!lens.length) return () => true;
-  const best = lens.map((l) => [l, lens.filter((m) => Math.abs(m - l) / l <= 0.03).length]).sort((a, b) => b[1] - a[1])[0][0];
-  return (len) => !len || Math.abs(len - best) / best <= 0.03;
+  const ref = ctx.runtime || (lens.length ? lens.map((l) => [l, lens.filter((m) => Math.abs(m - l) / l <= CUT).length]).sort((a, b) => b[1] - a[1])[0][0] : 0);
+  return (len) => !len || !ref || Math.abs(len - ref) / ref <= CUT;
 }
+const cutLabel = (len, ref) => (!len || !ref || Math.abs(len - ref) / ref <= CUT ? '' : len > ref ? 'Longer cut' : 'Shorter cut');
 // band (key 2): a fits; b faster than 0.7 x the measured speed; c add-on copy whose match isn't Sure; d cinema recording;
 // e failed or not ready this session
 const band = (c, f) => (c.failed || c.notReady ? 4 : c.claim.kind === 'cinema' ? 3 : c.source !== 'provider' && c.match !== 'sure' ? 2 : f.tooFast ? 1 : 0);
@@ -73,7 +84,7 @@ function rank(copies, ctx = {}) {
     const f = facts(c, ctx);
     const pin = c.pinned && !c.failed && plays(c, ctx) ? 0 : 1;            // key 1: a pin that hasn't failed and plays now
     const subs = c.checked && (c.checked.subsInFile || []).some((l) => langs.includes(l)) ? 0 : 1;
-    return [pin, band(c, f), plays(c, ctx) ? 0 : 1, langRank(c, langs), inMain(c.checked && c.checked.len) ? 0 : 1, -f.cls, f.checked ? 0 : 1, -f.kind, -f.range, -f.mbps, -f.sound, subs, c.source === 'provider' ? 0 : 1, c.order || 0, -f.size];
+    return [pin, band(c, f), plays(c, ctx) ? 0 : 1, langRank(c, langs), inMain(c.checked && c.checked.len) ? 0 : 1, -f.cls, c.source === 'provider' && !f.checked ? 1 : 0, -f.kind, -f.range, -f.mbps, -f.sound, subs, c.source === 'provider' ? 0 : 1, c.order || 0, -f.size];
   };
   return [...copies].sort((a, b) => { const x = key(a), y = key(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; });
 }
@@ -101,14 +112,21 @@ function waitPlan({ best, asking = [], uncheckedBetter = [], maxCons = 1 } = {})
 // ---------- RANKING.md 4: the IMDb match levels (Sure / Likely / Unsure) ----------
 // cand: ratings-file rows with this key (counted per key), year: the provider's or 0, tmdb/moviedb: ids when known,
 // len: the provider copy's checked length (min), runtime: Cinemeta's (min), picked: his answer, kind: movie|series|episode
-function matchLevel({ cand = [], year = 0, tmdb, moviedb, len, runtime, picked, kind = 'movie' }) {
+function matchLevel({ cand = [], year = 0, tmdb, moviedb, tvdb, tvdbMeta, len, runtime, picked, kind = 'movie', epLens = [] }) {
   if (picked) return 'sure';
   if (tmdb && moviedb && +tmdb === +moviedb) return 'sure';
+  if (kind === 'series' && tvdb && tvdbMeta && +tvdb === +tvdbMeta) return 'sure';
+  // "2+ rows" means 2+ rows within ± 1 year of the provider's year; with no year, any 2+ rows (one rule for both designs)
   const near = year ? cand.filter((r) => Math.abs(r.year - year) <= 1) : kind !== 'movie' ? cand : [];
   if (near.length !== 1) return 'unsure';                                     // none, or 2+; no year on a film is never enough
   if (kind === 'movie' && len && runtime) return Math.abs(len - runtime) / runtime <= 0.08 ? 'sure' : 'unsure';
-  return 'likely';                                                            // episodes skip the length check: Cinemeta has no episode runtimes
+  // a series: Cinemeta gives ONE runtime for the whole series, so one long or short episode decides nothing. Sure when
+  // most (2 or more of the first 3) checked episodes are within 8% of it; otherwise it stays Likely (never Unsure by length)
+  if (kind === 'series' && runtime && epLens.length >= 2) { const ok = epLens.slice(0, 3).filter((l) => Math.abs(l - runtime) / runtime <= 0.08).length; if (ok >= 2) return 'sure'; }
+  return 'likely';
 }
+// an episode's own verdict: a length that doesn't match is that episode's note, never the series' level
+const episodeNote = (lenMin, seriesRuntimeMin) => (lenMin && seriesRuntimeMin && Math.abs(lenMin - seriesRuntimeMin) / seriesRuntimeMin > 0.08 ? 'This episode\'s length doesn\'t match IMDb' : '');
 // RANKING.md 4.2: what each level allows
 const allows = (level) => ({
   subtitles: level === 'sure' || level === 'likely',                          // Likely downloads, and is re-checked when the length arrives
@@ -131,7 +149,15 @@ function isDub({ sound, country = '', nameSaysDub = false }) {
   return !cs.some((c) => COUNTRY_LANG[c].includes(sound));
 }
 
-// ---------- add-ons 8.2: a copy that plays but is a placeholder ----------
+// ---------- RANKING.md 2 band e: a copy that plays but is a placeholder (add-ons 8.2) ----------
+// A film: under 50% of IMDb's runtime. An episode: under 50% of the provider episode's own length when there is one,
+// else under an absolute floor of 3 minutes (never a fraction of the series runtime: specials and short episodes are real).
+// The add-on's own ⏳ / "download" marker counts either way (readName().notReady).
 const notReadyByLength = (lenSec, runtimeMin) => !!(lenSec && runtimeMin && lenSec < 0.5 * runtimeMin * 60);
+function episodeNotReady({ lenSec, providerLenSec }) {
+  if (!lenSec) return false;
+  if (providerLenSec) return lenSec < 0.5 * providerLenSec;
+  return lenSec < 180;
+}
 
-module.exports = { readName, rank, pinNote, waitPlan, matchLevel, allows, recheck, isDub, notReadyByLength };
+module.exports = { readName, rank, pinNote, waitPlan, matchLevel, episodeNote, allows, recheck, isDub, notReadyByLength, episodeNotReady, cutLabel, CUT };

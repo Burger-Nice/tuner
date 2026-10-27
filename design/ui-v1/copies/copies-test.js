@@ -1,6 +1,6 @@
 // node design/ui-v1/copies/copies-test.js   -> proves copies.js against RANKING.md, with every case the subtitles review 2
 // (M3, S3, S6) and the add-ons reviews raised. Exit 1 on a failure. Started from design/ui-v1/addons/tools/copies-test.js.
-const { readName, rank, pinNote, waitPlan, matchLevel, allows, recheck, isDub, notReadyByLength } = require('./copies.js');
+const { readName, rank, pinNote, waitPlan, matchLevel, episodeNote, allows, recheck, isDub, notReadyByLength, episodeNotReady, cutLabel, CUT } = require('./copies.js');
 let bad = 0, n = 0;
 const eq = (what, got, want) => { n++; const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) bad++; console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`); };
 const nm = (filename, name = '') => readName({ name, behaviorHints: { filename } });
@@ -26,11 +26,13 @@ const A = { id: 'A', source: 'Northlight', order: 1, match: 'sure', lang: 'Engli
 const P = { id: 'P', source: 'provider', order: 0, lang: 'English', claim: nm('EN| Dune: Part Two 4K'), checked: { res: '1080p', mbps: 7.1, plays: true }, size: 6.1e9 };
 const N = { id: 'N', source: 'Northlight', order: 1, match: 'sure', lang: 'English', claim: nm('Dune.Part.Two.2024.1080p.BluRay.mkv'), size: 14.2e9 };
 const F = { id: 'F', source: 'provider', order: 0, lang: 'French', claim: nm('FR| Dune 2 1080p'), checked: { res: '1080p', mbps: 6.9, plays: true } };
-eq('add-ons mocks\' order (detail-sources-sheet)', ids(rank([P, N, A, F, B])), ['B', 'A', 'P', 'N', 'F']);
+eq('add-ons mocks\' order (detail-sources-sheet): an add-on Blu-ray 1080p now beats the provider\'s checked 1080p (add-ons review 2, S2)', ids(rank([P, N, A, F, B], { runtime: 166 * 60 })), ['B', 'A', 'N', 'P', 'F']);
 eq('DV on a Blu-ray counts as HDR10 (B beats A on kind, not on range)', ids(rank([A, B])), ['B', 'A']);
 eq('a checked profile-7 copy the TV can\'t play drops', ids(rank([{ ...B, checked: { res: '4K', dv: true, dvProfile: 7, mbps: 41, plays: false } }, A])), ['A', 'B']);
 eq('band b: faster than 0.7 x the measured speed goes after copies that fit', rank([{ ...B, checked: { res: '4K', hdr: 'HDR10', mbps: 41, plays: true } }, P], { speedMbps: 40 })[0].id, 'P');
-eq('checked before unchecked in the same class', ids(rank([N, P])), ['P', 'N']);
+eq('checked before unchecked: between provider copies of a class', ids(rank([{ ...P, id: 'Pu', checked: null, claim: nm('EN| Dune: Part Two 1080p') }, P])), ['P', 'Pu']);
+eq('add-ons review 2 S2: an unchecked add-on copy isn\'t buried under a checked provider copy (kind decides)', ids(rank([P, N], { runtime: 166 * 60 })), ['N', 'P']);
+eq('add-ons review 2 S2: a provider "4K" at 9 Mb/s vs an add-on 4K Blu-ray remux (51.6 GB): the remux', ids(rank([{ ...P, id: 'P4', checked: { res: '4K', mbps: 9, plays: true } }, B], { runtime: 166 * 60 })), ['B', 'P4']);
 eq('band c: a Likely add-on match never outranks the provider', ids(rank([{ ...A, match: 'likely' }, P])), ['P', 'A']);
 eq('band e: a not-ready copy is last', ids(rank([{ ...B, notReady: true }, F])), ['F', 'B']);
 eq('band d: a cinema recording is below every copy that plays', ids(rank([{ ...A, claim: nm('Film.2026.2160p.HDCAM.mkv') }, F])), ['F', 'A']);
@@ -120,5 +122,32 @@ eq('M1: a name that says "Með íslensku tali" is a dub', isDub({ sound: 'Icelan
 // ---- add-ons 8.2: placeholders ----
 eq('a 30 s clip for a 167 min film is not ready', notReadyByLength(30, 167), true);
 eq('a 160 min copy is ready', notReadyByLength(160 * 60, 167), false);
+
+// ---- add-ons review 2: the speed cap reaches unchecked copies (size x 8 / runtime), and only a recent speed counts ----
+eq('S1: an unchecked 51.6 GB remux (about 41 Mb/s) is capped on a 30 Mb/s link', ids(rank([B, P], { runtime: 166 * 60, speedMbps: 30 })), ['P', 'B']);
+eq('S1: ... but not when the measured speed is 10 days old', ids(rank([B, P], { runtime: 166 * 60, speedMbps: 30, speedAgeDays: 10 })), ['B', 'P']);
+eq('S1: no measured speed, no cap', ids(rank([B, P], { runtime: 166 * 60 })), ['B', 'P']);
+
+// ---- add-ons review 2 M1: each difference settled once ----
+eq('M1: plays before language (a playable French copy beats an English copy with no sound)', ids(rank([{ ...En, id: 'Eno', checked: { ...En.checked, plays: false } }, { ...En, id: 'Fr', lang: 'French' }], { langs: ['English'] })), ['Fr', 'Eno']);
+eq('M1: the cut at one tolerance, 5%: a PAL copy (4% short) is the same cut', cutLabel(160 * 60, 167 * 60), '');
+eq('M1: ... a copy 12% longer is a longer cut', cutLabel(187 * 60, 167 * 60), 'Longer cut');
+eq('M1: ... and 5% is the one number', CUT, 0.05);
+eq('M1: kind order Blu-ray > web > unknown > TV', ids(rank([Tv, Pu, { ...Tv, id: 'Bd', claim: nm('Film.2024.1080p.BluRay.mkv') }, { ...Tv, id: 'Wb', claim: nm('Film.2024.1080p.WEB-DL.mkv') }])), ['Bd', 'Wb', 'Pu', 'Tv']);
+eq('M1: Atmos counts only when parsed', ids(rank([{ ...En, id: 'ch6', checked: { res: '1080p', mbps: 6, plays: true, ch: 6 } }, { ...En, id: 'atm', checked: { res: '1080p', mbps: 6, plays: true, ch: 6, atmos: true } }])), ['atm', 'ch6']);
+eq('M1: the last tie is the bigger file', ids(rank([{ ...N, id: 's', size: 10e9 }, { ...N, id: 'b', size: 14e9 }])), ['b', 's']);
+eq('M1: 2+ rows within ±1 year: Unsure', matchLevel({ cand: [{ year: 2019 }, { year: 2019 }], year: 2019 }), 'unsure');
+eq('M1: 2+ rows for the key, only one within ±1 year: that one (Likely)', matchLevel({ cand: [{ year: 1994 }, { year: 2019 }], year: 2019 }), 'likely');
+
+// ---- add-ons review 2 M2: series ----
+eq('M2: a series is Sure when the TVDB ids agree', matchLevel({ cand: [{ year: 2022 }], kind: 'series', tvdb: 403294, tvdbMeta: 403294 }), 'sure');
+eq('M2: a series is Sure when the TMDB ids agree (The Bear 136315)', matchLevel({ cand: [{ year: 2022 }], kind: 'series', tmdb: 136315, moviedb: 136315 }), 'sure');
+eq('M2: a 60 min episode of a "35 min" series doesn\'t make the series Unsure', matchLevel({ cand: [{ year: 2022 }], year: 2022, kind: 'series', runtime: 35, epLens: [60] }), 'likely');
+eq('M2: lengths agreeing on 2 of the first 3 episodes make it Sure', matchLevel({ cand: [{ year: 2022 }], year: 2022, kind: 'series', runtime: 35, epLens: [34, 60, 36] }), 'sure');
+eq('M2: ... and the long episode gets its own note', episodeNote(60, 35), 'This episode\'s length doesn\'t match IMDb');
+eq('M2: a 12 min special is ready (no provider length; the floor is 3 min)', episodeNotReady({ lenSec: 12 * 60 }), false);
+eq('M2: a 30 s clip is not ready', episodeNotReady({ lenSec: 30 }), true);
+eq('M2: with the provider episode\'s own length (20 min), a 15 min add-on copy is ready', episodeNotReady({ lenSec: 15 * 60, providerLenSec: 20 * 60 }), false);
+eq('M2: ... and a 5 min one isn\'t', episodeNotReady({ lenSec: 5 * 60, providerLenSec: 20 * 60 }), true);
 
 console.log(`\n${n} cases, ${bad} failed`); process.exit(bad ? 1 : 0);

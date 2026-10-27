@@ -50,7 +50,7 @@ const tagPlain = (t) => `<span class="tag">${esc(t)}</span>`;
 // mbps = the picture's share: size x 8 / duration, less a nominal rate per sound track (S5; SPEC 5.1)
 const COPIES = [
   { id: 'a', name: 'EN| Oppenheimer 4K', res: '4K', hdr: 'HDR10', mbps: 15, snd: 'Dolby Digital Plus 5.1', plays: true, gb: 21.6, rank: 1 },
-  { id: 'b', name: 'EN| Oppenheimer FHD', res: '1080p', hdr: '', mbps: 6.7, snd: 'Dolby Digital 5.1', plays: true, gb: 9.8, rank: 2 },
+  { id: 'b', name: 'EN| Oppenheimer FHD', res: '1080p', hdr: '', mbps: 6.6, snd: 'Dolby Digital 5.1', plays: true, gb: 9.8, rank: 2 },
   { id: 'c', name: 'EN| Oppenheimer (2023) 4K UHD', res: '1080p', hdr: '', mbps: 2.8, snd: 'stereo', plays: true, gb: 4.1, rank: 3, named: '4K' },
   { id: 'd', name: 'MULTI| Oppenheimer 2160p DV', res: '4K', hdr: 'Dolby Vision', mbps: 22, snd: 'DTS-HD 5.1', plays: false, gb: 34.5, rank: 4 },
 ];
@@ -80,9 +80,9 @@ const G1 = 'On the title page', G2 = 'Around the app', G3 = 'In the player';
 function wide(seed, name, year, i, style, hue) { return `<div class="wc fx" data-i="${i}"><div class="art">${Art.art(seed, { style, hue })}</div><div class="tx"><b>${esc(name)}</b><span>${year}</span></div></div>`; }
 // stand-in art with no yellow (nit): explicit violet, blue, green and pink hues
 const MORE_OPP = [['Killers of the Flower Moon', 2023, 'sun', 300], ['The Holdovers', 2023, 'city', 160], ['Past Lives', 2023, 'city', 210], ['Poor Things', 2023, 'theatre', 280], ['Napoleon', 2023, 'sun', 240]];
-function detail({ eyebrow, title, meta, tags, plot, credits = '', play = 'Play', focus = 'play', pills, side = '', below, art = ['oppenheimer', 'sun', 280], overlay = '' }) {
+function detail({ eyebrow, title, meta, tags, plot, credits = '', play = 'Play', focus = 'play', pills, side = '', below, art = ['oppenheimer', 'sun', 280], overlay = '', extraBtn = '' }) {
   const f = (k) => (focus === k ? (k === 'play' || k === 'save' ? ' f' : ' f-ring') : '');
-  const btns = `<div class="row-flex" data-row style="gap:20px;margin-top:20px;height:44px;padding-left:2px"><span class="btn fx${f('play')}" data-act="play">${ic('play')}${play}</span><span class="btn2 fx${f('save')}" data-act="save">${ic('saved')}Save</span></div>`;
+  const btns = `<div class="row-flex" data-row style="gap:20px;margin-top:20px;height:44px;padding-left:2px"><span class="btn fx${f('play')}" data-act="play">${ic('play')}${play}</span>${extraBtn}<span class="btn2 fx${f('save')}" data-act="save">${ic('saved')}Save</span></div>`;
   return `<div class="d-back"><div class="art">${Art.art(art[0], { style: art[1], hue: art[2] })}</div><div class="d-scrim"></div></div><div class="d-scrim2"></div>
 <div class="d-col">
   <div class="t-label t-2">${eyebrow}</div>
@@ -155,7 +155,7 @@ page('detail-which-film.html', 'Subtitles: which film is it?', detail({
   tags: lionTags, focus: 'subs', art: ['lion', 'sun', 250],
   pills: (f) => `${subPill(f, 'Subtitles: which film is it?')}`,
   side: 'Two films are called The Lion King',
-}), 'v1.1 (M3, S7, S9): only asked when nothing else can decide. "EN| The Lion King" has no year; two IMDb films have that name; and this copy couldn\'t be checked (its provider refuses partial reads), so its length can\'t pick one. With a checked length, a single candidate within 5% is accepted without asking. A dubbed copy is never asked about: its subtitles default to off.', { group: G1 });
+}), 'Only asked when nothing else decides (Unsure, RANKING.md 4). "EN| The Lion King" has no year and two IMDb films have the name. v1.2 (review 2, S1): this copy is an MP4 with its index at the end on a provider that refuses partial reads, so its length is unknown (an MKV would still give it). English sound on a United States film is not a dub (M1), so it asks.', { group: G1 });
 
 // 6. the match menu (shared with design/ui-v1/addons: .menu.st-match = .menu.ad-match)
 page('detail-match.html', 'Which film is this?', detail({
@@ -166,9 +166,9 @@ page('detail-match.html', 'Which film is this?', detail({
   ${sheetRow(null, 'The Lion King', '2019 · 1 h 58 min · Jon Favreau', { v: false })}
   ${sheetRow(null, 'Mufasa: The Lion King', '2024 · 1 h 58 min · Barry Jenkins', { v: false })}
   ${sheetRow(null, 'Search by another name', 'On the keyboard', { v: false })}
-  ${sheetRow(null, 'None of these', 'Use only the subtitles in the file', { v: false })}
+  ${sheetRow(null, 'None of these', 'Keep this copy only: no add-on copies, no downloaded subtitles', { v: false })}
   </div><div class="st-foot">Your pick is remembered for this title, for subtitles and copies alike.</div></div>`,
-}), 'Rows: title / year · length · director (real Cinemeta meta, one /meta call per row; S9). With a checked length the closest row is focused; with none, as here, the first result is, and the header says the length is unknown. "None of these" turns OpenSubtitles off for this title. The add-ons design uses this same menu.', { group: G1 });
+}), 'Rows: title / year · length · director (real Cinemeta meta, one /meta call per row). With a checked length the closest row is focused; with none, as here, the first result is, and the header says so. v1.2: one "None of these" line for both designs (review 2, S4). The add-ons design uses this same menu.', { group: G1 });
 
 // 7. the add-on down
 page('detail-subs-down.html', 'Subtitles: OpenSubtitles isn\'t answering', detail({
@@ -176,6 +176,20 @@ page('detail-subs-down.html', 'Subtitles: OpenSubtitles isn\'t answering', detai
   tags: oppTags, pills: (f) => `${verPill(f, `${TK}4K HDR10`)}${subPill(f, 'Subtitles: none yet', ' st-wait')}`,
   side: `OpenSubtitles isn't answering${dot}trying again at 21:31`, below: moreRow(),
 }), 'The add-on is down (or slow: 8 s). The pill row says so and when it tries again; nothing to press. Play still works: subtitles that come in later appear in the player, which says so once (SPEC 7.6). Lists already fetched are kept for 2 days.', { group: G1 });
+
+// 7b. v1.2 (review 2, M2): Resume. The slot's first claim is the time left; the subtitles text goes to the sheet
+page('detail-resume.html', 'Title page: Resume, the slot shows the time left', detail({
+  eyebrow: `Movie${dot}Drama · History`, title: 'Oppenheimer', meta: oppMeta, plot: oppPlot, credits: oppCred,
+  tags: oppTags, play: 'Resume 1:47:58', pills: oppPills, side: '1 h 12 min left', below: moreRow(),
+  extraBtn: `<span class="btn2 fx" data-act="restart">${ic('play')}Start over</span>`,
+}), 'v1.2 (review 2, M2): one slot after the pills, at most to x 912 with an ellipsis, and one text in it, by priority: 1 the time left (as today\'s detail.js), 2 the add-ons\' "Still asking …", 3 the subtitles text. Here the time left wins; "From OpenSubtitles · Icelandic ready too" is still in the Subtitles sheet. The SIDE check fails a slot that is cut.', { group: G1 });
+
+// 7c. v1.2 (review 2, M2): an add-on still asking while OpenSubtitles is down: "Still asking" wins the slot
+page('detail-addon-asking.html', 'Title page: an add-on asking, OpenSubtitles down', detail({
+  eyebrow: `Movie${dot}Drama · History`, title: 'Oppenheimer', meta: oppMeta, plot: oppPlot, credits: oppCred,
+  tags: oppTags, pills: (f) => `${verPill(f, `${TK}4K HDR10`)}${subPill(f, 'Subtitles: none yet', ' st-wait')}`,
+  side: `<span class="st-spin"></span>Still asking Kestrel`, below: moreRow(),
+}), 'Both designs have something to say: the add-ons\' "Still asking Kestrel" (priority 2) wins the slot over "OpenSubtitles isn\'t answering" (3). The subtitles state isn\'t lost: the pill itself says "none yet", dashed, and the sheet says why. When Kestrel answers, the slot goes back to the subtitles text.', { group: G1 });
 
 // 8. series, laid out as detail.js does (plot, chips 272, rail 318, synopsis 486); M4, S17
 const EPS = [[1, 'Good News About Hell', '57 min', ''], [2, 'Half Loop', '52 min', 'Mark is made the head of his team, and Helly tries to quit on her first day.'], [3, 'In Perpetuity', '50 min'], [4, 'The You You Are', '47 min'], [5, 'The Grim Barbarity of Optics and Design', '50 min']];
@@ -224,7 +238,7 @@ ${arow('Subtitles', 'Always', 'Always, only when the sound isn\'t in your langua
 ${arow('Subtitle languages', 'English, Icelandic', 'The first one found shows. The others wait in the player')}
 ${arow('Subtitles with sounds', 'Leave out', 'Lines like [door slams] and who is speaking')}
 ${arow('Subtitles from OpenSubtitles', 'On', 'When the file has none in your languages')}
-</div>`, 'The one place for the defaults. v1.1 (S14): "Subtitles with sounds", not "Sound descriptions" (which reads like narration for blind viewers). Today\'s "Auto" becomes "Only when the sound isn\'t in your language" until the owner picks (S24). A dubbed copy in one of your languages gets no subtitles in another language (S7).', { group: G2 });
+</div>`, 'The one place for the defaults. "Subtitles with sounds" (v1.1). v1.2 (review 2, S5): today\'s "Auto" would mean no subtitles on English films after the update, so the owner is asked before release (SPEC 14.2). A dub (sound in another language than the film\'s) gets no subtitles by default (M1).', { group: G2 });
 
 // =====================================================================================================================
 // THE PLAYER (native)
