@@ -108,7 +108,7 @@ module.exports = async (ctx) => {
   for (let i = 0; i < 6 && !(await focused()).includes(JAZZ); i++) await key('ArrowLeft', 1, 400);
   await key('Enter', 1, 4000);
   console.log('no replay:', await ev(() => document.querySelector('.cu-state')?.innerText.replace(/\s+/g, ' ')), '| focus', await focused());
-  ok('no replay yet: Look again focused', (await focused()).includes('Look again'));
+  ok('no replay yet: Pick the channel focused (Look again beside it)', (await focused()).includes('Pick the channel') && /Look again/.test(await ev(() => document.querySelector('.cu-state')?.innerText || '')));
   await shot('game-noreplay');
 
   // ---------- the shield off: the seen row ----------

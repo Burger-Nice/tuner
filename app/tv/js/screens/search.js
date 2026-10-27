@@ -84,7 +84,9 @@ function results() {
     if (p && matches(p.title)) onTv.push({ ch, p });
   }
   const adb = addonBlock();
-  const n = { movie: res.movie.length, series: res.series.length, live: res.live.length + onTv.length };
+  // (the counts take in the add-ons' titles too: Series 1 when Dune Prophecy comes from Cinemeta)
+  const adN = (k) => (ads?.items || []).filter((m) => (k === 'series') === (m.type === 'series')).length;
+  const n = { movie: res.movie.length + adN('movie'), series: res.series.length + adN('series'), live: res.live.length + onTv.length };
   const many = (k) => (n[k] >= 100 ? '99+' : String(n[k]));
   // the chips: what the results show (◀ ▶ on them; Down goes into the list)
   const chips = `<div class="chips s-scope" data-row data-exit>${SCOPES.map(([k, l]) => `<span class="chip fx${k === scope ? ' sel' : ''}" tabindex="-1" data-scope="${k}">${l}${k === 'all' ? '' : `<small>${many(k)}</small>`}</span>`).join('')}</div>`;
