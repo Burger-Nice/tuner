@@ -2603,7 +2603,7 @@ public class PlayerActivity extends AppCompatActivity {
             it.height = 50;
             items.add(it);
         }
-        ListPanel.Item again = row("Check again", "Includes a 3 s speed test", null, "refresh", () -> { runChecks(true); fillConnection(); });
+        ListPanel.Item again = row("Check again", "Includes a 3 s speed test", null, "refresh", () -> { if (forced) return; runChecks(true); fillConnection(); });
         again.height = 50;
         items.add(again);
         p.source(ListPanel.of(items), items.size() - 1);   // always on Check again: a switch is never the default (N-M9)
@@ -2614,7 +2614,7 @@ public class PlayerActivity extends AppCompatActivity {
         p.onClosed = () -> { if (connPanel == p) connPanel = null; };
         show(p);
         fillConnection();
-        if (SystemClock.uptimeMillis() - lastCheckAt > 60000 && !checkRunning) runChecks(false);   // the speed test only on Check again
+        if (SystemClock.uptimeMillis() - lastCheckAt > 60000 && !checkRunning && !forced) runChecks(false);   // the speed test only on Check again
         emitDiag(c, "panel");
     }
     private void fillConnection() {
