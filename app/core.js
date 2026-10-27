@@ -61,6 +61,10 @@
   const arr = (x) => (Array.isArray(x) ? x : x && typeof x === 'object' ? Object.values(x) : []);
   const b64 = (s) => { try { return decodeURIComponent(escape(atob(s))); } catch { return s || ''; } };
   const yearOf = (...xs) => { for (const x of xs) { const m = String(x || '').match(/\b(19|20)\d{2}\b/); if (m) return m[0]; } return ''; };
+  // The IMDb id and TMDB id some panels send (design/ui-v1/copies/RANKING.md 4.1): a tt id anywhere in the info, and
+  // tmdb_id / tmdb. Only kept when it looks like one.
+  const imdbIn = (...xs) => { for (const x of xs) { const m = String(x ?? '').match(/\btt\d{7,8}\b/); if (m) return m[0]; } return ''; };
+  const tmdbOf = (...xs) => { for (const x of xs) if (/^\d{1,9}$/.test(String(x ?? '').trim())) return String(x).trim(); return ''; };
   const rating = (x) => { const n = parseFloat(x); return Number.isFinite(n) && n > 0 ? (Math.round(n * 10) / 10).toString() : ''; };
 
   // Accepts "host:port", "http://host:port/", or a full get.php / player_api.php link with credentials in it.
@@ -201,6 +205,7 @@
             kind: 'movie', id: String(x.stream_id), name: String(x.name || 'Movie').trim(), poster: x.stream_icon || '',
             cat: String(x.category_id ?? ''), rating: rating(x.rating), year: yearOf(x.year, x.releaseDate, x.name),
             added: +x.added || 0, url: path('movie', x.stream_id, x.container_extension || 'mp4'),
+            ...(tmdbOf(x.tmdb_id, x.tmdb) ? { tmdb: tmdbOf(x.tmdb_id, x.tmdb) } : {}),
           })),
         };
       },
@@ -212,6 +217,7 @@
             kind: 'series', id: String(x.series_id), name: String(x.name || 'Series').trim(), poster: x.cover || '',
             cat: String(x.category_id ?? ''), rating: rating(x.rating), year: yearOf(x.releaseDate, x.release_date, x.year),
             added: +x.last_modified || 0,
+            ...(tmdbOf(x.tmdb_id, x.tmdb) ? { tmdb: tmdbOf(x.tmdb_id, x.tmdb) } : {}),
           })),
         };
       },
@@ -222,6 +228,8 @@
           plot: i.plot || i.description || '', genre: i.genre || '', cast: i.cast || i.actors || '', director: i.director || '',
           year: yearOf(i.releasedate, i.release_date, m.year), duration: i.duration || '', rating: rating(i.rating) || m.rating,
           backdrop: arr(i.backdrop_path)[0] || i.cover_big || i.movie_image || m.poster,
+          tmdb: tmdbOf(i.tmdb_id, i.tmdb, m.tmdb), imdb: imdbIn(i.imdb_id, i.imdb, i.kinopoisk_url, i.imdb_url, i.description),
+          durationSecs: +i.duration_secs || 0,
         };
       },
       async seriesInfo(s) {
@@ -249,6 +257,7 @@
           plot: i.plot || '', genre: i.genre || '', cast: i.cast || '', director: i.director || '',
           year: yearOf(i.releaseDate, i.release_date, s.year), rating: rating(i.rating) || s.rating,
           backdrop: arr(i.backdrop_path)[0] || i.cover || s.poster, seasons,
+          tmdb: tmdbOf(i.tmdb_id, i.tmdb, s.tmdb), imdb: imdbIn(i.imdb_id, i.imdb, i.imdb_url),
         };
       },
       // What a channel showed from start to end (ms), from the panel's archive: its timeshift link, which takes the start as

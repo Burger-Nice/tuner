@@ -12,6 +12,8 @@ while [ $i -lt 30 ]; do
   i=$((i+1))
 done
 ffmpeg -loglevel error -y -f lavfi -i testsrc=size=1280x720:rate=25 -f lavfi -i sine=frequency=330 -i "$M/subs.srt" -t 60 -map 0:v -map 1:a -map 2:s -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -c:s mov_text -metadata:s:s:0 language=eng -movflags +faststart "$M/movie.mp4"
+# a 30 s clip: the fake add-on's "still downloading" placeholder (design/ui-v1/addons/SPEC.md 12.11)
+ffmpeg -loglevel error -y -f lavfi -i testsrc=size=1280x720:rate=25 -f lavfi -i sine=frequency=550 -t 30 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "$M/short.mp4"
 cp "$M/live.ts" "$M/uhd.ts"
 i=0
 for c in 0x8a2be2 0xe0553a 0x2a9d8f 0xe9c46a 0x264653 0xf4a261 0x6d597a 0x3a86ff; do

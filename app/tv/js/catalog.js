@@ -284,14 +284,15 @@ async function prepare(kind, c) {
 
 // ---------- IMDb ratings (a weekly file built from IMDb's free datasets, scripts/build-ratings.js) ----------
 const RATINGS_URL = 'https://github.com/Burger-Nice/tuner/releases/download/ratings/ratings.json';
-const imdb = { m: null, s: null, genres: [], loading: null };
-function loadRatings() {
+const imdb = { m: null, s: null, genres: [], loading: null, v: 0 };
+export function loadRatings() {
   if (imdb.loading) return imdb.loading;
   imdb.loading = (async () => {
     let d = await window.Core.cache.get('ratings');
-    if (!d?.movies || Date.now() - (d.fetched || 0) > 7 * 86400e3) {
+    // (a v1 file has no IMDb ids: asked for again once a day until the weekly build has made a v2 one)
+    if (!d?.movies || Date.now() - (d.fetched || 0) > 7 * 86400e3 || ((d.v || 1) < 2 && Date.now() - (d.fetched || 0) > 86400e3)) {
       try {
-        const r = await fetch(RATINGS_URL, { cache: 'no-store' });
+        const r = await fetch(store.get('ratingsUrl', RATINGS_URL), { cache: 'no-store' });   // (the tests point it at the fake provider)
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const got = await r.json();
         if (!got?.movies) throw new Error('no data');
@@ -300,19 +301,22 @@ function loadRatings() {
         window.Core.cache.set('ratings', d);
       } catch { if (!d?.movies) return false; }
     }
+    // ids (v2): every row of a key, for the strict IMDb match (RANKING.md 4.1 step 2: rows counted per key)
     const index = async (rows) => {
-      const byKey = new Map(), byTitle = new Map();
+      const byKey = new Map(), byTitle = new Map(), ids = new Map();
       for (let i = 0; i < rows.length; i++) {
-        const [key, year, r10, votes, g, alt] = rows[i];
+        const [key, year, r10, votes, g, alt, tc] = rows[i];
         const e = { r: r10 / 10, n: votes, g };
         for (const k of alt ? [key, alt] : [key]) {
           if (!byKey.has(k + '|' + year)) byKey.set(k + '|' + year, e);
           if (!byTitle.has(k)) byTitle.set(k, e);
+          if (tc) { let l = ids.get(k); if (!l) ids.set(k, (l = [])); l.push({ year, id: 'tt' + String(tc).padStart(7, '0') }); }
         }
         if (i % 5000 === 4999) await breathe();
       }
-      return { byKey, byTitle };
+      return { byKey, byTitle, ids };
     };
+    imdb.v = d.v || 1;
     imdb.genres = d.genres || [];
     imdb.m = await index(d.movies);
     imdb.s = await index(d.series || []);
@@ -327,6 +331,12 @@ function matchImdb(x, kind) {
   const y = +x.year || year;
   if (y) for (const yy of [y, y - 1, y + 1]) { const e = ix.byKey.get(key + '|' + yy); if (e) return e; }
   return !y || kind === 'series' ? ix.byTitle.get(key) || null : null;
+}
+// The ratings file's rows for a title's key, with their IMDb ids ([] for a v1 file): RANKING.md 4.1 step 2.
+export async function imdbRows(kind, key) {
+  if (!key || !(await loadRatings())) return [];
+  const ix = kind === 'movie' ? imdb.m : imdb.s;
+  return ix?.ids.get(key) || [];
 }
 // Returns true when ratings were added (the titles then need merging again).
 async function rateLib(kind, c) {

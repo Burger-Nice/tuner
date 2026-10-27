@@ -9,6 +9,7 @@ const ESPN = path.join(D, 'fixtures/espn');
 const PORT = 8899;
 const B = `http://127.0.0.1:${PORT}`;
 const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
+const addons = require('./mock-addons.js');   // the fake add-ons, the fake Stremio API and the ratings file (add-ons tests)
 
 const liveCats = ['News', 'Sports', 'Movies', 'Kids', 'Music', 'Documentary', 'Iceland | ÍS', 'UK | Entertainment'].map((n, i) => ({ category_id: String(i + 1), category_name: n }));
 const names = ['NBA 01: Memphis Grizzlies @ Golden State Warriors', 'US: ESPN HD', 'NBA League Pass 3', 'BBC One', 'CNN International', 'Sky Sports Main Event 4K UHD', 'RÚV', 'Stöð 2', 'Eurosport 1', 'Discovery', 'Nat Geo', 'MTV', 'Cartoon Network', 'Al Jazeera', 'France 24', 'DAZN 1', 'HBO', 'Comedy Central'];
@@ -64,7 +65,7 @@ function table(id, nowMs) {
 const serCats = ['Drama', 'Crime', 'Comedy', 'Reality'].map((n, i) => ({ category_id: String(30 + i), category_name: n }));
 const series = Array.from({ length: 60 }, (_, i) => ({
   num: i + 1, name: ['Trapped', 'The Office', 'Katla', 'Succession', 'The Bear', 'Severance'][i % 6] + (i >= 6 ? ` ${Math.floor(i / 6) + 1}` : ''), series_id: 9000 + i,
-  cover: i % 7 === 6 ? '' : `${B}/img/p${(i + 3) % 8}.jpg`, plot: 'A plot.', rating: '8.1', releaseDate: `${2010 + (i % 14)}-01-01`, last_modified: String(1700000000 + i), category_id: String(30 + (i % 4)),
+  cover: i % 7 === 6 ? '' : `${B}/img/p${(i + 3) % 8}.jpg`, plot: 'A plot.', rating: '8.1', releaseDate: i === 4 ? '2022-06-23' : `${2010 + (i % 14)}-01-01`, last_modified: String(1700000000 + i), category_id: String(30 + (i % 4)),
 }));
 
 // (nowMs: a test's own clock, from the x-mock-now header, so the guide matches the page's fake time)
@@ -79,10 +80,10 @@ function api(q, nowMs = Date.now()) {
     case 'get_vod_streams': return vod;
     case 'get_series_categories': return serCats;
     case 'get_series': return series;
-    case 'get_vod_info': return { info: { plot: 'A lighthouse keeper on a remote fjord picks up a radio signal that should not exist, and spends one long winter night trying to trace it.', genre: 'Thriller, Drama', cast: 'Ólafur Darri Ólafsson, Hera Hilmar', director: 'Baltasar Kormákur', releasedate: '2021-10-01', duration: '1h 38m', rating: '7.4', backdrop_path: [`${B}/img/bd.jpg`] }, movie_data: {} };
+    case 'get_vod_info': return { info: { ...(q.get('vod_id') === '5000' ? { tmdb_id: '4401' } : {}), plot: 'A lighthouse keeper on a remote fjord picks up a radio signal that should not exist, and spends one long winter night trying to trace it.', genre: 'Thriller, Drama', cast: 'Ólafur Darri Ólafsson, Hera Hilmar', director: 'Baltasar Kormákur', releasedate: '2021-10-01', duration: '1h 38m', rating: '7.4', backdrop_path: [`${B}/img/bd.jpg`] }, movie_data: {} };
     case 'get_series_info': {
       const mk = (s, n) => Array.from({ length: n }, (_, e) => ({ id: String(70000 + s * 100 + e), episode_num: e + 1, title: `Episode ${e + 1}: ${['Arrival', 'The Storm', 'Whiteout', 'Thaw', 'Aftershock', 'Home'][e % 6]}`, container_extension: 'mp4', season: s, info: { plot: 'Snow closes the only road out of town just as a body turns up in the harbour.', duration: '00:52:10', movie_image: e % 3 ? `${B}/img/bd.jpg` : '' } }));
-      return { info: { name: 'x', plot: 'A small Icelandic town is cut off by a blizzard while the police chief investigates a murder.', genre: 'Crime, Drama', cast: 'Ólafur Darri Ólafsson', director: 'Baltasar Kormákur', releaseDate: '2015-12-27', rating: '8.1', backdrop_path: [`${B}/img/bd.jpg`] }, episodes: { 1: mk(1, 6), 2: mk(2, 8), 3: mk(3, 4) } };
+      return { info: { ...(q.get('series_id') === '9004' ? { tmdb: '136315' } : {}), name: 'x', plot: 'A small Icelandic town is cut off by a blizzard while the police chief investigates a murder.', genre: 'Crime, Drama', cast: 'Ólafur Darri Ólafsson', director: 'Baltasar Kormákur', releaseDate: '2015-12-27', rating: '8.1', backdrop_path: [`${B}/img/bd.jpg`] }, episodes: { 1: mk(1, 6), 2: mk(2, 8), 3: mk(3, 4) } };
     }
     case 'get_simple_data_table': return table(+q.get('stream_id'), nowMs);
     case 'get_short_epg': {
@@ -141,6 +142,7 @@ http.createServer((req, res) => {
     req.on('close', () => { sent = total; });
     return more();
   }
+  if (addons(req, res, u)) return;
   if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams, +req.headers['x-mock-now'] || Date.now()))); }
   if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');
   if (u.pathname === '/espn/summary') {

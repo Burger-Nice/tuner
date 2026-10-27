@@ -44,13 +44,12 @@ function lines(file, onLine) {
     if (!key) return;
     const alt = original && original !== primary ? norm(original) : '';
     const g = gs && gs !== '\\N' ? gs.split(',').map(genreIx) : [];
-    // [key, year, rating x10, votes, genre indexes, original-title key (when different)]
-    const row = [key, +start || 0, r[0], r[1], g];
-    if (alt && alt !== key) row.push(alt);
-    rows[kind].push(row);
+    // [key, year, rating x10, votes, genre indexes, original-title key ('' when the same), IMDb id as a number]
+    // (tt0110357 -> 110357; the app writes it back as tt + at least 7 digits)
+    rows[kind].push([key, +start || 0, r[0], r[1], g, alt && alt !== key ? alt : '', +id.slice(2)]);
   });
   for (const k of ['m', 's']) rows[k].sort((a, b) => b[3] - a[3]);
-  const data = { v: 1, at: Date.now(), minVotes: MIN_VOTES, genres, movies: rows.m, series: rows.s };
+  const data = { v: 2, at: Date.now(), minVotes: MIN_VOTES, genres, movies: rows.m, series: rows.s };
   const json = JSON.stringify(data);
   // Plain JSON unless asked for .gz: the TV app's native HTTP hands responses over as text.
   fs.writeFileSync(out, out.endsWith('.gz') ? zlib.gzipSync(json, { level: 9 }) : json);
