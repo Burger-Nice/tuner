@@ -236,7 +236,9 @@ native?.player.onEvent((e) => {
   const c = playing.cur;
   if (!c || e.session !== c.session || !lastPlay) return;
   if (e.type === 'need' && e.what === 'copy') {
-    const x = lastPlay.list.find((y) => y.key === e.key);
+    // key null with speedMbps: Diag just measured the Wi-Fi or internet; re-rank with it (band b) and take the best that fits
+    const x = e.key ? lastPlay.list.find((y) => y.key === e.key)
+      : rank(lastPlay.list.filter((y) => y.key !== playing.cur?.items?.[playing.cur.index]?._entry?.copyKey && !failed.has(y.key)), { langs: prefLangs(), runtime: (lastPlay.tc.meta?.runtime || 0) * 60, speedMbps: +e.speedMbps || 0 })[0];
     if (!x) { playerCommand('copy', { key: e.key, error: 'gone' }); return; }
     if (x.source === 'provider') { playerCommand('copy', { key: x.key, entry: { id: `movie:${x.v.id}`, url: x.v.url, title: x.v._title || x.v.name, source: 'provider', sourceKind: 'provider' } }); return; }
     const it = addonItem(lastPlay.t, x, lastPlay.tc, lastPlay.row);
