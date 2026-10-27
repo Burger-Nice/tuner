@@ -289,6 +289,7 @@ native?.player.onEvent((e) => {
       const item = pick.source === 'provider' ? next.prov : addonItem(lastPlay.t, pick, tc, next);
       const entry = pick.source === 'provider' ? { id: `episode:${next.prov.id}`, url: next.prov.url, title: lastPlay.t.name, sub: `S${next.season} · E${next.ep} · ${next.name}`, source: 'provider', binge: 'provider' } : { id: `episode:${item.id}`, url: item.url, title: lastPlay.t.name, sub: `S${next.season} · E${next.ep} · ${next.name}`, ...item._entry };
       playerCommand('queue-next', { entry, same: !!same, say: same ? `Same source: ${pick.source === 'provider' ? 'Your provider' : pick.source} ${pick.claim.res || ''}`.trim() : `Best copy: ${copyLine(pick)} · ${pick.source === 'provider' ? 'Your provider' : pick.source}` });
+      playing.cur?.items?.push(item);   // (the player's next item: its progress is saved under it, PORT-NATIVE.md 3)
       lastPlay = { ...lastPlay, row: next };
     });
   }
