@@ -120,6 +120,10 @@ public class TunerPlayerPlugin extends Plugin {
         r.put("tv", tv);
         // The player speaks the replay protocol (design/ui-v1/catchup/PORT-NATIVE.md): the app sends mode 'replay'.
         r.put("replay", true);
+        // The quality check and "plays on this TV" (probe, probeCancel, playable), and downloaded subtitles drawn by the
+        // player (the subs command): design/ui-v1/subtitles/PORT-NATIVE.md 0.
+        r.put("probe", true);
+        r.put("subs", 1);
         // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).
         try { r.put("systemSounds", Settings.System.getInt(getContext().getContentResolver(), Settings.System.SOUND_EFFECTS_ENABLED, 1) == 1); } catch (Exception ignored) {}
         try {
@@ -143,8 +147,41 @@ public class TunerPlayerPlugin extends Plugin {
     static final java.util.List<String[]> early = new java.util.ArrayList<>();
     static int session() { return session; }
 
+    // ---------- the quality check (design/ui-v1/subtitles/PORT-NATIVE.md 1) ----------
+    @PluginMethod
+    public void probe(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) { call.reject("No link to check."); return; }
+        JSObject result = new JSObject();
+        // never while something plays: 'unavailable' keeps it queued until the player closes (probes.js)
+        if (PlayerActivity.current != null || PlayerActivity.launching) {
+            result.put("id", call.getString("id", ""));
+            result.put("status", "unavailable");
+            result.put("why", "playing");
+            call.resolve(result);
+            return;
+        }
+        java.util.Map<String, String> headers = new java.util.HashMap<>();
+        JSObject h = call.getObject("headers");
+        if (h != null) for (java.util.Iterator<String> it = h.keys(); it.hasNext(); ) { String k = it.next(); headers.put(k, h.optString(k)); }
+        if (!Probe.start(getContext(), call.getString("id", ""), url, headers, call::resolve)) call.reject("busy", "busy");
+    }
+    @PluginMethod
+    public void probeCancel(PluginCall call) { Probe.cancelRunning("cancelled"); call.resolve(); }
+    /** "Plays on this TV" for stored formats, with the audio route as it is now; opens no stream. */
+    @PluginMethod
+    public void playable(PluginCall call) {
+        JSArray copies = call.getArray("copies");
+        Context ctx = getContext();
+        new Thread(() -> {
+            try { call.resolve(Probe.playable(ctx, copies)); }
+            catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
+        }).start();
+    }
+
     @PluginMethod
     public void play(PluginCall call) {
+        Probe.cancelRunning("cancelled");   // the check's socket is closed before the stream opens
         String key = call.getString("key", "");
         JSArray entries = call.getArray("entries");
         boolean replay = "replay".equals(call.getString("mode", ""));
@@ -170,6 +207,8 @@ public class TunerPlayerPlugin extends Plugin {
         i.putExtra("upNext", call.getBoolean("upNext", true));
         i.putExtra("sounds", call.getString("sounds", "on"));
         i.putExtra("sub", call.getString("sub", ""));
+        JSObject subs = call.getObject("subs");   // the subtitle settings (PORT-NATIVE.md 2.1)
+        if (subs != null) i.putExtra("subs", subs.toString());
         i.putExtra("api", call.getString("api", ""));   // the provider's player_api.php, for the account check
         Boolean bug = call.getBoolean("scoreBug");
         if (bug != null) i.putExtra("scoreBug", bug.booleanValue());
@@ -202,7 +241,7 @@ public class TunerPlayerPlugin extends Plugin {
             String arg = args.length() > 1 ? args.optString(1, "") : "";
             if (p != null && p.session() == session) p.runOnUiThread(() -> p.command(what, arg));
             // The player is still starting (play() answers right after asking for it): keep what it must not miss.
-            else if (PlayerActivity.launching && "queue".equals(what)) synchronized (early) { early.add(new String[] { what, arg }); }
+            else if (PlayerActivity.launching && ("queue".equals(what) || "subs".equals(what) || "versions".equals(what))) synchronized (early) { early.add(new String[] { what, arg }); }
         }
         call.resolve();
     }
