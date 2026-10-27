@@ -1645,6 +1645,7 @@ public class PlayerActivity extends AppCompatActivity {
         p.setFoot(one ? (live ? "Your provider sends this channel in one quality." : "Your provider sends this video in one quality.")
                 : lg.size() > 1 && !copies ? "Best available is the default." : "Switching starts the other copy where you are.");
         if (fromOptions) p.backTo = this::openOptions;
+        if (copies) p.hintKeys = new String[][] { { "OK", "Switch" }, { "▲ ▼", "Move" }, { "Back", fromOptions ? "Options" : "Close" } };   // (player-sources)
         show(p);
     }
     private void setLevel(Tracks.Group g, int i, boolean best) {
@@ -1844,6 +1845,10 @@ public class PlayerActivity extends AppCompatActivity {
     private String errorText(PlaybackException e) {
         if (e.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES || e.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED)
             return "This TV can't decode this " + (live ? "channel's" : "video's") + " picture format.";
+        if (!live && cur != null && cur.addon()) {   // an add-on copy: the add-on by name, never "the provider"
+            if (e.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) return cur.source + " refused this copy.";
+            if (e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT) return cur.source + " isn't answering.";
+        }
         if (e.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) return live ? "The provider refused this channel (it may be offline or your connections are in use)." : "The provider refused this video.";
         if (e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT) return "Can't reach the provider. Check the internet connection.";
         return live ? "This channel is not available right now." : "This video would not play (" + e.getErrorCodeName() + ").";
