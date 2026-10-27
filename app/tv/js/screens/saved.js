@@ -10,7 +10,8 @@ import { playLive, watching } from '../player.js';
 import { push, current } from '../router.js';
 import { focus } from '../focus.js';
 import { contextMenu, toast } from '../ui.js';
-import { resumeItem, openTitle } from '../actions.js';
+import { resumeItem, openTitle, openDetail } from '../actions.js';
+import { videoMask } from '../catchup.js';
 
 let el, tab = 'channels', lift = null, liftFrom = 0, order = [], gridTop = 0;
 const keyOf = (f) => `${f.kind}:${f.id}`;
@@ -53,9 +54,11 @@ function draw() {
     const h = history();
     el._hist = h;
     body = h.length ? `<div class="abs" style="left:48px;top:134px;width:864px;height:379px;overflow:hidden"><div class="inner" data-col style="transform:translateY(${-gridTop}px);transition:transform 200ms var(--a-ease)">${h.map((p, i) => {
-      const it = p.item, title = it.kind === 'episode' ? `${it.seriesName} · S${it.season} E${it.ep}` : it._title || it.name;
+      const it = p.item, mk = it.kind === 'movie' ? videoMask(it) : null;
+      const title = mk ? mk.title : it.kind === 'rp' ? (it.game ? `${it.game.away.name} at ${it.game.home.name} · Replay` : `${it.title || it.name} · Replay`) : it.kind === 'episode' ? `${it.seriesName} · S${it.season} E${it.ep}` : it._title || it.name;
       const done = p.done || p.t >= p.d * 0.94;
-      return `<div class="rrow fx" tabindex="-1" data-hi="${i}" style="margin-bottom:8px"><div class="mini2" style="height:40px;width:28px"><div class="art">${it.poster ? `<img src="${esc(it.poster)}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(title)}</div><div class="t-cap">${done ? 'Watched' : leftText(p.d - p.t)}${dot}${new Date(p.at).toLocaleDateString([], { day: 'numeric', month: 'short' })}</div></div></div>`;
+      const left = it.kind === 'rp' ? (it.pos?.chapter ? `Stopped in ${it.pos.chapter}` : 'Started') : mk ? 'Started' : leftText(p.d - p.t);
+      return `<div class="rrow fx" tabindex="-1" data-hi="${i}" style="margin-bottom:8px"><div class="mini2" style="height:40px;width:28px"><div class="art">${it.poster && !mk ? `<img src="${esc(it.poster)}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(title)}</div><div class="t-cap">${done ? 'Watched' : left}${dot}${new Date(p.at).toLocaleDateString([], { day: 'numeric', month: 'short' })}</div></div></div>`;
     }).join('')}</div></div>` : `<div class="center-col" style="top:180px"><div class="state big"><div class="ico">${ic('clock')}</div><b>Nothing watched yet</b><p>Films and episodes you start show up here.</p></div></div>`;
   }
   setHtml(el, `<div class="lib-head" data-row><span class="t-head">Saved</span><span class="grow"></span>${chip('channels', 'Channels', counts.channels)}${chip('movie', 'Movies', counts.movie)}${chip('series', 'Series', counts.series)}${chip('history', 'History')}</div>${body}`);
@@ -83,14 +86,14 @@ export default {
         const ch = order[i]; if (ch) playLive(ch, order, 'Favourites');
         return;
       }
-      const p = e.target.closest('.pc'); if (p) { const x = el._list?.[+p.dataset.i]; if (x) push('detail', { title: x }); return; }
+      const p = e.target.closest('.pc'); if (p) { const x = el._list?.[+p.dataset.i]; if (x) openDetail(x); return; }
       const h = e.target.closest('[data-hi]'); if (h) { const x = el._hist?.[+h.dataset.hi]; if (x) resumeItem(x.item); }
     });
     root.addEventListener('tvhold', (e) => {
       const r = e.target.closest('[data-ci]');
       if (r) { lift = +r.dataset.ci; liftFrom = lift; draw(); focus(el.querySelector(`[data-ci="${lift}"]`)); return; }
       const p = e.target.closest('.pc');
-      if (p) { const x = el._list?.[+p.dataset.i], i = +p.dataset.i; if (x) contextMenu(p, [{ icon: 'saved', label: 'Remove from Saved', run: () => { toggleFav(x); draw(); place(); focus(el.querySelector(`.lib-grid [data-i="${Math.min(i, (el._list?.length || 1) - 1)}"]`) || el.querySelector(`[data-tab-s="${tab}"]`)); } }, { icon: 'info', label: 'Details', run: () => push('detail', { title: x }) }]); }
+      if (p) { const x = el._list?.[+p.dataset.i], i = +p.dataset.i; if (x) contextMenu(p, [{ icon: 'saved', label: 'Remove from Saved', run: () => { toggleFav(x); draw(); place(); focus(el.querySelector(`.lib-grid [data-i="${Math.min(i, (el._list?.length || 1) - 1)}"]`) || el.querySelector(`[data-tab-s="${tab}"]`)); } }, { icon: 'info', label: 'Details', run: () => openDetail(x) }]); }
     });
     root.addEventListener('tvfocus', (e) => { place(); const t = e.target.dataset.tabS; if (t && t !== tab) { tab = t; lift = null; gridTop = 0; draw(); } });
     on('favs', () => { if (current() === 'saved' && lift == null) draw(); });

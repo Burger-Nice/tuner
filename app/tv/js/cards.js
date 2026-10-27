@@ -49,6 +49,8 @@ export function liveCard(ch, prog, { i, live, pending } = {}) {   // pending: it
 export function contCard(p, i) {
   const it = p.item;
   if (it.kind === 'rp') return replayCard(p, i);
+  const mk = it.kind === 'movie' ? videoMask(it) : null;   // (a hidden game's video: airglow's name, no minutes left)
+  if (mk) return `<div class="hc fx" tabindex="-1" data-i="${i}" data-key="p:${esc(it.kind)}:${esc(it.id)}" data-hold><div class="art cu-noart"></div><div class="hs"></div><div class="tp"><span class="t-label" style="line-height:22px">${mk.kind === 'game' ? 'NBA · Replay' : 'Film'}</span></div><div class="bt"><b>${esc(mk.title)}</b></div><div class="prog flush"><i style="width:${pct(p)}%"></i></div></div>`;
   const kind = it.kind === 'episode' ? `S${it.season} · E${it.ep}` : 'Film';
   const title = it.kind === 'episode' ? it.seriesName : it._title || it.name;
   const art = it.still || it.poster;
@@ -73,6 +75,8 @@ export function replayCard(p, i) {
 }
 // 16:9 card (detail "More like this", episodes).
 export function wideCard(t, i) {
+  const mk = videoMask(t);
+  if (mk) return `<div class="wc fx" tabindex="-1" data-i="${i}"><div class="art cu-noart">${ic('eyeOff')}</div><div class="tx"><b>${esc(mk.title)}</b><span>${esc(mk.kind === 'game' ? mk.meta : 'Name hidden')}</span></div></div>`;
   return `<div class="wc fx" tabindex="-1" data-i="${i}"><div class="art">${img(t.poster)}</div><div class="tx"><b>${esc(t.name)}</b><span>${esc([t.year, t._genres?.[0]].filter(Boolean).join(' · '))}</span></div></div>`;
 }
 

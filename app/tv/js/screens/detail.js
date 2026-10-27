@@ -7,6 +7,7 @@ import { wideCard } from '../cards.js';
 import { playVod, watching } from '../player.js';
 import { push } from '../router.js';
 import { focus } from '../focus.js';
+import { openDetail } from '../actions.js';
 import { openOverlay, radioMenu, toast } from '../ui.js';
 
 let el, t = null, ver = null, info = null, season = null, epFocus = null, my = 0;
@@ -228,7 +229,7 @@ export default {
       if (!b || !t) return;
       if (b.dataset.season) { season = b.dataset.season; epFocus = null; draw(); focus(el.querySelector(`[data-season="${CSS.escape(season)}"]`)); return; }
       if (b.dataset.ep != null) { const s = info.seasons.find((x) => x.n === season); return playVod(s.eps[+b.dataset.ep], { queue: episodes() }); }
-      if (b.classList.contains('wc')) { const x = el._more?.[+b.dataset.i]; if (x) push('detail', { title: x }); return; }
+      if (b.classList.contains('wc')) { const x = el._more?.[+b.dataset.i]; if (x) openDetail(x); return; }
       const act = b.dataset.act;
       if (act === 'play') play(false);
       else if (act === 'restart') play(true);

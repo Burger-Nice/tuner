@@ -75,14 +75,16 @@ module.exports = async ({ p, key }, opts = {}) => {
   await p.route(`**/espn/summary?event=${JAZZ}`, (r) => r.fulfill({ contentType: 'application/json', headers: cors, body: JSON.stringify(jazzSummary(state === 'in' ? at - 75e3 : 0)) }));
   await p.route('**/espn/summary?event=401909867', (r) => r.fulfill({ contentType: 'application/json', headers: cors, body: fs.readFileSync(`${F}/summary-401909850.json`, 'utf8') }));
   // the provider's guide on the page's clock
-  await p.route('**/player_api.php*', (r) => r.continue({ headers: { ...r.request().headers(), 'x-mock-now': String(at + (Date.now() - started)) } }));
+  if (p.__nowRoute) await p.unroute('**/player_api.php*', p.__nowRoute);
+  p.__nowRoute = (r) => r.fallback({ headers: { ...r.request().headers(), 'x-mock-now': String(at + (Date.now() - started)) } });
+  await p.route('**/player_api.php*', p.__nowRoute);
   const started = Date.now();
   if (!p.__clocked) { await p.clock.install({ time: new Date(at) }); p.__clocked = true; } else await p.clock.setSystemTime(new Date(at));
   await ev((o) => {
     // a fresh morning: no replay progress, picks or "watched on" kept from an earlier part of the script
     for (const k of Object.keys(localStorage)) if (/:(progress|replayPick|nbaWatchedOn|archiveShift|replayDelay)"?$/.test(k) || /:(progress|replayPick|nbaWatchedOn|archiveShift|replayDelay)$/.test(k)) localStorage.removeItem(k);
     const k = 'tuner.settings', v = JSON.parse(localStorage.getItem(k) || '{}');
-    v.shield = o.shield || 'mine'; v.nbaTeam = 'MEM'; if (o.replaysPlay) v.replaysPlay = o.replaysPlay; else delete v.replaysPlay;
+    v.shield = o.shield || 'mine'; v.nbaTeam = o.team || 'MEM'; if (o.replaysPlay) v.replaysPlay = o.replaysPlay; else delete v.replaysPlay;
     localStorage.setItem(k, JSON.stringify(v));
     localStorage.setItem('tuner.nbaSeen', JSON.stringify({ upTo: o.seenUpTo || Date.parse('2026-10-26T12:00:00Z'), ids: [] }));
     localStorage.removeItem('tuner.nba:today');

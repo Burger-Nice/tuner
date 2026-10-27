@@ -10,6 +10,8 @@ import { poster } from '../cards.js';
 import { playLive, playVod, watching } from '../player.js';
 import { push, current } from '../router.js';
 import { focus } from '../focus.js';
+import { openDetail, playMasked } from '../actions.js';
+import { videoMask } from '../catchup.js';
 import { ringFor, ringName } from './home.js';
 
 const KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
@@ -24,6 +26,8 @@ function results() {
       ${trend.length ? `<div class="t-label" style="margin:24px 0 10px">Trending</div><div class="rail" style="padding:0;gap:16px;margin:0"><div class="track" data-row style="gap:16px">${trend.map((t, i) => poster(t, 'tr' + i, { sm: true })).join('')}</div></div>` : '<div class="t-body">Type a channel, programme, movie, series or team.</div>'}`;
   }
   res = searchAll(q, 12);
+  // under the spoiler shield, a hidden game's videos read airglow's name (catch-up 5.8): no poster, no year or rating
+  res.movie = res.movie.map((t) => { const mk = videoMask(t); return mk ? { ...t, name: mk.title, poster: '', year: mk.kind === 'game' ? mk.meta : 'Name hidden', _genres: [], _q: '', versions: [t.versions?.[0] || t] } : t; });
   const top = res.movie[0] || res.series[0] || null;
   const onTv = [];
   const words = window.Titles.norm(q).split(' ').filter(Boolean);
@@ -84,8 +88,8 @@ function openRes(v) {
   const t = catalog[a]?.titleById?.get(b) || catalog[a]?.titles?.find((x) => x.id === b);
   if (!t) return;
   // the top result's Play plays (your language and best quality, from where you stopped); everything else opens its page
-  if (kind === 'p') playVod(defaultVersion(t));
-  else push('detail', { title: t });
+  if (kind === 'p') { if (!playMasked(t)) playVod(defaultVersion(t)); }
+  else openDetail(t);
 }
 
 let bigT = 0;
@@ -99,7 +103,7 @@ export default {
       const s = e.target.closest('[data-sugg]'); if (s) { q = s.dataset.sugg.toLowerCase(); draw(); focus(el.querySelector('[data-right] .rrow')); return; }
       const r = e.target.closest('[data-recent]'); if (r) { q = r.dataset.recent; draw(); return; }
       const x = e.target.closest('[data-res]'); if (x) return openRes(x.dataset.res);
-      const p = e.target.closest('.pc'); if (p) { const t = (catalog.movie?._sorted?.popular || [])[+String(p.dataset.i).replace('tr', '')]; if (t) push('detail', { title: t }); return; }
+      const p = e.target.closest('.pc'); if (p) { const t = (catalog.movie?._sorted?.popular || [])[+String(p.dataset.i).replace('tr', '')]; if (t) openDetail(t); return; }
       if (e.target.closest('[data-act="clear"]')) { q = ''; draw(); focus(el.querySelector('[data-key="A"]')); }
     });
     on('catalog', () => { if (current() === 'search') draw(); });

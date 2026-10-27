@@ -114,7 +114,24 @@ shipped, and how the owner likes to work. Read this, then `CLAUDE.md` (how the c
   live-update, flood and bad-network tours). They found about 70 issues, all fixed. **Released v0.2.58.**
 - Owner: "it's wonderful brother we've made something amazing."
 
-## What the app does now (v0.2.58)
+**27 Oct, the NBA pages, buffering and the diagnosis (released v0.2.66 overnight, with the owner's OK to release).**
+- **NBA tab:** a section row (`Games · [crest] Grizzlies · Standings · Leaders · Team stats · News`), every team's page,
+  the player sheet, the team picker (design `design/ui-v1/nba-pages/`, reviewed 6.8 → 7.8). The spoiler shield covers
+  all of it: a seen store `{ upTo, ids }` (seen = Reveal or the final buzzer while watching; 7-day / 3-day auto-seen),
+  records counted from seen finals, standings/leaders/team stats copied at tip-off, news covered and scanned.
+- **Owner asks, done:** the highest-quality copy for games (`bestChannel`); "my game constantly hitting the load": live
+  `.ts` streams now wait for 6 s of picture after a stall (was 3), 12 s read timeout, calmer reconnects, and the stall
+  and pause lag is added to every score delay; "sync score just doesn't work": the clocks now come from a fresh ESPN
+  fetch and messages show over the open panel (the emulator test presses Sync); "is it my internet or the provider": the
+  playback diagnosis (`design/ui-v1/diagnosis/`, reviewed 6.3 → 7.2 → 7.8): a card naming the side at fault with one
+  action, Options > Connection, Account > Provider > Check the connection.
+- **Designed, not built yet:** catch-up / rewatch (`design/ui-v1/catchup/`, 6.3 → 7.4 → 8.0; owner's answers in its
+  section 13: a `Replays play` setting, seen at the buzzer, `Watch live` first, "Replays for 3 days"); subtitles from
+  OpenSubtitles + real quality per copy (`design/ui-v1/subtitles/`, owner: "sometimes no subtitles, bad quality") and a
+  Stremio-compatible add-on system (`design/ui-v1/addons/`, owner: "just do stremio's system on our app"; direct links
+  only, no torrents), both in their second design round.
+
+## What the app does now (v0.2.66)
 
 - **Sign-in:** an Xtream server/user/password, or a full get.php link, or an M3U link. Several saved accounts.
   Three quick choices: your team (or None), the spoiler shield, and your languages.

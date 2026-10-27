@@ -19,14 +19,20 @@ module.exports = async (ctx) => {
   await setup(ctx);
   await toHub();
   console.log('hub hero:', await ev(() => document.querySelector('[data-screen="nba"] .hero-plate')?.innerText.replace(/\s+/g, ' ')));
-  await key('ArrowDown', 1, 400);
+  console.log('hub focus:', await focused());
+  for (let i = 0; i < 3 && !(await focused()).includes('Watch from tip-off'); i++) await key('ArrowDown', 1, 400);
   ok('hub: Watch from tip-off is the entry', (await focused()).includes('Watch from tip-off'));
   await sweep('hub');
   await shot('nba-hub-replay');
-  // the day before: last night's cards
-  await key('ArrowDown', 1, 400); await key('ArrowLeft', 1, 3000);
+  // the day before: last night's cards. (The hub's hero is your team's game and its card isn't repeated under it, so
+  // the card is looked at with no team and the shield on every game.)
+  await setup(ctx, { shield: 'all', team: 'none' });
+  await toHub();
+  for (let i = 0; i < 3 && !(await ev(() => !!document.activeElement.dataset.day)); i++) await key('ArrowDown', 1, 400);
+  await key('ArrowLeft', 1, 3000);
   await key('ArrowDown', 1, 600);
-  for (let i = 0; i < 4 && !(await focused()).includes(JAZZ); i++) await key('ArrowRight', 1, 300);
+  for (let i = 0; i < 6 && !(await focused()).includes(JAZZ); i++) await key('ArrowRight', 1, 300);
+  await p.waitForTimeout(2500);
   console.log('card:', await focused(), '| day caption:', await ev(() => document.querySelector('.nb-days .t-cap')?.innerText.replace(/\s+/g, ' ')));
   console.log('cards:', await ev(() => [...document.querySelectorAll('.nba-grid .gc')].slice(0, 3).map((c) => c.innerText.replace(/\s+/g, ' ')).join(' | ')));
   ok('the Grizzlies card: Replay mark, no records', /Replay/.test(await ev(() => document.activeElement.innerText)) && !/\d-\d/.test(await ev(() => document.activeElement.innerText)));
@@ -54,6 +60,7 @@ module.exports = async (ctx) => {
   await shot('choose-video');
   await key('Escape', 1, 500); await key('Escape', 1, 1200);
   // ---------- the team page ----------
+  await setup(ctx);
   await ev(() => window.__tunerTest.go('nba')); await p.waitForTimeout(1500);
   await key('ArrowUp', 1, 300); await key('ArrowLeft', 3, 100); await key('ArrowRight', 1, 1500);
   await key('ArrowDown', 1, 600);

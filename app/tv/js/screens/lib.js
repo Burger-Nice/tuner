@@ -6,6 +6,8 @@ import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, facetCoun
 import { poster } from '../cards.js';
 import { push, barHidden, current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
+import { openDetail } from '../actions.js';
+import { videoMask } from '../catchup.js';
 import { openOverlay, contextMenu, toast, scrollList } from '../ui.js';
 
 const COLS = 6, PITCH = 252, COLW = 148, MOUNT_BEFORE = 2, MOUNT_AFTER = 3;
@@ -63,11 +65,13 @@ export default function lib(kind) {
     const want = new Set();
     for (let r = a; r < b; r++) for (let c = 0; c < COLS; c++) { const i = r * COLS + c; if (i < list.length) want.add(i); }
     const have = new Map([...grid.children].filter((x) => x.dataset.i).map((x) => [+x.dataset.i, x]));
-    for (const [i, node] of have) if (!want.has(i) || node._t !== list[i]) { if (node === document.activeElement) continue; node.remove(); have.delete(i); }
+    // (a card is drawn again when the shield's mask on it changes: catch-up 5.8)
+    const mk = (t) => videoMask(t)?.kind || '';
+    for (const [i, node] of have) if (!want.has(i) || node._t !== list[i] || (node._m || '') !== mk(list[i])) { if (node === document.activeElement) continue; node.remove(); have.delete(i); }
     let html = '';
     for (const i of want) if (!have.has(i)) html += poster(list[i], i).replace('class="pc fx', `data-c="${i % COLS}" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px" class="pc fx`);
     if (html) grid.insertAdjacentHTML('beforeend', html);
-    for (const node of grid.children) if (node.dataset.i) node._t = list[+node.dataset.i];
+    for (const node of grid.children) if (node.dataset.i) { node._t = list[+node.dataset.i]; node._m = mk(node._t); }
     // Scrolled, the focused row sits low enough to show the row above under the top fade, and high enough that its own
     // titles stay on screen (a card is 238 tall: poster 186 + title and year): its bottom lands inside the safe edge (513).
     grid.style.transform = `translateY(${(scrolled ? 22 : 176) - topRow * PITCH}px)`;
@@ -228,7 +232,7 @@ export default function lib(kind) {
         if (b?.dataset.act === 'jump') return jumpMenu();
         if (b?.dataset.act === 'clear') { setView({ f: {} }, 'All'); return; }
         const card = e.target.closest('.pc');
-        if (card) push('detail', { title: list[+card.dataset.i] });
+        if (card) openDetail(list[+card.dataset.i]);
       });
       root.addEventListener('tvhold', (e) => {
         const card = e.target.closest('.pc'); if (!card) return;
@@ -236,7 +240,7 @@ export default function lib(kind) {
         contextMenu(card, [
           { icon: 'saved', label: isFav(t) ? 'Remove from Saved' : 'Save to Saved', run: () => toast(toggleFav(t) ? `Saved ${t.name}` : `Removed ${t.name}`) },
           { icon: 'check', label: 'Mark watched', run: () => { markWatched(t.versions[0]); drawGrid(); } },
-          { icon: 'info', label: 'Details', run: () => push('detail', { title: t }) },
+          { icon: 'info', label: 'Details', run: () => openDetail(t) },
         ]);
       });
       root.addEventListener('tvfocus', (e) => {
@@ -251,6 +255,7 @@ export default function lib(kind) {
         }
       });
       on('session', () => { view = null; list = []; });
+      on('nba', () => { if (current() === kind && list.length) drawGrid(); });   // (the shield's masks follow what you've seen)
       on('catalog', (k) => {
         if (k !== kind) return;
         if (current() !== kind && current() !== 'detail') { list = []; return; }   // rebuilt on the next open; don't hold the old titles

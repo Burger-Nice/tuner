@@ -77,7 +77,8 @@ function draw() {
     body = card(`${name} is hidden`, 'Watch it from tip-off: it counts as seen at the replay’s final buzzer.', `<span class="btn fx" tabindex="-1" data-act="tipoff" data-hold>${ic('play')}Watch from tip-off</span>${revealB}`, `${what}${dot}hold OK: other sources`);
   } else if (v.hidden && g.state === 'post' && reps) {
     const lk = replaysLooked(g0), day = new Date(g0.date + 3 * 864e5 - 6 * 3600e3).toLocaleDateString('en-GB', { weekday: 'short' });
-    body = card('No replay of this game yet', `Full games often reach Movies a few hours after the final. airglow looks every hour until ${day}.`,
+    const still = Date.now() < g0.date + 3 * 864e5;
+    body = card('No replay of this game yet', `Full games often reach Movies a few hours after the final. ${still ? `airglow looks every hour until ${day}.` : 'Look again when one may have arrived.'}`,
       `<span class="btn fx" tabindex="-1" data-act="look">${ic('refresh')}${replaysBusy(g0) ? 'Looking…' : 'Look again'}</span><span class="btn2 fx" tabindex="-1" data-act="choose">${ic('search')}Choose a video</span>${revealB}`,
       lk ? `Looked at ${hm(lk.at)} in ${lk.tables} channel archive${lk.tables === 1 ? '' : 's'} and ${lk.videos} NBA video${lk.videos === 1 ? '' : 's'}` : '');
   } else if (v.hidden && g.state === 'post') body = card(`${name} is hidden`, 'Looking for a replay of it…', revealB, '');
