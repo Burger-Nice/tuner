@@ -69,6 +69,23 @@ function sendFile(req, res, file, type) {
   fs.createReadStream(file).pipe(res);
 }
 
+// a stream sent at a set rate (bytes a second), or one that stops sending after a while (the connection stays open)
+function throttled(req, res, file, rate) {
+  if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
+  res.writeHead(200, { 'Content-Type': 'video/mp2t' });
+  const data = fs.readFileSync(file);
+  let at = 0;
+  const t = setInterval(() => { if (at >= data.length) at = 0; res.write(data.subarray(at, at + rate / 4)); at += rate / 4; }, 250);
+  req.on('close', () => clearInterval(t));
+}
+function stalls(req, res, file) {
+  if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
+  res.writeHead(200, { 'Content-Type': 'video/mp2t' });
+  res.write(fs.readFileSync(file).subarray(0, 400 * 1024));
+  const t = setTimeout(() => res.destroy(), 120000);
+  req.on('close', () => clearTimeout(t));
+}
+
 const log = [];
 const reports = [];
 http.createServer((req, res) => {
@@ -77,6 +94,15 @@ http.createServer((req, res) => {
   if (u.pathname === '/_log') { res.end(log.slice(-60).join('\n')); return; }
   if (u.pathname === '/_report' && req.method === 'POST') { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => { try { reports.push(JSON.parse(b)); } catch {} res.writeHead(200, { 'Access-Control-Allow-Origin': '*' }); res.end('ok'); }); return; }
   if (u.pathname === '/_reports') { res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify(reports)); return; }
+  // a speed test target (android.json's speedUrl can point here in tests): zeros, as fast as they go
+  if (u.pathname === '/_speed') {
+    const total = Math.min(+u.searchParams.get('bytes') || 25e6, 50e6), chunk = Buffer.alloc(64 * 1024);
+    res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': total });
+    let sent = 0;
+    const more = () => { while (sent < total) { const n = Math.min(chunk.length, total - sent); sent += n; if (!res.write(n === chunk.length ? chunk : chunk.subarray(0, n))) return res.once('drain', more); } res.end(); };
+    req.on('close', () => { sent = total; });
+    return more();
+  }
   if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams))); }
   if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');
   if (u.pathname === '/espn/summary') {
@@ -109,6 +135,11 @@ http.createServer((req, res) => {
   if ((m = /^\/live\/demo\/demo\/(seg\d+\.ts)$/.exec(u.pathname))) return sendFile(req, res, path.join(MEDIA, 'hls', m[1]), 'video/mp2t');
   if ((m = /^\/live\/demo\/demo\/(\d+)\.ts$/.exec(u.pathname))) {
     if (+m[1] === 1003) { res.writeHead(404); return res.end(); }
+    // the playback diagnosis' test channels (the last four, Channel 317 to 320; nothing else uses them)
+    if (+m[1] === 1316) return throttled(req, res, path.join(MEDIA, 'live.ts'), 40 * 1024);   // arrives too slowly: stalls
+    if (+m[1] === 1317) return stalls(req, res, path.join(MEDIA, 'live.ts'));                 // 400 KB, then nothing at all
+    if (+m[1] === 1318) { res.writeHead(403, { 'Content-Type': 'text/plain' }); return res.end('Maximum connections reached for this account'); }
+    if (+m[1] === 1319) { res.writeHead(503); return res.end(); }
     if (+m[1] === 1005 || +m[1] === 1013) return sendFile(req, res, path.join(MEDIA, 'uhd.ts'), 'video/mp2t'); // 4K HEVC
     return sendFile(req, res, path.join(MEDIA, 'live.ts'), 'video/mp2t');
   }
