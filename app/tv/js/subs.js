@@ -90,7 +90,7 @@ function probeQueue() {
     budgetStore: { get: () => store.get(scoped('probeBudget'), null), set: (v) => store.set(scoped('probeBudget'), v) },
   });
   probes.on((e) => {
-    if (e.type === 'result') { emit('probed', e.key); for (const st of states.values()) if (st.copyKey === e.key) refresh(st.key); }
+    if (e.type === 'result') { emit('probed', e.key); for (const st of [...states.values()]) if (st.copyKey === e.key) refresh(st.key); }   // (a copy: prepare() moves the key to the end, synchronously for a file-only answer)
   });
   return probes;
 }
