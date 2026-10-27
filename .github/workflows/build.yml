@@ -193,7 +193,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Test on the Android TV emulator
         continue-on-error: true
-        timeout-minutes: 22
+        timeout-minutes: 30
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -216,6 +216,17 @@ jobs:
             adb logcat -d 2>&1 | grep -E "FATAL|AndroidRuntime|Capacitor/Console|chromium.*CONSOLE|E Capacitor" | head -40 | sed 's/^/::notice title=TV log::/'
             node tests/android-shots.js 2>&1 | sed 's/^/::notice title=TV test::/'
             adb logcat -d 2>&1 | grep -E "FATAL|AndroidRuntime|TunerPlayer|ExoPlayer|Capacitor/Console" | tail -40 | sed 's/^/::notice title=TV log end::/'
+      # The test's own verdict: it finished, and every check passed (the emulator step above always looks green).
+      - name: Check the emulator test's results
+        run: |
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('android-shots/reports.json', 'utf8'));
+            const checks = r.filter((x) => x.step === 'check'), bad = checks.filter((x) => !x.data.ok);
+            for (const x of bad) console.log('::error title=TV check failed::' + x.data.name + ' [' + (x.data.focus || '') + ']');
+            for (const x of r.filter((x) => x.step === 'error')) console.log('::warning title=TV page error::' + String(x.data).slice(0, 300));
+            console.log(checks.length + ' checks, ' + bad.length + ' failed' + (r.some((x) => x.step === 'done') ? '' : ', the test did not finish'));
+            if (bad.length || !r.some((x) => x.step === 'done')) process.exit(1);
+          "
       - name: Share the test screenshots
         if: always()
         continue-on-error: true
