@@ -50,6 +50,7 @@ final class Subs {
     private final Map<String, SrtTrack> files = new LinkedHashMap<>();
     SrtTrack on;
     private boolean picked;          // he picked in the panel: the app's later lists don't change what's on
+    private boolean pickDone;        // the app's pick was put in place (once per film)
     private boolean asked;           // need { what: 'subs' } sent
     private boolean chipDone;        // "Timing not checked", once per film
     private boolean announced;       // "… subtitles are ready · CC", once
@@ -124,14 +125,14 @@ final class Subs {
         }).start();
     }
     private void apply(JSONObject d, Map<String, SrtTrack> parsed) {
-        boolean first = data == null;
         data = d;
         String onId = on == null ? "" : on.id;
         files.clear();
         files.putAll(parsed);
         if (on != null) { on = files.get(onId); drawer.set(on); if (on == null) restoreText(); }
         JSONObject pick = d.optJSONObject("pick");
-        if (!picked && pick != null && (first || !waitingFor.isEmpty())) {
+        if (!picked && pick != null && (!pickDone || !waitingFor.isEmpty())) {
+            pickDone = true;
             String src = pick.optString("source");
             if ("opensubtitles".equals(src)) {
                 SrtTrack t = files.get(pick.optString("id"));
@@ -139,7 +140,7 @@ final class Subs {
                 if (t == null && waitingFor.startsWith("lang:")) for (SrtTrack o : files.values()) if (o.lang.equals(waitingFor.substring(5))) { t = o; break; }
                 if (t == null && !pick.optString("lang").isEmpty() && pick.optString("id").isEmpty()) for (SrtTrack o : files.values()) if (o.lang.equals(pick.optString("lang"))) { t = o; break; }
                 if (t != null) {
-                    boolean late = !waitingFor.isEmpty() && !first;
+                    boolean late = !waitingFor.isEmpty();
                     useDownload(t);
                     waitingFor = "";
                     if (late && !announced) { announced = true; a.showText(t.lang + " subtitles are ready · CC", 4000); }
@@ -186,12 +187,12 @@ final class Subs {
     void reset() {
         gen++;
         data = null; files.clear(); drop();
-        picked = asked = chipDone = announced = false; waitingFor = ""; bigChanges = 0;
+        picked = asked = chipDone = announced = pickDone = false; waitingFor = ""; bigChanges = 0;
         if (a.isOpen(strip)) a.closeOverlay();
         restoreText();
     }
     boolean hasDownloads() { return !files.isEmpty(); }
-    boolean anyComing() { return data == null || hasListed(); }
+    boolean anyComing() { return data == null || hasListed() || "looking".equals(status()); }
     private boolean hasListed() {
         JSONArray l = data == null ? null : data.optJSONArray("list");
         for (int i = 0; l != null && i < l.length(); i++) { JSONObject r = l.optJSONObject(i); if (r != null && "opensubtitles".equals(r.optString("source"))) return true; }
@@ -293,7 +294,7 @@ final class Subs {
         else if (down || none) { items.add(ListPanel.Item.heading("In the file")); items.add(note("None in this copy's file", null)); }
         // FROM OPENSUBTITLES
         List<ListPanel.Item> dl = new ArrayList<>();
-        if (data == null) { if (textWanted()) dl.add(note("Looking on OpenSubtitles…", null)); }
+        if (data == null || "looking".equals(status)) { if (textWanted() && !"file-only".equals(status)) dl.add(note("Looking on OpenSubtitles…", null)); }
         else if (down) {
             ListPanel.Item d = note("OpenSubtitles isn't answering", downLine());
             dl.add(d);

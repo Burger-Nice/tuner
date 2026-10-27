@@ -127,6 +127,7 @@ function stalls(req, res, file) {
 
 const log = [];
 const reports = [];
+let m0;
 http.createServer((req, res) => {
   const u = new URL(req.url, B);
   log.push(`${req.method} ${u.pathname} ua=${req.headers['user-agent']} origin=${req.headers.origin || '-'}`);
@@ -142,6 +143,32 @@ http.createServer((req, res) => {
     req.on('close', () => { sent = total; });
     return more();
   }
+  // The subtitles design (design/ui-v1/subtitles/PORT-NATIVE.md 4), for the emulator test: a fake OpenSubtitles add-on
+  // (the app points tuner.subsBase here) with an Icelandic and an English file for tt9000101, timed for the fake film's
+  // 60 s; the film with no partial reads (200 to everything) and refused (458); and how often a path was asked for
+  // (/_hits?prefix=/movie/: Options > Quality must open no connection).
+  if (u.pathname === '/_hits') { const pre = u.searchParams.get('prefix') || '/'; res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); return res.end(JSON.stringify({ n: log.filter((l) => l.split(' ')[1]?.startsWith(pre)).length - (pre === '/' ? 1 : 0) })); }
+  if ((m0 = /^\/subs-addon\/subtitles\/(movie|series)\/(tt\d+)(?:[:\d]*)(?:\/[^/]*)?\.json$/.exec(u.pathname))) {
+    const host = `http://${req.headers.host || `127.0.0.1:${PORT}`}`;   // (the emulator reaches this machine as 10.0.2.2)
+    const rows = m0[2] === 'tt9000101' ? [
+      { id: '9000101-is', url: `${host}/subs-addon/file/is.srt`, lang: 'ice', subtitleFileName: 'The.Long.Night.2000.isl.srt', movieReleaseName: 'The.Long.Night.2000.1080p.WEB', fpsMilli: 25000 },
+      { id: '9000101-en', url: `${host}/subs-addon/file/en.srt`, lang: 'eng', subtitleFileName: 'The.Long.Night.2000.eng.srt', movieReleaseName: 'The.Long.Night.2000.720p.HDTV', fpsMilli: 25000 },
+    ] : [];
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'max-age=60' });
+    return res.end(JSON.stringify({ subtitles: rows, cacheMaxAge: 60 }));
+  }
+  if ((m0 = /^\/subs-addon\/file\/(is|en)\.srt$/.exec(u.pathname))) {
+    const IS = ['Ég veit það ekki.', 'Hvað er að þér?', 'Það er ekki hægt núna.', 'Við erum hér, og hann er að koma.', 'Ég held við höfum gert það.', 'Hvað með það?', 'Nei, ekki núna.', 'Þú veist hvað ég meina.'];
+    const EN = ['I don\'t know.', 'What is wrong with you?', 'It can\'t be done now.', 'We are here, and he is on his way.', 'I think we did it.', 'What about it?', 'No, not now.', 'You know what I mean.'];
+    const w = m0[1] === 'is' ? IS : EN, two = (n) => String(n).padStart(2, '0');
+    const t = (ms) => `00:${two(Math.floor(ms / 60000))}:${two(Math.floor(ms / 1000) % 60)},${String(ms % 1000).padStart(3, '0')}`;
+    let body = '';
+    for (let k = 0; k < 19; k++) { const a0 = 1000 + k * 3000; body += `${k + 1}\r\n${t(a0)} --> ${t(a0 + 2400)}\r\n${k % 4 === 3 ? '<i>' + w[k % w.length] + '</i>' : w[k % w.length]}\r\n\r\n`; }
+    res.writeHead(200, { 'Content-Type': 'application/x-subrip; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    return res.end(body);
+  }
+  if (/^\/movie-norange\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { const f = path.join(MEDIA, 'movie.mp4'); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': fs.statSync(f).size }); return fs.createReadStream(f).pipe(res); }
+  if (/^\/movie-refuse\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { res.writeHead(458, { 'Content-Type': 'text/plain' }); return res.end('Too many connections'); }
   if (addons(req, res, u)) return;
   if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams, +req.headers['x-mock-now'] || Date.now()))); }
   if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');

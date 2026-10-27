@@ -24,9 +24,18 @@ import java.util.regex.Pattern;
 final class SrtTrack {
     static final class Line {
         final long start, end;       // ms, as in the file
-        final CharSequence text;     // with <i> as italic
-        final String plain;
-        Line(long s, long e, CharSequence t, String p) { start = s; end = e; text = t; plain = p; }
+        final String plain;          // the words, tags taken out
+        final int[] italics;         // [from, to) pairs in plain: <i>
+        private CharSequence text;
+        Line(long s, long e, String p, int[] it) { start = s; end = e; plain = p; italics = it; }
+        /** The words with <i> as italic (made when first shown). */
+        CharSequence text() {
+            if (text != null) return text;
+            if (italics.length == 0) return text = plain;
+            SpannableStringBuilder b = new SpannableStringBuilder(plain);
+            for (int i = 0; i + 1 < italics.length; i += 2) b.setSpan(new StyleSpan(Typeface.ITALIC), italics[i], italics[i + 1], Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return text = b;
+        }
     }
 
     final String id, lang, verdict, words, release;
@@ -78,9 +87,8 @@ final class SrtTrack {
                 i++;
             }
             if (raw.length() == 0 || e <= s) continue;
-            CharSequence t = styled(raw.toString());
-            String plain = t.toString().trim();
-            if (!plain.isEmpty()) out.add(new Line(s, e, t, plain));
+            Line l = styled(s, e, raw.toString());
+            if (!l.plain.trim().isEmpty()) out.add(l);
         }
         Collections.sort(out, (a, b) -> Long.compare(a.start, b.start));
         return out;
@@ -91,8 +99,9 @@ final class SrtTrack {
         return ((Long.parseLong(m.group(g)) * 60 + Long.parseLong(m.group(g + 1))) * 60 + Long.parseLong(m.group(g + 2))) * 1000 + frac;
     }
     /** <i> becomes italic; every other tag is dropped. */
-    static CharSequence styled(String s) {
-        SpannableStringBuilder b = new SpannableStringBuilder();
+    static Line styled(long start, long end, String s) {
+        StringBuilder b = new StringBuilder();
+        List<Integer> it = new ArrayList<>();
         Matcher m = TAG.matcher(s);
         int at = 0, italicFrom = -1;
         while (m.find()) {
@@ -101,11 +110,13 @@ final class SrtTrack {
             String name = m.group(2);
             if (name == null || !name.equalsIgnoreCase("i")) continue;
             if (m.group(1).isEmpty()) { if (italicFrom < 0) italicFrom = b.length(); }
-            else if (italicFrom >= 0) { if (b.length() > italicFrom) b.setSpan(new StyleSpan(Typeface.ITALIC), italicFrom, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE); italicFrom = -1; }
+            else if (italicFrom >= 0) { if (b.length() > italicFrom) { it.add(italicFrom); it.add(b.length()); } italicFrom = -1; }
         }
         b.append(s, at, s.length());
-        if (italicFrom >= 0 && b.length() > italicFrom) b.setSpan(new StyleSpan(Typeface.ITALIC), italicFrom, b.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        return b;
+        if (italicFrom >= 0 && b.length() > italicFrom) { it.add(italicFrom); it.add(b.length()); }
+        int[] r = new int[it.size()];
+        for (int i = 0; i < r.length; i++) r[i] = it.get(i);
+        return new Line(start, end, b.toString(), r);
     }
 
     /**
@@ -128,7 +139,7 @@ final class SrtTrack {
 
         void update() {
             h.removeCallbacks(tick);
-            if (track == null || p == null) { if (!showing.isEmpty() || track == null) { showing.clear(); view.setCues(Collections.emptyList()); lastText = ""; } return; }
+            if (track == null) { showing.clear(); view.setCues(Collections.emptyList()); lastText = ""; return; }
             long pos = p.getCurrentPosition();
             List<Line> on = new ArrayList<>();
             long next = Long.MAX_VALUE;
@@ -147,7 +158,7 @@ final class SrtTrack {
                 showing.addAll(on);
                 List<Cue> cues = new ArrayList<>();
                 StringBuilder all = new StringBuilder();
-                for (Line l : on) { cues.add(new Cue.Builder().setText(l.text).build()); if (all.length() > 0) all.append('\n'); all.append(l.plain); }
+                for (Line l : on) { cues.add(new Cue.Builder().setText(l.text()).build()); if (all.length() > 0) all.append('\n'); all.append(l.plain); }
                 view.setCues(cues);
                 lastText = all.toString();
                 if (fresh && onLine != null) onLine.run();

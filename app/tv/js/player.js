@@ -2,8 +2,13 @@
 // This module sends it the channel ring (the group you tuned from), tells it what the player can't know (what's on,
 // the game on this channel at the synced delay, live games, groups, favourites) and acts on what you pick in its panels.
 // It also records where you got to in movies and episodes.
-import { S, settings, emit, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
-import { busy, catalog, versionLabel, pickVersion, forget, ensure } from './catalog.js';
+import { S, settings, emit, on, store, scoped, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
+import { busy, catalog, versionLabel, pickVersion, forget, ensure, prefLangs } from './catalog.js';
+import { subSettings, subState, forPlayer, prepare, retryNow, subMemory, cancelChecks, checkFor, checkedFor, playable } from './subs.js';
+import { NAME_ISO1 } from './subs/lang.js';
+import { providerCopy, rank, copyLine, cutLabel } from './copies.js';
+import { matchTitle } from './imdb.js';
+import { keyOf } from './util.js';
 import { native } from './native.js';
 import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress, chaptersOf } from './games.js';
 import { guideFor, guideNow, onNow, nextUp, resetGuides } from './guide.js';
@@ -53,6 +58,7 @@ export async function playLive(ch, ring, ringName = 'All channels') {
   addRecent(ch);
   emit('tuned', ch);
   if (!native) { toast(`Playing ${ch.name} (the TV player is only on the TV)`); linkChannel(ch); return; }
+  cancelChecks();   // (a quality check in flight closes its socket first: SPEC 5.3)
   const key = `${S.epoch}:${list.length}:${list[0].id}:${list[list.length - 1].id}:${ringName}`;
   const opts = { mode: 'live', index, ua: settings().ua, key, ring: ringName, upNext: settings().zapUp !== 'prev', ...playerSettings() };
   let r = key === sentKey ? await native.player.play(opts).catch(() => null) : null;
@@ -222,7 +228,14 @@ const subCode = (v) => (!v || v === 'auto' ? 'auto' : v === 'off' ? 'off' : SUB_
 // The player reports a track's language as the stream has it: 2 letters, 3 letters ("eng", "ger"), or "und".
 const ISO3 = { eng: 'en', spa: 'es', fra: 'fr', fre: 'fr', deu: 'de', ger: 'de', ita: 'it', por: 'pt', nld: 'nl', dut: 'nl', swe: 'sv', nor: 'no', nob: 'no', dan: 'da', isl: 'is', ice: 'is', pol: 'pl', tur: 'tr', ara: 'ar', hin: 'hi' };
 const subName = (c) => { if (c === 'off') return 'off'; const two = ISO3[String(c).toLowerCase()] || String(c).toLowerCase().slice(0, 2); return Object.keys(SUB_CODE).find((k) => SUB_CODE[k] === two) || null; };
-const playerSettings = () => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug, sub: subCode(settings().subLang), api: apiUrl() });
+// The subtitle settings for the file's own tracks (design/ui-v1/subtitles/PORT-NATIVE.md 2.1): his languages in order as
+// ISO 639-1 codes, Shown first, sounds; a dub's subtitles start off.
+const iso1 = (names) => names.map((n) => NAME_ISO1[n] || '').filter(Boolean);
+function subsSettings(dub = false) {
+  const p = subSettings();
+  return { mode: p.mode, langs: iso1(p.langs), shown: iso1(p.shown), sounds: !!p.sounds, dub: !!dub };
+}
+const playerSettings = (dub) => ({ sounds: sfx.level(), scoreBug: !!settings().scoreBug, sub: subCode(settings().subLang), api: apiUrl(), subs: subsSettings(dub) });
 
 // ---------- movies and episodes ----------
 function vodEntry(it, restart) {
@@ -244,12 +257,81 @@ export async function playVod(item, { queue, restart } = {}) {
   const entries = list.map((it, i) => vodEntry(it, i === 0 && restart));
   setWatching(null, null);   // a film or an episode: no game on screen (its final buzzer isn't yours to see)
   if (!native) { if (window.TUNER_TEST) window.__lastVod = entries; toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
-  const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua, ...playerSettings() }).catch((e) => ({ ok: false, error: e?.message }));
+  cancelChecks();
+  const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua, ...playerSettings(subState(subsKey(item))?.copy?.dub) }).catch((e) => ({ ok: false, error: e?.message }));
   if (!r?.ok) { toast(r?.error || 'This video would not play.', 4000); return; }
   sfx.zone('player');
   ctx.cur = { kind: 'vod', items: list, index: 0, session: r.session };
+  sentSubs = '';
+  sendSubs();
+  versionsNow().then((v) => { if (v && ctx.cur?.session === r.session) cmd('versions', v); });
 }
 
+// ---------- subtitles in the player (design/ui-v1/subtitles/PORT-NATIVE.md 2) ----------
+// The title key the subtitles are kept under: a film's title (all its copies), an episode itself.
+const titleOf = (it) => (it?.kind === 'movie' ? catalog.movie?.titleById?.get(it.id) || null : null);
+function subsKey(it) { const t = titleOf(it); return t ? keyOf(t) : it ? keyOf(it) : ''; }
+const seriesOf = (it) => (it?.kind === 'episode' ? catalog.series?.titleById?.get(it.seriesId) || catalog.series?.items?.find((x) => String(x.id) === String(it.seriesId)) || null : null);
+let sentSubs = '';
+const playingVod = () => { const c = ctx.cur; return c && c.kind === 'vod' ? c.items[c.index] : null; };
+// what the player gets: forPlayer(), or an empty list with why (nothing asked for this title yet, no IMDb id)
+function subsPayload(it) {
+  const key = subsKey(it);
+  const series = seriesOf(it);
+  const pl = forPlayer(key, { copyId: keyOf(it), series: series ? keyOf(series) : undefined });
+  return pl || { title: key, copy: keyOf(it), list: [], pick: null, files: [], others: [], status: subSettings().online ? 'looking' : 'file-only' };
+}
+// sent once per change (about 240 KB): the state's shape, not its text, decides
+const subsSig = (p) => JSON.stringify([p.status, p.pick, p.list, p.files.map((f) => [f.id, f.mine]), p.others.length, p.retryAt]);
+function sendSubs(force) {
+  const it = playingVod();
+  if (!it || !native?.info?.()?.subs) return;
+  const p = subsPayload(it);
+  const sig = subsSig(p);
+  if (!force && sig === sentSubs) return;
+  sentSubs = sig;
+  cmd('subs', p);
+  if (!subState(subsKey(it))) prepareFor(it);
+}
+// The player asked and nothing has prepared this title yet (the title page normally has): match it and fetch.
+const preparing = new Set();
+async function prepareFor(it, extra = {}) {
+  const key = subsKey(it);
+  if (!key || (preparing.has(key) && !extra.alsoLang)) return;
+  preparing.add(key);
+  try {
+    const ep = it.kind === 'episode';
+    const t = ep ? seriesOf(it) : titleOf(it);
+    if (!t) { cmd('subs', { ...subsPayload(it), status: 'unsure' }); return; }
+    const m = await matchTitle(t).catch(() => null);
+    await prepare({
+      key, name: t.name, imdb: m?.id || '', level: m?.level || 'unsure', runtime: m?.meta?.runtime,
+      version: ep ? null : it, ...(ep ? { season: +it.season, episode: +it.ep, series: keyOf(t) } : {}), ...extra,
+    });
+  } catch (e) { console.error(e); }
+  finally { preparing.delete(key); }
+}
+on('subs', (key) => { const it = playingVod(); if (it && subsKey(it) === key) sendSubs(); });
+
+// ---------- Options > Quality: the copies of the film with what their checks found (SPEC 7.7, RANKING.md) ----------
+const SOUND = (a) => {
+  if (!a) return '';
+  const m = String(a.mime || '').toLowerCase();
+  const name = /eac3|e-ac3|ec-3/.test(m) ? 'Dolby Digital Plus' : /ac3|ac-3/.test(m) ? 'Dolby Digital' : /dts\.hd|dts-hd|dts\.uhd/.test(m) ? 'DTS-HD' : /dts/.test(m) ? 'DTS' : /true-?hd/.test(m) ? 'Dolby TrueHD' : '';
+  const ch = a.ch >= 8 ? '7.1' : a.ch >= 6 ? '5.1' : a.ch === 2 ? 'stereo' : a.ch === 1 ? 'mono' : '';
+  return [name, ch].filter(Boolean).join(' ');
+};
+const failedCopies = new Set();   // copies that failed this session ("Try the next copy" passes over them)
+async function filmCopies(it) {
+  const t = titleOf(it);
+  if (!t || !t.versions?.length) return null;
+  const pin = store.get(scoped('ver'), {})[t.key];
+  const pm = await playable(t.versions).catch(() => new Map());
+  const cs = t.versions.map((v) => providerCopy(v, { pinned: pin === v.id, checked: checkedFor(v) }));
+  cs.forEach((c) => { c.failed = failedCopies.has(c.id); });
+  const ranked = rank(cs, { langs: prefLangs(), playsNow: (c) => { const x = pm.get(c.id); return x ? x.video && x.audio : undefined; } });
+  return { t, pin, pm, ranked };
+}
 // ---------- other copies of what's playing (the player's Quality panel) ----------
 // A film: its versions (language, quality). A channel: the provider's channels with the same name once quality tags
 // are set aside ("ESPN HD", "ESPN FHD", "ESPN 4K"). Episodes have one copy.
@@ -266,7 +348,7 @@ function channelTwins(ch) {
   }
   return twinsOf.m.get(window.Titles.clean(ch.name).key) || [ch];
 }
-function versionsNow() {
+async function versionsNow() {
   const c = ctx.cur;
   if (!c) return null;
   const it = c.items[c.index];
@@ -275,9 +357,46 @@ function versionsNow() {
     const list = channelTwins(it).slice(0, 8).map((x) => ({ id: String(x.id), name: x.name, label: [qTag(x.name), `Channel ${x.num}`].filter(Boolean).join(' · ') }));
     return { id: String(it.id), list };
   }
-  const t = it.kind === 'movie' ? catalog.movie?.titleById?.get(it.id) : null;
-  const vs = t?.versions || [it];
-  return { id: `${it.kind}:${it.id}`, list: vs.slice(0, 8).map((v) => ({ id: `${v.kind}:${v.id}`, name: versionLabel(v), label: v.year ? String(v.year) : '' })) };
+  const fc = it.kind === 'movie' ? await filmCopies(it).catch(() => null) : null;
+  if (!fc) {
+    const vs = titleOf(it)?.versions || [it];
+    return { id: `${it.kind}:${it.id}`, list: vs.slice(0, 8).map((v) => ({ id: `${v.kind}:${v.id}`, name: versionLabel(v), label: v.year ? String(v.year) : '' })) };
+  }
+  // (rows: line 1 the checked quality or the name's claims, line 2 Best · playing · the problem · the sound)
+  const { pin, pm, ranked } = fc;
+  const best = ranked[0];
+  const rows = ranked.slice(0, 8).map((cp, i) => {
+    const v = cp.v, k = cp.checked, e = checkFor(v), au = e?.formats?.audio || [];
+    const playing = String(v.id) === String(it.id);
+    const x = pm.get(cp.id);
+    const bits = [];
+    if (i === 0) bits.push('Best');
+    if (playing) bits.push('playing');
+    if (x && !x.audio) bits.push('No sound on this TV');
+    else if (x && !x.video) bits.push('This TV can\'t play its picture');
+    if (k && cp.claim.res && k.res && cp.claim.res !== k.res) bits.push(`Named ${cp.claim.res}`);
+    const cut = k ? cutLabel(k.len, best.checked?.len || 0, k.fps) : '';
+    if (cut) bits.push(cut);
+    const snd = SOUND(au[0]);
+    if (snd) bits.push(x && !x.audio ? `${snd.split(' ')[0]} only` : snd);
+    if (!k) bits.push(e?.status === 'couldnt' ? 'Couldn\'t check' : 'not checked');
+    return {
+      id: `${v.kind}:${v.id}`, name: versionLabel(v), label: v.year ? String(v.year) : '',
+      line1: copyLine(cp) || versionLabel(v), line2: bits.join(' · '), checked: !!k, pinned: pin === v.id, best: i === 0,
+      inFile: k ? k.subsInFile : [],
+    };
+  });
+  const me = ranked.find((cp) => String(cp.v.id) === String(it.id));
+  const mk = me?.checked;
+  const meSound = SOUND(me ? checkFor(me.v)?.formats?.audio?.[0] : null);
+  const range = (k) => (k ? (k.dv ? 'Dolby Vision' : k.hdr || '') : '');
+  const next = ranked.find((cp) => String(cp.v.id) !== String(it.id) && !failedCopies.has(cp.id) && pm.get(cp.id)?.audio !== false);
+  return {
+    id: `${it.kind}:${it.id}`, film: true, list: rows, always: !pin, bestId: `${best.v.kind}:${best.v.id}`,
+    bestLine: [best.checked?.res || best.claim.res, range(best.checked)].filter(Boolean).join(' '),
+    what: { checked: !!mk, line: mk ? [mk.res, range(mk), meSound].filter(Boolean).join(' · ') : '', of: ranked.length > 1 ? (pin && me && pin === me.v.id ? 'your pick' : me === best ? `best of ${ranked.length} copies` : '') : '' },
+    next: next && failedCopies.size < 2 ? { id: `${next.v.kind}:${next.v.id}`, line: [copyLine(next), SOUND(checkFor(next.v)?.formats?.audio?.[0])].filter(Boolean).join(' · ') } : null,
+  };
 }
 
 // ---------- what the player asks for and what you pick in it ----------
@@ -287,7 +406,7 @@ native?.player.onEvent((e) => {
   // a replay's own events (position, need, sync, golive…) are replay.js's: only the session's end and settings are here
   if (c.kind === 'replay' && !['exit', 'diag', 'setting', 'goto-account', 'reveal'].includes(e.type)) return;
   if (e.type === 'track') {
-    if (c.kind === 'vod') { c.index = e.index; return; }
+    if (c.kind === 'vod') { c.index = e.index; sentSubs = ''; sendSubs(); return; }   // (an episode: its own subtitles)
     const i = c.items.findIndex((x) => String(x.id) === String(e.id));
     const it = i >= 0 ? c.items[i] : chOf(e.id);
     if (i >= 0) c.index = i;
@@ -296,7 +415,15 @@ native?.player.onEvent((e) => {
     sendMeta(e.ids || []);
   } else if (e.type === 'need') {
     if (e.what === 'groups') cmd('groups', ringGroups());
-    else if (e.what === 'versions') { const v = versionsNow(); if (v) cmd('versions', v); }
+    else if (e.what === 'versions') versionsNow().then((v) => { if (v && ctx.cur === c) cmd('versions', v); });
+    else if (e.what === 'subs') {   // the Subtitles panel opened with nothing yet, Try now, or a language from Other languages
+      const it = playingVod();
+      if (!it) return;
+      const key = subsKey(it);
+      if (e.lang) { subMemory()?.setPick(key, { source: 'opensubtitles', id: '', lang: e.lang }); prepareFor(it, { alsoLang: e.lang }); }
+      else if (e.again) { if (!retryNow(key)) prepareFor(it); }
+      sendSubs(true);
+    }
     else if (e.what === 'games') { sent.games = ''; push(); }
     else if (e.what === 'rewind') emit('rewind-request', { chId: e.chId || e.id, at: +e.at || 0 });   // Start over / rewinding a kept channel past the live link (catch-up 6.8)
     else if (e.what === 'clocks') {
@@ -337,6 +464,13 @@ native?.player.onEvent((e) => {
     reveal(e.gameId);
     sent.game = '';
     push();
+  } else if (e.type === 'subs-state') {
+    window.__subs = { state: e.state, strip: e.strip, text: e.text, mine: e.mine, at: Date.now() };   // (the emulator test reads it)
+  } else if (e.type === 'failed' && c.kind === 'vod') {
+    // a copy that fails: "Try the next copy" passes over it (SPEC 7.6); the player asks for the copies again
+    const it = c.items[c.index];
+    if (it) failedCopies.add(it.id);
+    versionsNow().then((x) => { if (x && ctx.cur === c) cmd('versions', x); });
   } else if (e.type === 'diag') {
     // the player's diagnosis (a card, chip, failure card or the Connection panel): no score or clock is in it
     window.__diag = { cause: e.cause, surface: e.surface, at: Date.now() };   // (the emulator test reads it)
@@ -358,21 +492,26 @@ native?.player.onEvent((e) => {
     sent.game = '';
     push();
   } else if (e.type === 'version' && c.kind === 'vod') {
-    // another copy of the film, from where you are (the choice is remembered for the title, as on its page)
+    // another copy of the film, from where you are (the choice is remembered for the title, as on its page); Always the
+    // best copy takes the pin away (RANKING.md 2.1)
     const [, id] = String(e.id).split(':');
     const was = c.items[e.index];
     const t = catalog.movie?.titleById?.get(id) || (was && catalog.movie?.titleById?.get(was.id));
     const v = t?.versions.find((x) => String(x.id) === id);
     if (!v) { cmd('show-text', 'That copy is no longer in your list'); return; }
+    if (e.always) { const m = store.get(scoped('ver'), {}); delete m[t.key]; store.set(scoped('ver'), m); } else if (!e.next) pickVersion(t, v);   // ("Try the next copy" isn't a pick)
+    if (e.stay) { versionsNow().then((x) => { if (x && ctx.cur === c) cmd('versions', x); }); return; }
     if (was && e.d) recordProgress(was, e.t, e.d, true);
     if (e.d) recordProgress(v, e.t, e.d, true);
-    pickVersion(t, v);
     playVod(v);
   } else if (e.type === 'progress' && c.kind === 'vod') {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {
     if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
     if (e.key === 'sub') { const n = subName(String(e.value)); if (n) saveSettings({ subLang: n }); }   // picked in the player: the same choice everywhere (a language the app doesn't list stays the player's own)
+    // subtitles: his Early or late steps (each saved as he makes it) and his pick, per title (PORT-NATIVE.md 2.4)
+    if (e.key === 'subtime' && e.title) { const it = playingVod(); const sr = it && seriesOf(it); subMemory()?.setOffset(e.title, e.copy || '', e.sub, +e.value || 0, { series: sr ? keyOf(sr) : undefined, release: e.release }); }
+    if (e.key === 'subpick' && e.title && e.value) subMemory()?.setPick(e.title, e.value);
   } else if (e.type === 'tipoff' && watch.gameId) {
     // From tip-off in the live player (Options, the game panel's foot button): replay.js starts the game's replay
     emit('tipoff-request', watch.gameId);

@@ -219,6 +219,72 @@ window.TUNER_TEST = true;
       await press(['BACK'], 'vod-closed', 1500);
       await press(['BACK'], 'detail-closed');
 
+      // Subtitles and real quality (design/ui-v1/subtitles, PORT-NATIVE.md 4): the quality check on the fake film (its
+      // size and OpenSubtitles fingerprint, the same as the JS gives), no partial reads, a refusal, plays on this TV;
+      // then the film with Icelandic and English subtitles from a fake OpenSubtitles add-on at the fake provider: a line
+      // drawn by the player's own view, Options > Subtitles, Early or late (▶ moves the next line 0.5 s later, saved by
+      // the app), Match a line, and Options > Quality opening no connection.
+      try {
+        const TP = window.Capacitor?.Plugins?.TunerPlayer;
+        const info = await TP.info();
+        check('subtitles: the player says probe and subs', info.probe === true && info.subs === 1, { info: JSON.stringify(info) });
+        const film = `${API}/movie/demo/demo/5000.mp4`;
+        const pr = await TP.probe({ id: 'test:movie:5000', url: film, headers: {} });
+        check('quality check: the fake film (206 head and tail, fingerprint, tracks)', pr.status === 'ok' && pr.size === 2547988 && pr.hash === 'c66f32bd101993f2' && pr.formats?.video?.w === 1280 && pr.formats?.audio?.length === 1 && pr.dur > 55,
+          { status: pr.status, size: pr.size, hash: pr.hash, dur: pr.dur, why: pr.why, ms: pr.ms, formats: JSON.stringify(pr.formats) });
+        const nr = await TP.probe({ id: 'test:norange', url: `${API}/movie-norange/demo/demo/5000.mp4`, headers: {} });
+        check('quality check: no partial reads gives head-only, no fingerprint', nr.status === 'head-only' && !nr.hash, { status: nr.status, why: nr.why, video: JSON.stringify(nr.formats?.video || null) });
+        const rf = await TP.probe({ id: 'test:refuse', url: `${API}/movie-refuse/demo/demo/5000.mp4`, headers: {} });
+        check('quality check: a 458 is refused', rf.status === 'refused', { status: rf.status, why: rf.why });
+        const pl = await TP.playable({ copies: [{ id: 'film', formats: pr.formats }, { id: 'dts', formats: { video: pr.formats?.video, audio: [{ mime: 'audio/vnd.dts.hd', ch: 6, rate: 48000 }] } }] });
+        check('plays on this TV: the fake film plays', pl.film?.video && pl.film?.audio, { playable: JSON.stringify(pl) });
+        report('note', { playable: pl });
+        // the film, with his settings (SPEC 14: Always, Icelandic then English) and the fake add-on
+        localStorage.setItem('tuner.subsBase', JSON.stringify(`${API}/subs-addon`));
+        const mod = (m) => import(`./tv/js/${m}.js`);
+        const [SU, CA, U, ST, PL] = await Promise.all(['subs', 'catalog', 'util', 'state', 'player'].map(mod));
+        ST.saveSettings({ subMode: 'always', subLangs: ['Icelandic', 'English'] });
+        await CA.ensure('movie');
+        const t = [...CA.catalog.movie.titleById.values()][0];
+        const v = t.versions[0];
+        const key = U.keyOf(t);
+        const st = await SU.prepare({ key, name: t.name, imdb: 'tt9000101', level: 'sure', version: v });
+        check('subtitles: Icelandic from the fake add-on', st.status === 'ready' && st.on?.lang === 'Icelandic', { pill: st.pill, side: st.side });
+        await PL.playVod(v, { restart: true });
+        await until(() => state()?.watching, 10000);
+        await wait(2500);
+        const subsNow = (name, after = 300) => step({ keys: [], adb: ['am', 'broadcast', '-a', 'app.tuner.player.DIAG', '-p', 'app.tuner.player', '--es', 'subs', '1'], name }, after);
+        window.__subs = null;
+        await subsNow('player-subs-line', 600);
+        await until(() => window.__subs, 3000);
+        check('subtitles: a downloaded line is drawn by the player', /Icelandic/.test(window.__subs?.state || '') && (window.__subs?.text || '').length > 0, { subs: JSON.stringify(window.__subs) });
+        await press(['MEDIA_PAUSE'], 'player-subs-paused');   // (the film is 60 s long: paused for the panels, which step it as he would)
+        await press(['CAPTIONS'], 'player-subs-panel', 800);   // Options > Subtitles: Off, From OpenSubtitles, Icelandic (on), Early or late, English
+        await press(['DPAD_DOWN'], 'player-subs-early-or-late-row');
+        await press(['DPAD_CENTER'], 'player-subs-timing', 800);   // the strip, at the top; the subtitles stay in view
+        await press(['DPAD_RIGHT'], 'player-subs-timing-later');   // 0.5 s later
+        window.__subs = null;
+        await subsNow('player-subs-timing-state');
+        await until(() => window.__subs, 3000);
+        const mem = SU.subMemory();
+        check('Early or late: ▶ moves the next line by 0.5 s, saved for this film', window.__subs?.mine === 0.5 && window.__subs?.strip === 'strip' && mem?.offset(key, U.keyOf(v), '9000101-is') === 0.5,
+          { subs: JSON.stringify(window.__subs), saved: mem?.offset(key, U.keyOf(v), '9000101-is') });
+        await press(['DPAD_DOWN'], 'player-subs-match-a-line', 800);   // Match a line: the next line's words
+        await press(['BACK'], 'player-subs-match-cancelled');
+        await press(['DPAD_CENTER'], 'player-subs-timing-done');
+        // Options > Quality opens no connection (only what the checks stored)
+        const hits = async () => (await (await fetch(`${API}/_hits?prefix=/movie/`)).json()).n;
+        const before = await hits();
+        await press(['DPAD_DOWN'], 'player-subs-options', 800);
+        await press(['DPAD_DOWN', 'DPAD_DOWN', 'DPAD_CENTER'], 'player-quality', 800);
+        await wait(1500);
+        const after = await hits();
+        check('Options > Quality opens no connection', after === before, { before, after });
+        await press(['BACK'], 'player-quality-back');
+        await press(['BACK'], 'player-quality-closed');
+      } catch (e) { report('error', `subtitles: ${(e && e.stack) || e}`); }
+      for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-subs-closed-${k + 1}`, 1500);
+
       // Series detail with episodes
       await tab('series');
       await wait(1500);

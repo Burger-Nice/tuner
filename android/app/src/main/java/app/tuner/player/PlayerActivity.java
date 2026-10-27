@@ -401,7 +401,10 @@ public class PlayerActivity extends AppCompatActivity {
                 JSObject ev = event("failed");
                 ev.put("error", error);
                 TunerPlayerPlugin.emit(ev);
-                showText(error, 6000);
+                // another copy of the film that plays here: the card offers it, from where you were (SPEC 7.6)
+                JSONObject nx = versions != null && cur != null && cur.id.equals(versions.optString("id")) ? versions.optJSONObject("next") : null;
+                if (nx != null && !nx.optString("id").isEmpty() && !nx.optString("id").equals(cur.id)) showNextCopy(error, nx);
+                else showText(error, 6000);
             }
             @Override public void onTracksChanged(@NonNull Tracks tracks) {
                 textTracks = count(tracks, C.TRACK_TYPE_TEXT);
@@ -1564,11 +1567,28 @@ public class PlayerActivity extends AppCompatActivity {
         if (g != null) b.setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(), i));
         player.setTrackSelectionParameters(b.build());
     }
+    /** A film's copy failed: "Try the next copy" names it ("1080p · 6.6 Mb/s · Dolby Digital 5.1"); OK plays it from
+     * where you were, without making it your pick. */
+    private void showNextCopy(String why, JSONObject nx) {
+        FailedCard f = new FailedCard(this, "This copy wouldn't play");
+        f.setCaption(why);
+        List<ListPanel.Item> items = new ArrayList<>();
+        String id = nx.optString("id");
+        ListPanel.Item it = row("Try the next copy", nx.optString("line", null), null, "chevR", () -> { closeOverlay(); pickVersion(id, true); });
+        it.height = 52;
+        items.add(it);
+        f.source(ListPanel.of(items), 0);
+        f.setFoot("Back closes");
+        f.hintKeys = new String[][] { { "OK", "Choose" }, { "Back", "Close" } };
+        show(f);
+    }
+    private void pickVersion(String id) { pickVersion(id, false); }
     /** Another copy: a channel tunes like any pick; a film or episode asks the app to play that copy from here. */
-    private void pickVersion(String id) {
+    private void pickVersion(String id, boolean next) {
         if (live) { pick(id, "version"); return; }
         JSObject e = event("version");
         e.put("id", id);
+        if (next) e.put("next", true);
         e.put("index", index);
         e.put("t", Math.max(0, player.getCurrentPosition() / 1000.0));
         e.put("d", Math.max(0, player.getDuration() / 1000.0));
@@ -2110,7 +2130,7 @@ public class PlayerActivity extends AppCompatActivity {
     private void openSubtitles(boolean fromOptions) {
         if (player == null || isFinishing()) return;
         if (subs != null && rp == null) {   // Options > Subtitles, rebuilt (SPEC 7.2)
-            if (textTracks == 0 && !subs.hasDownloads() && ("none".equals(subs.status()) || !subs.textWanted() && !"".equals(subs.status()))) { showText("This video has no subtitles", 3000); return; }
+            if (textTracks == 0 && !subs.hasDownloads() && ("none".equals(subs.status()) || "file-only".equals(subs.status()))) { showText("This video has no subtitles", 3000); return; }
             subs.open(fromOptions);
             return;
         }

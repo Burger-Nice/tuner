@@ -57,6 +57,8 @@ const engine = async (job, signal) => {
     signal.addEventListener('abort', stop);
     try {
       const r = await p.probe({ id: job.key, url: job.url, headers: job.headers || {} });
+      // a check that Play cut short, or asked for while the player is open, is asked again later (never kept)
+      if (r && r.status === 'couldnt' && r.why === 'cancelled') return { status: 'unavailable', why: 'cancelled' };
       return r || { status: 'couldnt', why: 'no answer' };
     } finally { signal.removeEventListener('abort', stop); }
   }
@@ -189,10 +191,15 @@ function retryLater(st) {
 }
 export function forgetSubs(key) { clearTimeout(retries.get(key)); retries.delete(key); reqs.delete(key); }
 
+// The player's "Try now" (the add-on down): ask again at once, past the retry wait.
+export function retryNow(key) { const r = reqs.get(key); if (!r) return null; listFails.clear(); return prepare(r, { again: true }); }
+
 export async function prepare(req, { again = false } = {}) {
   reqs.delete(req.key); reqs.set(req.key, req);   // (the last one asked for is last)
   if (reqs.size > 30) reqs.delete(reqs.keys().next().value);
   const prefs = subSettings();
+  // a language picked in the player's Other languages is fetched for this title too (after his own)
+  if (req.alsoLang && !prefs.langs.includes(req.alsoLang)) prefs.langs = [...prefs.langs, req.alsoLang];
   const v = req.version || null;
   const entry = v ? checkFor(v) : null;
   const checked = checkedOf(entry);
@@ -209,7 +216,7 @@ export async function prepare(req, { again = false } = {}) {
   if (!again && !states.has(req.key)) put(finish({ ...base, status: 'looking', choice: choose(prefs, copy, []) }));
   const q = { imdb: req.imdb, season: req.season, episode: req.episode, hash: entry?.hash || '', size: entry?.size || 0, base: store.get('subsBase', undefined) };   // (tuner.subsBase: a fake add-on in tests)
   const list = await getList(q);
-  if (!list.ok && !list.stale) { const st = put(finish({ ...base, status: 'down', retryAt: list.retryAt || 0, choice: choose(prefs, copy, []) })); retryLater(st); return st; }
+  if (!list.ok && !list.stale) { const st = put(finish({ ...base, status: 'down', retryAt: list.retryAt || 0, triedAt: Date.now(), choice: choose(prefs, copy, []) })); retryLater(st); return st; }
   const files = list.ok ? list.files : list.stale;
   const ctx = { copyFps: checked?.fps || 0, copyLen: checked?.len || 0, pairCache: new Map() };
   const got = new Map(), tried = new Set();   // id -> a downloaded file with its cues
@@ -293,7 +300,8 @@ export function forPlayer(key, opts = {}) {
     id: f.id, lang: f.lang, text: toSrt(f.cues), speed: f.timing?.speed || 1, autoOffset: f.timing?.offset || 0,
     mine: mem?.offsetFor(key, copyId, f.id, { series: opts.series, release: f.release }) || 0, release: f.release, verdict: f.timing?.verdict || 'unchecked', words: f.timing?.words || WORDS.unchecked, anchored: !!f.timing?.anchored, sounds: !!f.sounds,
   }));
-  return { title: key, copy: copyId, list: st.langs, pick, files, others: st.others };
+  // (status, retryAt, triedAt, note: the panel's states, SPEC 7.6)
+  return { title: key, copy: copyId, list: st.langs, pick, files, others: st.others, status: st.status, retryAt: st.retryAt || 0, triedAt: st.triedAt || 0, note: st.note || '' };
 }
 // ---------- start ----------
 let started = false;
