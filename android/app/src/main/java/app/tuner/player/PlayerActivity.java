@@ -3011,7 +3011,7 @@ public class PlayerActivity extends AppCompatActivity {
                 String d = i.getStringExtra("diag");
                 if (d != null) handler.post(() -> forceDiag(d));
                 // (the emulator test: what the subtitles show now, as an event)
-                if (i.getStringExtra("subs") != null) handler.post(() -> { JSObject e = event("subs-state"); e.put("state", subs == null ? "none" : subs.describe()); e.put("strip", subs == null ? "" : subs.stripState()); e.put("text", subs == null ? "" : subs.lastText()); e.put("mine", subs == null ? 0 : subs.offsetNow()); TunerPlayerPlugin.emit(e); });
+                if (i.getStringExtra("subs") != null) handler.post(() -> { JSObject e = event("subs-state"); e.put("state", subs == null ? "none" : subs.describe()); e.put("strip", subs == null ? "" : subs.stripState()); e.put("text", subs == null ? "" : subs.lastText()); e.put("shown", subs == null ? 0 : subs.drawer.shownCount); e.put("last", subs == null ? "" : subs.drawer.lastShown); e.put("mine", subs == null ? 0 : subs.offsetNow()); TunerPlayerPlugin.emit(e); });
             }
         };
         ContextCompat.registerReceiver(this, debug, new IntentFilter("app.tuner.player.DIAG"), ContextCompat.RECEIVER_EXPORTED);

@@ -465,7 +465,7 @@ native?.player.onEvent((e) => {
     sent.game = '';
     push();
   } else if (e.type === 'subs-state') {
-    window.__subs = { state: e.state, strip: e.strip, text: e.text, mine: e.mine, at: Date.now() };   // (the emulator test reads it)
+    window.__subs = { state: e.state, strip: e.strip, text: e.text, shown: e.shown, last: e.last, mine: e.mine, at: Date.now() };   // (the emulator test reads it)
   } else if (e.type === 'failed' && c.kind === 'vod') {
     // a copy that fails: "Try the next copy" passes over it (SPEC 7.6); the player asks for the copies again
     const it = c.items[c.index];

@@ -211,7 +211,7 @@ final class Subs {
     String status() { return data == null ? "" : data.optString("status", ""); }
     String lastText() { return drawer.lastText; }
     double offsetNow() { return on == null ? 0 : on.mine; }
-    String describe() { return "subs on=" + (on == null ? "" : on.lang + ":" + on.id) + " mine=" + offsetNow() + " files=" + files.size() + " text=" + lastText().replace('\n', ' '); }
+    String describe() { return "subs on=" + (on == null ? "" : on.lang + ":" + on.id) + " mine=" + offsetNow() + " files=" + files.size() + " shown=" + drawer.shownCount + " last=" + drawer.lastShown.replace('\n', ' ') + " now=" + lastText().replace('\n', ' ') + " chip=" + chipDone; }
 
     // ---------- the chip (SPEC 7.6): once per film, 6 s at the first downloaded line ----------
     private LinearLayout chip;
@@ -350,7 +350,8 @@ final class Subs {
         off.ok = () -> {
             picked = true;
             drop();
-            a.pickText(null, 0);
+            // off for this film only (subpick), not for every channel and film as the old switch was
+            p.setTrackSelectionParameters(p.getTrackSelectionParameters().buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT).setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build());
             pickEvent("off", "", "");
             a.closeOverlay();
             a.showText("Subtitles off for this film", 2000);

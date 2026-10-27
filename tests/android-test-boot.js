@@ -257,7 +257,7 @@ window.TUNER_TEST = true;
         window.__subs = null;
         await subsNow('player-subs-line', 600);
         await until(() => window.__subs, 3000);
-        check('subtitles: a downloaded line is drawn by the player', /Icelandic/.test(window.__subs?.state || '') && (window.__subs?.text || '').length > 0, { subs: JSON.stringify(window.__subs) });
+        check('subtitles: a downloaded line is drawn by the player', /on=Icelandic/.test(window.__subs?.state || '') && window.__subs?.shown > 0 && /Ég|Hvað|Það|Við/.test(window.__subs?.last || ''), { subs: JSON.stringify(window.__subs) });
         await press(['MEDIA_PAUSE'], 'player-subs-paused');   // (the film is 60 s long: paused for the panels, which step it as he would)
         await press(['CAPTIONS'], 'player-subs-panel', 800);   // Options > Subtitles: Off, From OpenSubtitles, Icelandic (on), Early or late, English
         await press(['DPAD_DOWN'], 'player-subs-early-or-late-row');

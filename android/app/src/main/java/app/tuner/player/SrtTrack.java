@@ -130,7 +130,9 @@ final class SrtTrack {
         SrtTrack track;
         private final List<Line> showing = new ArrayList<>();
         Runnable onLine;          // a line just showed (the "timing not checked" chip waits for the first)
-        String lastText = "";     // (the emulator test reads it)
+        String lastText = "";     // (the emulator test reads it: what shows now, the last line shown, how many have)
+        String lastShown = "";
+        int shownCount;
         private final Runnable tick = this::update;
 
         Drawer(SubtitleView view, Handler h, ExoPlayer p) { this.view = view; this.h = h; this.p = p; }
@@ -161,6 +163,7 @@ final class SrtTrack {
                 for (Line l : on) { cues.add(new Cue.Builder().setText(l.text()).build()); if (all.length() > 0) all.append('\n'); all.append(l.plain); }
                 view.setCues(cues);
                 lastText = all.toString();
+                if (fresh) { shownCount++; lastShown = on.get(on.size() - 1).plain; }
                 if (fresh && onLine != null) onLine.run();
             }
             if (p.isPlaying() && next != Long.MAX_VALUE) {
