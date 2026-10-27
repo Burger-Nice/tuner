@@ -1,5 +1,6 @@
 // Movies and Series: one grid (6 posters a row), Popular first, view chips over the same Sort/Filter state, one Filters
 // sheet with live counts, and Jump. Only the rows around the focus are mounted, so 50,000 titles scroll like 50.
+import { posterTag } from '../quality.js';
 import { $, esc, ic, dot, setHtml, compact } from '../util.js';
 import { S, on, store, scoped, toggleFav, isFav, markWatched } from '../state.js';
 import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, facetCounts, filterCount, jumpTargets, prefLangs, genresOf } from '../catalog.js';
@@ -99,8 +100,8 @@ export default function lib(kind) {
     const want = new Set();
     for (let r = a; r < b; r++) for (let c = 0; c < COLS; c++) { const i = r * COLS + c; if (i < list.length) want.add(i); }
     const have = new Map([...grid.children].filter((x) => x.dataset.i).map((x) => [+x.dataset.i, x]));
-    // (a card is drawn again when the shield's mask on it changes: catch-up 5.8)
-    const mk = (t) => videoMask(t)?.kind || '';
+    // (a card is drawn again when the shield's mask on it changes: catch-up 5.8; or its real quality: subtitles 6.1)
+    const mk = (t) => `${videoMask(t)?.kind || ''}|${t.kind === 'movie' ? posterTag(t) : ''}`;
     for (const [i, node] of have) if (!want.has(i) || node._t !== list[i] || (node._m || '') !== mk(list[i])) { if (node === document.activeElement) continue; node.remove(); have.delete(i); }
     let html = '';
     for (const i of want) if (!have.has(i)) html += poster(list[i], i, { mine: !!ad?.mine.has(list[i]) }).replace('class="pc fx', `data-c="${i % COLS}" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px" class="pc fx`);
@@ -369,6 +370,7 @@ export default function lib(kind) {
       on('session', () => { view = null; list = []; ad = null; });
       on('addons', () => { if (current() === kind && el.querySelector('.lib-chips')) setHtml(el.querySelector('[data-head]'), header()); });
       on('nba', () => { if (current() === kind && list.length) drawGrid(); });   // (the shield's masks follow what you've seen)
+      on('probed', () => { if (current() === kind && kind === 'movie' && list.length && !ad) drawGrid(); });   // (the posters' tags fill in as checks land)
       on('catalog', (k) => {
         if (k !== kind) return;
         if (current() !== kind && current() !== 'detail') { list = []; return; }   // rebuilt on the next open; don't hold the old titles
