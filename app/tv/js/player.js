@@ -4,7 +4,7 @@
 // It also records where you got to in movies and episodes.
 import { S, settings, emit, on, store, scoped, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings } from './state.js';
 import { busy, catalog, versionLabel, pickVersion, forget, ensure, prefLangs } from './catalog.js';
-import { subSettings, subState, forPlayer, prepare, retryNow, subMemory, cancelChecks, checkFor, checkedFor, playable } from './subs.js';
+import { subSettings, subState, forPlayer, prepare, retryNow, subMemory, cancelChecks, checkFor, checkedFor, playable, noteStart } from './subs.js';
 import { NAME_ISO1 } from './subs/lang.js';
 import { providerCopy, rank, copyLine, cutLabel } from './copies.js';
 import { matchTitle } from './imdb.js';
@@ -504,6 +504,9 @@ native?.player.onEvent((e) => {
     if (was && e.d) recordProgress(was, e.t, e.d, true);
     if (e.d) recordProgress(v, e.t, e.d, true);
     playVod(v);
+  } else if (e.type === 'file' && c.kind === 'vod') {   // the file's size and ETag at play start: a changed file is checked again
+    const v = c.items[e.index];
+    if (v) noteStart(v, { size: +e.size || 0, etag: e.etag || '' });
   } else if (e.type === 'progress' && c.kind === 'vod') {
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
   } else if (e.type === 'setting') {

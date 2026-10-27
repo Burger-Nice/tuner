@@ -2523,10 +2523,40 @@ public class PlayerActivity extends AppCompatActivity {
             try { for (Map.Entry<String, List<String>> h : s.getResponseHeaders().entrySet()) if (h.getKey() != null && "content-type".equalsIgnoreCase(h.getKey()) && !h.getValue().isEmpty()) t = h.getValue().get(0); } catch (Exception ignored) {}
             streamType = t;
             streamUri = at;
+            fileFacts(s, d);
         }
         @Override public void onBytesTransferred(@NonNull DataSource s, @NonNull DataSpec d, boolean net, int n) { if (net) bytesIn.addAndGet(n); }
         @Override public void onTransferEnd(@NonNull DataSource s, @NonNull DataSpec d, boolean net) {}
     };
+    // A film's or an episode's file, once per copy: its full size and ETag, so a check from before of a file that has
+    // changed since is forgotten (subtitles PORT-NATIVE.md: noteStart)
+    private volatile String fileSent = "";
+    private void fileFacts(DataSource s, DataSpec d) {
+        Entry e = cur;
+        if (live || rp != null || e == null || e.id.equals(fileSent) || !d.uri.toString().equals(e.url)) return;
+        long size = -1;
+        String etag = "";
+        try {
+            for (Map.Entry<String, List<String>> h : s.getResponseHeaders().entrySet()) {
+                if (h.getKey() == null || h.getValue().isEmpty()) continue;
+                String k = h.getKey(), v = h.getValue().get(0);
+                if ("etag".equalsIgnoreCase(k)) etag = v;
+                else if ("content-range".equalsIgnoreCase(k) && v.contains("/")) { try { size = Long.parseLong(v.substring(v.lastIndexOf('/') + 1).trim()); } catch (NumberFormatException ignored) {} }
+                else if ("content-length".equalsIgnoreCase(k) && size < 0 && d.position == 0) { try { size = Long.parseLong(v.trim()); } catch (NumberFormatException ignored) {} }
+            }
+        } catch (Exception ignored) {}
+        fileSent = e.id;
+        if (size <= 0 && etag.isEmpty()) return;
+        final long sz = size;
+        final String et = etag;
+        runOnUiThread(() -> {
+            if (isFinishing() || cur != e) return;
+            JSObject x = event("file");
+            if (sz > 0) x.put("size", sz);
+            if (!et.isEmpty()) x.put("etag", et);
+            TunerPlayerPlugin.emit(x);
+        });
+    }
     private final long[] perSec = new long[10];
     private int perSecN, aheadN;
     private long bytesSeen;
