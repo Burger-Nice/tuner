@@ -114,6 +114,48 @@
     } catch { return new Date(y, mo - 1, d, h, mi, se || 0).getTime(); }
   }
 
+  // A moment as the panel's clock reads it ('2026-10-26:14-30', what a timeshift link takes), in its zone (or the device's).
+  function panelStamp(t, tz) {
+    const two = (n) => String(n).padStart(2, '0');
+    let p;
+    try { p = tz && Object.fromEntries((zoneFmt[tz] || (zoneFmt[tz] = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }))).formatToParts(t).map((x) => [x.type, x.value])); } catch { p = null; }
+    if (!p) { const d = new Date(t); p = { year: d.getFullYear(), month: two(d.getMonth() + 1), day: two(d.getDate()), hour: two(d.getHours()), minute: two(d.getMinutes()) }; }
+    return `${p.year}-${p.month}-${p.day}:${p.hour}-${p.minute}`;
+  }
+
+  // ---------- catch-up (the provider's archive of what a channel showed) ----------
+  // M3U catch-up attributes (as Kodi's IPTV Simple and TiviMate read them): catchup="default|append|shift|flussonic|xc",
+  // catchup-source (a template), catchup-days. Templates: {utc} {start} {utcend} {end} {lutc} {now} {duration[:div]}
+  // {offset[:div]} and {Y} {m} {d} {H} {M} {S} (the start, UTC), also as ${start} and the like.
+  function fillCatchup(tpl, start, end) {
+    const s = Math.floor(start / 1000), e = Math.floor(end / 1000), now = Math.floor(Date.now() / 1000), d = new Date(start);
+    const two = (n) => String(n).padStart(2, '0');
+    const parts = { Y: d.getUTCFullYear(), m: two(d.getUTCMonth() + 1), d: two(d.getUTCDate()), H: two(d.getUTCHours()), M: two(d.getUTCMinutes()), S: two(d.getUTCSeconds()) };
+    return tpl
+      .replace(/\$?\{(utc|start|timestamp)\}/g, s).replace(/\$?\{(utcend|end)\}/g, e).replace(/\$?\{(lutc|now)\}/g, now)
+      .replace(/\$?\{duration(?::(\d+))?\}/g, (_, k) => Math.floor((e - s) / (+k || 1)))
+      .replace(/\$?\{offset(?::(\d+))?\}/g, (_, k) => Math.floor((now - s) / (+k || 1)))
+      .replace(/\$?\{(?:utc|start):([YmdHMS\-:._ ]+)\}/g, (_, f) => f.replace(/[YmdHMS]/g, (c) => parts[c]))
+      .replace(/\{([YmdHMS])\}/g, (_, c) => parts[c]);
+  }
+  function m3uCatchup(ch, start, end) {
+    const c = ch.catchup;
+    if (!c) return null;
+    const url = ch.sources?.[0]?.url || ch.id;
+    const s = Math.floor(start / 1000), dur = Math.floor((end - start) / 1000), now = Math.floor(Date.now() / 1000);
+    let out = '';
+    if (c.mode === 'append') out = url + fillCatchup(c.source || '?utc={utc}&lutc={lutc}', start, end);
+    else if (c.mode === 'shift' || c.mode === 'timeshift') out = `${url}${url.includes('?') ? '&' : '?'}utc=${s}&lutc=${now}`;
+    else if (c.mode === 'flussonic' || c.mode === 'fs') {
+      out = /\/(index|video|mono)\.m3u8/.test(url) ? url.replace(/\/(index|video|mono)\.m3u8/, `/$1-${s}-${dur}.m3u8`)
+        : /\/mpegts$|\.ts$/.test(url) ? url.replace(/\/mpegts$|\/?[^/]*\.ts$/, `/timeshift_abs-${s}.ts`) : '';
+    } else if (c.mode === 'xc') {
+      const m = /^(https?:\/\/[^/]+)\/(?:live\/)?([^/]+)\/([^/]+)\/(\d+)(?:\.\w+)?$/.exec(url);
+      if (m) out = `${m[1]}/timeshift/${m[2]}/${m[3]}/${Math.ceil(dur / 60)}/${panelStamp(start, null)}/${m[4]}.ts`;
+    } else if (c.source) out = fillCatchup(c.source, start, end);   // default: the template is the whole link
+    return out ? guessSources(out) : null;
+  }
+
   function xtream(acc) {
     const base = acc.server;
     const cred = `username=${encodeURIComponent(acc.username)}&password=${encodeURIComponent(acc.password)}`;
@@ -137,6 +179,7 @@
           items: arr(s).map((x, i) => ({
             kind: 'live', id: String(x.stream_id), name: String(x.name || 'Channel').trim(), logo: x.stream_icon || '',
             cat: String(x.category_id ?? ''), num: +x.num || i + 1,
+            archive: +x.tv_archive ? Math.max(1, +x.tv_archive_duration || 0) : 0,   // days the panel keeps
             sources: liveSources(path('live', x.stream_id, 'm3u8'), path('live', x.stream_id, 'ts')),
           })),
         };
@@ -199,6 +242,16 @@
           backdrop: arr(i.backdrop_path)[0] || i.cover || s.poster, seasons,
         };
       },
+      // What a channel showed from start to end (ms), from the panel's archive: its timeshift link, which takes the start as
+      // the panel's clock reads it (its zone, from the login answer), and the length in minutes. The guide's clock offset
+      // (acc.epgShift) is taken back off: the link wants the panel's own time for the programme.
+      catchup(ch, start, end) {
+        if (!ch.archive) return null;
+        const t0 = start - (acc.epgShift || 0), mins = Math.max(1, Math.ceil((end - start) / 60000));
+        const tail = `${encodeURIComponent(acc.username)}/${encodeURIComponent(acc.password)}/${mins}/${panelStamp(t0, acc.tz || null)}/${ch.id}`;
+        return [{ url: `${base}/timeshift/${tail}.ts`, engine: 'mpegts' }, { url: `${base}/timeshift/${tail}.m3u8`, engine: 'hls' },
+          { url: `${base}/streaming/timeshift.php?${cred}&stream=${ch.id}&start=${panelStamp(t0, acc.tz || null)}&duration=${mins}`, engine: 'mpegts' }];
+      },
       // The short guide first; when it has nothing for now, the full table (some panels only fill that one). Returned as
       // the provider sends it: guide.js applies the account's clock offset (acc.epgShift) in one place.
       // The offset: some panels' guide times are off by whole (or half) hours. Only the panel's own "on now" mark
@@ -240,10 +293,11 @@
   // ---------- M3U ----------
   function parseM3U(text) {
     const out = [];
-    let cur = null, grp = '';
+    let cur = null, grp = '', head = {};
     for (const raw of text.split(/\r?\n/)) {
       const l = raw.trim();
       if (!l) continue;
+      if (l.startsWith('#EXTM3U')) { for (const [, k, v] of l.matchAll(/([\w-]+)="([^"]*)"/g)) head[k.toLowerCase()] = v; continue; }
       if (l.startsWith('#EXTINF')) {
         cur = {};
         for (const [, k, v] of l.matchAll(/([\w-]+)="([^"]*)"/g)) cur[k.toLowerCase()] = v;
@@ -258,13 +312,21 @@
         const isVod = /\/(movie|series)\//i.test(l) || engineFor(l) === 'native';
         out.push(isVod
           ? { kind: 'movie', id: l, name, poster: c['tvg-logo'] || '', cat, rating: '', year: yearOf(name), added: 0, url: l }
-          : { kind: 'live', id: l, name, logo: c['tvg-logo'] || '', cat, num: parseInt(c['tvg-chno'], 10) || 0, sources: guessSources(l) });
+          : { kind: 'live', id: l, name, logo: c['tvg-logo'] || '', cat, num: parseInt(c['tvg-chno'], 10) || 0, sources: guessSources(l), ...catchupOf(c, head) });
         cur = null; grp = '';
       }
     }
     let n = 0;
     for (const x of out) if (x.kind === 'live') { n++; if (!x.num) x.num = n; }
     return out;
+  }
+
+  // A channel's catch-up from its attributes, else the playlist header's: { archive: days, catchup: { mode, source } }.
+  function catchupOf(c, head) {
+    const mode = (c.catchup || c['catchup-type'] || head.catchup || head['catchup-type'] || (+c['tvg-rec'] || +c.timeshift ? 'shift' : '')).toLowerCase();
+    if (!mode) return {};
+    const days = +(c['catchup-days'] || c['tvg-rec'] || c.timeshift || head['catchup-days']) || 1;
+    return { archive: days, catchup: { mode, source: c['catchup-source'] || head['catchup-source'] || '' } };
   }
 
   function catsOf(items) {
@@ -297,8 +359,9 @@
       movieInfo: async () => ({}),
       seriesInfo: async () => ({ seasons: [] }),
       epg: async () => [],
+      catchup: (ch, start, end) => (ch.archive ? m3uCatchup(ch, start, end) : null),
     };
   }
 
-  global.Core = { store, cache, settings, saveSettings, parseLogin, parseM3U, xtream, m3u };
+  global.Core = { store, cache, settings, saveSettings, parseLogin, parseM3U, xtream, m3u, fillCatchup };
 })(window);

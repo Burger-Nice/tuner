@@ -14,7 +14,8 @@ const liveCats = ['News', 'Sports', 'Movies', 'Kids', 'Music', 'Documentary', 'I
 const names = ['NBA 01: Memphis Grizzlies @ Golden State Warriors', 'US: ESPN HD', 'NBA League Pass 3', 'BBC One', 'CNN International', 'Sky Sports Main Event 4K UHD', 'RÚV', 'Stöð 2', 'Eurosport 1', 'Discovery', 'Nat Geo', 'MTV', 'Cartoon Network', 'Al Jazeera', 'France 24', 'DAZN 1', 'HBO', 'Comedy Central'];
 const live = Array.from({ length: 320 }, (_, i) => ({
   num: i + 1, name: i < names.length ? names[i] + (i % 3 === 0 ? ' HD' : '') : `Channel ${i + 1}`, stream_type: 'live', stream_id: 1000 + i,
-  stream_icon: i % 4 === 3 ? '' : `${B}/img/l${i % 8}.png`, epg_channel_id: 'x', category_id: String((i % 8) + 1), tv_archive: 0,
+  stream_icon: i % 4 === 3 ? '' : `${B}/img/l${i % 8}.png`, epg_channel_id: 'x', category_id: String((i % 8) + 1),
+  tv_archive: i % 8 === 1 ? 1 : 0, tv_archive_duration: i % 8 === 1 ? 3 : 0,   // the Sports group keeps 3 days
 }));
 // Named the way real providers do, with the language and quality in the category name.
 const vodCats = ['FR | DRAMA', 'EN | NEW RELEASES', 'EN | ACTION', '4K | UHD MOVIES', 'KIDS | MULTI-SUB', 'DE - KOMÖDIE'].map((n, i) => ({ category_id: String(10 + i), category_name: n }));
@@ -102,6 +103,8 @@ http.createServer((req, res) => {
     if (+m[1] === 1005 || +m[1] === 1013) return sendFile(req, res, path.join(MEDIA, 'uhd.ts'), 'video/mp2t'); // 4K HEVC
     return sendFile(req, res, path.join(MEDIA, 'live.ts'), 'video/mp2t');
   }
+  // catch-up: /timeshift/demo/demo/<minutes>/<YYYY-MM-DD:HH-MM>/<id>.ts (the archive plays the test clip)
+  if (/^\/timeshift\/demo\/demo\/\d+\/\d{4}-\d\d-\d\d:\d\d-\d\d\/\d+\.ts$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'live.ts'), 'video/mp2t');
   if (/^\/(movie|series)\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'movie.mp4'), 'video/mp4');
   res.writeHead(404); res.end();
 }).listen(PORT, () => console.log('mock xtream on ' + B));
