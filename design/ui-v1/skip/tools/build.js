@@ -33,9 +33,9 @@ const drain = (left) => `<div class="sk-drain"><i style="width:${left}%"></i></d
 const skipChip = (words, left) => `<div class="sk-chip">${ic('skipFwd')}<b>${esc(words)}</b>${kbd('OK')}${drain(left)}</div>`;
 // the auto-skip chip (SPEC 4.2): what was skipped, from and to, OK to watch it
 const skippedChip = (words, span, left) => `<div class="sk-chip two">${ic('skipFwd')}<div class="tx"><b>${esc(words)}</b><small>${esc(span)}</small></div>${kbd('OK')}<span class="t-cap">go back</span>${drain(left)}</div>`;
-// Up next at unchecked credits (SPEC 5.1): no count yet, the next glyph instead of the ring
-const NEXT = '<path d="M5 5l9 7-9 7zM18 5v14"/>';
-const upNextQuiet = (ep) => `<div class="nv-chip"><span style="width:40px;height:40px;display:grid;place-items:center;border-radius:50%;background:var(--a-surface-2)"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${NEXT}</svg></span><div class="grow" style="white-space:nowrap;min-width:0"><b>Next episode</b><span style="overflow:hidden;text-overflow:ellipsis">${esc(ep)}</span></div>${kbd('OK')}<span class="t-cap" style="color:var(--a-text-1)">play now</span></div>`;
+
+
+
 // Up next as built (PlayerActivity.showUpNext): ring, "Next episode in N s", the episode, OK play now
 const upNext = (secs, ep) => {
   const off = (94.2 * (1 - secs / 15)).toFixed(1);
@@ -73,39 +73,39 @@ page('player-skip-bar.html', 'Skip intro in the button row', 'The controls are u
 ${hint([['◀ ▶', 'Move'], ['OK', 'Choose'], ['▼', 'Seek bar'], ['Back', 'Hide']])}`);
 
 // 3. Skip automatically: S1 E2's intro (1:19 to 1:46) was skipped; the chip offers it back for 5 s; the subtitles rise above it
-page('player-skipped.html', 'After a skip: the way back', 'After every skip, pressed or automatic. S1 E2\'s 28 s intro was skipped; for 5 s OK goes back to its start (OK does nothing for the first 1.5 s). The two-line subtitle would touch the chip, so it rises to 8 above it.',
+page('player-skipped.html', 'After a skip: the way back', 'After every skip, pressed or by itself. S1 E2\'s 28 s intro was skipped; for 5 s OK goes back to its start (OK does nothing for the first 1.5 s). The two-line subtitle would touch the chip, so it rises to 8 above it.',
   `${video('sunny-bar', 'theatre', 30)}
 <div class="nv-sub sk-lift2">So we are all agreed on the plan, then.<br>Nobody tells Mac until the bar is open.</div>
 ${skippedChip('Intro skipped', '28 s', 55)}
 ${hint([['OK', 'Go back'], ['◀ ▶', 'Seek 10 s'], ['▲', 'Buttons'], ['Back', 'Hide']])}`);
 
 // 4. Skip recap: Lost S2 E1, recap 0:02 to 0:28 (TheIntroDB); now 0:06; the hint bar has gone (after 5 views) and the chip's key cap carries OK
-page('player-recap.html', 'Skip recap', 'Lost S2 E1 at 0:06. The recap runs 0:02 to 0:28. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does.',
+page('player-recap.html', 'Skip recap', 'Lost S2 E1 at 0:06, the first episode he has watched in weeks, so the recap (0:02 to 0:28) gets the button; after S1 E24 last night it would skip by itself, with the way-back chip. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does.',
   `${video('lost-recap', 'forest', 150)}
 ${sub('Previously on Lost', false)}
 ${skipChip('Skip recap', 60)}`);
 
 // 5. Up next at the credits: S1 E1's credits start at 21:28 (TheIntroDB); no speech after it, so the 15 s count starts there
-page('player-upnext-credits.html', 'Up next when the credits start', 'Checked credits: the match is Sure and the downloaded subtitles end before 21:28 (TheIntroDB). Up next comes at 21:28 and counts 15 s. Unchanged: OK plays now, Back stays on this one.',
+page('player-upnext-credits.html', 'Up next when the credits start', 'The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it in the downloaded subtitles. Up next comes at 21:28, counts 15 s and plays the next one. OK plays now, Back stays on this one.',
   `${video('sunny-credits', 'city', 250)}
 ${upNext(13, 'S1 · E2 · Charlie Wants an Abortion')}
 ${hint([['OK', 'Play now'], ['Back', 'Stay on this one']])}`);
 
 // 6. The setting, in the player: Options (▼) > Skip intros. Same setting as Account > Playback
-page('player-options-skip.html', 'Options > Skip intros and recaps', 'OK on the Options row. The same setting as Account > Playback. The foot says what is known for this episode.',
+page('player-options-skip.html', 'Intros in this show', 'OK on the Options row: this show\'s own choice. It wins over Account\'s Show a button and Skip automatically; Account\'s Off wins over it. Recaps follow their own rule (foot).',
   `${video('sunny-intro', 'retro', 28)}
-<div class="nv-panel left sk-panel"><div class="nv-h">Skip intros and recaps</div>
+<div class="nv-panel left sk-panel"><div class="nv-h">Intros in this show</div>
+<div class="nv-row st-r"><span class="rd"></span><div class="grow"><div class="a">Skip by itself</div><div class="b">You can go back for 5 s</div></div></div>
 <div class="nv-row st-r f"><span class="rd on"></span><div class="grow"><div class="a">Show a button</div><div class="b">One press skips it</div></div></div>
-<div class="nv-row st-r"><span class="rd"></span><div class="grow"><div class="a">Skip automatically</div><div class="b">You can go back for 5 s</div></div></div>
-<div class="nv-row st-r"><span class="rd"></span><div class="grow"><div class="a">Off</div><div class="b">No buttons</div></div></div>
-<div class="st-foot">This episode: intro and credits known.</div></div>
+<div class="st-foot">This episode: intro and credits known.<br>Recaps skip by themselves when you watched the episode before in the last 3 days.</div></div>
 ${hint([['OK', 'Choose'], ['▲ ▼', 'Move'], ['Back', 'Up one level']])}`);
 
-// 7. Up next at unchecked credits (no downloaded subtitles, or a Likely match): shown at the credits start, no count until the last 40 s
-page('player-upnext-quiet.html', 'Up next on unchecked credits', 'S1 E1 at 21:30 with the file\'s own subtitles (they can\'t be read ahead), so the credits time is unchecked. The card shows at 21:28 without a count; from the last 40 s it counts to the end as today.',
-  `${video('sunny-credits', 'city', 250)}
-${upNextQuiet('S1 · E2 · Charlie Wants an Abortion')}
-${hint([['OK', 'Play now'], ['Back', 'Stay on this one']])}`);
+// 7. The one-time offer, after his second Skip intro press in this show (10 s after the way-back chip, well past the intro)
+const offer = (series, left) => `<div class="sk-chip two" style="max-width:420px">${ic('skipFwd')}<div class="tx" style="min-width:0"><b>Always skip this show's intro?</b><small style="overflow:hidden;text-overflow:ellipsis">${esc(series)}</small></div>${kbd('OK')}<span class="t-cap">yes</span>${drain(left)}</div>`;
+page('player-offer.html', 'The offer: this show by itself', 'Asked once per show, after he pressed Skip intro in 2 of its episodes, 10 s after the way-back chip went (never in an intro). 8 s; OK Yes; Back No; ignored, it asks once more after the next press.',
+  `${video('sunny-bar', 'theatre', 30)}
+${offer("It's Always Sunny in Philadelphia", 65)}
+${hint([['OK', 'Yes'], ['Back', 'No'], ['◀ ▶', 'Seek 10 s'], ['▲', 'Buttons']])}`);
 
 // 8. Options (▼) in an episode: the new row, last
 const IC = {
@@ -116,10 +116,10 @@ const IC = {
   skipFwd: P.skipFwd,
 };
 const orow = (icon, a, v, f) => `<div class="nv-row st-r st-1${f ? ' f' : ''}"><span class="ico"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true">${IC[icon]}</svg></span><div class="grow"><div class="a">${esc(a)}</div></div><span class="v">${esc(v)}<svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true">${P.chevR}</svg></span></div>`;
-page('player-options.html', 'Options in an episode', '▼ in an episode. Skip intros and recaps is the last row (episodes only), with the setting as its value.',
+page('player-options.html', 'Options in an episode', '▼ in an episode. Intros in this show is the last row (episodes only), with this show\'s value.',
   `${video('sunny-intro', 'retro', 28)}
 <div class="nv-panel left sk-panel" style="width:420px"><div class="nv-h">Options</div>
-${orow('cc', 'Subtitles', 'English')}${orow('audio', 'Audio', 'English')}${orow('pic', 'Picture size', 'Fit')}${orow('quality', 'Quality', '1080p')}${orow('speed', 'Speed', 'Normal')}${orow('frames', 'Match frame rate', 'Off')}${orow('skipFwd', 'Skip intros and recaps', 'Show a button', true)}
+${orow('cc', 'Subtitles', 'English')}${orow('audio', 'Audio', 'English')}${orow('pic', 'Picture size', 'Fit')}${orow('quality', 'Quality', '1080p')}${orow('speed', 'Speed', 'Normal')}${orow('frames', 'Match frame rate', 'Off')}${orow('skipFwd', 'Intros in this show', 'Show a button', true)}
 </div>
 ${hint([['OK', 'Choose'], ['▲ ▼', 'Move'], ['Back', 'Close']])}`);
 

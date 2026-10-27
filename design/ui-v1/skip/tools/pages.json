@@ -12,31 +12,31 @@
  {
   "file": "player-skipped.html",
   "title": "After a skip: the way back",
-  "note": "After every skip, pressed or automatic. S1 E2's 28 s intro was skipped; for 5 s OK goes back to its start (OK does nothing for the first 1.5 s). The two-line subtitle would touch the chip, so it rises to 8 above it."
+  "note": "After every skip, pressed or by itself. S1 E2's 28 s intro was skipped; for 5 s OK goes back to its start (OK does nothing for the first 1.5 s). The two-line subtitle would touch the chip, so it rises to 8 above it."
  },
  {
   "file": "player-recap.html",
   "title": "Skip recap",
-  "note": "Lost S2 E1 at 0:06. The recap runs 0:02 to 0:28. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does."
+  "note": "Lost S2 E1 at 0:06, the first episode he has watched in weeks, so the recap (0:02 to 0:28) gets the button; after S1 E24 last night it would skip by itself, with the way-back chip. Recaps have speech; this short line does not touch the chip, so it stays where it is. After 5 views the hint bar stops; the key cap on the chip says what OK does."
  },
  {
   "file": "player-upnext-credits.html",
   "title": "Up next when the credits start",
-  "note": "Checked credits: the match is Sure and the downloaded subtitles end before 21:28 (TheIntroDB). Up next comes at 21:28 and counts 15 s. Unchanged: OK plays now, Back stays on this one."
+  "note": "The credits start at 21:28 (TheIntroDB, passed the checks) and no one speaks after it in the downloaded subtitles. Up next comes at 21:28, counts 15 s and plays the next one. OK plays now, Back stays on this one."
  },
  {
   "file": "player-options-skip.html",
-  "title": "Options > Skip intros and recaps",
-  "note": "OK on the Options row. The same setting as Account > Playback. The foot says what is known for this episode."
+  "title": "Intros in this show",
+  "note": "OK on the Options row: this show's own choice. It wins over Account's Show a button and Skip automatically; Account's Off wins over it. Recaps follow their own rule (foot)."
  },
  {
-  "file": "player-upnext-quiet.html",
-  "title": "Up next on unchecked credits",
-  "note": "S1 E1 at 21:30 with the file's own subtitles (they can't be read ahead), so the credits time is unchecked. The card shows at 21:28 without a count; from the last 40 s it counts to the end as today."
+  "file": "player-offer.html",
+  "title": "The offer: this show by itself",
+  "note": "Asked once per show, after he pressed Skip intro in 2 of its episodes, 10 s after the way-back chip went (never in an intro). 8 s; OK Yes; Back No; ignored, it asks once more after the next press."
  },
  {
   "file": "player-options.html",
   "title": "Options in an episode",
-  "note": "▼ in an episode. Skip intros and recaps is the last row (episodes only), with the setting as its value."
+  "note": "▼ in an episode. Intros in this show is the last row (episodes only), with this show's value."
  }
 ]
