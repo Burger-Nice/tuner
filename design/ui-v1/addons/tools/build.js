@@ -57,13 +57,13 @@ function qr(size = 176, seed = 7) {
 
 // ---------- the add-ons (SPEC 0): initials stand in for manifest.logo ----------
 const A = {
-  nl: { ini: 'NL', name: 'Northlight', gives: 'Streams for movies and series', ver: '2.4.1' },
+  nl: { ini: 'NL', name: 'Northlight', gives: 'Copies of films and series', ver: '2.4.1' },
   cm: { ini: 'CM', name: 'Cinemeta', gives: 'Catalogs and details · Popular, New, Featured', ver: D.cinemeta.version },
-  os: { ini: 'OS', name: 'OpenSubtitles v3', gives: 'Subtitles for movies and series', ver: D.os.version },
+  os: { ini: 'OS', name: 'OpenSubtitles v3', gives: 'Subtitles for films and series', ver: D.os.version },
   wh: { ini: 'WH', name: 'WatchHub', gives: 'Where else to watch: rent, buy or stream', ver: D.wh.version },
   pd: { ini: 'PD', name: 'Public Domain Movies', gives: 'A catalog only: its films come as torrents', ver: D.pd.version },
-  ar: { ini: 'AR', name: 'Archivio | ElfHosted', gives: 'Streams from the Internet Archive', ver: '–' },
-  ks: { ini: 'KS', name: 'Kestrel', gives: 'Streams for movies and series', ver: '1.0.3' },
+  ar: { ini: 'AR', name: 'Archivio | ElfHosted', gives: 'Copies from the Internet Archive', ver: '–' },
+  ks: { ini: 'KS', name: 'Kestrel', gives: 'Copies of films and series', ver: '1.0.3' },
 };
 const lg = (k, xl, dim) => `<span class="ad-lg${xl ? ' xl' : ''}${dim ? ' dim' : ''}">${A[k] ? A[k].ini : k}</span>`;
 
@@ -85,7 +85,7 @@ ${body}
 `);
   pages.push({ file, title, note, group });
 }
-const G1 = 'Account: Add-ons', G2 = 'Adding one', G3 = 'Catalogs and Search', G4 = 'The title page', G5 = 'Player, states, shield';
+const G1 = 'Account: Add-ons', G2 = 'Adding one', G3 = 'Catalogs and Search', G4 = 'The title page', G5 = 'Player and states';
 
 // =====================================================================================================================
 // 1. ACCOUNT > ADD-ONS (SPEC 3)
@@ -100,48 +100,43 @@ function addons({ focus = 'nl', lift = false, scrolled = false } = {}) {
   const head = scrolled ? '' : `<div class="t-title" style="margin-bottom:10px">Add-ons</div>
     <div class="arow${focus === 'add' ? ' f-ring' : ''}"><span class="grow" style="min-width:0">Add an add-on<div class="t-cap" style="margin-top:0">From your Stremio account, Stremio's list, or your phone</div></span><span class="av">${ic('plus', 'sm')}</span></div>`;
   let rows;
-  if (lift) rows = `${SEC(6, '▲▼ move it · OK drops · Back puts it back')}${adrow('cm', 'On')}${adrow('nl', '2 of 6', { lift: true })}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}`;
-  else if (scrolled) rows = `${SEC(6, 'Synced with your Stremio account at 21:02')}${adrow('nl', 'On')}${adrow('cm', 'On')}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only', { sub: 'Its films come as torrents, which airglow doesn\'t play' })}${adrow('ar', 'Not answering', { f: true, warn: true, sub: 'Sends a web page, not an add-on · last worked Sat 24 Oct' })}`;
-  else rows = `${SEC(6, 'Higher comes first · synced with Stremio 21:02')}${adrow('nl', 'On', { f: focus === 'nl' })}${adrow('cm', 'On', { f: focus === 'cm' })}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}`;
+  if (lift) rows = `${SEC(7, '▲▼ move it · OK drops · Back puts it back')}${adrow('cm', 'On')}${adrow('nl', '2 of 6', { lift: true })}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}`;
+  else if (scrolled) rows = `${SEC(7, 'Order: whose details and catalogs come first · synced with Stremio 21:02')}${adrow('cm', 'On')}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}${adrow('ar', 'Not an add-on any more', { f: true, warn: true, sub: 'Its link now opens a web page · last worked Sat 24 Oct' })}${adrow('ks', 'Not answering', { warn: true, sub: 'No answer in 10 s, 3 times since 20:40 · tries again 21:40' })}`;
+  else rows = `${SEC(7, 'Order: whose details and catalogs come first · synced with Stremio 21:02')}${adrow('nl', 'On', { f: focus === 'nl' })}${adrow('cm', 'On', { f: focus === 'cm' })}${adrow('os', 'On')}${adrow('wh', 'On')}${adrow('pd', 'Catalog only')}`;
   return `${topbar('')}${side()}<div class="ad-pane">${head}${rows}</div>`;
 }
 page('acct-addons.html', 'Account > Add-ons', addons(),
-  'A new group under Provider. "Add an add-on" first, then the installed ones in order: what each gives, in plain words, and its state. OK opens an add-on\'s sheet; hold OK: Move, Turn off, Remove.', { group: G1 });
+  'A new group under Provider. "Add an add-on" first, then the installed ones in order: what each gives, in plain words, and its state. v1.1: "copies", never "streams"; the caption says what order does. OK opens an add-on\'s sheet; hold OK: Move, Turn off, Remove.', { group: G1 });
 
-// the add-on's own sheet: Cinemeta, whose catalogs are where Home and Movies rows are switched
-const catRow = (t, v, f) => `<div class="ad-lr${f ? ' f-ring' : ''}"><span class="grow"><span class="a">${t}</span></span><span class="v">${v}${ic('chevR', 'sm')}</span></div>`;
+// the add-on's own sheet: Cinemeta. v1.1 (review M1): catalogs show as chips on Movies and Series only, so each
+// catalog is one toggle (OK switches it), no Home rows and no second menu
+const catRow = (t, b, on, f) => `<div class="ad-lr${f ? ' f-ring' : ''}"><span class="grow"><span class="a">${t}</span><span class="b">${b}</span></span>${toggle(on)}</div>`;
 function cmSheet(focusRow = 0) {
   return `<div class="scrim"></div><div class="sheet"><div class="ad-head">${lg('cm', true)}<div class="tx"><b>Cinemeta</b><span>Version ${esc(A.cm.ver)} · from your Stremio account</span></div></div>
     <div class="ad-gives"><span>${ic('list')}Catalogs</span><span>${ic('info')}Details for titles</span></div>
     <div class="sheet-scroll">
       <div class="ad-lr${focusRow === 0 ? ' f-ring' : ''}"><span class="grow"><span class="a">Use this add-on</span></span>${toggle(true)}</div>
-      <div class="sheet sec" style="all:unset;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3);padding:6px 12px 0">Catalogs · where they show</div>
-      ${catRow('Popular movies', 'Home, Movies', focusRow === 1)}${catRow('Popular series', 'Home, Series')}${catRow('New movies', 'Movies')}${catRow('New series', 'Series')}
-    </div><div class="t-cap" style="text-align:right">▼ 2 more catalogs, Move, Remove</div></div>`;
+      <div class="sheet sec" style="all:unset;font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3);padding:6px 12px 0">Catalogs · chips in Movies and Series</div>
+      ${catRow('Popular movies', 'A chip in Movies', true, focusRow === 1)}${catRow('New movies', 'A chip in Movies · opens on 2026', true)}${catRow('Featured movies', 'A chip in Movies', false)}
+    </div><div class="t-cap" style="text-align:right">▼ 3 series catalogs, Move, Remove</div></div>`;
 }
 page('acct-addon-sheet.html', 'An add-on\'s sheet: Cinemeta', `${addons({ focus: '' })}${cmSheet(1)}`,
-  'OK on Cinemeta. What it gives, an on/off switch, and one row per catalog saying where it shows. This is where a Home row or a Movies chip is switched off for good.', { group: G1 });
-
-page('acct-catalog-menu.html', 'One catalog: where it shows', `${addons({ focus: '' })}${cmSheet(-1)}<div class="menu" style="left:150px;top:150px;width:320px"><h3>Popular movies</h3>
-  <div class="ad-lr f-ring"><span class="ck on">${ic('check')}</span><span class="grow"><span class="a">On Home</span><span class="b">A row after Tonight's games</span></span></div>
-  <div class="ad-lr"><span class="ck on">${ic('check')}</span><span class="grow"><span class="a">In Movies</span><span class="b">A chip after the provider's</span></span></div>
-  <div class="t-cap" style="padding:8px 12px 2px">Both off hides it. Cinemeta stays on for details.</div></div>`,
-  'OK on a catalog row: two checks. OK ticks, Back closes and keeps it. The same menu is reached from a Home row (hold OK, "Hide this row") so the owner never has to come here to tidy Home.', { group: G1 });
+  'OK on Cinemeta. What it gives, an on/off switch, and one switch per catalog: its chip in Movies or Series. v1.1 (review M1): Home keeps its two rows, so catalogs live on Movies and Series only, and the catalog menu is gone.', { group: G1 });
 
 page('acct-addon-move.html', 'Moving an add-on', addons({ lift: true }),
-  'Hold OK on a row, then Move: the row lifts (the Saved reorder model), ▲▼ move it, OK drops. Order decides which rows come first and which add-on wins a tie in Sources.', { group: G1 });
+  'Hold OK on a row, then Move: the row lifts (the Saved reorder model), ▲▼ move it, OK drops. Order decides whose details win, the order of catalog chips, and the tie-break between equal copies.', { group: G1 });
 
 // =====================================================================================================================
 // 2. ADDING ONE (SPEC 3.2 to 3.6)
 // =====================================================================================================================
 const way = (i0, a, b, { f = false, tag = '' } = {}) => `<div class="ad-lr${f ? ' f-ring' : ''}"><span class="ico">${ic(i0)}</span><span class="grow"><span class="a">${a}</span><span class="b">${b}</span></span>${tag ? `<small>${tag}</small>` : ''}</div>`;
 page('add-ways.html', 'Add an add-on: four ways', `${addons({ focus: '' })}<div class="scrim"></div><div class="menu ad-ways"><h3>Add an add-on</h3>
-  ${way('user', 'Use your Stremio account', 'Sign in once on your phone. Your Stremio add-ons come here and stay in step', { f: 1, tag: 'Easiest' })}
+  ${way('user', 'Use your Stremio account', 'Sign in once on your phone. Your add-ons come over', { f: 1, tag: 'Easiest' })}
   ${way('list', 'Pick from Stremio\'s list', 'Official and community add-ons, chosen with the remote')}
-  ${way('phone', 'Send a link from your phone', 'For one you set up on a web page. Same Wi-Fi as the TV')}
+  ${way('phone', 'Send a link from your phone', 'For one you set up on a web page. Same home network')}
   ${way('keys', 'Type the link', 'On the TV keyboard')}
-  <div class="t-cap" style="padding:10px 12px 0">airglow plays direct links. An add-on that only finds torrents shows nothing here.</div></div>`,
-  'OK on "Add an add-on". The Stremio account is first and marked Easiest: no typing, and it also carries add-ons that need setting up. Typing is last.', { group: G2 });
+  <div class="t-cap" style="padding:10px 12px 0;line-height:20px">Copies of films come from add-ons set up with a service like Real-Debrid. Add-ons that play torrents directly won't show anything here.</div></div>`,
+  'OK on "Add an add-on". The Stremio account is first and marked Easiest: no typing, and it also carries add-ons that need setting up. v1.1 (review S17): the one thing he must know is said in his words: copies come from add-ons set up with a service like Real-Debrid.', { group: G2 });
 
 const code = 'R2T3';
 page('add-stremio-code.html', 'Stremio sign-in: the code', `<div class="abs t-head" style="left:48px;top:64px">Sign in to Stremio on your phone</div>
@@ -155,13 +150,13 @@ const imp = (k, b, on = true, f = false) => `<div class="ad-lr${f ? ' f-ring' : 
 page('add-stremio-found.html', 'Your Stremio add-ons', `<div class="abs t-head" style="left:48px;top:48px">Your Stremio add-ons</div>
   <div class="abs t-body" style="left:48px;top:88px;color:var(--a-text-2)">8 in your account. airglow can use 5 of them.</div>
   <div class="abs ad-imp" style="left:48px;top:128px;width:520px;display:flex;flex-direction:column;gap:4px">
-    ${imp('nl', 'Streams for movies and series · already set up')}${imp('cm', 'Catalogs and details')}${imp('os', 'Subtitles')}${imp('wh', 'Where else to watch')}${imp('pd', 'Its catalog only: its films are torrents')}
+    ${imp('nl', 'Copies of films and series · already set up')}${imp('cm', 'Catalogs and details')}${imp('os', 'Subtitles')}${imp('wh', 'Where else to watch')}${imp('pd', 'A catalog only: its films come as torrents', false)}
     <div class="ad-why" style="padding:8px 12px 0;line-height:20px">Left out: <b style="color:var(--a-text-2)">YouTube</b> (channels aren't in airglow yet), <b style="color:var(--a-text-2)">OpenSubtitles</b> (an older kind of add-on; v3 does the same) and <b style="color:var(--a-text-2)">Local Files</b> (needs the Stremio app on this TV).</div></div>
   <div class="abs card" style="left:600px;top:128px;width:312px;padding:18px">
     <div class="ad-lr" style="padding:0"><span class="grow"><span class="a">Keep in step</span><span class="b">with your Stremio account</span></span>${toggle(true)}</div>
     <div class="ad-note" style="margin:8px 0 18px">Add or remove one in Stremio later, on any device, and it changes here too, the next time airglow starts.</div>
-    <span class="btn f" style="transform-origin:0 50%">${ic('check')}Add 5 add-ons</span></div>`,
-  'The answer to addonCollectionGet, in plain words. What airglow can\'t use is named once, with why, never as a broken row. One OK adds them; the checks can be changed first.', { group: G2 });
+    <span class="btn f" style="transform-origin:0 50%">${ic('check')}Add 4 add-ons</span></div>`,
+  'The answer to addonCollectionGet, in plain words. What airglow can\'t use is named once, with why, never as a broken row. v1.1 (review S20): an add-on known to give nothing playable (Public Domain Movies) starts unticked. One OK adds the ticked ones.', { group: G2 });
 
 page('add-stremio-email.html', 'Stremio sign-in: email fallback', `<div class="abs t-head" style="left:48px;top:64px">Sign in with email</div>
   <div class="abs" style="left:48px;top:118px;width:520px">
@@ -177,38 +172,39 @@ const subsRow = (name, desc, st, f, k) => `<div class="ad-row${f ? ' f-ring' : '
 const S0 = D.communitySubs;
 const sd = (n) => (S0.find((a) => a.name === n) || {}).description || '';
 page('add-list.html', 'Stremio\'s list, on the TV', `${topbar('')}<div class="lib-head"><span class="t-head">Stremio's add-ons</span><span class="t-cap" style="margin-top:6px">Official ${D.addonCatalogOfficial.length}${dot}Community ${D.addonCatalogCommunity.count}</span></div>
-  <div class="lib-chips" data-row><span class="chip lg">Official</span><span class="chip lg sel">Community</span><span class="ad-cut"></span><span class="chip lg">Streams</span><span class="chip lg">Catalogs</span><span class="chip lg sel">Subtitles<span class="n">${S0.length}</span></span></div>
-  <div class="abs" style="left:48px;top:184px;width:864px">
-    ${subsRow('Napisy24 Addon', sd('Napisy24 Addon'), 'Add', true, 'N2')}${subsRow('Ktuvit.me Subtitles', sd('Ktuvit.me Subtitles'), 'Add', false, 'KT')}${subsRow('opensubtitles PRO', sd('opensubtitles PRO'), 'Setup', false, 'OP')}${subsRow('SubDL Subtitles', sd('SubDL Subtitles'), 'Setup', false, 'SD')}${subsRow('Tu Subtitulo', sd('Tu Subtitulo').slice(0, 90), 'Add', false, 'TU')}</div>`,
-  'Pick from Stremio\'s list (Cinemeta\'s addon_catalog, real data). Chips filter by what an add-on gives. OK on Add adds it after a confirm; "Set up on your phone" opens the setup card. 23 of the 44 subtitle add-ons need setting up.', { group: G2 });
+  <div class="lib-chips" data-row><span class="chip lg">Official</span><span class="chip lg sel">Community</span><span class="ad-cut"></span><span class="chip lg">Catalogs</span><span class="chip lg sel">Subtitles<span class="n">English</span></span><span class="chip lg">Extras</span></div>
+  <div class="abs ad-cap" style="left:48px;top:176px;width:864px">Copies of films aren't in this list: they come from add-ons set up with a service like Real-Debrid. Add yours from your Stremio account or your phone.</div>
+  <div class="abs" style="left:48px;top:208px;width:864px">
+    ${subsRow('MSubtitles', 'Your own subtitles, or ones other people follow · free', 'Add', true, 'MS')}${subsRow('opensubtitles PRO', sd('opensubtitles PRO'), 'Setup', false, 'OP')}${subsRow('SubDL Subtitles', sd('SubDL Subtitles'), 'Setup', false, 'SD')}${subsRow('Subtitle Sync', 'Finds subtitles in your language and times them to your copy', 'Setup', false, 'SY')}${subsRow('OpenSubtitles v3', 'Subtitles for films and series', 'Added', false, 'OS')}</div>`,
+  'Pick from Stremio\'s list (Cinemeta\'s addon_catalog, real data). v1.1 (review M3): no "Streams" chip: none of the 19 community stream add-ons gives copies of films (they are ratings, after-credits and warnings: "Extras"). One line says where copies come from. Subtitles are filtered to his languages, so focus lands on something he can use.', { group: G2 });
 
 page('add-phone.html', 'Send a link from your phone', `<div class="abs t-head" style="left:48px;top:64px">Send a link from your phone</div>
-  <div class="abs" style="left:48px;top:118px;width:470px"><ol class="ad-steps"><li>Scan the code, or open <b>192.168.1.23:8790</b> on a phone on the same Wi-Fi.</li><li>Paste the add-on's link. It usually ends in <b>manifest.json</b>.</li><li>Tap Send. The TV asks before adding it.</li></ol></div>
-  <div class="abs" style="left:616px;top:64px;width:296px;text-align:center"><div class="qrbox">${qr(200, 23)}</div><div class="t-cap" style="margin-top:10px">192.168.1.23:8790 · code <b style="color:var(--a-text-1)">4821</b></div></div>
+  <div class="abs" style="left:48px;top:118px;width:470px"><ol class="ad-steps"><li>Scan the code, or open <b>192.168.1.23:8790</b> on a phone on your home network.</li><li>Paste the add-on's link. It usually ends in <b>manifest.json</b>.</li><li>Tap Send. The TV asks before adding it.</li></ol></div>
+  <div class="abs" style="left:616px;top:64px;width:296px;text-align:center"><div class="qrbox">${qr(200, 23)}</div><div class="t-cap" style="margin-top:10px">192.168.1.23:8790 · code <b style="color:var(--a-text-1)">482 193</b></div></div>
   <div class="card ad-wait">${spin(1)}<div class="grow"><b>Waiting for your phone</b><div class="t-cap">The TV serves this page itself, only while this screen is open. Nothing leaves your home network.</div></div><span class="btn2 sm f-ring">Type the link instead</span></div>`,
-  'For an add-on set up on a web page (most debrid ones), without a Stremio account. The TV app serves one small page on the Wi-Fi (the same page the first-run "Use your phone" sign-in was designed with, UI-SPEC 5.1).', { group: G2 });
+  'For an add-on set up on a web page (most debrid ones), without a Stremio account. The TV app serves one small page on the home network (the page the first-run "Use your phone" sign-in was designed with, UI-SPEC 5.1). v1.1 (review S13): a 6-digit code, locked after 5 wrong tries.', { group: G2 });
 
 page('add-confirm.html', 'Before adding: what it gives', `<div class="abs t-head" style="left:48px;top:64px">Send a link from your phone</div><div class="scrim"></div>
   <div class="menu" style="left:50%;top:50%;width:520px;transform:translate(-50%,-50%);padding:22px 22px 18px"><div class="ad-head">${lg('nl', true)}<div class="tx"><b>Add Northlight?</b><span>Sent from your phone just now</span></div></div>
-  <div class="ad-gives" style="margin-top:14px"><span>${ic('film')}Streams: movies, series</span><span>${ic('user')}Set up with your details</span></div>
-  <div class="ad-note" style="margin-top:12px">Its link holds your account details, so airglow keeps it private and never shows it in full.</div>
+  <div class="ad-gives" style="margin-top:14px"><span>${ic('film')}Copies: films, series</span><span>${ic('user')}Set up with your details</span></div>
+  <div class="ad-note" style="margin-top:12px">Its link holds your account details, so airglow keeps it private and never shows it in full. Northlight sees which films you open.</div>
   <div class="row-flex" style="gap:20px;margin-top:18px"><span class="btn f" style="transform-origin:0 50%">${ic('plus')}Add it</span><span class="btn2">Cancel</span></div></div>`,
-  'Every way in ends here: airglow reads the manifest first and says what the add-on gives. Nothing is added without this OK. A link that isn\'t an add-on gets a plain "That link isn\'t an add-on" instead.', { group: G2 });
+  'Every way in ends here: airglow reads the manifest first and says what the add-on gives. Nothing is added without this OK. v1.1 (review S15): it says plainly that the add-on sees what he opens. A link that isn\'t an add-on gets a plain "That link isn\'t an add-on" instead.', { group: G2 });
 
 page('add-setup.html', 'An add-on that needs setting up', `${topbar('')}<div class="lib-head"><span class="t-head">Stremio's add-ons</span></div><div class="scrim"></div>
   <div class="menu" style="left:50%;top:50%;width:640px;transform:translate(-50%,-50%);padding:22px 24px 20px"><div class="ad-head">${lg('OP', true)}<div class="tx"><b>opensubtitles PRO needs setting up</b><span>It asks for your choices on its own web page</span></div></div>
   <div class="row-flex" style="gap:22px;margin-top:16px;align-items:flex-start"><div class="qrbox">${qr(148, 41)}</div>
-  <ol class="ad-steps" style="flex:1"><li>Scan it. Your phone opens airglow's page, with a button to its setup page.</li><li>Make your choices, then tap <b>Install</b> or <b>Copy link</b>.</li><li>Paste the link on airglow's page and tap Send.</li></ol></div>
-  <div class="row-flex" style="gap:12px;margin-top:6px">${spin()}<span class="ad-cap">Waiting for your phone · <b>Back</b> cancels</span></div></div>`,
-  'A configurable add-on with configurationRequired. The setup itself happens on the add-on\'s own page (Stremio\'s rule); airglow only carries the result back. Nothing to press on the TV, so nothing is focused.', { group: G2 });
+  <ol class="ad-steps" style="flex:1"><li>Scan it. Your phone opens airglow's page, with a button to its setup page.</li><li>Make your choices, then tap <b>Install</b> or <b>Copy link</b>.</li><li>Install puts it in your Stremio account, and it comes here by itself. Or paste the link on airglow's page.</li></ol></div>
+  <div class="row-flex" style="gap:12px;margin-top:6px">${spin()}<span class="ad-cap">Waiting for your phone or your Stremio account · <b>Back</b> cancels</span></div></div>`,
+  'A configurable add-on with configurationRequired. The setup itself happens on the add-on\'s own page (Stremio\'s rule); airglow only carries the result back. v1.1 (review S8): while this is open and he is signed in to Stremio, airglow reads his collection every 5 s, so Install finishes it too. Nothing to press on the TV, so nothing is focused.', { group: G2 });
 
 // the phone page itself, at the phone's own size (CSS px of a 300 px wide phone)
 const phone = (x, body) => `<div class="ad-phone" style="left:${x}px"><div class="bar"><span>airglow · on your TV</span><span>21:10</span></div>${body}</div>`;
 page('phone-page.html', 'The page the TV serves to the phone', `
-  ${phone(48, `<h4>Send to your TV</h4><p>Paste an add-on's link. It usually ends in manifest.json.</p><div class="pf" style="color:var(--a-text-1)">https://northlight.example/eyJ…/manifest.json</div><div class="pb">Send to the TV</div><div class="pl">Or set one up</div><div class="pb2">opensubtitles PRO</div><p class="pn">Works only on the same Wi-Fi as the TV. The TV asks before it adds anything.</p>`)}
+  ${phone(48, `<h4>Send to your TV</h4><p>Paste an add-on's link. It usually ends in manifest.json.</p><div class="pf" style="color:var(--a-text-1)">https://northlight.example/eyJ…/manifest.json</div><div class="pb">Send to the TV</div><div class="pl">Or set one up</div><div class="pb2">opensubtitles PRO</div><p class="pn">Works only on your home network. The TV asks before it adds anything.</p>`)}
   ${phone(348, `<h4>Set up opensubtitles PRO</h4><p>1. Open its page and make your choices.</p><div class="pb2">Open its setup page</div><p>2. When it shows Install or a link, copy the link and paste it here.</p><div class="pf">Paste the link</div><div class="pb">Send to the TV</div><p class="pn">Use Stremio on this phone? Install works too: it goes to your Stremio account and on to airglow.</p>`)}
   ${phone(648, `<h4>Sent</h4><p>Look at your TV. It asks before adding Northlight.</p><div class="pb2">Send another</div><p class="pn">This page stops working when you close the screen on the TV. To use it again, open Add an add-on.</p>`)}`,
-  'Not a TV screen: the one page the TV serves on the Wi-Fi (http, port 8790, code in the link). Three states: paste and send, set up an add-on, sent. Phone text is 14 px and up; one column; big buttons.', { group: G2 });
+  'Not a TV screen: the one page the TV serves on the home network (http, port 8790, token in the link). Three states: paste and send, set up an add-on, sent. Phone text is 14 px and up; one column; big buttons.', { group: G2 });
 
 // =====================================================================================================================
 // 3. CATALOGS AND SEARCH (SPEC 4, 6)

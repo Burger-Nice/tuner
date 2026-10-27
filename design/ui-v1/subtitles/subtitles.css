@@ -96,3 +96,16 @@
    descenders of a one-line title (Oppenheimer's p: content 47 px in a 44 px box; the pixels change when the clamp is
    lifted). 4 px of padding inside the clamp, taken back by the margin, so nothing moves. ---------- */
 .d-col .t-display.clamp2{padding-bottom:4px;margin-bottom:-4px}
+
+/* ---------- v1.1 (REVIEW-independent.md) ---------- */
+/* M4: the source text rides on the pill row (no extra height; More like this stays at the app's 366 / 400) */
+.st-side{display:inline-flex;align-items:center;gap:8px;margin-left:4px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+/* M7: a section heading in a sheet gets 8 px of air before the first row, so a focus ring never crosses it */
+.sheet.st-sheet .sec{margin-bottom:8px}
+/* nit: "1080p", not "1080P": quality tags keep their case */
+.tag.st-ok,.tag.st-name{text-transform:none;letter-spacing:.02em}
+/* S18: a tick on a row's second line is centred on the line and kept 6 px from the text */
+.lr.st-two .b .st-tk,.nv-row .b .st-tk{width:14px;height:14px;vertical-align:-2px;margin-right:6px}
+.lr.st-two .b .st-tk svg,.nv-row .b .st-tk svg{width:9px;height:9px}
+/* S16: "Early or late" sits under the subtitle that's on, indented to its text */
+.nv-row.st-kid{padding-left:40px}
