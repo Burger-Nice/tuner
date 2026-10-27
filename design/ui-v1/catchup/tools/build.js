@@ -282,7 +282,7 @@ page('nba-card-menu-replay.html', 'NBA: hold OK on a final', `${topbar('nba')}${
   btns: [{ t: 'Watch from tip-off', i: 'play' }, { t: 'Game page' }], cap: 'Full game in Movies<br>Memphis feed',
   slab: '<span class="big">REPLAY</span><span class="cap">Score hidden</span>',
 })}${hubDays}${hubGrid(false)}<div class="ctxmenu cu-w" data-col style="left:336px;top:255px"><div class="lr f-ring">${ic('play', 'sm')}Watch from tip-off</div><div class="lr">${crest('MEM', 's24')}Grizzlies page</div><div class="lr">${crest('UTAH', 's24')}Jazz page</div><div class="lr">${ic('score', 'sm')}Open the game</div><div class="lr">${eyeSm}Reveal Grizzlies at Jazz</div></div>`,
-'Hold OK on a final with a replay: Watch from tip-off first and focused. Reveal names its game and comes last. The menu opens above the card (it would cover it below).', { group: 'NBA', shield: true });
+'Hold OK on a final with a replay: Watch from tip-off first and focused. Reveal names its game and comes last. The menu opens beside the card: below it is off-screen, above it would touch the team plates.', { group: 'NBA', shield: true });
 
 // ---- the game page (app/tv/js/screens/game.js) ----
 function gameHead({ status, away = 'MEM', home = 'UTAH', mid }) {
@@ -295,7 +295,7 @@ const tabsRow = (tabs, right = '') => `<div class="gd-tabs" data-row>${tabs.map(
 // ---- N6: game page, shield on, a replay exists: the card offers it first ----
 page('game-replay-shield.html', 'Game page: hidden, replay', `${topbar('nba')}${gameHead({ status: `<span class="t-label t-2">Ended${dot}Mon 26 Oct${dot}late</span>`, mid: gdHid })}
 ${tabsRow([['Grizzlies'], ['Jazz'], ['Team stats']])}
-<div class="gd-body" style="bottom:27px"><div class="state big cu-state" style="margin:14px auto 0;padding:20px 28px 18px" data-row><div class="ico">${ic('eyeOff')}</div><b>Grizzlies at Jazz is hidden</b><p>Watch it from tip-off: it counts as seen at the replay's final buzzer.</p><div class="row-flex"><span class="btn f">${ic('play')}Watch from tip-off</span><span class="btn2">Reveal Grizzlies at Jazz</span></div><div class="t-cap">NBA League Pass 4${dot}kept until Thu 01:00${dot}hold OK for other sources</div></div></div>`,
+<div class="gd-body" style="bottom:27px"><div class="state big cu-state" style="margin:10px auto 0;padding:20px 28px 13px" data-row><div class="ico">${ic('eyeOff')}</div><b>Grizzlies at Jazz is hidden</b><p>Watch it from tip-off: it counts as seen at the replay's final buzzer.</p><div class="row-flex"><span class="btn f">${ic('play')}Watch from tip-off</span><span class="btn2">Reveal Grizzlies at Jazz</span></div><div class="t-cap">NBA League Pass 4${dot}kept until Thu 01:00${dot}hold OK for other sources</div></div></div>`,
 'Shield on: the card in the body offers the replay first (focused). Reveal names the game and is a move away. Plays is dropped while hidden.', { group: 'NBA', shield: true });
 
 // ---- N7: a seen final, watch it again ----
@@ -308,7 +308,7 @@ ${tabsRow([['Grizzlies', 1], ['Kings'], ['Plays'], ['Team stats']], `<span class
 // ---- N8: hidden, and no replay anywhere ----
 page('game-noreplay.html', 'Game page: no replay', `${topbar('nba')}${gameHead({ status: `<span class="t-label t-2">Ended${dot}Mon 26 Oct${dot}late</span>`, mid: gdHid })}
 ${tabsRow([['Grizzlies'], ['Jazz'], ['Team stats']])}
-<div class="gd-body" style="bottom:27px"><div class="state big cu-state" style="margin:14px auto 0;padding:20px 28px 18px" data-row><div class="ico">${ic('eyeOff')}</div><b>No replay of this game yet</b><p>Full games often reach Movies a few hours after the final. airglow looks every hour until Thu.</p><div class="row-flex"><span class="btn f">${ic('refresh')}Look again</span><span class="btn2">${ic('search')}Choose a video</span><span class="btn2">Reveal Grizzlies at Jazz</span></div><div class="t-cap">Looked at 10:32 in 4 channel archives and 312 NBA videos</div></div></div>`,
+<div class="gd-body" style="bottom:27px"><div class="state big cu-state" style="margin:10px auto 0;padding:20px 28px 13px" data-row><div class="ico">${ic('eyeOff')}</div><b>No replay of this game yet</b><p>Full games often reach Movies a few hours after the final. airglow looks every hour until Thu.</p><div class="row-flex"><span class="btn f">${ic('refresh')}Look again</span><span class="btn2">${ic('search')}Choose a video</span><span class="btn2">Reveal Grizzlies at Jazz</span></div><div class="t-cap">Looked at 10:32 in 4 channel archives and 312 NBA videos</div></div></div>`,
 'Neither an archive nor a video: say so plainly, keep looking every hour, and let you pick a video yourself. Look again is focused, never Reveal.', { group: 'NBA', shield: true });
 
 // ---- N9: Choose a video (names masked) ----

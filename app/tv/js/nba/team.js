@@ -15,7 +15,7 @@ import { focus } from '../focus.js';
 import { toast, contextMenu, confirmMenu, radioMenu } from '../ui.js';
 import { ringFor, ringName } from '../screens/home.js';
 import nbaHost, { openSection } from '../screens/nba.js';
-import { tc, names, tileDate, whenWord, shortDay, tipsIn, gameName, sideOf, revealBtn, reveal, pinView, espnMeta, downCard } from './common.js';
+import { tc, names, tileDate, whenWord, shortDay, tipsIn, gameName, sideOf, revealBtn, reveal, pinView, espnMeta } from './common.js';
 import { openPlayer, seasonOf, ordinalOf, posName } from './player.js';
 import { pickerHtml, openPicker, confOf } from './picker.js';
 import * as newsMod from './news.js';
@@ -122,6 +122,7 @@ export function teamPage({ pushed = false } = {}) {
 
   // ---------- header (7.1) and the hero state table ----------
   function heroParts(g) {
+    if (!sched() && failed(`schedule:${abbr}`)) return { btns: [['retry', `${ic('refresh')}Try again`]], cap: 'ESPN isn’t answering<br>airglow tries again every minute' };
     if (!g) return { btns: [], cap: sched() ? 'Off-season<br>Schedule out in August' : '' };
     const v = show(g), s = sideOf(v.g, abbr);
     if (g.state === 'pre') {
@@ -140,7 +141,8 @@ export function teamPage({ pushed = false } = {}) {
   function headHtml(games, hero) {
     const n = names(abbr), mine = abbr === favTeam(), data = !!sched();
     const v = hero && show(hero), s = hero && sideOf(v.g, abbr);
-    const season = `${esc(sched()?.season || seasonOf())}${dot}Regular season`;
+    const kind = /post|playoff/i.test(hero?.season || '') ? 'Playoffs' : /pre/i.test(hero?.season || '') ? 'Preseason' : /play-?in/i.test(hero?.season || '') ? 'Play-in' : 'Regular season';
+    const season = `${esc(sched()?.season || seasonOf())}${dot}${kind}`;
     const status = hero?.state === 'in'
       ? `${mine ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}${liveP()}<span class="t-label t-2">${esc(clockText(v.g))} ${s.word} ${esc(s.op.name)}</span>`
       : `${mine ? '<span class="t-label" style="color:var(--a-pink-text)">Your team</span>' : ''}<span class="t-label t-2">${season}</span>`;
@@ -162,7 +164,7 @@ export function teamPage({ pushed = false } = {}) {
     return `<div class="nb-head tp-b" data-area="top">
   <div class="st">${status}</div>
   <div class="nb-plate" style="${teamVars(abbr)}">${tc(abbr, 'xl')}<div><div class="loc">${esc(n.city)}</div><div class="nk">${esc(n.name)}</div></div></div>
-  <div class="nb-rec">${data ? recHtml : '<div class="nb-sk" style="position:relative;width:200px;height:48px"></div>'}</div>
+  <div class="nb-rec">${data ? recHtml : failed(`schedule:${abbr}`) ? '' : '<div class="nb-sk" style="position:relative;width:200px;height:48px"></div>'}</div>
   ${next}
   <div class="nb-btns" data-row>${btns}<span class="t-cap clamp2">${parts.cap}</span></div>
 </div>`;
@@ -288,11 +290,11 @@ export function teamPage({ pushed = false } = {}) {
 
   // ---------- drawing ----------
   function draw() {
-    if (!root || !abbr || !ctx?.visible()) return;
+    if (!root || !abbr || !ctx?.visible() || body.parentElement.hidden) return;   // (the section's picker is showing instead)
     if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
     const games = list(), hero = heroOf(games);
     let html;
-    if (!sched() && failed(`schedule:${abbr}`)) html = headHtml([], null) + downCard(340);
+    if (!sched() && failed(`schedule:${abbr}`)) html = headHtml([], null) + `<div class="nb-title tp-b" style="top:${Y.sched}px">Schedule<small>Scores aren’t reachable · trying again</small></div>`;
     else html = headHtml(games, hero) + schedHtml(games, hero) + ranksHtml() + newsHtml() + rosterHtml();
     if (setHtml(body, html)) hooks();
     if (pushed) drawTools();
@@ -445,12 +447,12 @@ export function teamPage({ pushed = false } = {}) {
       body = root.querySelector('.tp-body'); cover = root.querySelector('.nb-cover'); ctxLine = root.querySelector('.nb-ctx'); tools = root.querySelector('.tp-tools');
       root.addEventListener('click', (e) => {
         const b = e.target.closest('[data-act]');
+        if (b?.dataset.act === 'retry') { for (const k of keys()) want(k, { force: true }); return; }
         if (b && b.closest('.nb-btns')) return heroAct(b.dataset.act, b);
         if (b?.dataset.act === 'reveal') return reveal(b, () => draw());
         if (b?.dataset.act === 'sort') return sortMenu();
         if (b?.dataset.act === 'mine') return confirmMine();
         if (b?.dataset.act === 'all') return openPicker({ current: abbr });
-        if (b?.dataset.act === 'retry') { for (const k of keys()) want(k, { force: true }); return; }
         const tile = e.target.closest('.nb-gt.fx');
         if (tile) return push('game', { id: tile.dataset.g });
         const rk = e.target.closest('.nb-rk.fx');
@@ -526,7 +528,7 @@ export const teamSection = {
     shownFor = t;
     root.querySelector('.tp-clip').hidden = !t;
     pickBox.hidden = !!t;
-    if (!t) { drawPicker(); return; }
+    if (!t) { page.toTop(); drawPicker(); return; }
     page.show(t, was === t ? page.state() : null);
   },
   leave() {},

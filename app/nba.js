@@ -76,6 +76,7 @@
     return {
       id: String(e.id), date: Date.parse(e.date || comp.date) || 0,
       ...status(e.status || comp.status),
+      season: e.seasonType?.name || e.season?.slug || '',   // 'Regular Season', 'Postseason' (schedules carry it)
       tv: [...new Set((comp.broadcasts || []).flatMap((b) => b.names || (b.media?.shortName ? [b.media.shortName] : [])))],
       home: side(home), away: side(away),
     };
@@ -256,6 +257,7 @@
     return (d.athletes || []).map((a) => ({
       id: String(a.id || ''), name: a.displayName || '', short: a.shortName || '', jersey: a.jersey || '', pos: a.position?.abbreviation || '',
       age: a.age || 0, height: a.displayHeight || '', exp: a.experience?.years ?? null, college: a.college?.name || '',
+      from: [a.birthPlace?.city, a.birthPlace?.state || a.birthPlace?.country].filter(Boolean).join(', '),
       injury: a.injuries?.[0] ? (a.injuries[0].status || a.injuries[0].type?.description || 'Injured') : '', headshot: a.headshot?.href || '',
     }));
   }

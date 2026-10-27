@@ -107,6 +107,10 @@ module.exports = async ({ p, shot, key, log }) => {
   await key('Escape', 1, 600); await key('ArrowDown', 2, 500); await ok('the Kings tile again', 'g:401909867'); await hold(); await key('Enter', 1, 1500);
   await shot('team-opponent-shield');
   console.log('kings header:', await ev(() => document.querySelector('[data-screen="team"] .nb-rec')?.innerText.replace(/\s+/g, ' ')));
+  await key('Escape', 1, 1000); await ok('back: the Kings tile', 'g:401909867');
+  await key('ArrowDown', 1, 700); await key('ArrowRight', 2, 300); await ok('ranks: Rebounds', 'rk:avgRebounds');
+  await key('Enter', 1, 1500); await ok('OK: Team stats on Rebounds', 'Rebounds'); await shot('ranks-to-teamstats');
+  console.log('section:', await ev(() => document.querySelector('.nb-sec .chip.sel')?.textContent));
 
   // ---------- team "None": the section is the picker; a team whose schedule ESPN won't send ----------
   await p.route('**/espn/teams/1/schedule', (r) => r.fulfill({ status: 503, body: 'down' }));

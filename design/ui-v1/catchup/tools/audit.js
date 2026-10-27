@@ -144,7 +144,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         if (!fe.closest('.rail') && !fe.closest('.bleed') && !fe.closest('.hintbar,.nv-hint') && (ring.l < SAFE.l - 6 || ring.r > SAFE.r + 6 || ring.t < SAFE.t - 6 || ring.b > SAFE.b + 6)) issues.safe.push(`focus ${short(fe)} ring ${ring.l.toFixed(0)},${ring.t.toFixed(0)}-${ring.r.toFixed(0)},${ring.b.toFixed(0)}`);
       }
       // ---- v1.1 (review): floating boxes stay inside y 27-513 and x 48-912; Reveal is never the focused default; no text in a tile peeking past x 912
-      for (const m of document.querySelectorAll('.ctxmenu,.menu,.sheet,.nb-read')) { const q = m.getBoundingClientRect(); if (q.bottom > 513.5 || q.top < 26.5 || q.left < 47.5 || q.right > 912.5) issues.safe.push(`${short(m)} box ${q.left.toFixed(0)},${q.top.toFixed(1)}-${q.right.toFixed(0)},${q.bottom.toFixed(1)} crosses the safe area`); }
+      for (const m of document.querySelectorAll('.ctxmenu,.menu,.sheet,.nb-read,.cu-state,.cu-tbar,.nv-panel,.nv-card')) { const q = m.getBoundingClientRect(); if (q.bottom > 513.5 || q.top < 26.5 || q.left < 47.5 || q.right > 912.5) issues.safe.push(`${short(m)} box ${q.left.toFixed(0)},${q.top.toFixed(1)}-${q.right.toFixed(0)},${q.bottom.toFixed(1)} crosses the safe area`); }
       for (const fe of focusEls) if (/reveal/i.test(fe.textContent)) issues.overlap.push(`SHIELD: the focused element is a Reveal ("${fe.textContent.trim().slice(0, 30)}")`);
       for (const t of texts) if (t.e.closest('.nb-rail') && t.x1 > 913) issues.safe.push(`peek text "${t.txt}" past x 912`);
       // ---- catch-up: SPOILER on shield mocks (scores, remaining time, OT) outside data-other / data-moment

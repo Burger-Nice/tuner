@@ -130,7 +130,10 @@ export default {
     on('player-closed', () => { if (behind) { behind = false; draw(); } });
     onFinal((g) => { if (isMine(g)) setTimeout(() => want(keyOf(cat), { force: true }), 5 * 60e3); });   // 5 min after your team's final
   },
-  enter() {
+  // params.cat (a LEADERS key): open on that category, focused (the player sheet's "1st in the NBA in points")
+  enter(root, c, params) {
+    const k = params?.cat && CATS.some((x) => x.key === params.cat) ? params.cat : null;
+    if (k) cat = k;
     want(keyOf(cat));
     if (favTeam()) want(`schedule:${favTeam()}`);   // the shield needs your team's games
     clearInterval(tick);
@@ -138,6 +141,7 @@ export default {
     tick = setInterval(() => { if (ctx.visible()) want(keyOf(cat)); }, 60e3);
     draw();
     ctx.meta();
+    if (k) focus($(`.nb-cats [data-cat="${k}"]`));
   },
   leave() { clearInterval(tick); clearTimeout(dwell); },
   entry: (root) => root.querySelector('.nb-cats .nb-cat.sel'),
