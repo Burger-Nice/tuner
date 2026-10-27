@@ -109,15 +109,41 @@ eq('S3: subtitles don\'t download on Unsure (it asks)', [allows('unsure').subtit
 eq('S3: a Likely match is dropped when the length arrives 8% off', recheck(128, 167), 'drop');
 eq('S3: ... and becomes Sure when it agrees', recheck(166, 167), 'sure');
 
-// ---- RANKING.md 5: dubs (review 2 M1) ----
-eq('M1: an English copy of The Lion King (United States) is not a dub', isDub({ sound: 'English', country: 'United States' }), false);
-eq('M1: an Icelandic copy of The Lion King (United States) is a dub', isDub({ sound: 'Icelandic', country: 'United States' }), true);
-eq('M1: an English copy of Touch (Iceland, United Kingdom) is not a dub', isDub({ sound: 'English', country: 'Iceland, United Kingdom' }), false);
-eq('M1: an Icelandic copy of Lamb (Iceland, Sweden, Poland, United States) is not a dub', isDub({ sound: 'Icelandic', country: 'Iceland, Sweden, Poland, United States' }), false);
-eq('M1: an English copy of Amélie (France, Germany) is a dub', isDub({ sound: 'English', country: 'France, Germany' }), true);
-eq('M1: unknown country: not a dub', isDub({ sound: 'Icelandic', country: '' }), false);
-eq('M1: a country we can\'t map: not a dub', isDub({ sound: 'English', country: 'Iran' }), false);
-eq('M1: a name that says "Með íslensku tali" is a dub', isDub({ sound: 'Icelandic', country: 'United States', nameSaysDub: true }), true);
+// ---- RANKING.md 5: dubs, positive evidence only (review 3, M1) ----
+eq('M1: an English copy of The Lion King (United States) is not a dub', isDub({ taggedSound: 'English', country: 'United States' }), false);
+eq('M1: "IS| Konungur ljónanna" (United States) is a dub (a non-English prefix foreign to the film)', isDub({ prefixLang: 'Icelandic', country: 'United States' }), true);
+eq('M1: a tagged Icelandic sound track on a United States film is a dub', isDub({ taggedSound: 'Icelandic', country: 'United States' }), true);
+eq('M1: The Fifth Element (France), English: never an English dub', isDub({ taggedSound: 'English', country: 'France' }), false);
+eq('M1: Melancholia (Denmark, Sweden, France, Germany, Italy), English: not a dub', isDub({ taggedSound: 'English', country: 'Denmark, Sweden, France, Germany, Italy' }), false);
+eq('M1: "EN| Parasite" unchecked (South Korea): the EN prefix never counts', isDub({ prefixLang: 'English', country: 'South Korea' }), false);
+eq('M1: an untagged MKV sound track (Media3 says eng) on a Korean film: not a dub', isDub({ taggedSound: '', country: 'South Korea' }), false);
+eq('M1: a Tamil original (India) with a tagged Tamil track: India is multilingual, can\'t tell', isDub({ taggedSound: 'Tamil', country: 'India' }), false);
+eq('M1: a Telugu original (India): can\'t tell', isDub({ taggedSound: 'Telugu', country: 'India' }), false);
+eq('M1: Touch (Iceland, United Kingdom), English: not a dub', isDub({ taggedSound: 'English', country: 'Iceland, United Kingdom' }), false);
+eq('M1: Lamb (Iceland, Sweden, Poland, United States), Icelandic: not a dub', isDub({ taggedSound: 'Icelandic', country: 'Iceland, Sweden, Poland, United States' }), false);
+eq('M1: a German track on Amélie (France, Germany): not a dub (German is a listed country\'s language)', isDub({ taggedSound: 'German', country: 'France, Germany' }), false);
+eq('M1: a tagged Italian track on Amélie (France, Germany): a dub', isDub({ taggedSound: 'Italian', country: 'France, Germany' }), true);
+eq('M1: a Spanish track on a Spain film: Spain is multilingual here, can\'t tell', isDub({ taggedSound: 'Catalan', country: 'Spain' }), false);
+eq('M1: an unmapped country: not a dub', isDub({ taggedSound: 'Icelandic', country: 'Iran' }), false);
+eq('M1: no country: not a dub', isDub({ taggedSound: 'Icelandic', country: '' }), false);
+eq('M1: a name that says "Með íslensku tali" is a dub', isDub({ nameSaysDub: true, country: 'United States' }), true);
+
+// ---- review 3 S1: titles found only through Cinemeta search ----
+eq('S1: a Cinemeta-accepted result with a year is Likely', matchLevel({ cand: [], year: 2003, search: 'year' }), 'likely');
+eq('S1: ... and Sure once the length agrees ("Leitin að Nemo", 100 vs 100 min)', matchLevel({ cand: [], year: 2003, search: 'year', len: 100, runtime: 100 }), 'sure');
+eq('S1: ... and Unsure when the length is 8% off', matchLevel({ cand: [], year: 2003, search: 'year', len: 80, runtime: 100 }), 'unsure');
+eq('S1: no year, a single exact name: Likely only with a length that agrees', matchLevel({ cand: [], search: 'exact', len: 152, runtime: 152 }), 'likely');
+eq('S1: no year, a single exact name, no length: Unsure', matchLevel({ cand: [], search: 'exact' }), 'unsure');
+
+// ---- review 3 S2: PAL and IMDb rounding in the cut tolerance ----
+eq('S2: a PAL copy (25 fps, 95.9 min) of a film IMDb gives as 102 min is the same cut', cutLabel(95.9 * 60, 102 * 60, 25), '');
+eq('S2: ... the same length at 23.976 fps would be a shorter cut', cutLabel(95.9 * 60, 102 * 60, 23.976), 'Shorter cut');
+eq('S2: in the ranking, a PAL copy is in the main cut', ids(rank([{ ...En, id: 'pal', checked: { res: '1080p', mbps: 9, plays: true, len: 95.9 * 60, fps: 25 } }, { ...En, id: 'ntsc', checked: { res: '1080p', mbps: 6, plays: true, len: 101 * 60, fps: 23.976 } }], { runtime: 102 * 60 })), ['pal', 'ntsc']);
+eq('nit: no IMDb runtime and two lengths, one each: the provider copy\'s length is the main cut', ids(rank([{ ...N, id: 'addonLong', checked: { res: '1080p', mbps: 9, plays: true, len: 200 * 60 } }, { ...P, id: 'provMain', checked: { res: '1080p', mbps: 7, plays: true, len: 166 * 60 } }])), ['provMain', 'addonLong']);
+
+// ---- review 3 S4: the episode note only where it means something ----
+eq('S4: Severance S1 E1, 57 min of a "49 min" series: no note', episodeNote(57, 49), '');
+eq('S4: a 110 min special of a "49 min" series: a note', episodeNote(110, 49), 'This episode\'s length is unusual for this series');
 
 // ---- add-ons 8.2: placeholders ----
 eq('a 30 s clip for a 167 min film is not ready', notReadyByLength(30, 167), true);
@@ -144,7 +170,7 @@ eq('M2: a series is Sure when the TVDB ids agree', matchLevel({ cand: [{ year: 2
 eq('M2: a series is Sure when the TMDB ids agree (The Bear 136315)', matchLevel({ cand: [{ year: 2022 }], kind: 'series', tmdb: 136315, moviedb: 136315 }), 'sure');
 eq('M2: a 60 min episode of a "35 min" series doesn\'t make the series Unsure', matchLevel({ cand: [{ year: 2022 }], year: 2022, kind: 'series', runtime: 35, epLens: [60] }), 'likely');
 eq('M2: lengths agreeing on 2 of the first 3 episodes make it Sure', matchLevel({ cand: [{ year: 2022 }], year: 2022, kind: 'series', runtime: 35, epLens: [34, 60, 36] }), 'sure');
-eq('M2: ... and the long episode gets its own note', episodeNote(60, 35), 'This episode\'s length doesn\'t match IMDb');
+eq('M2: ... and a 60 min episode of a 35 min show gets no note (under 2x)', episodeNote(60, 35), '');
 eq('M2: a 12 min special is ready (no provider length; the floor is 3 min)', episodeNotReady({ lenSec: 12 * 60 }), false);
 eq('M2: a 30 s clip is not ready', episodeNotReady({ lenSec: 30 }), true);
 eq('M2: with the provider episode\'s own length (20 min), a 15 min add-on copy is ready', episodeNotReady({ lenSec: 15 * 60, providerLenSec: 20 * 60 }), false);

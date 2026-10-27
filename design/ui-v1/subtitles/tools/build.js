@@ -2,8 +2,8 @@
 // Every mock is the 960 x 540 canvas linking the app's real CSS (tokens, ui.css, app.css) plus subtitles.css, as
 // design/ui-v1/diagnosis/tools/build.js. Focus is marked with the kit classes: .f (ring + lift), .f-ring, .f-in, and
 // .nv-row.f (the native panels' inset ring).
-// Scenario (SPEC 0): the owner's TV, Tue 27 Oct 2026, 21:30 Reykjavik time (UTC). Settings > Languages: English,
-// Icelandic; Subtitles: Always; Subtitles with sounds: Leave out.
+// Scenario (SPEC 0): the owner's TV, Tue 27 Oct 2026, 21:30 Reykjavik time (UTC). v1.3, the owner's answers (27 Oct):
+// Subtitles Always; Subtitle languages Icelandic, then English; Shown first English, Icelandic; Subtitles with sounds: Leave out.
 // Real data (checked with curl on 27 Oct 2026, SPEC 10): Oppenheimer is tt15398776 with 96 OpenSubtitles files in 33
 // languages, 6 English (3 of them with sounds) and 1 Icelandic, timed for a copy that runs 4.27% faster; Severance S1 E1
 // (tt11280740:1:1) has 2 English and no Icelandic; Cinemeta: The Lion King 1994 (89 min, Roger Allers, Rob Minkoff),
@@ -102,14 +102,14 @@ const moreRow = () => `<div class="abs rowtitle" style="left:48px;top:366px;font
 const verPill = (f, label, n = 4) => `<span class="pillbtn fx${f('ver')}" data-act="version">${ic('film')}${label}<span class="t-cap" style="color:var(--a-text-2)">best of ${n}</span>${ic('chevD')}</span>`;
 const subPill = (f, label, cls = '') => `<span class="pillbtn fx${cls}${f('subs')}" data-act="subs">${ic('cc')}${label}</span>`;
 const oppTags = `${qt('4K')}${qt('HDR10')}${qt('5.1')}`;
-const oppPills = (f) => `${verPill(f, `${TK}4K HDR10`)}${subPill(f, 'Subtitles: English')}`;
-const oppSide = `From OpenSubtitles${dot}Icelandic ready too`;
+const oppPills = (f) => `${verPill(f, `${TK}4K HDR10`)}${subPill(f, 'Subtitles: Icelandic')}`;
+const oppSide = `From OpenSubtitles${dot}English ready too`;
 
 // 1. ready
 page('detail-ready.html', 'Title page: checked, subtitles ready', detail({
   eyebrow: `Movie${dot}Drama · History`, title: 'Oppenheimer', meta: oppMeta, plot: oppPlot, credits: oppCred,
   tags: oppTags, pills: oppPills, side: oppSide, below: moreRow(),
-}), 'The tags say what the default copy really is (SPEC 5): filled with a tick = checked. The Version pill names the real best copy ("best of 4"). v1.1: the pill names the one subtitle that will show (English); the source and "Icelandic ready too" sit at the end of the pill row, so the page keeps the app\'s height and More like this stays at 366 (M4).', { group: G1 });
+}), 'The tags say what the default copy really is (SPEC 5): filled with a tick = checked. The Version pill names the real best copy ("best of 4"). v1.3: the owner put Icelandic first, so the one Icelandic file (of 96) shows, and English waits ("English ready too"). The source sits in the pill row\'s one slot, so the page keeps the app\'s height.', { group: G1 });
 
 // 2. checking (first visit)
 page('detail-checking.html', 'Title page: first visit, checking', detail({
@@ -138,14 +138,14 @@ page('detail-subs-sheet.html', 'The Subtitles sheet', detail({
   tags: oppTags, focus: 'none', pills: oppPills, side: oppSide, below: moreRow(),
   overlay: `<div class="scrim"></div><div class="sheet st-sheet"><h3>Subtitles</h3><div class="t-cap" style="margin-top:-4px">Oppenheimer (2023), matched on IMDb</div><div data-col>
   <div class="sec">Your languages</div>
-  ${sheetRow(true, 'English', 'OpenSubtitles · lined up with other subtitles', { f: true, v: false })}
-  ${sheetRow(false, 'Icelandic', 'OpenSubtitles · timing fixed to fit this film', { v: false })}
+  ${sheetRow(true, 'Icelandic', 'OpenSubtitles · timing fixed to fit this film', { f: true, v: false })}
+  ${sheetRow(false, 'English', 'OpenSubtitles · lined up with other subtitles', { v: false })}
   ${sheetRow(false, 'Off', '', { v: false })}
   <div class="sec">More</div>
   ${sheetRow(null, 'Other languages', '', { v: '31' })}
   ${sheetRow(null, 'Not this film?', 'Match it again')}
   </div><div class="st-note">None in this copy's file.</div></div>`,
-}), 'OK on the Subtitles pill. v1.1 (M1): no ticks here. This copy\'s fingerprint isn\'t known to OpenSubtitles, so English was only lined up with other subtitles, and the Icelandic speed fix follows the copy\'s frame rate but its offset doesn\'t. A tick appears only for "Made for this copy" or "Lined up with this copy". The heading has 8 px of air above the ring (M7).', { group: G1 });
+}), 'OK on the Subtitles pill. v1.3: Icelandic first (the owner\'s order). No ticks: this copy\'s fingerprint isn\'t known to OpenSubtitles, so both were lined up with other subtitles; the Icelandic one also had its speed fixed to the copy\'s frame rate. A tick appears only for "Made for this copy" or "Lined up with this copy". The heading has 8 px of air above the ring (M7).', { group: G1 });
 
 // 5. which film? (no year, and the copy couldn't be checked, so its length can't decide)
 const lionPlot = 'Simba, a lion cub, flees his kingdom after his father\'s death, and must one day return to claim it.';
@@ -187,9 +187,9 @@ page('detail-resume.html', 'Title page: Resume, the slot shows the time left', d
 // 7c. v1.2 (review 2, M2): an add-on still asking while OpenSubtitles is down: "Still asking" wins the slot
 page('detail-addon-asking.html', 'Title page: an add-on asking, OpenSubtitles down', detail({
   eyebrow: `Movie${dot}Drama · History`, title: 'Oppenheimer', meta: oppMeta, plot: oppPlot, credits: oppCred,
-  tags: oppTags, pills: (f) => `${verPill(f, `${TK}4K HDR10`)}${subPill(f, 'Subtitles: none yet', ' st-wait')}`,
+  tags: oppTags, pills: (f) => `${verPill(f, `${TK}4K HDR10`)}${subPill(f, 'Subtitles: none yet · trying 21:31', ' st-wait')}`,
   side: `<span class="st-spin"></span>Still asking Kestrel`, below: moreRow(),
-}), 'Both designs have something to say: the add-ons\' "Still asking Kestrel" (priority 2) wins the slot over "OpenSubtitles isn\'t answering" (3). The subtitles state isn\'t lost: the pill itself says "none yet", dashed, and the sheet says why. When Kestrel answers, the slot goes back to the subtitles text.', { group: G1 });
+}), 'Both designs have something to say: the add-ons\' "Still asking Kestrel" (priority 2) wins the slot over "OpenSubtitles isn\'t answering" (3). The subtitles state isn\'t lost: v1.3, the dashed pill itself says "none yet · trying 21:31" (review 3 nit), and the sheet says why. When Kestrel answers, the slot goes back to the subtitles text.', { group: G1 });
 
 // 8. series, laid out as detail.js does (plot, chips 272, rail 318, synopsis 486); M4, S17
 const EPS = [[1, 'Good News About Hell', '57 min', ''], [2, 'Half Loop', '52 min', 'Mark is made the head of his team, and Helly tries to quit on her first day.'], [3, 'In Perpetuity', '50 min'], [4, 'The You You Are', '47 min'], [5, 'The Grim Barbarity of Optics and Design', '50 min']];
@@ -204,7 +204,7 @@ page('detail-series.html', 'A series: subtitles per episode', `<div class="d-bac
 </div>
 <div class="abs seas" data-row style="left:48px;right:48px;top:272px"><div style="display:flex;gap:8px"><span class="chip lg fx sel">Season 1</span><span class="chip lg fx">Season 2</span><span class="t-cap" style="align-self:center;margin-left:8px;white-space:nowrap">9 episodes</span></div></div>
 <div class="rail abs" style="top:318px;left:0;right:0"><div class="track" data-row style="gap:24px">${EPS.map(epCard).join('')}</div></div>
-<div class="abs epsyn" style="left:48px;top:486px;width:864px"><b>E2 · Half Loop</b>${dot}English subtitles, from OpenSubtitles${dot}${esc(EPS[1][3])}</div>`,
+<div class="abs epsyn" style="left:48px;top:486px;width:864px"><b>E2 · Half Loop</b>${dot}English subtitles, from OpenSubtitles (no Icelandic)${dot}${esc(EPS[1][3])}</div>`,
 'v1.1: the app\'s real layout (plot, chips at 272, rail at 318), with nothing added to its height (M4). The pill by Play describes the episode Play plays (S1 · E1); the focused tile\'s own subtitles go on its synopsis line (E2: English, from OpenSubtitles). Real: S1 E1 has 2 English files and no Icelandic.', { group: G1 });
 
 // ---------- Movies grid: poster tags (SPEC 6.1). v1.1: filled vs dashed only, no tick (S20) ----------
@@ -235,10 +235,10 @@ page('account-languages.html', 'Account: Languages', `${topbar('')}<div class="a
 <div class="abs" style="left:260px;top:84px;width:652px;padding:6px 12px;box-sizing:border-box"><div class="t-title" style="margin-bottom:10px">Languages</div>
 ${arow('Shown first', 'English, Icelandic', 'Movies and series in these come first')}
 ${arow('Subtitles', 'Always', 'Always, only when the sound isn\'t in your language, or off', true)}
-${arow('Subtitle languages', 'English, Icelandic', 'The first one found shows. The others wait in the player')}
+${arow('Subtitle languages', 'Icelandic, English', 'The first one found shows. The others wait in the player')}
 ${arow('Subtitles with sounds', 'Leave out', 'Lines like [door slams] and who is speaking')}
 ${arow('Subtitles from OpenSubtitles', 'On', 'When the file has none in your languages')}
-</div>`, 'The one place for the defaults. "Subtitles with sounds" (v1.1). v1.2 (review 2, S5): today\'s "Auto" would mean no subtitles on English films after the update, so the owner is asked before release (SPEC 14.2). A dub (sound in another language than the film\'s) gets no subtitles by default (M1).', { group: G2 });
+</div>`, 'v1.3, the owner\'s answers (27 Oct): Subtitles Always; subtitle languages Icelandic, then English (Shown first, the sound languages, stays English, Icelandic). The update moves today\'s "Auto" to Always. A dub, known only on positive evidence (RANKING.md 5), gets no subtitles by default.', { group: G2 });
 
 // =====================================================================================================================
 // THE PLAYER (native)
@@ -251,7 +251,7 @@ const rrow = (a, b, { on = false, f = false, dis = false, tick = false } = {}) =
 const vrow = (icn, a, b, v, { f = false, dis = false, sub: kid = false } = {}) => `<div class="nv-row st-r${b ? '' : ' st-1'}${kid ? ' st-kid' : ''}${f ? ' f' : ''}${dis ? ' dis' : ''}"><span class="ico">${ic(icn, 'sm')}</span><div class="grow"><div class="a">${a}</div>${b ? `<div class="b">${b}</div>` : ''}</div>${v != null ? `<span class="v">${v}${ic('chevR', 'sm')}</span>` : ''}</div>`;
 
 // 12. the start of a film
-page('player-start.html', 'Play: the best copy starts', `${video('oppenheimer', 'sun', 280)}<div class="nv-vtop"><div><b>Oppenheimer</b><div class="st-what">${TK}4K · HDR10 · Dolby Digital Plus 5.1${dot}best of 4 copies${dot}English subtitles</div></div><span class="t-cap" style="margin-left:auto">Ends at 00:31</span></div>
+page('player-start.html', 'Play: the best copy starts', `${video('oppenheimer', 'sun', 280)}<div class="nv-vtop"><div><b>Oppenheimer</b><div class="st-what">${TK}4K · HDR10 · Dolby Digital Plus 5.1${dot}best of 4 copies${dot}Icelandic subtitles</div></div><span class="t-cap" style="margin-left:auto">Ends at 00:31</span></div>
 <div class="nv-vbar"><div class="row-flex" style="gap:10px;margin-bottom:12px"><span class="vb">${ic('play')}</span><span class="vb t">−10</span><span class="vb t">+10</span><span class="grow"></span><span class="vb sm">${ic('cc')}</span><span class="vb sm">${ic('audio')}</span><span class="vb sm">${ic('pic')}</span></div>
 <div class="seek"><i style="width:0.2%"></i><b class="thumbf" style="left:0.2%"></b></div><div class="row-flex t-cap" style="justify-content:space-between;margin-top:10px"><span>0:12</span><span>-2:59:48</span></div></div>
 ${hint([['OK', 'Pause'], ['◀ ▶', 'Seek 10 s'], ['▲', 'Buttons'], ['▼', 'Options'], ['Back', 'Hide']])}`,
@@ -261,26 +261,26 @@ ${hint([['OK', 'Pause'], ['◀ ▶', 'Seek 10 s'], ['▲', 'Buttons'], ['▼', '
 page('player-subs.html', 'Options > Subtitles', `${video('oppenheimer', 'sun', 280)}<div class="nv-panel left st-panel"><div class="nv-h">Subtitles</div>
 ${rrow('Off', '')}
 ${head('From OpenSubtitles')}
-${rrow('English', 'Lined up with other subtitles', { on: true })}
+${rrow('Icelandic', 'Timing fixed to fit this film', { on: true })}
 ${vrow('timing', 'Early or late', '', 'As downloaded', { sub: true })}
-${rrow('Icelandic', 'Timing fixed to fit this film', { f: true })}
+${rrow('English', 'Lined up with other subtitles', { f: true })}
 ${rrow('English, with sounds', '[door slams] and who is speaking')}
 ${vrow('globe', 'Other languages', '', '31')}
 <div class="st-foot">None in this copy's file. Remembered for this film.</div></div>${hint([['OK', 'Choose'], ['▲ ▼', 'Move'], ['Back', 'Up one level']])}`,
-'CC, or ▼ then Subtitles. v1.1: "Early or late" sits right under the subtitle that\'s on, 1 press from it (S16); picking a row closes the panel with "Icelandic subtitles on · ▼, then Subtitles for timing". No ticks: nothing here was checked against this copy (M1). Plain words: "Timing fixed to fit this film" (S15), "with sounds" (S14).', { group: G3 });
+'CC, or ▼ then Subtitles. v1.1: "Early or late" sits right under the subtitle that\'s on, 1 press from it (S16); picking a row closes the panel with "English subtitles on · ▼, then Subtitles for timing". v1.3: Icelandic is on, the owner\'s first language. No ticks: nothing here was checked against this copy (M1). Plain words: "Timing fixed to fit this film" (S15), "with sounds" (S14).', { group: G3 });
 
 // 14. Options > Subtitles, with subtitles in the file too
 page('player-subs-mixed.html', 'Options > Subtitles: in the file and downloaded', `${video('oppenheimer', 'sun', 280)}<div class="nv-panel left st-panel"><div class="nv-h">Subtitles</div>
 ${rrow('Off', '')}
 ${head('In the file')}
-${rrow('English', 'Made for this copy', { on: true, tick: true })}
+${rrow('English', 'Made for this copy', { f: true, tick: true })}
 ${rrow('Spanish', 'Made for this copy', { tick: true })}
 ${head('From OpenSubtitles')}
-${rrow('Icelandic', 'Timing fixed to fit this film', { f: true })}
-${rrow('English', 'Lined up with other subtitles')}
+${rrow('Icelandic', 'Timing fixed to fit this film', { on: true })}
+${vrow('timing', 'Early or late', '', 'As downloaded', { sub: true })}
 ${vrow('globe', 'Other languages', '', '31')}
 </div>${hint([['OK', 'Choose'], ['▲ ▼', 'Move'], ['Back', 'Up one level']])}`,
-'The 1080p copy has English and Spanish in its file: they come first, ticked "Made for this copy" (airglow read them from the file). No "Early or late" row: it only appears under a downloaded subtitle that\'s on. The best English download stays listed (S2: an untagged file track can be another language).', { group: G3 });
+'The 1080p copy has English and Spanish in its file, ticked "Made for this copy". v1.3: the owner\'s first language is Icelandic, which the file doesn\'t have, so the downloaded Icelandic is on, with "Early or late" under it. English from the file is one press away (focused).', { group: G3 });
 
 // 15. timing strip
 const strip = (val, pos) => `<div class="st-strip"><div class="hd">${ic('timing')}Icelandic subtitles: early or late<small>Remembered for this film</small></div>

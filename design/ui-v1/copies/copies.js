@@ -68,12 +68,17 @@ const plays = (c, ctx) => { const v = ctx.playsNow ? ctx.playsNow(c) : c.checked
 // key 5: the main cut. ONE tolerance for "the same cut", everywhere: 5% (a PAL copy of the same cut runs 4% short).
 // The main cut = within 5% of IMDb's runtime, else the most common checked length.
 const CUT = 0.05;
+// a 25 fps (PAL) copy runs 4.1% short: its length is scaled by 25/23.976 before any cut comparison (review 3, S2)
+const palLen = (c) => { const k = c.checked; if (!k || !k.len) return 0; return k.fps && Math.abs(k.fps - 25) < 0.1 ? k.len * (25 / 23.976) : k.len; };
 function mainCut(copies, ctx) {
-  const lens = copies.map((c) => c.checked && c.checked.len).filter(Boolean);
-  const ref = ctx.runtime || (lens.length ? lens.map((l) => [l, lens.filter((m) => Math.abs(m - l) / l <= CUT).length]).sort((a, b) => b[1] - a[1])[0][0] : 0);
-  return (len) => !len || !ref || Math.abs(len - ref) / ref <= CUT;
+  // with no IMDb runtime: the most common checked length; a tie goes to the provider copy's length, then the longer
+  const cs = copies.filter((c) => palLen(c));
+  let ref = ctx.runtime || 0;
+  if (!ref && cs.length) ref = cs.map((c) => [palLen(c), cs.filter((d) => Math.abs(palLen(d) - palLen(c)) / palLen(c) <= CUT).length, c.source === 'provider' ? 1 : 0])
+    .sort((a, b) => b[1] - a[1] || b[2] - a[2] || b[0] - a[0])[0][0];
+  return (c) => { const l = palLen(c); return !l || !ref || Math.abs(l - ref) / ref <= CUT; };
 }
-const cutLabel = (len, ref) => (!len || !ref || Math.abs(len - ref) / ref <= CUT ? '' : len > ref ? 'Longer cut' : 'Shorter cut');
+const cutLabel = (len, ref, fps) => { const l = fps && Math.abs(fps - 25) < 0.1 ? len * (25 / 23.976) : len; return !l || !ref || Math.abs(l - ref) / ref <= CUT ? '' : l > ref ? 'Longer cut' : 'Shorter cut'; };
 // band (key 2): a fits; b faster than 0.7 x the measured speed; c add-on copy whose match isn't Sure; d cinema recording;
 // e failed or not ready this session
 const band = (c, f) => (c.failed || c.notReady ? 4 : c.claim.kind === 'cinema' ? 3 : c.source !== 'provider' && c.match !== 'sure' ? 2 : f.tooFast ? 1 : 0);
@@ -84,7 +89,7 @@ function rank(copies, ctx = {}) {
     const f = facts(c, ctx);
     const pin = c.pinned && !c.failed && plays(c, ctx) ? 0 : 1;            // key 1: a pin that hasn't failed and plays now
     const subs = c.checked && (c.checked.subsInFile || []).some((l) => langs.includes(l)) ? 0 : 1;
-    return [pin, band(c, f), plays(c, ctx) ? 0 : 1, langRank(c, langs), inMain(c.checked && c.checked.len) ? 0 : 1, -f.cls, c.source === 'provider' && !f.checked ? 1 : 0, -f.kind, -f.range, -f.mbps, -f.sound, subs, c.source === 'provider' ? 0 : 1, c.order || 0, -f.size];
+    return [pin, band(c, f), plays(c, ctx) ? 0 : 1, langRank(c, langs), inMain(c) ? 0 : 1, -f.cls, c.source === 'provider' && !f.checked ? 1 : 0, -f.kind, -f.range, -f.mbps, -f.sound, subs, c.source === 'provider' ? 0 : 1, c.order || 0, -f.size];
   };
   return [...copies].sort((a, b) => { const x = key(a), y = key(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; });
 }
@@ -98,7 +103,8 @@ function pinNote(copies, ctx = {}) {
 
 // ---------- RANKING.md 3: the one wait before Play ----------
 // It never waits for a copy check, on any account. It waits (one 4 s budget from the press) only for stream add-ons
-// that haven't answered, while the best copy in hand is below 4K and below the best its language could give.
+// that haven't answered, while the best copy in hand is below 4K. An unchecked copy's class is its name's claim, so a
+// provider copy named "4K" (really 1080p) ends the wait: accepted (RANKING.md 3.2).
 // ctx: { best (the top copy now), asking: [add-ons still asking, not info-only, not marked Not answering],
 //        uncheckedBetter (provider copies whose names claim better), maxCons, langBest ('4K' if any copy in his top
 //        language could be 4K) }
@@ -112,10 +118,19 @@ function waitPlan({ best, asking = [], uncheckedBetter = [], maxCons = 1 } = {})
 // ---------- RANKING.md 4: the IMDb match levels (Sure / Likely / Unsure) ----------
 // cand: ratings-file rows with this key (counted per key), year: the provider's or 0, tmdb/moviedb: ids when known,
 // len: the provider copy's checked length (min), runtime: Cinemeta's (min), picked: his answer, kind: movie|series|episode
-function matchLevel({ cand = [], year = 0, tmdb, moviedb, tvdb, tvdbMeta, len, runtime, picked, kind = 'movie', epLens = [] }) {
+function matchLevel({ cand = [], year = 0, tmdb, moviedb, tvdb, tvdbMeta, len, runtime, picked, kind = 'movie', epLens = [], search }) {
   if (picked) return 'sure';
   if (tmdb && moviedb && +tmdb === +moviedb) return 'sure';
   if (kind === 'series' && tvdb && tvdbMeta && +tvdb === +tvdbMeta) return 'sure';
+  // not in the ratings file, but Cinemeta's search accepted one result (RANKING.md 4.1 step 4; review 3, S1):
+  // search = 'year' (a year-matched result) is Likely, Sure once the length agrees; search = 'exact' (no year, a single
+  // exact name) is Likely only with a length that agrees, else Unsure
+  if (!cand.length && search) {
+    const agrees = len && runtime ? Math.abs(len - runtime) / runtime <= 0.08 : null;
+    if (agrees === false) return 'unsure';
+    if (search === 'year') return agrees ? 'sure' : 'likely';
+    if (search === 'exact') return agrees ? 'likely' : 'unsure';
+  }
   // "2+ rows" means 2+ rows within ± 1 year of the provider's year; with no year, any 2+ rows (one rule for both designs)
   const near = year ? cand.filter((r) => Math.abs(r.year - year) <= 1) : kind !== 'movie' ? cand : [];
   if (near.length !== 1) return 'unsure';                                     // none, or 2+; no year on a film is never enough
@@ -126,7 +141,9 @@ function matchLevel({ cand = [], year = 0, tmdb, moviedb, tvdb, tvdbMeta, len, r
   return 'likely';
 }
 // an episode's own verdict: a length that doesn't match is that episode's note, never the series' level
-const episodeNote = (lenMin, seriesRuntimeMin) => (lenMin && seriesRuntimeMin && Math.abs(lenMin - seriesRuntimeMin) / seriesRuntimeMin > 0.08 ? 'This episode\'s length doesn\'t match IMDb' : '');
+// only where it means something: past 2x or under 0.5x the series runtime (review 3, S4: Severance's "49 min" vs a
+// 57 min premiere is ordinary and gets no note)
+const episodeNote = (lenMin, seriesRuntimeMin) => (lenMin && seriesRuntimeMin && (lenMin > 2 * seriesRuntimeMin || lenMin < 0.5 * seriesRuntimeMin) ? 'This episode\'s length is unusual for this series' : '');
 // RANKING.md 4.2: what each level allows
 const allows = (level) => ({
   subtitles: level === 'sure' || level === 'likely',                          // Likely downloads, and is re-checked when the length arrives
@@ -137,16 +154,23 @@ const allows = (level) => ({
 // when the copy's length arrives after a Likely match: keep, or drop with a one-line note
 const recheck = (lenMin, runtimeMin) => (!lenMin || !runtimeMin ? 'keep' : Math.abs(lenMin - runtimeMin) / runtimeMin <= 0.08 ? 'sure' : 'drop');
 
-// ---------- RANKING.md 5: a dub (subtitles default off; no which-film ask) ----------
-// A dub is a copy whose sound language differs from the film's original language. Cinemeta has no language, so the
-// original is taken as the languages of the countries it lists; when that can't be known, it isn't a dub.
-const COUNTRY_LANG = { 'United States': ['English'], 'United Kingdom': ['English'], Canada: ['English', 'French'], Australia: ['English'], Ireland: ['English'], 'New Zealand': ['English'], Iceland: ['Icelandic'], France: ['French'], Germany: ['German'], Austria: ['German'], Spain: ['Spanish'], Mexico: ['Spanish'], Italy: ['Italian'], Sweden: ['Swedish'], Norway: ['Norwegian'], Denmark: ['Danish'], Finland: ['Finnish'], Poland: ['Polish'], Japan: ['Japanese'], 'South Korea': ['Korean'], China: ['Chinese'], India: ['Hindi'], Brazil: ['Portuguese'], Portugal: ['Portuguese'], Netherlands: ['Dutch'], Belgium: ['Dutch', 'French'], Switzerland: ['German', 'French', 'Italian'] };
-function isDub({ sound, country = '', nameSaysDub = false }) {
+// ---------- RANKING.md 5: a dub (subtitles default off; no which-film ask). Positive evidence only (review 3, M1) ----------
+// A dub is a copy whose sound language differs from the film's original language. It is called a dub ONLY when:
+//  a) its name or category says so ("Með íslensku tali", "dubbed"); or
+//  b) its prefix is a non-English language (never "EN|": on IPTV that names a section, not the sound) that is none of
+//     the languages of the countries Cinemeta lists; or
+//  c) the check read an EXPLICITLY tagged sound language (not Media3's "eng" default for an untagged track) that is not
+//     English and is none of those countries' languages.
+// English is never inferred to be a dub. A multilingual or unmapped country means "can't tell": not a dub.
+const COUNTRY_LANG = { 'United States': ['English'], 'United Kingdom': ['English'], Australia: ['English'], Ireland: ['English'], 'New Zealand': ['English'], Iceland: ['Icelandic'], France: ['French'], Germany: ['German'], Austria: ['German'], Mexico: ['Spanish'], Argentina: ['Spanish'], Italy: ['Italian'], Sweden: ['Swedish'], Norway: ['Norwegian'], Denmark: ['Danish'], Finland: ['Finnish'], Poland: ['Polish'], Japan: ['Japanese'], 'South Korea': ['Korean'], Brazil: ['Portuguese'], Portugal: ['Portuguese'], Netherlands: ['Dutch'], Turkey: ['Turkish'] };
+const MULTI = new Set(['India', 'Belgium', 'Switzerland', 'Canada', 'Spain', 'China', 'South Africa', 'Luxembourg', 'Singapore']);
+function isDub({ nameSaysDub = false, prefixLang = '', taggedSound = '', country = '' }) {
   if (nameSaysDub) return true;
-  if (!sound || !country) return false;
-  const cs = String(country).split(',').map((s) => s.trim()).filter(Boolean);
-  if (cs.some((c) => !COUNTRY_LANG[c])) return false;                         // a country we can't map: not sure, so not a dub
-  return !cs.some((c) => COUNTRY_LANG[c].includes(sound));
+  const cs = String(country).split(',').map((x) => x.trim()).filter(Boolean);
+  if (!cs.length || cs.some((c) => MULTI.has(c) || !COUNTRY_LANG[c])) return false;            // can't tell
+  const langs = new Set(cs.flatMap((c) => COUNTRY_LANG[c]));
+  const foreign = (l) => !!l && l !== 'English' && !langs.has(l);
+  return foreign(prefixLang) || foreign(taggedSound);
 }
 
 // ---------- RANKING.md 2 band e: a copy that plays but is a placeholder (add-ons 8.2) ----------

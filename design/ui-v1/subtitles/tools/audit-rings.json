@@ -190,11 +190,11 @@
   "f": "account-languages.html",
   "el": ".arow.fx",
   "inset": false,
-  "top": 31,
+  "top": 100,
   "bottom": 100,
   "left": 100,
-  "right": 0,
-  "min": 0,
+  "right": 100,
+  "min": 100,
   "ring": [
    267,
    187,
@@ -248,9 +248,9 @@
   "min": 100,
   "ring": [
    59,
-   308,
+   164,
    421,
-   358
+   214
   ],
   "safe": 11
  },

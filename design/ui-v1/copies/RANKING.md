@@ -1,4 +1,4 @@
-# airglow: which copy Play plays, the one wait, and the IMDb match, v1.0
+# airglow: which copy Play plays, the one wait, and the IMDb match, v1.1
 
 **One file for the whole app.** This is the single copy ranking, the single wait before Play and the IMDb match levels.
 Both designs point here and hold no list of their own:
@@ -9,7 +9,7 @@ The subtitles design owns this file (coordinator's decision, 27 Oct 2026), and t
 it.
 
 **The reference code:**
-- `copies.js` holds the code; `copies-test.js` proves it (`node design/ui-v1/copies/copies-test.js`: 90 cases, 0
+- `copies.js` holds the code; `copies-test.js` proves it (`node design/ui-v1/copies/copies-test.js`: 110 cases, 0
   failed).
 - If this file and the code ever differ, **this file is the rule and the code is the bug**.
 
@@ -37,7 +37,7 @@ Copies of a title, from every source, sort by these keys in turn. The first key 
 | 2 | **Band** | a: fits · b: **too fast:** its bitrate is over 0.7 × Diag's last measured speed. A checked copy uses its measured rate; an unchecked one is estimated from size × 8 / IMDb runtime, so a 51.6 GB remux counts as about 41 Mb/s. The speed counts only if measured in the last 7 days; with none, there is no cap · c: an add-on copy whose match isn't Sure (4) · d: a cinema recording · e: failed or not ready this session (2.2) |
 | 3 | **Plays on this TV** | decided **now**, from the stored formats and the audio route at this moment (soundbar on or off, eARC), with the renderers' own `supportsFormat`. An unchecked copy counts as playing |
 | 4 | **Sound language** | its index in Shown first (English before Icelandic when he lists them so). `Multi` or unknown come after his languages and before others. Before a check, the claim's language |
-| 5 | **The cut** | the main cut first. **One tolerance for "the same cut", everywhere: 5%**, so a PAL copy of the same cut (4% short) isn't another cut. The main cut is within 5% of IMDb's runtime, else the most common checked length. Because language is key 4, this only orders copies **within** a language: the only English copy wins even when it's a longer cut |
+| 5 | **The cut** | the main cut first. **One tolerance for "the same cut", everywhere: 5%**, after a **25 fps copy's length is scaled by 25/23.976** (a PAL copy runs 4.1% short, and IMDb's runtimes are often 1 to 3 min off the file). A 102 min film as a 95.9 min PAL copy is the same cut. The main cut is within 5% of IMDb's runtime, else the most common checked length; a tie goes to the provider copy's length, then the longer. Because language is key 4, this only orders copies **within** a language: the only English copy wins even when it's a longer cut |
 | 6 | **Class** | 4K > 1080p > 720p > SD > unknown, checked size first, else the claim. A starved copy drops a class: 4K under 8 Mb/s, 1080p under 2.5 Mb/s, by the picture's share (sound tracks taken out, subtitles SPEC 5.1) |
 | 7 | **Checked before unchecked, between provider copies only** | a provider copy the check has read beats one that only has its name. Add-on copies are never checked before Play, so this key doesn't apply to them: they compare on kind, range and their size-based bitrate (keys 8 to 10). Otherwise a provider "4K" at 9 Mb/s would beat a 4K Blu-ray remux every time |
 | 8 | **Kind** | Blu-ray > web > **unknown** > TV or DVD. Every provider copy is unknown, so an add-on TV rip never outranks the provider's copy of the same class. (Cinema recordings are band d.) A name-only fact |
@@ -49,8 +49,8 @@ Copies of a title, from every source, sort by these keys in turn. The first key 
 ### 2.1 What the ranking never does
 - **"Always the best copy" plays the top one.** A check that finishes later changes the default for the **next** Play,
   never the one that's playing.
-- **It never switches the cut on its own.** Other cuts are marked `Longer cut · 3 h 20 min` / `Shorter cut · …` in the
-  Copies menu, and are picked only by hand.
+- **It never switches the cut within a language.** When your top language exists only in another cut, that cut plays
+  (key 4 before key 5), and its Copies row says `Longer cut · 3 h 20 min` / `Shorter cut · …`.
 - **A pin that is passed over stays pinned.** The Copies menu says why on its row:
   - `Your pick didn't play this time`, when it failed this session;
   - `Your pick has no sound on this TV right now`, when it doesn't play now (e.g. DTS-only with the soundbar off).
@@ -74,6 +74,8 @@ Copies of a title, from every source, sort by these keys in turn. The first key 
 
 ### 3.2 It may wait for stream add-ons that haven't answered
 - **One 4 s budget, counted from the press of Play,** only while the best copy in hand is below 4K.
+  - An unchecked copy's class is its name's claim, so a provider copy named "4K" (really 1080p) ends the wait. That is
+    accepted: the wait is a small bonus, never a promise.
 - **The button** reads `Playing in 3 s` with a countdown ring.
 - **One caption:** `Looking for a better copy · OK plays this one now · Back stops`.
 - **It ends early** when nothing left could change the pick, or a 4K copy in his top language arrives.
@@ -96,7 +98,7 @@ Copies of a title, from every source, sort by these keys in turn. The first key 
 | Level | Rule | Subtitles | Add-on copies | Catalog merge |
 |---|---|---|---|---|
 | **Sure** | he picked it; or the TMDB ids agree; or the key has one row within ± 1 year **and** the copy's checked length is within ± 8% of Cinemeta's `runtime` (Oppenheimer: 180 vs 181 min) | download | ranked on equal terms (band a) | yes |
-| **Likely** | the key has one row within ± 1 year and there is **no checked length yet**; a series or an episode with one candidate | **download.** When the length arrives: within 8% it becomes Sure; more than 8% off, the downloads are dropped, with one line: `These subtitles were for another film` | listed after the provider's, under `From add-ons · might be another film` (band c) | yes |
+| **Likely** | the key has one row within ± 1 year and there is **no checked length yet**; a series or an episode with one candidate; **a title only Cinemeta's search found** (4.1 step 4): with a year, Likely (Sure once the length agrees); with no year, a single exact name is Likely only with a length that agrees ("Leitin að Nemo", "Philosopher's Stone") | **download.** When the length arrives: within 8% it becomes Sure; more than 8% off, the downloads are dropped, with one line: `These subtitles were for another film` | listed after the provider's, under `From add-ons · might be another film` (band c) | yes |
 | **Unsure** | a film with no year (even with one candidate); **2+ rows within ± 1 year** of the provider's year (with no year: 2+ rows at all); a film's length more than 8% off | none: the file's own only, and the pill asks `which film is it?` (not for a dub: 5) | not asked until he picks | no |
 
 ### 4.3 Series and episodes (the add-ons review 2, M2)
@@ -107,33 +109,43 @@ Copies of a title, from every source, sort by these keys in turn. The first key 
   - the TVDB ids agree (Cinemeta `tvdb_id`, The Bear 403294); or
   - **2 or more of the first 3 checked episodes** are within 8% of the series runtime.
 - **Otherwise one candidate is Likely, never Unsure because of a length.**
-- **A length mismatch on one episode is that episode's own note** (`This episode's length doesn't match IMDb`), shown on
-  its synopsis line and in its Subtitles sheet. It never changes the series' level. Its subtitles are still offered,
-  with timing checked against its own copy.
+- **One episode's length never changes the series' level.** Ordinary differences get no note: Severance is "49 min" on
+  Cinemeta and its premiere runs 57. Only past 2× or under 0.5× the series runtime does the episode's Subtitles sheet
+  say `This episode's length is unusual for this series`. Its subtitles are still offered, with timing checked against
+  its own copy.
 - **An episode exists** if it is in `videos[]`. When the provider's numbering isn't there (absolute numbers,
   specials), that episode uses the file's own subtitles and no add-on copies.
 - **The star rating keeps today's loose `matchImdb()`.**
 - **One answer per title, for both designs.**
 
-## 5. A dub (the subtitles review 2, M1)
-- **A dub is a copy whose sound language differs from the film's original language.** Cinemeta has no language field.
-  So the original language is taken from the languages of the countries Cinemeta lists (`country`): United States →
-  English, Iceland → Icelandic, France → French, … (the table in `copies.js`).
-- **The tests:**
-  - **a dub:** the sound language is none of those countries' languages, or the name says so ("Með íslensku tali",
-    "dubbed");
-  - **not a dub:** a country we can't map, or no country or sound language known.
-- **What a dub changes:** subtitles default **off** (a dub isn't the translation the subtitles were made from), and it
-  never raises the which-film ask; the match is in the Subtitles sheet only.
-- **Verified with Cinemeta on 27 Oct 2026:**
+## 5. A dub: positive evidence only (the subtitles reviews 2 M1 and 3 M1)
+- **A dub is a copy whose sound language differs from the film's original language.** What a dub changes: subtitles
+  default **off** (a dub isn't the translation the subtitles were made from), and it never raises the which-film ask.
+- **A copy is called a dub only on positive evidence:**
+  - **a.** its name or category says so ("Með íslensku tali", "dubbed");
+  - **b.** its name's prefix is a **non-English** language (e.g. `IS|`) that is none of the languages of the countries
+    Cinemeta lists. **Never `EN|`:** on IPTV it names a section, not the sound ("EN| Parasite" is usually the Korean
+    original);
+  - **c.** the check read an **explicitly tagged** sound language (the Matroska Language element is there; Media3's
+    `eng` default for an untagged track doesn't count) that is not English and is none of those countries' languages.
+- **Never an English dub by inference:** English-language films are made all over Europe (The Fifth Element lists only
+  France; Melancholia lists Denmark, Sweden, France, Germany and Italy).
+- **Can't tell = not a dub:** multilingual countries (India, Belgium, Switzerland, Canada, Spain, China, South Africa,
+  Luxembourg, Singapore), unmapped countries, or no country.
+- **Cases** (`copies-test.js`):
 
 | Copy | Countries Cinemeta lists | Verdict |
 |---|---|---|
-| The Lion King, English | United States | not a dub (asks when Unsure) |
-| The Lion King, Icelandic | United States | a dub |
+| The Lion King, English | United States | not a dub, so it asks when Unsure |
+| `IS\| Konungur ljónanna`, or a tagged Icelandic track | United States | a dub |
+| The Fifth Element, English | France | not a dub |
+| Melancholia, English | Denmark, Sweden, France, Germany, Italy | not a dub |
+| `EN\| Parasite`, unchecked | South Korea | not a dub (EN never counts) |
+| an untagged MKV track | South Korea | not a dub |
+| a Tamil or Telugu original | India | can't tell, so not a dub |
 | Touch, English | Iceland, United Kingdom | not a dub |
 | Lamb, Icelandic | Iceland, Sweden, Poland, United States | not a dub |
-| Amélie, English | France, Germany | a dub |
+| Amélie, tagged Italian | France, Germany | a dub |
 
 ## 6. Reading a name (unchanged from the add-ons design 11.4)
 - **Whole tokens only, extension first,** so ".ts" files, "DTS", "DVDRip", "HDRip", "webcam" and "sd" inside words
@@ -142,7 +154,7 @@ Copies of a title, from every source, sort by these keys in turn. The first key 
   ready.
 - `copies-test.js` has the cases.
 
-## 7. The test cases (`copies-test.js`, 90)
+## 7. The test cases (`copies-test.js`, 110)
 - **The order of both designs' mocks:**
   - add-ons `detail-sources-sheet`: B, A, N, P, F (changed: 8);
   - subtitles `detail-copies` / `player-quality`: a, b, c, d.
@@ -175,9 +187,23 @@ Copies of a title, from every source, sort by these keys in turn. The first key 
     own length;
   - S1 the speed cap on an unchecked 51.6 GB remux, a 10-day-old speed, no speed;
   - S2 an add-on Blu-ray not buried under a checked provider copy, and the remux vs a provider "4K" at 9 Mb/s.
+- **The subtitles review 3 cases:**
+  - dubs on positive evidence only: The Fifth Element, Melancholia, "EN| Parasite", an untagged track, Tamil and
+    Telugu, multilingual Spain, and the rest of the table in 5;
+  - Cinemeta-search titles with and without a year;
+  - a PAL copy in the main cut;
+  - the tie rule for the main cut;
+  - Severance's 57 min premiere without a note.
 - **The add-ons' name-reading and placeholder cases,** unchanged.
 
 ## 8. Changes to this file
+- **v1.1 (27 Oct 2026, the subtitles review 3):**
+  - the dub test uses positive evidence only (5);
+  - titles found only through Cinemeta search get a level (4.2);
+  - PAL scaling in the cut tolerance, and the main cut's tie rule (key 5);
+  - 2.1 now says the cut is never switched within a language;
+  - the episode note only past 2× or under 0.5×;
+  - the wait note on unchecked names (3.2).
 - **v1.0 (27 Oct 2026).** Written from subtitles SPEC v1.1 5.4 and add-ons SPEC 5.0. What changed from each:
   - **subtitles:** language and plays swapped back to plays → language, the cut moved after language, unknown kind
     above TV, the pin only when it plays now, HDR10+ = HDR10, Likely now downloads subtitles;

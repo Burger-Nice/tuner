@@ -2,7 +2,7 @@
  {
   "file": "detail-ready.html",
   "title": "Title page: checked, subtitles ready",
-  "note": "The tags say what the default copy really is (SPEC 5): filled with a tick = checked. The Version pill names the real best copy (\"best of 4\"). v1.1: the pill names the one subtitle that will show (English); the source and \"Icelandic ready too\" sit at the end of the pill row, so the page keeps the app's height and More like this stays at 366 (M4).",
+  "note": "The tags say what the default copy really is (SPEC 5): filled with a tick = checked. The Version pill names the real best copy (\"best of 4\"). v1.3: the owner put Icelandic first, so the one Icelandic file (of 96) shows, and English waits (\"English ready too\"). The source sits in the pill row's one slot, so the page keeps the app's height.",
   "group": "On the title page"
  },
  {
@@ -20,7 +20,7 @@
  {
   "file": "detail-subs-sheet.html",
   "title": "The Subtitles sheet",
-  "note": "OK on the Subtitles pill. v1.1 (M1): no ticks here. This copy's fingerprint isn't known to OpenSubtitles, so English was only lined up with other subtitles, and the Icelandic speed fix follows the copy's frame rate but its offset doesn't. A tick appears only for \"Made for this copy\" or \"Lined up with this copy\". The heading has 8 px of air above the ring (M7).",
+  "note": "OK on the Subtitles pill. v1.3: Icelandic first (the owner's order). No ticks: this copy's fingerprint isn't known to OpenSubtitles, so both were lined up with other subtitles; the Icelandic one also had its speed fixed to the copy's frame rate. A tick appears only for \"Made for this copy\" or \"Lined up with this copy\". The heading has 8 px of air above the ring (M7).",
   "group": "On the title page"
  },
  {
@@ -50,7 +50,7 @@
  {
   "file": "detail-addon-asking.html",
   "title": "Title page: an add-on asking, OpenSubtitles down",
-  "note": "Both designs have something to say: the add-ons' \"Still asking Kestrel\" (priority 2) wins the slot over \"OpenSubtitles isn't answering\" (3). The subtitles state isn't lost: the pill itself says \"none yet\", dashed, and the sheet says why. When Kestrel answers, the slot goes back to the subtitles text.",
+  "note": "Both designs have something to say: the add-ons' \"Still asking Kestrel\" (priority 2) wins the slot over \"OpenSubtitles isn't answering\" (3). The subtitles state isn't lost: v1.3, the dashed pill itself says \"none yet · trying 21:31\" (review 3 nit), and the sheet says why. When Kestrel answers, the slot goes back to the subtitles text.",
   "group": "On the title page"
  },
  {
@@ -68,7 +68,7 @@
  {
   "file": "account-languages.html",
   "title": "Account: Languages",
-  "note": "The one place for the defaults. \"Subtitles with sounds\" (v1.1). v1.2 (review 2, S5): today's \"Auto\" would mean no subtitles on English films after the update, so the owner is asked before release (SPEC 14.2). A dub (sound in another language than the film's) gets no subtitles by default (M1).",
+  "note": "v1.3, the owner's answers (27 Oct): Subtitles Always; subtitle languages Icelandic, then English (Shown first, the sound languages, stays English, Icelandic). The update moves today's \"Auto\" to Always. A dub, known only on positive evidence (RANKING.md 5), gets no subtitles by default.",
   "group": "Around the app"
  },
  {
@@ -80,13 +80,13 @@
  {
   "file": "player-subs.html",
   "title": "Options > Subtitles",
-  "note": "CC, or ▼ then Subtitles. v1.1: \"Early or late\" sits right under the subtitle that's on, 1 press from it (S16); picking a row closes the panel with \"Icelandic subtitles on · ▼, then Subtitles for timing\". No ticks: nothing here was checked against this copy (M1). Plain words: \"Timing fixed to fit this film\" (S15), \"with sounds\" (S14).",
+  "note": "CC, or ▼ then Subtitles. v1.1: \"Early or late\" sits right under the subtitle that's on, 1 press from it (S16); picking a row closes the panel with \"English subtitles on · ▼, then Subtitles for timing\". v1.3: Icelandic is on, the owner's first language. No ticks: nothing here was checked against this copy (M1). Plain words: \"Timing fixed to fit this film\" (S15), \"with sounds\" (S14).",
   "group": "In the player"
  },
  {
   "file": "player-subs-mixed.html",
   "title": "Options > Subtitles: in the file and downloaded",
-  "note": "The 1080p copy has English and Spanish in its file: they come first, ticked \"Made for this copy\" (airglow read them from the file). No \"Early or late\" row: it only appears under a downloaded subtitle that's on. The best English download stays listed (S2: an untagged file track can be another language).",
+  "note": "The 1080p copy has English and Spanish in its file, ticked \"Made for this copy\". v1.3: the owner's first language is Icelandic, which the file doesn't have, so the downloaded Icelandic is on, with \"Early or late\" under it. English from the file is one press away (focused).",
   "group": "In the player"
  },
  {

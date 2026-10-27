@@ -1,4 +1,4 @@
-# airglow TV: subtitles that are always there, and real quality for every copy, v1.2
+# airglow TV: subtitles that are always there, and real quality for every copy, v1.3
 
 This is the design spec for the engineer. It extends `design/ui-v1/UI-SPEC.md` v1.2 (layout, type, focus, the native
 player's panels) and reuses the diagnosis rules (`design/ui-v1/diagnosis/SPEC.md`: a green tick only on something that
@@ -23,8 +23,49 @@ quality, shit like that".
 | `tools/build.js` | builds the mocks |
 | `tools/render.js` | the PNGs and the contact sheet |
 | `tools/audit.js` | the self-check (section 12): the diagnosis audit plus 12 new checks |
-| `REVIEW-independent.md`, `REVIEW-independent-2.md` | the reviews of v1.0 (6.8 / 10) and v1.1 (7.4 / 10) |
+| `REVIEW-independent.md`, `-2.md`, `-3.md` | the reviews of v1.0 (6.8 / 10), v1.1 (7.4) and v1.2 (7.8) |
 | **`../copies/RANKING.md`**, `copies.js`, `copies-test.js` | **the one copy ranking, the one Play wait and the IMDb match levels, shared with the add-ons design** (this design owns them; section 5.4) |
+
+## v1.3 changes: review 3 and the owner's answers
+
+**The owner's answers (27 Oct)** are recorded in section 14: subtitles Always; subtitle languages Icelandic first, then
+English; yes to sending IMDb ids and fingerprints; a Stremio account and a debrid service for add-ons. The defaults, the
+migration (6.2: today's `auto` becomes Always, with Icelandic, English) and the mocks follow them:
+- Oppenheimer now shows Icelandic, with "English ready too".
+- The panels have Icelandic on.
+- Severance shows English, "(no Icelandic)".
+- Account shows Icelandic, English.
+
+### Must fix
+**M1. The dub test misfired. Accepted, in `RANKING.md` 5 and `isDub()`.**
+- **A dub only on positive evidence:** the name says so; or a non-English prefix (never `EN|`) foreign to every listed
+  country; or an **explicitly tagged** sound track (not Media3's untagged `eng`) that is not English and foreign to
+  every listed country.
+- **Never an English dub by inference.**
+- **Multilingual or unmapped countries are "can't tell"**, which means not a dub.
+- **New tests:** The Fifth Element (France), Melancholia (5 European countries), "EN| Parasite" unchecked, an untagged
+  MKV track, Tamil and Telugu (India), Catalan on a Spain film, a tagged Italian track on Amélie (a dub).
+
+**M2. The add-ons copy of the ranking.** Fixed on the add-ons side (add-ons v1.2), as the coordinator said.
+
+### Should fix
+1. **Cinemeta-search titles are Likely.** With a year, Sure once the length agrees. With no year, a single exact name is
+   Likely only with a length that agrees (`RANKING.md` 4.2, 5 tests).
+2. **PAL and rounding.** A 25 fps copy's length is scaled by 25/23.976 before the 5% cut test, so a 95.9 min PAL copy
+   of a 102 min film is the main cut (tested). The main cut's tie rule is named: the provider copy's length, then the
+   longer.
+3. **`RANKING.md` 2.1** now says the ranking never switches the cut **within a language**. When the top language exists
+   only in another cut, that cut plays and its row says so.
+4. **The episode note** appears only past 2× or under 0.5× the series runtime. Severance's 57 min premiere against its
+   "49 min" gets none (tested).
+5. **The 4.2 table row** is repaired: all the slot's texts are in the Shows cell.
+
+### Nits
+- `copies.js`'s `waitPlan()` comment matches `RANKING.md` 3.2. 3.2 now says an unchecked "4K" name ends the wait.
+- The dashed pill keeps the retry time when it loses the slot: "Subtitles: none yet · trying 21:31"
+  (`detail-addon-asking`).
+
+**Results:** 20 pages, 0 findings; `copies-test.js` 110 cases, 0 failed.
 
 ## v1.2 changes: an answer to every point of review 2
 
@@ -372,7 +413,13 @@ All are fixed:
 ## 0. Scenario and data
 
 - **When:** the owner's TV, Tue 27 Oct 2026 at 21:30 Reykjavik time (UTC).
-- **Settings > Languages:** English, Icelandic; Subtitles Always; Subtitles with sounds Leave out.
+- **Settings > Languages, the owner's answers (27 Oct):**
+  - Subtitles **Always**;
+  - Subtitle languages **Icelandic, then English**;
+  - Shown first (the sound languages) English, Icelandic;
+  - Subtitles with sounds Leave out.
+- **So in the mocks:** Oppenheimer shows its one Icelandic file and keeps English ready. Severance S1 E1 has no
+  Icelandic, so it shows English.
 - **Real data,** fetched with curl on 27 Oct 2026 (section 10):
   - Oppenheimer (`tt15398776`): 96 files in 33 languages, 6 English (3 with sounds) and 1 Icelandic, which is timed for
     a copy that runs 4.27% faster.
@@ -469,10 +516,11 @@ For each of your subtitle languages, in your order, the first of these that exis
 | Only when the sound isn't in your language | the same, when the copy's sound isn't one of "Shown first" |
 | Off | nothing (the panel still lists them) |
 
-**A dub** is a copy whose sound language differs from the film's original language (`RANKING.md` 5: the original is
-taken from Cinemeta's countries, and when it can't be known it isn't a dub). **A dub's subtitles default to off, and a
-dub never raises the which-film ask.** Every other copy follows the setting above. An English copy of an American film
-with Icelandic first in Subtitle languages shows Icelandic.
+**A dub** is a copy whose sound language differs from the film's original language. It is called a dub **only on
+positive evidence** (`RANKING.md` 5): the name says so, a non-English prefix (never `EN|`), or an explicitly tagged sound
+track, foreign to every country Cinemeta lists. English is never inferred to be a dub. **A dub's subtitles default to
+off, and a dub never raises the which-film ask.** Every other copy follows the setting above. With the owner's order,
+an English copy of an American film shows Icelandic when there is an Icelandic file, and English otherwise.
 
 The other languages are fetched in the background and wait in the panel; "Icelandic ready too" says so.
 
@@ -583,7 +631,7 @@ The fix is stored with the file, and your steps are added on top. "Undo my chang
 |---|---|---|---|
 | **Version pill** (2+ copies, or 1 while a stream add-on is still asking: add-ons 5.1) | tick + real quality + "best of N" ("4K HDR10 · best of 4"), or "your pick" · checking: dashed "Checking copies · 2 of 4" · checks paused: "4K · not checked" | the Copies menu | row: Subtitles pill; ▲ Play; ▼ More like this |
 | **Subtitles pill** | "Subtitles: English" (the one that will show) · "Subtitles: Off" · "Subtitles: looking…" (dashed) · "Subtitles: none found" · "Subtitles: none yet" (dashed, add-on down) · "Subtitles: which film is it?" | the Subtitles sheet, or the match menu for "which film" | as today |
-| **Pill-row slot** (no focus; one text, x up to 912, ellipsis as a last resort: v1.2 M2) | **by priority, the first that applies:** 1 the time left on a Resume (`1 h 12 min left`, today's `leftText`), 2 the add-ons' `[spinner] Still asking Kestrel`, 3 this design's text: | "From OpenSubtitles · Icelandic ready too" · "In the file · Icelandic from OpenSubtitles" · "No Icelandic for this film" · "OpenSubtitles isn't answering · trying again at 21:31" · "Two films are called The Lion King" · while checking: a 56 px progress line + "Checking what each copy really is" | – | – |
+| **Pill-row slot** (no focus; one text, x up to 912, ellipsis as a last resort) | **one text, the first that applies:** 1 the time left on a Resume (`1 h 12 min left`, today's `leftText`); 2 the add-ons' `[spinner] Still asking Kestrel`; 3 this design's text: "From OpenSubtitles · English ready too", "In the file · Icelandic from OpenSubtitles", "No Icelandic for this film", "OpenSubtitles isn't answering · trying again at 21:31", "Two films are called The Lion King", or while checking a 56 px progress line + "Checking what each copy really is" | – | – |
 | **Play** | as today, and never waits for a check (5.4) | plays rank 1 | as today |
 
 ### 4.3 The Copies menu (`detail-copies`, `.menu.st-copies`, left 48, top 40, 600 wide; shared with add-ons)
@@ -718,7 +766,7 @@ to it. This section holds no list of its own.
   unknown > TV) → range → bitrate → sound and subtitles in the file → ties.
 - **The wait:** Play never waits for a copy check, on any account. The only wait is up to 4 s for stream add-ons still
   asking, below 4K.
-- **The proof:** `copies.js` and `copies-test.js` (90 cases, including this design's Oppenheimer copies a, b, c, d).
+- **The proof:** `copies.js` and `copies-test.js` (110 cases, including this design's Oppenheimer copies a, b, c, d).
 
 ## 6. Around the app
 
@@ -735,7 +783,7 @@ to it. This section holds no list of its own.
 |---|---|---|
 | Shown first | English, Icelandic | as today |
 | Subtitles | Always | Always · Only when the sound isn't in your language · Off |
-| Subtitle languages | English, Icelandic | the same tick sheet; defaults to Shown first |
+| Subtitle languages | Icelandic, English | the same tick sheet. For a new account it defaults to Shown first; for this owner it is Icelandic, English (his answer) |
 | Subtitles with sounds | Leave out | Leave out · Prefer them ("Lines like [door slams] and who is speaking") |
 | Subtitles from OpenSubtitles | On | On · Off (the file's own only) |
 
@@ -743,9 +791,9 @@ to it. This section holds no list of its own.
 
 | Today's `subLang` | Becomes |
 |---|---|
-| `auto` (the default) | Only when the sound isn't in your language, **until the owner answers 14.2, which must be before release**. In plain words: until he answers, English films show no subtitles. That is today's behaviour on files without English subtitles, but not what the mocks assume ("Always") |
+| `auto` (the default, his value) | **Always** (his answer, 27 Oct), with Subtitle languages Icelandic, English |
 | `off` | Off |
-| a language | Always, with that language first in Subtitle languages |
+| a language | Always, with that language first in Subtitle languages, then the rest of Shown first |
 
 ## 7. The player (native; `PlayerActivity`, `ListPanel`, `VodControls`, `Ui`)
 
@@ -1030,7 +1078,7 @@ to it. This section holds no list of its own.
 - **`--inject-v11`** (review 2's fault put back: two texts in the slot): SIDE fires on all 8 pages that have a slot.
 - **SOURCE was narrowed in v1.2.** "no downloaded subtitles", in the shared "None of these" line, isn't an offer.
 
-**Result: 20 pages, 0 findings.** The shared ranking: `node ../copies/copies-test.js`, **90 cases, 0 failed**.
+**Result: 20 pages, 0 findings.** The shared ranking: `node ../copies/copies-test.js`, **110 cases, 0 failed**.
 
 **Found and fixed in v1.1:**
 - the sheet's note running past y 513;
@@ -1068,25 +1116,33 @@ to it. This section holds no list of its own.
    flicker, the TV's caption style).
 7. How long a check takes on his line.
 
-## 14. Open questions (for the owner)
-1. **Outward-facing:** OK to send each title's IMDb id and the copy's fingerprint to Stremio's servers
-   (`opensubtitles-v3.strem.io`, `v3-cinemeta.strem.io`)? It tells Stremio what he watches, not who he is. It is free,
-   with no account; if it goes away, the file's own subtitles still work.
-2. **Before release, please answer:** subtitles "Always", or "Only when the sound isn't in your language"? Until you
-   answer, **English films show no subtitles** (today's "Auto"). And which first: English or Icelandic? With Icelandic
-   first, English films show Icelandic subtitles when there are any (rare: 1 of the 5 films checked had them) and
-   English otherwise.
-3. **Checks:** is the cautious default right (title pages, Continue watching, Saved; 60 a day; never while the account
+## 14. The owner's answers (27 Oct 2026) and what's still open
+
+**Answered:**
+1. **Sending to Stremio and OpenSubtitles: yes.** He agreed to sending each title's IMDb id and the copy's file
+   fingerprint to `opensubtitles-v3.strem.io` and `v3-cinemeta.strem.io`. "Subtitles from OpenSubtitles" is **On** by
+   default, and can be turned off in Account.
+2. **Subtitles: Always. Language order: Icelandic first, then English.**
+   - The defaults and the migration follow this (6.2).
+   - Shown first, the sound languages that order the catalog and rank copies (`RANKING.md` key 4), stays English,
+     Icelandic. Moving Icelandic first there would rank Icelandic-dubbed copies above English originals, so I read his
+     answer as being about subtitles, which is what 14.2 asked.
+3. **For add-ons: he has a Stremio account and a debrid service.** That is the add-ons design's sign-in path ("Use your
+   Stremio account") and its debrid-backed stream copies. Their copies rank by `RANKING.md` like any other.
+
+**Still open:**
+1. **Checks:** is the cautious default right (title pages, Continue watching, Saved; 60 a day; never while the account
    is in use)?
-4. **A copy with better picture but no sound on this TV:** offer it (ranked last, with the reason, as designed) or hide
+2. **A copy with better picture but no sound on this TV:** offer it (ranked last, with the reason, as designed) or hide
    it?
-5. **Subtitles with sounds:** "Leave out" by default?
+3. **Subtitles with sounds:** "Leave out" by default?
+4. **To confirm:** Shown first stays English, Icelandic (answered point 2)?
 
 ## 15. What changed in the pieces the add-ons design shares
 
 | Piece | Now (v1.2) | What `design/ui-v1/addons/` should do |
 |---|---|---|
-| **Copy ranking, Play wait, IMDb match** | **one file: `design/ui-v1/copies/RANKING.md`**, with `copies.js` and `copies-test.js` (90 cases). This design owns it | point its 5.0 there, with no list of its own. Redraw `detail-sources-sheet` in the new order **B, A, N, P, F**: an add-on Blu-ray 1080p is no longer buried under a checked provider 1080p (its review 2, S2). Use the series rules (`RANKING.md` 4.3) and the episode "not ready" floor (2.2) |
+| **Copy ranking, Play wait, IMDb match** | **one file: `design/ui-v1/copies/RANKING.md`**, with `copies.js` and `copies-test.js` (110 cases). This design owns it | point its 5.0 there, with no list of its own. Redraw `detail-sources-sheet` in the new order **B, A, N, P, F**: an add-on Blu-ray 1080p is no longer buried under a checked provider 1080p (its review 2, S2). Use the series rules (`RANKING.md` 4.3) and the episode "not ready" floor (2.2) |
 | Copies menu (`.st-copies` / `.ad-copies`) | foot `Mb/s is the picture's share. Picking a copy keeps it for this film.`; line 2: the source first when add-on copies are listed, then the problem (`Longer cut · …`, `Named 4K`, `No sound on this TV`, a pin note), then the rest, and on provider rows the provider's name in quotes, last; `Couldn't check: your provider doesn't allow a quick look`; "1080p", never "HD" or "Full HD" | the same foot and order (its provider row put the problem third) |
 | Version pill | `[tick] <checked quality> · best of N`; with add-on copies the source follows the quality: `[tick] 4K Blu-ray · Northlight · best of 9` | the same; also with 1 copy while an add-on is asking (`RANKING.md` 3.2) |
 | Pill-row slot (`.st-side`) | one text, by priority: 1 the time left, 2 the add-ons' `Still asking …`, 3 the subtitles text. Max to x 912, ellipsis as the last resort (`detail-resume`, `detail-addon-asking`) | its "Still asking" and the wait caption use this slot. The wait caption is on the Play button, not here |
