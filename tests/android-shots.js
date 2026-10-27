@@ -35,9 +35,13 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
 (async () => {
   const seen = new Set();
   const start = Date.now();
-  while (Date.now() - start < 1020000) {   // (17 min: the emulator step has 22)
+  let lastFront = 0;
+  while (Date.now() - start < 1500000) {   // (25 min: the emulator step has 30)
     let reports = [];
     try { reports = await (await fetch('http://127.0.0.1:8899/_reports')).json(); } catch {}
+    // Until the app's first report: the emulator's home screen can come up over the app at start, and a WebView in the
+    // background has its timers slowed to a crawl, so the test inside never gets going. Keep putting it in front.
+    if (!reports.length && Date.now() - lastFront > 10000) { lastFront = Date.now(); front(); }
     for (const [i, r] of reports.entries()) {
       if (seen.has(i)) continue;
       seen.add(i);
@@ -64,4 +68,5 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
   }
   shot('timeout');
   console.log('Timed out waiting for the test to finish');
+  process.exitCode = 1;
 })();
