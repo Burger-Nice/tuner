@@ -324,8 +324,8 @@ on('subs', (key) => { const it = playingVod(); if (it && subsKey(it) === key) se
 // ---------- Skip intro / recap, the credits (design/ui-v1/skip/SPEC.md 9) ----------
 // The item's IMDb id (an add-on item has it; a provider film or episode: its title's match, Sure or Likely), then its
 // segments, sent once per item with the match level, the setting and whether a recap may be skipped by itself (the
-// episode before was watched in the last 3 days). Asked with the setting Off too: Up next at the credits and the seek
-// bar's gaps use the times. The next episode's are asked for at once, so its recap is known before its first frame.
+// episode before was watched in the last 3 days). With the setting Off nothing is asked (no network: Up next keeps
+// the subtitle rule). The next episode's are asked for at once, so its recap is known before its first frame.
 async function imdbOf(it) {
   const ep = it.kind === 'episode';
   const own = ep ? it.imdbSeries : /^tt\d+$/.test(String(it.id)) ? String(it.id) : '';
@@ -343,7 +343,7 @@ function watchedBefore(it) {
   return !!prev && Date.now() - (prev.at || 0) < 3 * 864e5;
 }
 async function sendSegments(it) {
-  if (!it || !native?.info?.()?.segments) return;
+  if (!it || !native?.info?.()?.segments || settings().skipIntro === 'off') return;
   const c = ctx.cur;
   const id = await imdbOf(it);
   if (!id) return;
