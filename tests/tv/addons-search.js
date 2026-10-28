@@ -25,7 +25,7 @@ module.exports = async ({ p, shot, key }) => {
   for (let i = 0; i < 8 && !/a:movie:tt9000012/.test(await C.where(p)); i++) await key(i < 2 ? 'ArrowUp' : 'ArrowDown', 1, 200);
   await ok(p, 'the add-on block: Dune', 'a:movie:tt9000012'); await shot('search-addons-focus');
   await key('Enter', 1, 2500); await shot('search-open-dune');
-  check('Dune\'s page: details from Cinemeta', await ev(() => /Not on your provider · details from Cinemeta/.test(document.querySelector('[data-screen="detail"]')?.innerText || '')));
+  check('Dune\'s page: no "from an add-on" label', await ev(() => window.__tunerTest.state().screen === 'detail' && !/Not on your provider/.test(document.querySelector('[data-screen="detail"]')?.innerText || '')));
   await key('Escape', 1, 800);
   // a title the provider has stays in the provider's block only
   await ev(() => window.__tunerTest.go('search')); await p.waitForTimeout(600);

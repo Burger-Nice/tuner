@@ -9,7 +9,7 @@ import { push } from '../router.js';
 import { focus } from '../focus.js';
 import { openDetail } from '../actions.js';
 import { openOverlay, radioMenu, toast } from '../ui.js';
-import { titleCopies, copiesMenu, slotHooks, PUZZLE } from '../titlecopies.js';
+import { titleCopies, copiesMenu, slotHooks } from '../titlecopies.js';
 import { titleSubs } from '../titlesubs.js';
 import { keyOf } from '../util.js';
 import * as AD from '../addons.js';
@@ -119,6 +119,7 @@ function moreLikeThis() {
 let behind = false;
 on('player-closed', () => { if (behind) { behind = false; draw(); } });
 function draw() {
+  let epsShift = '', seasShift = '', moreShift = '';
   if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!t) return;
   const movie = t.kind === 'movie';
@@ -158,23 +159,27 @@ function draw() {
   let below = '';
   if (movie) {
     const more = withDetailLinks(moreLikeThis());
-    below = more.length ? `<div class="abs rowtitle" style="left:48px;top:366px;font-size:20px">More like this</div><div class="rail abs" style="top:400px;left:0;right:0"><div class="track" data-row data-more>${more.map((x, i) => wideCard(x, i)).join('')}</div></div>` : '';
+    moreShift = drawnFor === `${t.kind}:${t.id}:${season}` ? el.querySelector('.track[data-more]')?.style.transform || '' : '';
+    below = more.length ? `<div class="abs rowtitle" style="left:48px;top:366px;font-size:20px">More like this</div><div class="rail abs" style="top:400px;left:0;right:0"><div class="track" data-row data-more${moreShift ? ` style="transform:${moreShift}"` : ''}>${more.map((x, i) => wideCard(x, i)).join('')}</div></div>` : '';
     el._more = more;
   } else if (seasonsList().length) {
     const all = seasonsList();
+    // a redraw (copies or progress arriving) draws the rows where they already are: drawn at the start and slid back,
+    // the episode row shook left and right
+    const same = drawnFor === `${t.kind}:${t.id}:${season}`;
+    epsShift = same ? el.querySelector('.track[data-eps]')?.style.transform || '' : ''; seasShift = same ? el.querySelector('.seas-in')?.style.transform || '' : '';
     const r = seriesResume();
     if (!season || !all.some((s) => s.n === season)) season = r?.ep.season || all[0].n;
     const s = all.find((x) => x.n === season);
     const fe = epFocus && s.eps.includes(epFocus) ? epFocus : r?.ep && s.eps.includes(r.ep) ? r.ep : s.eps[0];
     const eps = s.eps.map((e, i) => {
       const ep = epProgress(e), done = ep && (ep.done || ep.t >= ep.d * 0.94), part = inProgress(ep);
-      const only = e._row ? `<span class="ad-only">${PUZZLE}Add-on</span>` : '';
       const len = notOut(e) ? `Out ${new Date(e._row.soon).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}` : part ? leftText(ep.d - ep.t) : epLen(e.duration);
-      return `<div class="ep fx${done ? ' done' : ''}${notOut(e) ? ' soon' : ''}" tabindex="-1" data-ep="${i}" data-key="ep:${esc(e.season)}:${esc(e.ep)}:${esc(e.id)}"><div class="th"><div class="art">${img(e.still || t.poster)}</div><span class="num">${e.ep}</span>${only}${done ? `<span class="chk">${ic('check')}</span>` : ''}${part ? `<div class="prog flush"><i style="width:${Math.min(100, (ep.t / ep.d) * 100)}%"></i></div>` : ''}</div><div class="eb"><b>${esc(epName(e) || `Episode ${e.ep}`)}</b><span>${esc(len)}</span></div></div>`;
+      return `<div class="ep fx${done ? ' done' : ''}${notOut(e) ? ' soon' : ''}" tabindex="-1" data-ep="${i}" data-key="ep:${esc(e.season)}:${esc(e.ep)}:${esc(e.id)}"><div class="th"><div class="art">${img(e.still || t.poster)}</div><span class="num">${e.ep}</span>${done ? `<span class="chk">${ic('check')}</span>` : ''}${part ? `<div class="prog flush"><i style="width:${Math.min(100, (ep.t / ep.d) * 100)}%"></i></div>` : ''}</div><div class="eb"><b>${esc(epName(e) || `Episode ${e.ep}`)}</b><span>${esc(len)}</span></div></div>`;
     }).join('');
     // (many seasons: the chips slide so the focused one stays on screen, see placeTracks)
-    below = `<div class="abs seas" data-row style="left:48px;right:48px;top:272px;clip-path:inset(-12px -12px -12px -8px)"><div class="seas-in" style="display:flex;gap:8px;transition:transform 200ms var(--a-ease)">${all.map((x) => `<span class="chip lg fx${x.n === season ? ' sel' : ''}" tabindex="-1" data-season="${esc(x.n)}">${esc(seasonName(x.n))}</span>`).join('')}<span class="t-cap" style="align-self:center;margin-left:8px;white-space:nowrap">${s.eps.length} episode${s.eps.length > 1 ? 's' : ''}</span></div></div>
-      <div class="rail abs" style="top:318px;left:0;right:0"><div class="track" data-row data-eps data-entry='[data-ep="${s.eps.indexOf(fe)}"]' style="gap:24px">${eps}</div></div>
+    below = `<div class="abs seas" data-row style="left:48px;right:48px;top:272px;clip-path:inset(-12px -12px -12px -8px)"><div class="seas-in" style="display:flex;gap:8px;transition:transform 200ms var(--a-ease)${seasShift ? `;transform:${seasShift}` : ''}">${all.map((x) => `<span class="chip lg fx${x.n === season ? ' sel' : ''}" tabindex="-1" data-season="${esc(x.n)}">${esc(seasonName(x.n))}</span>`).join('')}<span class="t-cap" style="align-self:center;margin-left:8px;white-space:nowrap">${s.eps.length} episode${s.eps.length > 1 ? 's' : ''}</span></div></div>
+      <div class="rail abs" style="top:318px;left:0;right:0"><div class="track" data-row data-eps data-entry='[data-ep="${s.eps.indexOf(fe)}"]' style="gap:24px${epsShift ? `;transform:${epsShift}` : ''}">${eps}</div></div>
       <div class="abs epsyn" data-syn style="left:48px;top:486px;width:864px">${synLine(fe)}</div>`;
   } else if (info?.error) below = `<div class="abs t-body" style="left:48px;top:300px">${esc(info.error)}</div>`;
   else if (!movie) below = `<div class="abs t-cap" style="left:48px;top:300px">Loading episodes…</div>`;
@@ -185,14 +190,15 @@ function draw() {
   <div class="metaline" style="margin-top:10px">${meta}${meta && tags ? dot : ''}${tags}</div>
   ${d.plot ? `<div data-row style="margin-top:12px"><div class="t-body clamp2 plotfx" data-plot data-act="about" style="width:460px">${esc(d.plot)}</div></div>` : `<div class="t-body" style="margin-top:12px;color:var(--a-text-3)">${info ? (movie && info.error ? esc(info.error) : '') : 'Loading details…'}</div>`}
   ${movie && credits ? `<div class="t-cap ellipsis" style="margin-top:8px;width:500px">${credits}</div>` : ''}
-  ${t.addon ? `<div class="t-cap" style="margin-top:8px;display:flex;align-items:center;gap:6px">${PUZZLE.replace('class="ic"', 'class="ic xs"')}Not on your provider · details from ${esc(info?.from || 'Cinemeta')}</div>` : ''}
   ${nothing ? `<div class="t-body" style="margin-top:8px;width:640px;color:var(--a-text-2)">${esc(nothing)}</div>` : ''}
   <div class="row-flex" data-row style="gap:20px;margin-top:${movie ? 20 : 16}px;height:44px;padding-left:2px">${play}<span class="btn2 fx" tabindex="-1" data-act="save">${ic(saved ? 'check' : 'saved')}${saved ? 'Saved' : 'Save'}</span>${wcap}${movie ? '' : `${seriesPill()}${subsPill}`}</div>
   ${movie ? `<div class="row-flex" data-row style="gap:10px;margin-top:12px;height:36px;width:864px">${pills}</div>` : ''}
 </div>${below}`);
   fitCol(movie);
   placeTracks();
+  drawnFor = `${t.kind}:${t.id}:${season}`;
 }
+let drawnFor = '';
 // stremio:///detail links from add-ons (Watch Next) are cards in More like this: at most 10, the title itself and
 // duplicates dropped, each opening airglow's own page for that id (SPEC 5.6). Their details come once, then a redraw.
 function withDetailLinks(more) {

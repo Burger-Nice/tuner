@@ -73,7 +73,7 @@ module.exports = async ({ p, shot, key }) => {
   check('picked: Sure now', await ev(() => { const a = JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => k.endsWith(':imdb')))); return Object.values(a).some((x) => x.picked); }));
   // ---- D. Tenzing: add-ons only ----
   await key('Escape', 1, 600); await open('movie', 'Tenzing', 2026, 'tt9000010'); await p.waitForTimeout(2000); await shot('detail-addon-only');
-  check('the quiet line', await ev(() => /Not on your provider · details from Cinemeta/.test(document.querySelector('[data-screen="detail"]').innerText)));
+  check('no "from an add-on" label (films and series all come from add-ons)', await ev(() => !/Not on your provider|Add-on/.test(document.querySelector('[data-screen="detail"]').innerText)));
   check('pill: 4K web · Northlight', /4K web · Northlight/.test(await pill()), await pill());
   // ---- E. Night of the Living Dead: a torrent only ----
   await key('Escape', 1, 600); await open('movie', 'Night of the Living Dead', 1968, 'tt0063350'); await p.waitForTimeout(7500); await shot('detail-nosources');
