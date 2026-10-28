@@ -11,6 +11,7 @@
 // /_addons/fail?what=catalog|page2 (Cinemeta's catalogs stop answering) and /_addons/ok.
 const fs = require('fs');
 const path = require('path');
+const tmdb = require('./mock-tmdb.js');   // (Home's and the library's titles: their Cinemeta metas and Northlight copies)
 
 const MEDIA = process.env.MEDIA_DIR || path.join(__dirname, 'media');
 const J = (res, obj, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' }); res.end(JSON.stringify(obj)); };
@@ -100,6 +101,8 @@ function streams(k, type, id, host) {
       { name: 'Northlight\n1080p', title: 'Tenzing.2026.1080p.WEB-DL\n💾 4.0 GB', url: media(host, 'tenzing2.mp4'), behaviorHints: { filename: 'Tenzing.2026.1080p.WEB-DL.mkv', videoSize: 4e9 } },
     ];
     if (id.startsWith('tt9000020:')) { const [, s, e] = id.split(':'); return [{ name: 'Northlight\n1080p', title: `The.Bear.S0${s}E0${e}.1080p.WEB-DL\n💾 1.6 GB`, url: media(host, `bear-${s}-${e}.mp4`), behaviorHints: { filename: `The.Bear.S0${s}E0${e}.1080p.WEB-DL.mkv`, videoSize: 1.6e9, bingeGroup: 'northlight|1080p|web' } }]; }
+    // Home's titles: one 1080p copy each (a film, or any episode)
+    if (/^tt95\d{5}(:\d+:\d+)?$/.test(id)) return [{ name: 'Northlight\n1080p', title: `${(tmdb.cinemetaMeta(id, host)?.name || 'Title').replace(/\W+/g, '.')}.1080p.WEB-DL\n💾 2.4 GB`, url: media(host, `h-${id.replace(/:/g, '-')}.mp4`), behaviorHints: { filename: `${id}.1080p.WEB-DL.mkv`, videoSize: 2.4e9, bingeGroup: 'northlight|1080p|web' } }];
     return runtimeless;
   }
   if (k === 'kestrel') {
@@ -118,13 +121,16 @@ function streams(k, type, id, host) {
 function catalogPage(type, id, extra, host) {
   if (id === 'pdm') return MOVIES.filter((m) => m.id === 'tt0063350').map((m) => metaOf(m, 'movie', host));
   let list = type === 'series' ? [...SERIES, ...MOVIES.filter((m) => m.type === 'series')] : MOVIES.filter((m) => !m.type && m.year <= 2026);
-  if (extra.search) { const q = extra.search.toLowerCase(); return [...MOVIES, ...SERIES].filter((m) => (m.type || 'movie') === type && m.name.toLowerCase().includes(q)).map((m) => metaOf(m, type, host)); }
+  if (extra.search) { const q = extra.search.toLowerCase(); return [...MOVIES, ...SERIES].filter((m) => (m.type || 'movie') === type && m.name.toLowerCase().includes(q)).map((m) => metaOf(m, type, host)).concat(tmdb.TITLES.filter((x) => x.type === type && x.name.toLowerCase().includes(q)).map((x) => tmdb.cinemetaMeta(x.imdb, host))); }
+  // Home's and the library's titles (tests/mock-tmdb.js), by popularity, after the add-ons tests' own titles
+  const extraTitles = tmdb.TITLES.filter((x) => x.type === type && x.year <= 2026 && (id !== 'year' || String(x.year) === String(extra.genre || '2026')) && (!extra.genre || id === 'year' || x.genres.includes(extra.genre))).sort((a, b) => b.pop - a.pop);
   if (id === 'year') list = list.filter((m) => String(m.year) === String(extra.genre || '2026'));
   else if (extra.genre) list = list.filter((m) => m.genre.includes(extra.genre));
   // Tenzing first (the mocks' focused poster), then the provider's titles, then the rest
   list.sort((a, b) => (b.id === 'tt9000010') - (a.id === 'tt9000010'));
   const skip = +extra.skip || 0, size = skip ? 49 : 50;
-  return list.slice(skip, skip + size).map((m) => metaOf(m, type, host));
+  const all = [...list.map((m) => metaOf(m, type, host)), ...extraTitles.map((x) => { const m = tmdb.cinemetaMeta(x.imdb, host); delete m.videos; return m; })];
+  return all.slice(skip, skip + size);
 }
 
 const officialList = (host) => [
@@ -221,7 +227,7 @@ module.exports = function addons(req, res, u) {
     }
     if (resource === 'meta') {
       const mm = [...MOVIES, ...SERIES].find((x) => x.id === id);
-      J(res, { meta: mm ? metaOf(mm, type, host) : { id } }); return true;
+      J(res, { meta: mm ? metaOf(mm, type, host) : tmdb.cinemetaMeta(id, host) || { id } }); return true;
     }
     if (resource === 'stream') {
       st.streamAsks.push(`${k}:${id}`);

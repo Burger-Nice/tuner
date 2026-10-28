@@ -9,7 +9,8 @@ const ESPN = path.join(D, 'fixtures/espn');
 const PORT = 8899;
 const B = `http://127.0.0.1:${PORT}`;
 const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
-const addons = require('./mock-addons.js');   // the fake add-ons, the fake Stremio API and the ratings file (add-ons tests)
+const addons = require('./mock-addons.js');
+const tmdbApi = require('./mock-tmdb.js');   // the fake add-ons, the fake Stremio API and the ratings file (add-ons tests)
 
 const liveCats = ['News', 'Sports', 'Movies', 'Kids', 'Music', 'Documentary', 'Iceland | ÍS', 'UK | Entertainment'].map((n, i) => ({ category_id: String(i + 1), category_name: n }));
 const names = ['NBA 01: Memphis Grizzlies @ Golden State Warriors', 'US: ESPN HD', 'NBA League Pass 3', 'BBC One', 'CNN International', 'Sky Sports Main Event 4K UHD', 'RÚV', 'Stöð 2', 'Eurosport 1', 'Discovery', 'Nat Geo', 'MTV', 'Cartoon Network', 'Al Jazeera', 'France 24', 'DAZN 1', 'HBO', 'Comedy Central'];
@@ -207,6 +208,7 @@ http.createServer((req, res) => {
   if (/^\/movie-norange\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { const f = path.join(MEDIA, 'movie.mp4'); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': fs.statSync(f).size }); return fs.createReadStream(f).pipe(res); }
   if (/^\/movie-refuse\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { res.writeHead(458, { 'Content-Type': 'text/plain' }); return res.end('Too many connections'); }
   if (addons(req, res, u)) return;
+  if (tmdbApi(req, res, u)) return;   // the fake TMDB (Home's rows and the library)
   // A fake TheIntroDB (design/ui-v1/skip/SPEC.md 14): the app's tuner.introBase points at /introdb/v4, or at
   // /introdb/case/<SK-n>/v4 for a check's own answers. How often it was asked: /_hits?prefix=/introdb/
   if ((m0 = /^\/introdb\/(?:case\/([\w-]+)\/)?v4\/media$/.exec(u.pathname))) {

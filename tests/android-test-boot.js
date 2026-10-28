@@ -44,16 +44,30 @@ window.TUNER_TEST = true;
       $('[data-act="signin"]').focus();
       await press(['DPAD_CENTER'], 'signing-in', 3000);
       await until(() => $('[data-act="done"]') || state()?.screen === 'home', 30000);
+      // Films and series come from add-ons (design/ui-v1/home-final/SPEC.md 0.8): the fake Cinemeta and Northlight
+      // (tests/mock-addons.js) for this account, so Home's rows, Movies and Series have titles that play
+      try {
+        localStorage.setItem('tuner.cinemetaBase', JSON.stringify(`${API}/addon/cinemeta`));
+        const AD = await import('./tv/js/addons.js');
+        for (const u of [`${API}/addon/cinemeta/manifest.json`, `${API}/addon/northlight/eyJkZWJyaWQiOiJTRUNSRVQta2V5LTEyMzQ1Njc4OTAifQ/manifest.json`]) {
+          const r = await AD.readManifest(u);
+          if (r.ok) AD.addAddon({ url: r.url || u, manifest: r.manifest }, 'typed');
+        }
+      } catch (e) { report('error', `add-ons: ${e}`); }
       await shot('three-choices');
       await press(['DPAD_CENTER'], 'home', 2500);
       check('home after sign-in', state()?.screen === 'home', { took: Math.round(performance.now() - t0) });
-      check('hero primary focused', document.activeElement?.dataset?.act === 'primary' || document.activeElement?.dataset?.act === 'resume' || document.activeElement?.dataset?.act === 'tune');
-
-      // Home: down to the rail, along it, up to the bar
-      await press(['DPAD_DOWN'], 'home-rail');
-      check('rail card focused', document.activeElement?.classList.contains('hc'));
-      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'home-rail-right');
-      await press(['DPAD_UP', 'DPAD_UP'], 'home-bar');
+      // Home (design/ui-v1/home-final/SPEC.md 4): the Marquee's lit line; Down opens the next line as its card; P− is the
+      // rows; Right along a row; Back is the Marquee again; Up from its first line is the top bar
+      check('the Marquee: a line lit', document.activeElement?.classList.contains('hf-e') && document.activeElement.classList.contains('on'));
+      await press(['DPAD_DOWN'], 'home-line-2');
+      check('Down: the next line open as its card', document.activeElement?.classList.contains('hf-e') && document.activeElement.classList.contains('on') && document.activeElement.dataset.li === '1');
+      await press(['CHANNEL_DOWN'], 'home-rows', 1500);
+      check('P−: the browsing rows', !!document.activeElement?.closest('.hf-stack'));
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'home-rows-right', 800);
+      await press(['BACK'], 'home-rows-back');
+      check('Back: the Marquee, its first line', document.activeElement?.classList.contains('hf-e') && document.activeElement.dataset.li === '0');
+      await press(['DPAD_UP'], 'home-bar');
       check('top bar focused', document.activeElement?.classList.contains('tab'));
 
       // Live: one Right on the bar switches tab (the remote stays on the bar), Down goes into the guide
@@ -200,7 +214,7 @@ window.TUNER_TEST = true;
       await wait(1500);
       await shot('movies');
       await press(['DPAD_DOWN'], 'movies-in');
-      check('poster focused', document.activeElement?.classList.contains('pc'));
+      check('poster focused', document.activeElement?.classList.contains('lb-p'));
       await press(['DPAD_DOWN', 'DPAD_DOWN'], 'movies-scrolled');
       await press(['DPAD_UP', 'DPAD_UP', 'DPAD_UP', 'DPAD_UP'], 'movies-header');
       await press(['DPAD_CENTER'], 'movies-sort');

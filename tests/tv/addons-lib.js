@@ -1,47 +1,49 @@
-// Movies with add-on catalogs (design/ui-v1/addons/SPEC.md 4.2): the chips after the provider's, past a divider; an
-// add-on chip's grid in its own order with the [tv] mark on titles the provider has; paging (the skeleton row, a page
-// that fails inline, ▼ to try again); hold OK on a chip (Hide this chip); a first page that fails (the full card).
-// Run: node tests/tv/drive.js <out> addons-lib   (mocks: movies-addon, movies-chip-menu, movies-addon-more, movies-addon-down)
+// The add-ons in the library (design/ui-v1/home-final/SPEC.md 7; design/ui-v1/addons/SPEC.md 4.2 as the library now is):
+// Movies lists the add-ons' titles only (the provider is live TV); another add-on's catalog is a chip with its name and
+// the add-on's; Popular pages with Cinemeta's skip, a page that fails shows inline and ▼ tries again; a shelf whose
+// first page fails shows its own card with Try again; New is this year's titles.
+// Run: node tests/tv/drive.js <out> addons-lib   (mocks: movies-addon, movies-addon-more, movies-addon-down)
 const C = require('./addons-common.js');
 module.exports = async ({ p, shot, key }) => {
-  const { ok, check, hold, H } = C;
+  const { check, H } = C;
   const ev = (f, a) => p.evaluate(f, a);
   await C({ p, key }, { addons: true });
   await ev(() => window.__tunerTest.go('movie')); await p.waitForTimeout(3500);
   const chips = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].map((c) => c.textContent));
   console.log('chips:', chips.join(' | '));
-  check('add-on chips after the provider\'s', chips.includes('PopularCinemeta') && chips.includes('NewCinemeta') && !chips.includes('FeaturedCinemeta'));
-  await key('ArrowUp', 1, 400);
-  for (let i = 0; i < 12; i++) { const w = await C.where(p); if (/PopularCinemeta/.test(w)) break; await key('ArrowRight', 1, 150); }
-  await ok(p, 'the Popular Cinemeta chip', 'PopularCinemeta'); await key('Enter', 1, 2500); await shot('movies-addon');
-  const head = await ev(() => document.querySelector('[data-screen="movie"] [data-head]').innerText.replace(/\s+/g, ' '));
-  check('caption: Popular from Cinemeta · also on your provider', /Popular from Cinemeta/.test(head) && /also on your provider/.test(head), head.slice(0, 90));
-  const marks = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .pc')].filter((c) => c.querySelector('.ad-mine')).map((c) => c.querySelector('.cap').textContent));
-  check('[tv] on The Long Night and Northern Lights', marks.includes('The Long Night') && marks.includes('Northern Lights'), marks.join(', '));
-  check('Sort and Jump go', await ev(() => !document.querySelector('[data-screen="movie"] [data-act="sort"]') && !!document.querySelector('[data-screen="movie"] [data-act="genre"]')));
-  // paging: the second page fails, then comes on ▼
+  check('an add-on\'s catalog is a chip: its name and the add-on', chips.some((c) => /^Public Domain Movies/.test(c)));
+  check('Cinemeta\'s Featured is never read', !chips.some((c) => /Featured/.test(c)));
+  const keys = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lb-p')].map((x) => x.dataset.key));
+  check('Popular: Cinemeta\'s titles first (Tenzing), never the provider\'s', keys[0] === 'movie:tt9000010'.replace(/^/, 't:') && keys.every((k) => /:tt\d+$/.test(k)), keys.slice(0, 3).join(' '));
+  await shot('movies-addon');
+  // paging: the second page fails inline, then comes on ▼
   await fetch(`${H}/_addons/fail?what=page2`);
-  await key('ArrowDown', 1, 500); await key('ArrowDown', 8, 350); await p.waitForTimeout(1200); await shot('movies-addon-more');
-  check('inline: Cinemeta didn\'t send the next page', await ev(() => /didn't send the next page/.test(document.querySelector('[data-screen="movie"] .ad-more')?.innerText || '')));
+  await ev(async () => { for (const k of JSON.parse(localStorage.getItem('tuner.adCatIx') || '[]')) await window.Core.cache.set(k, null); });
+  await key('ArrowDown', 1, 500); for (let i = 0; i < 9; i++) await key('ArrowDown', 1, 350);
+  await p.waitForTimeout(1500); await shot('movies-addon-more');
+  check('inline: the next page didn\'t come', await ev(() => /next page didn't come/.test(document.querySelector('[data-screen="movie"] .lb-more')?.innerText || '')));
   await fetch(`${H}/_addons/ok`);
-  await key('ArrowDown', 1, 1500);
-  const n = await ev(() => { const g = document.querySelector('[data-screen="movie"] .lib-grid'); return Math.max(...[...g.querySelectorAll('.pc')].map((c) => +c.dataset.i)); });
+  await key('ArrowDown', 1, 2500);
+  const n = await ev(() => Math.max(...[...document.querySelectorAll('[data-screen="movie"] .lb-p')].map((c) => +c.dataset.i)));
   check('▼ tried again: page 2 is in', n > 50, `last index ${n}`);
-  await key('ArrowDown', 6, 400); await p.waitForTimeout(800); await shot('movies-addon-end');
-  // hold OK on the chip
-  for (let i = 0; i < 14; i++) { const w = await C.where(p); if (/chip/.test(w)) break; await key('ArrowUp', 1, 250); }
-  await ok(p, 'back on the chip', 'PopularCinemeta');
-  await hold(p); await ok(p, 'chip menu: Hide this chip', 'Hide this chip'); await shot('movies-chip-menu'); await key('Escape', 1, 400);
-  // the first page fails
+  // the add-on's own catalog
+  await key('Escape', 1, 900); await key('ArrowDown', 1, 600); await key('ArrowUp', 1, 600);
+  await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].find((c) => /^Public Domain Movies/.test(c.textContent))?.focus());
+  await key('Enter', 1, 2500);
+  const pdm = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lb-p')].map((x) => x.dataset.key));
+  check('its catalog: Night of the Living Dead', pdm.includes('t:movie:tt0063350'), pdm.join(' '));
+  // a first page that fails: the shelf's own card, then Try again
   await fetch(`${H}/_addons/fail?what=catalog`);
-  await key('ArrowRight', 1, 200); await ok(p, 'the New Cinemeta chip', 'NewCinemeta'); await key('Enter', 1, 1500); await shot('movies-addon-down');
-  await ok(p, 'down: Try again', 'adretry');
+  await ev(async () => { for (const k of JSON.parse(localStorage.getItem('tuner.adCatIx') || '[]')) await window.Core.cache.set(k, null); const AD = await import('/tv/js/addons.js'); });
+  await ev(() => document.querySelector('[data-screen="movie"] [data-chip="g:Sci-Fi"]').focus()); await key('Enter', 1, 12000);   // (a shelf not read yet this session)
+  await shot('movies-addon-down');
+  check('the first page fails: the shelf isn\'t answering, Try again', await ev(() => /isn't answering/.test(document.querySelector('[data-screen="movie"] .lb-grid').innerText) && !!document.querySelector('[data-screen="movie"] [data-act="retry"]')));
   await fetch(`${H}/_addons/ok`);
-  await key('Enter', 1, 2500); await shot('movies-addon-new');
-  check('New opens on its first year (2026)', await ev(() => /2026/.test(document.querySelector('[data-screen="movie"] [data-head]').innerText)));
-  // Hide this chip
-  await ok(p, 'after Try again: the chip', 'NewCinemeta'); await hold(p); await key('Enter', 1, 800);
-  const chips2 = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].map((c) => c.textContent));
-  check('the New chip is hidden', !chips2.includes('NewCinemeta'), chips2.slice(-3).join(' | '));
-  await ok(p, 'focus back on a chip', 'chip');
+  await ev(() => document.querySelector('[data-screen="movie"] [data-act="retry"]').focus()); await key('Enter', 1, 3000);
+  await shot('movies-addon-new');
+  check('Try again: the shelf comes', await ev(() => document.querySelectorAll('[data-screen="movie"] .lb-p').length > 3 && /Sci-Fi/.test(document.querySelector('[data-screen="movie"] [data-head]').textContent)));
+  // New: this year's titles (Cinemeta's year catalog, its genre a year)
+  await ev(() => document.querySelector('[data-screen="movie"] [data-chip="new"]').focus()); await key('Enter', 1, 2500);
+  const years = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lb-p')].length);
+  check('New: this year\'s titles', years > 6 && await ev(() => /New/.test(document.querySelector('[data-screen="movie"] [data-head]').textContent)), years);
 };
