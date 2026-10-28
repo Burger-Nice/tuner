@@ -2,12 +2,12 @@
   {
     "file": "01-evening.html",
     "title": "A normal evening",
-    "note": "Wed 20:41 · the Marquee: the lineup, Severance resumes with one press"
+    "note": "Wed 20:41 · the Marquee: five lines in fixed slots (the game is tonight), the lit line’s plate, the first row peeking; P− jumps to the rows"
   },
   {
     "file": "02-rows-comedy.html",
     "title": "The rows: Comedy for you",
-    "note": "Down from the lineup · the picture answers the poster · the row index at the right"
+    "note": "Down from the lineup · films and series together · the picture answers the poster · the row index on its backing"
   },
   {
     "file": "03-rows-blend.html",
@@ -27,16 +27,26 @@
   {
     "file": "06-cold-start.html",
     "title": "First evening",
-    "note": "No history: a popular pick, the team, the channel, and Pick what you like"
+    "note": "No history: a popular pick (Details), the team, the channel, Pick what you like"
   },
   {
-    "file": "07-channel-no-picture.html",
-    "title": "The channel line",
-    "note": "No picture to show: the channel’s logo on a flat field, the programme and its time"
+    "file": "07-rows-channels.html",
+    "title": "The rows: Channels",
+    "note": "A channel has no picture: its logo on a flat field, the programme’s progress and what is next; wide channel cards"
   },
   {
     "file": "08-loading-missing-art.html",
-    "title": "Loading and missing art",
-    "note": "Posters still loading, a title with no poster, a title with no logo"
+    "title": "Missing art",
+    "note": "A title without a backdrop (its poster upright on a flat ground), posters loading, a title with no poster"
+  },
+  {
+    "file": "09-rows-continue.html",
+    "title": "The rows: Your shows",
+    "note": "Continue watching and new episodes in one wide-card row (they are also the Marquee’s lines); New this year peeks"
+  },
+  {
+    "file": "10-rows-nba.html",
+    "title": "The rows: Tonight in the NBA",
+    "note": "The hub’s game cards; nothing has started at 20:42, so the plates are tip-off times"
   }
 ]
