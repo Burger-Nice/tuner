@@ -1,0 +1,105 @@
+/* airglow Home direction A: Marquee. Canvas 960 x 540, safe x 48-912, y 27-513. Only transform and opacity animate. */
+html, body { margin: 0; width: 960px; height: 540px; overflow: hidden; background: var(--a-bg-0); color: var(--a-text-1); font-family: var(--a-font-text); -webkit-font-smoothing: antialiased; }
+.screen { position: relative; width: 960px; height: 540px; overflow: hidden; background: var(--a-bg-0); }
+.screen > * { position: absolute; }
+
+/* ---- the picture: one full-bleed backdrop, a left scrim for the lineup, a bottom scrim ---- */
+.bd { inset: 0; }
+.bd img { width: 960px; height: 540px; object-fit: cover; object-position: var(--pos, 70% 40%); display: block; }
+.sx { inset: 0; background: linear-gradient(90deg, var(--a-bg-0) 0, rgba(21,19,29,.97) 24%, rgba(21,19,29,.82) 42%, rgba(21,19,29,.28) 62%, rgba(21,19,29,0) 80%); }
+.sy { left: 0; right: 0; bottom: 0; height: 220px; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.78)); }
+.st { left: 0; right: 0; top: 0; height: 120px; background: linear-gradient(180deg, rgba(21,19,29,.72), rgba(21,19,29,0)); }
+.grain { inset: 0; background: url("../../../../app/tv/brand/sprites/grain.png"); opacity: .5; pointer-events: none; }
+
+/* ---- top bar: the mark, quiet tabs, the account ---- */
+.topbar { left: 48px; right: 48px; top: 32px; height: 40px; display: flex; align-items: center; gap: 28px; }
+.topbar .mk { height: 28px; width: auto; display: block; }
+.topbar .tabs { display: flex; gap: 26px; align-items: center; font: 500 17px/20px var(--a-font-display); color: var(--a-text-3); }
+.topbar .tab { position: relative; padding: 4px 0; }
+.topbar .tab.sel { color: var(--a-text-1); font-weight: 700; }
+.topbar .tab.sel::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; border-radius: 2px; background: var(--a-grad); }
+.topbar .tab .ic { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.topbar .quiet { display: inline-block; vertical-align: -2px; margin-left: 6px; width: 16px; height: 16px; fill: none; stroke: var(--a-text-3); stroke-width: 2; stroke-linecap: round; }
+.topbar .tb-r { margin-left: auto; display: flex; align-items: center; gap: 14px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); font-variant-numeric: tabular-nums; }
+.topbar .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--a-grad); display: grid; place-items: center; }
+.topbar .avatar svg { width: 18px; height: 18px; fill: none; stroke: var(--a-ink); stroke-width: 2.2; stroke-linecap: round; }
+
+/* ---- the lineup: tonight, in big letters, down the left ---- */
+.lineup { left: 32px; top: 92px; width: 440px; display: flex; flex-direction: column; gap: 2px; }
+.e { position: relative; padding: 5px 16px; border-radius: 18px; opacity: .66; }
+.e .ey { display: none; font: 650 14px/16px var(--a-font-text); letter-spacing: .12em; text-transform: uppercase; color: var(--a-text-3); align-items: center; gap: 8px; white-space: nowrap; }
+.e .t { font: 700 26px/30px var(--a-font-display); color: var(--a-text-1); white-space: nowrap; letter-spacing: -.01em; display: flex; align-items: baseline; }
+.e .t small { font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); margin-left: 10px; font-variant-numeric: tabular-nums; }
+.e .t small .dot { margin: 0 5px; color: var(--a-text-4); }
+.e.on { opacity: 1; padding: 12px 18px 14px; margin: 4px 0 10px; box-shadow: var(--a-focus-ring); background: rgba(21,19,29,.34); }
+.e.on .ey { display: flex; color: var(--a-pink-text); }
+.e.on .t { font-size: 38px; line-height: 42px; margin-top: 4px; }
+.e.on .logo { display: block; height: 46px; max-width: 320px; width: auto; object-fit: contain; object-position: left center; margin: 8px 0 4px; }
+.e .meta { display: none; }
+.e.on .meta { display: flex; align-items: center; gap: 8px; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); margin-top: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.e .meta .dot { color: var(--a-text-4); }
+.e .bar, .e .hint, .e .line { display: none; }
+.e.on .line { display: block; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); margin-top: 3px; max-width: 440px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e.on .bar { display: block; width: 280px; height: 4px; border-radius: 2px; background: var(--a-surface-2); margin-top: 10px; overflow: hidden; }
+.e.on .bar i { display: block; height: 100%; width: var(--p, 40%); background: var(--a-grad); border-radius: 2px; }
+.e.on .hint { display: flex; gap: 18px; margin-top: 9px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); white-space: nowrap; }
+.e .hint > span { display: inline-flex; align-items: center; white-space: nowrap; }
+.e .hint b { font-weight: 700; color: var(--a-text-2); }
+.e .hint .k { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border: 1.5px solid var(--a-border-strong); border-radius: 6px; font: 700 11px/1 var(--a-font-text); color: var(--a-text-2); margin-right: 6px; letter-spacing: .04em; }
+.badge { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; border: 1.5px solid var(--a-border-strong); font: 700 11px/1 var(--a-font-text); letter-spacing: .06em; color: var(--a-text-2); text-transform: uppercase; }
+.live { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 9px; border: 2px solid var(--a-live); border-radius: 999px; color: var(--a-live-text); background: var(--a-live-soft); font: 700 11px/1 var(--a-font-text); letter-spacing: .12em; text-transform: uppercase; }
+.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--a-live); }
+.eyeoff { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+/* ---- the corner: where the picture says what it is ---- */
+.corner { right: 48px; bottom: 36px; text-align: right; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); }
+.corner b { display: block; font: 700 16px/20px var(--a-font-display); color: var(--a-text-2); }
+.more { right: 48px; bottom: 36px; display: flex; align-items: center; gap: 8px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); }
+.more svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- game night: the picture is the two teams ---- */
+.field { inset: 0; }
+.field .away { position: absolute; inset: 0; background: var(--away); }
+.field .home { position: absolute; top: 0; bottom: 0; left: 50%; right: -200px; background: var(--home); transform: skewX(-12deg); transform-origin: top; }
+.field .edge { position: absolute; top: 0; bottom: 0; left: 50%; width: 10px; transform: skewX(-12deg); transform-origin: top; }
+.field .edge i { position: absolute; top: 0; bottom: 0; width: 5px; }
+.field .edge i:first-child { left: 0; background: var(--away-a); }
+.field .edge i:last-child { right: 0; background: var(--home-a); }
+.field .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(21,19,29,.78) 0, rgba(21,19,29,.62) 30%, rgba(21,19,29,.08) 52%, rgba(21,19,29,0) 60%); }
+.field .shade2 { position: absolute; left: 0; right: 0; bottom: 0; height: 180px; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.55)); }
+.crest { width: var(--s, 200px); height: var(--s, 200px); border-radius: 50%; background: rgba(45,43,53,.82); display: grid; place-items: center; }
+.crest img { width: 72%; height: 72%; object-fit: contain; display: block; }
+.crest .n { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 14px; white-space: nowrap; text-align: center; }
+.crest .n b { display: block; font: 700 24px/28px var(--a-font-display); color: var(--a-text-1); }
+.crest .n span { display: block; font: 500 14px/18px var(--a-font-text); color: var(--a-text-2); margin-top: 2px; }
+.clock { display: inline-flex; align-items: center; height: 56px; padding: 0 22px; transform: skewX(-12deg); background: var(--a-grad); border-radius: 6px; }
+.clock > * { transform: skewX(12deg); }
+.clock .q { font: italic 800 34px/1 var(--a-font-live); color: var(--a-ink); letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+.clock .c { font: 650 12px/14px var(--a-font-text); color: var(--a-ink); letter-spacing: .1em; text-transform: uppercase; margin-left: 14px; opacity: .85; }
+.plate { display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 20px; transform: skewX(-12deg); background: rgba(30,27,40,.92); border-radius: 6px; }
+.plate > * { transform: skewX(12deg); }
+.plate .s { font: 600 15px/18px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.e.on.sharp { border-radius: 6px; transform: skewX(-12deg); transform-origin: bottom left; background: rgba(21,19,29,.42); }
+.e.on.sharp > * { transform: skewX(12deg); }
+
+/* ---- the library: one shelf at a time, big posters, the picture answers the focused one ---- */
+.shelf { left: 48px; top: 312px; display: flex; gap: 18px; align-items: flex-start; }
+.poster { position: relative; width: 128px; height: 192px; border-radius: var(--a-radius-poster); overflow: hidden; background: var(--a-surface-1); flex: none; box-shadow: 0 0 0 1px var(--a-border); }
+.poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.poster.on { box-shadow: var(--a-focus-ring); transform: translateY(-10px) scale(1.06); transform-origin: center; }
+.poster .tag { position: absolute; left: 8px; top: 8px; display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; background: rgba(21,19,29,.82); font: 700 11px/1 var(--a-font-text); letter-spacing: .06em; color: var(--a-text-1); }
+.poster .end { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 8px 7px; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.9)); font: 600 13px/16px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.column { left: 48px; top: 96px; width: 520px; }
+.column .ey { font: 650 14px/16px var(--a-font-text); letter-spacing: .12em; text-transform: uppercase; color: var(--a-pink-text); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.column .ey .dim { color: var(--a-text-3); }
+.column .logo { display: block; height: 56px; max-width: 360px; width: auto; object-fit: contain; object-position: left center; margin: 8px 0 6px; }
+.column .meta { display: flex; align-items: center; gap: 8px; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.column .line { margin-top: 4px; font: 500 16px/22px var(--a-font-text); color: var(--a-text-2); max-width: 470px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.column .hint { display: flex; gap: 18px; margin-top: 6px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); }
+.column .hint b { font-weight: 700; color: var(--a-text-2); }
+.column .hint .k { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border: 1.5px solid var(--a-border-strong); border-radius: 6px; font: 700 11px/1 var(--a-font-text); color: var(--a-text-2); margin-right: 6px; letter-spacing: .04em; }
+.shelves { right: 48px; top: 96px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font: 600 14px/18px var(--a-font-text); color: var(--a-text-3); text-align: right; }
+.shelves .cur { color: var(--a-text-1); font-weight: 700; }
+.shelves .cur::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--a-pink); margin-right: 8px; vertical-align: 2px; }
+.shelf-title { left: 48px; top: 272px; font: 700 15px/18px var(--a-font-display); color: var(--a-text-2); }
+.shelf-title span { font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); margin-left: 10px; }
