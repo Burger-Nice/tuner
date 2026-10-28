@@ -261,13 +261,14 @@ const META_DAYS = 7;
 // a memory cache that keeps its newest n entries
 const remember = (m, k, v, n) => { m.delete(k); m.set(k, v); while (m.size > n) m.delete(m.keys().next().value); };
 // A title's details (the first enabled add-on with meta for this id's prefix; for tt ids that is Cinemeta)
-export async function meta(type, id) {
+// (maxAge: how old a kept copy may be; Home's new-episode check wants a day, the title page a week)
+export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
   if (!id) return null;
   const ck = `${type}:${id}`;
   const hit = metaMem.get(ck);
-  if (hit && Date.now() - hit.at < META_DAYS * 86400e3) return hit.v;
+  if (hit && Date.now() - hit.at < maxAge) return hit.v;
   const saved = await window.Core.cache.get(`ad:meta:${ck}`);
-  if (saved && Date.now() - saved.at < META_DAYS * 86400e3) { remember(metaMem, ck, saved, 300); return saved.v; }
+  if (saved && Date.now() - saved.at < maxAge) { remember(metaMem, ck, saved, 300); return saved.v; }
   const who = [...enabled().filter((a) => supports(a, 'meta', type, id)), ...(String(id).startsWith('tt') ? [cinemetaAddon()] : [])];
   for (const a of who) {
     try {
@@ -282,7 +283,7 @@ export async function meta(type, id) {
       return v;
     } catch {}
   }
-  return null;
+  return (hit || saved)?.v || null;   // (offline: the copy kept, however old)
 }
 // the last 500 metas and 300 catalog pages are kept on the device
 function keepIndex(k, ixKey = 'adMetaIx', n = 500) {
@@ -329,7 +330,9 @@ export async function catalogPage(a, c, { genre, skip = 0, search } = {}) {
   const saved = !search && (await window.Core.cache.get(ck));
   const load = async () => {
     const d = await ask(a, 'catalog', c.type, c.id, extra, 10000);
-    const v = (d?.metas || []).filter((m) => m && m.id && m.name).map((m) => ({ id: m.imdb_id || m.id, type: m.type || c.type, name: decode(m.name), poster: m.poster || '', year: +String(m.releaseInfo || m.year || '').match(/\d{4}/)?.[0] || 0, releaseInfo: decode(m.releaseInfo || ''), released: m.released || '', genres: (m.genres || m.genre || []).map(decode), imdbRating: m.imdbRating || '', director: (Array.isArray(m.director) ? m.director : m.director ? [m.director] : []).map(decode) }));
+    const v = (d?.metas || []).filter((m) => m && m.id && m.name).map((m) => ({ id: m.imdb_id || m.id, type: m.type || c.type, name: decode(m.name), poster: m.poster || '', year: +String(m.releaseInfo || m.year || '').match(/\d{4}/)?.[0] || 0, releaseInfo: decode(m.releaseInfo || ''), released: m.released || '', genres: (m.genres || m.genre || []).map(decode), imdbRating: m.imdbRating || '', director: (Array.isArray(m.director) ? m.director : m.director ? [m.director] : []).map(decode),
+      // (what Home's rows and the library need, and nothing else: a series page's episodes stay out, SPEC 9)
+      cast: (Array.isArray(m.cast) ? m.cast : []).slice(0, 4).map(decode), country: decode(m.country || ''), runtime: minutes(m.runtime), background: m.background || '', logo: m.logo || '', moviedb: +m.moviedb_id || 0, description: decode(m.description || '').slice(0, 300) }));
     const rec = { at: Date.now(), v };
     remember(catMem, ck, rec, 150);   // (searches too, so going back to the results is instant; only the newest are kept)
     if (!search) { window.Core.cache.set(ck, rec); keepIndex(ck, 'adCatIx', 300); }
@@ -342,6 +345,14 @@ export async function catalogPage(a, c, { genre, skip = 0, search } = {}) {
   }
   return load();
 }
+// Cinemeta's own catalogs for Home's rows and the library (home-final SPEC 6a): top (Popular, a genre), year (New: its
+// genre is a year). The installed Cinemeta when there is one, else Stremio's own.
+export function cinemetaPage(type, id, { genre, skip = 0 } = {}) {
+  const a = cinemetaAddon();
+  const c = (a.manifest.catalogs || []).find((x) => x.type === type && x.id === id) || { type, id, extra: [{ name: 'genre', isRequired: id === 'year' }, { name: 'skip' }] };
+  return catalogPage(a, c, { genre, skip });
+}
+export const isCinemeta = (a) => a?.manifest?.id === CINEMETA_ID;
 // Search: every enabled catalog with a search extra (SPEC 6), one request each. -> [{ a, c, metas | null (no answer) }]
 export function searchCatalogs() {
   const out = [];

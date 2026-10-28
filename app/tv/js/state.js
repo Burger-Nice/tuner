@@ -54,6 +54,7 @@ export function recordProgress(it, t, d, force) {
   const now = Date.now();
   const { _s, ...snap } = it;
   S.progress[keyOf(it)] = { t, d, at: now, item: snap };
+  emit('play-pos', { it: snap, t, d });   // (Home's play log: rows.js)
   if (!force && now - lastSave < 5000) return;
   lastSave = now;
   const keys = Object.keys(S.progress);
@@ -66,6 +67,7 @@ export const inProgress = (p) => p && p.t > 30 && p.t < p.d * 0.94;
 export function markWatched(it) {
   S.progress[keyOf(it)] = { t: 1, d: 1, at: Date.now(), item: it, done: true };
   store.set(scoped('progress'), S.progress);
+  emit('watched-item', it);
   emit('progress');
 }
 // Continue watching: part-way titles, newest first, one entry per series.

@@ -248,7 +248,7 @@ function playCopy(t, c, tc, opts = {}) {
 export async function resumeAddonItem(it, { restart } = {}) {
   const cp = it.copy;
   const q = AD.askStreams(it.kind === 'episode' ? 'series' : 'movie', it.id, { match: 'sure' });
-  toast('Asking your add-ons for this copy…');
+  toast(cp.key ? 'Asking your add-ons for this copy…' : 'Asking your add-ons for the best copy…');
   // the copy he was watching, as soon as its add-on answers (not the slowest one); else every answer
   await new Promise((res) => {
     const has = () => AD.copiesOf(q).some((c) => c.key === cp.key && !c.claim.notReady);
@@ -272,7 +272,7 @@ export async function resumeAddonItem(it, { restart } = {}) {
   }
   const item = addonItem(t, same, tc, row);
   item._entry.copies = identities(all.filter((c) => c !== same));
-  if (same.key !== cp.key) toast(`That copy has gone · playing ${copyLine(same)} · ${same.source}`, 4000);
+  if (cp.key && same.key !== cp.key) toast(`That copy has gone · playing ${copyLine(same)} · ${same.source}`, 4000);   // (no key: Home's Play now, the best copy)
   lastPlay = { tc, list: all, t, row, item, playing: same.key };
   // the series' episodes (Cinemeta's), so Up next knows what comes after this one
   if (row && it.imdbSeries) seriesRows(it.imdbSeries).then((rows) => {
@@ -281,7 +281,7 @@ export async function resumeAddonItem(it, { restart } = {}) {
   }).catch(() => {});
   // another copy: 10 s earlier, so nothing is missed where the cuts differ (8.3)
   const p = progressOf(item);
-  playVod(item, { restart, entry: same.key !== cp.key && !restart && inProgress(p) ? { ...item._entry, startAt: Math.max(0, p.t - 10) } : undefined });
+  playVod(item, { restart, entry: cp.key && same.key !== cp.key && !restart && inProgress(p) ? { ...item._entry, startAt: Math.max(0, p.t - 10) } : undefined });
 }
 
 // What the player asks for (PORT-NATIVE.md): need: copy (the link for a hand-over), copy-failed (band e for this
