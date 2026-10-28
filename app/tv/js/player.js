@@ -263,7 +263,7 @@ export function queueAfter(item, more) {
 let starting = null;
 export async function playVod(item, opts = {}) {
   const id = `${item?.kind}:${item?.id}`;
-  if (starting && (starting.busy || (native && starting.id === id && Date.now() - starting.at < 3000))) return;
+  if (starting && (starting.busy || (starting.id === id && Date.now() - starting.at < 3000))) return;
   const me = { id, at: Date.now(), busy: true };
   starting = me;
   try { await playVod0(item, opts); } finally { me.busy = false; me.at = Date.now(); }

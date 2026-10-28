@@ -31,7 +31,8 @@ module.exports = async (ctx) => {
   check('the NBA row is row 2 on a game day', shown[1] === 'Tonight in the NBA');
   check('no source names in the rows\' titles and reasons', !(await ev(() => /Cinemeta|TMDB/.test(document.querySelector('[data-screen="home"] .hf-stack').textContent))));
   // the index and the peek, row by row
-  let okIdx = true, okPeek = true, okCol = true;
+  let okIdx = true, okPeek = true, okCol = true, okDown = true, okPlot = true, plotLog = '';
+  const downLog = [];
   const nodes0 = await ev(() => document.querySelectorAll('[data-screen="home"] *').length);
   for (let i = 0; i < shown.length; i++) {
     const st = await ev(() => {
@@ -43,6 +44,12 @@ module.exports = async (ctx) => {
       return { cur, me: rows[ci]?.querySelector('.rt').childNodes[0].textContent.trim(), nx, ixNext, col: document.querySelector('[data-screen="home"] .hf-col').innerText.trim() };
     });
     if (st.cur !== st.me) okIdx = false;
+    const dn = await ev(() => { const rows = [...document.querySelectorAll('[data-screen="home"] .hf-row')], a = document.activeElement, r = a.closest('.hf-row'); return { i: rows.indexOf(r), cur: rows.findIndex((x) => x.classList.contains('cur')), y: Math.round(r?.querySelector('.rt').getBoundingClientRect().top || -1) }; });
+    downLog.push(`${dn.i}@${dn.y}`);
+    if (dn.i !== i || dn.cur !== i || Math.abs(dn.y - 244) > 1) okDown = false;
+    const pl = await ev(() => [...document.querySelectorAll('[data-screen="home"] .hf-col .plot span')].map((x) => ({ t: x.textContent, w: x.scrollWidth })));
+    if (pl.length > 3 || pl.some((x) => x.w > 501) || (pl.length === 3 && !/…$/.test(pl[2].t) && pl[2].t.length > 60)) okPlot = false;
+    if (pl.length === 3 && !plotLog) plotLog = pl.map((x) => x.t).join(' / ');
     if (st.nx && st.ixNext && !/more$/.test(st.ixNext) && st.nx !== st.ixNext) okPeek = false;
     if (!st.col) okCol = false;
     if (i === 0) await shot('rows-1');
@@ -51,7 +58,10 @@ module.exports = async (ctx) => {
     if (st.me === 'Tonight in the NBA') await shot('rows-nba');
     if (i < shown.length - 1) await key('ArrowDown', 1, 450);
   }
+  if (!plotLog) okPlot = false;
   check('the index marks the row he is on', okIdx);
+  check('Down lands on each row in turn, its title at y 244 (none skipped, none stuck)', okDown, downLog.join(' '));
+  check('the column\'s plot: up to three lines, cut cleanly inside 500 px', okPlot, plotLog);
   check('the row that peeks is the index\'s next name', okPeek);
   check('the column answers every row', okCol);
   const nodes = await ev(() => document.querySelectorAll('[data-screen="home"] *').length);
@@ -105,6 +115,51 @@ module.exports = async (ctx) => {
   await ev(() => window.__tunerTest.go('account', { group: 'home' })); await p.waitForTimeout(1000);
   check('Account > Home rows lists it under Hidden', await ev(() => /Hidden[\s\S]*Anime comedy[\s\S]*Show again/i.test(document.querySelector('[data-screen="account"]').innerText)));
   await shot('account-home-rows');
+  // Right moves exactly one card per press on every kind of row (posters, Tonight in the NBA, Your shows), and a held
+  // key moves one card per repeat (a remount of the row used to swallow every other press)
+  await ev(() => window.__tunerTest.go('home')); await p.waitForTimeout(2000);
+  await key('PageDown', 1, 1200);
+  const rightLog = [];
+  let okRight = true;
+  const at = () => ev(() => +document.activeElement?.dataset?.i);
+  for (let ri = 0; ri < after.length; ri++) {
+    const kind = await ev(() => document.activeElement.closest('.hf-row')?.className.split(' ')[1]);
+    const name = await ev(() => document.querySelector('[data-screen="home"] .hf-row.cur .rt').childNodes[0].textContent.trim());
+    const n = await ev(() => document.querySelector('[data-screen="home"] .hf-row.cur .hf-track').children.length);
+    if (['poster', 'game', 'wide'].includes(kind) && n > 3 && !rightLog.some((x) => x.startsWith(`${kind}:`))) {
+      const seq = [await at()];
+      for (let i = 0; i < 6; i++) { await key('ArrowRight', 1, 220); seq.push(await at()); }
+      const want = seq.map((_, i) => Math.min(seq[0] + i, Math.max(...seq)));
+      const one = seq.every((x, i) => i === 0 || x === seq[i - 1] + 1 || (x === seq[i - 1] && x === Math.max(...seq)));
+      if (!one || seq[seq.length - 1] === seq[0]) okRight = false;
+      rightLog.push(`${kind}:${name}:${seq.join(',')}`);
+      void want;
+      // held: 8 repeats, about one card each
+      const b0 = await at();
+      await p.keyboard.down('ArrowLeft'); for (let i = 0; i < 5; i++) { await p.waitForTimeout(90); await p.keyboard.down('ArrowLeft'); } await p.keyboard.up('ArrowLeft'); await p.waitForTimeout(400);
+      const b1 = await at();
+      if (!(b1 < b0)) okRight = false;
+      rightLog.push(`held ${b0}->${b1}`);
+    }
+    await key('ArrowDown', 1, 400);
+  }
+  check('Right: one card per press on poster, game and wide rows; a held key keeps moving', okRight && rightLog.some((x) => x.startsWith('game:')) && rightLog.some((x) => x.startsWith('wide:')), rightLog.join(' | '));
+  // Hold OK on a poster while the remote repeats OK as plain presses (a TV WebView does): the menu, never a play; one
+  // OK on Play now plays once
+  await key('PageUp', 1, 900); await key('PageDown', 1, 1200);
+  await ev(() => { window.__vodCount = 0; });
+  await ev(async () => { const d = (t) => document.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', bubbles: true })); for (let i = 0; i < 18; i++) { d('keydown'); await new Promise((r) => setTimeout(r, 50)); } d('keyup'); });
+  await p.waitForTimeout(500);
+  const held = await ev(() => ({ menu: [...document.querySelectorAll('.ctxmenu .lr')].map((r) => r.textContent).join('|'), vods: window.__vodCount || 0, screen: window.__tunerTest.state().screen }));
+  check('Hold OK with repeated presses: the menu opens, nothing plays', /^Play now\|Save/.test(held.menu) && held.vods === 0 && held.screen === 'home', JSON.stringify(held));
+  await key('Escape', 1, 500);
+  // Your shows: OK twice fast resumes once
+  await ev(() => { window.__vodCount = 0; });
+  for (let i = 0; i < 10; i++) { if ((await ev(() => document.querySelector('[data-screen="home"] .hf-row.cur')?.className || '')).includes('wide')) break; await key('ArrowDown', 1, 350); }
+  await ev(async () => { const d = (t) => document.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', bubbles: true })); d('keydown'); d('keyup'); await new Promise((r) => setTimeout(r, 30)); d('keydown'); d('keyup'); });
+  await p.waitForTimeout(3500);
+  check('OK twice on a Continue card: it plays once', await ev(() => window.__vodCount === 1), await ev(() => window.__vodCount));
+  await ev(() => window.__tunerTest.go('home')); await p.waitForTimeout(1500);
   // the wide and game rows: their first card's ring inside x 48
   await ev(() => window.__tunerTest.go('home')); await p.waitForTimeout(2000);
   await key('PageDown', 1, 1200);
