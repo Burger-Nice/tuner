@@ -1,6 +1,6 @@
 // Home's first evening and its fallbacks (design/ui-v1/home-final/SPEC.md 2, 6, 6a; mock 06):
 //  1. no history: three lines (Popular now · a pick for tonight with Details, the team's game, Pick what you like),
-//     discovery rows only (Popular films, Popular series, New this year, Top rated, Á íslensku); Pick what you like
+//     discovery rows only (Popular films, Popular series, New this year, Top rated, In Icelandic); Pick what you like
 //     opens the genre picker; three picks start "Comedy for you" (You picked it), and the rows come back named for them
 //  2. no TMDB key: the rows are Cinemeta's and named honestly (Popular comedies, not Comedy for you), no Top rated, no
 //     blends, no Something different; the one-time line "Add your TMDB key for better rows"
@@ -25,7 +25,7 @@ module.exports = async (ctx) => {
   let R = await names();
   console.log(R.join(' | '));
   check('discovery rows only', !R.some((r) => / for you$|^Because you watched|^Something different$/.test(r)) && R.includes('Popular films') && R.includes('Popular series'));
-  check('Top rated and Á íslensku (with a key)', R.includes('Á íslensku'));
+  check('Top rated and In Icelandic (with a key)', R.includes('In Icelandic'));
   // Pick what you like
   await key('ArrowDown', 1, 900); await key('Enter', 1, 900);
   check('OK on Pick what you like: the genre picker', await ev(() => !!document.querySelector('#overlays .hf-picks')));

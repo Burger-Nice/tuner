@@ -51,13 +51,13 @@ timeline: the game the evening mocks announce is the game the game-night mock sh
    ("maybe anime and comedy"); TMDB serves it (`/discover` with both genres, section 6a); it is the most "mine" a row can feel.
 7. **Anime is TMDB keyword 210024 in Japanese.** Cinemeta has no anime genre and Animation alone catches Pixar; a title is anime when TMDB tags it `anime` and its original language is `ja` (Spy x Family, One Punch Man, Mob Psycho 100, KonoSuba, Kaguya-sama come out of the blend; Moana, Up, Frozen, Toy Story and Soul do not). Without a key: Animation with Japan as the first country plus a deny list. An anime add-on's own catalog, when he has one, feeds the same row and is named after the add-on.
 8. **Films and series come from the add-ons and TMDB; the provider is live TV.** The personal rows, Top rated,
-   anime and Á íslensku read TMDB's API with the owner's own free key (section 6a); Popular, New, Search, metas,
+   anime and In Icelandic read TMDB's API with the owner's own free key (section 6a); Popular, New, Search, metas,
    episodes and ids read Cinemeta; copies come from the stream add-ons. The
    provider feeds channels, the guide, the game and its replays. *Why:* the owner's decision; Cinemeta's catalogs
    are deep (Popular films answer at skip 10,000) and carry genres, ratings, runtimes, countries and art for every
    title.
 9. **The library is one long scroll per shelf.** Movies and Series: Popular, New, Top rated, 19 (22) genres, the
-   other add-ons' catalogs, Popular and New are Cinemeta catalogs (paged 50 at a time), Top rated, genres, anime and Á íslensku are TMDB lists (paged 20), the scroll bubble saying `#313 of 3,000+`. *Why:* it is what Cinemeta is shaped like, and the owner wants "browse everything" places; the
+   other add-ons' catalogs, Popular and New are Cinemeta catalogs (paged 50 at a time), Top rated, genres, anime and In Icelandic are TMDB lists (paged 20), the scroll bubble saying `#313 of 3,000+`. *Why:* it is what Cinemeta is shaped like, and the owner wants "browse everything" places; the
    existing Movies grid (6 posters a row, Sort / Filters / Jump) stays as it is, fed by the add-ons.
 10. **A hidden game shows `ON NOW` and `Score hidden`, nothing more**: no quarter, no clock, both records stamped
     `as of tip-off`, the fan line too. *Why:* the review and the catch-up spec (S4): a clock tells him how the game
@@ -78,7 +78,7 @@ timeline: the game the evening mocks announce is the game the game-night mock sh
 14. **Nothing moves by itself.** No carousel, no autoplay, no reordering while Home is on screen; rows change
     between visits and a changed row says so (`New row` for 7 days). *Why:* the earlier principle (UI-SPEC 1.4) and
     the research on choice stability.
-15. **Channels last; Á íslensku its own row; the greeting in English; late mode on; `A film for tonight` and the
+15. **Channels last; In Icelandic its own row; the greeting in English; late mode on; `A film for tonight` and the
     doors kept** (home-v2's answered decisions). The doors live in the rows as `Browse your library` (row 13).
 
 ---
@@ -239,7 +239,7 @@ films list Japan among their countries. Those findings are why Top rated, genre 
 | `05-library-comedy` | the Movies tab, Comedy, Popular, scrolled to #313 of 3,000+ (a solid band holds the context line, the focused title and its facts, and the scroll bubble; six posters a row, no caption over the next row) |
 | `06-cold-start` | a new user, no history: `Project Hail Mary · Popular now · a pick for tonight` lit (`Details` the primary, no ▶), `Grizzlies at Blazers · Your team · 02:00`, `Pick what you like · 3 genres start your rows` (three lines); `Popular films` peeking |
 | `07-rows-channels` | the `Channels` row: a channel has no picture, so the area shows the channel's logo on a flat field in the logo's colour; the column has `Kastljós · RÚV · 1 · 20:35 – 20:55 · 14 min left · HD` and `Next · Fréttir 20:55 …`; wide channel cards (a logo tile in the channel's colour, the number, the programme, `until 20:55` and its progress bar); under the last row `End of Home · P+ Back to the top`; `Tune` · `Hold Save channel, Open in the guide` |
-| `08-loading-missing-art` | the row `Á íslensku · Icelandic films and series` (no total: the row holds the titles over its 10-vote floor): the lit title drawn as if it had no backdrop (its poster upright, 114 × 171, between the column and the index on a glow of its colour) and no logo (its name in Outfit), real Icelandic titles from TMDB's list (Trapped, Katla, Godland), two posters still loading (a sheen block with no name), a title with no poster among the visible six (`No poster` and the name on surface-1; the name is a stand-in for the state) |
+| `08-loading-missing-art` | the row `In Icelandic · Icelandic films and series` (no total: the row holds the titles over its 10-vote floor): the lit title drawn as if it had no backdrop (its poster upright, 114 × 171, between the column and the index on a glow of its colour) and no logo (its name in Outfit), real Icelandic titles from TMDB's list (Trapped, Katla, Godland), two posters still loading (a sheen block with no name), a title with no poster among the visible six (`No poster` and the name on surface-1; the name is a stand-in for the state) |
 | `09-rows-continue` | the `Your shows` row: wide cards with the show's logo, the episode and the time left (Breaking Bad, Severance, The Bear, Andor, Slow Horses `3 new`, The Last of Us); an episode he has not started shows the show's backdrop, never its own still; `New this year` peeking, one card height + 14 px under the row |
 | `10-rows-nba` | `Tonight in the NBA` at 20:42: the hub's game cards, nothing started, the plates are tip-off times (the slate: Celtics at Knicks and Mavs at Rockets 23:00, Nuggets at Thunder 01:30, Grizzlies at Trail Blazers 02:00, two more at 03:30 and 04:00); `Popular films` peeking; the column has the next game's facts and the pre-game fan line |
 
@@ -423,7 +423,7 @@ From the top of Home to the first browsing row, counted from the first line lit:
 - **No key yet** (the first run, or a revoked key): the rows that need TMDB fall back to Cinemeta and are **named
   honestly**: `Popular comedies` (Cinemeta `top/genre=Comedy`, re-filtered by the title's own genres) instead of
   `Comedy for you`'s TMDB list, `Top rated` and `Top rated <genre>` hide (they are TMDB's lists only),
-  `Anime` from Animation with Japan first plus the deny list, `Á íslensku` from the build-time Icelandic list,
+  `Anime` from Animation with Japan first plus the deny list, `In Icelandic` from the build-time Icelandic list,
   `Because you watched` from the Cinemeta scoring below; the blends and `Something different` hide. The Marquee
   shows a one-time line `Add your TMDB key for better rows · Account > Provider` on the first evening without one.
 
@@ -445,7 +445,7 @@ From the top of Home to the first browsing row, counted from the first line lit:
 | Top rated in a genre | the same with `with_genres=G` | `Top rated comedies` | `Rated 7.5 and up` |
 | Something different | a genre with share < 3 %, the same, `vote_average.gte=7.5` | `Something different` | `Documentaries · a kind you rarely watch, rated 7.5 and up` |
 | Add-on catalog | another add-on's catalog (its manifest) | the catalog's name | `From <add-on>` |
-| Á íslensku | TMDB `/discover` `with_original_language=is` by popularity with `vote_count.gte=10` (films and series; `language=is-IS` with English fallback per field), plus copies with Icelandic audio; TMDB holds 1,451 Icelandic films and 107 series; the row holds the ones over its vote floor, so the subtitle prints no total. Fallback: a build-time list of Icelandic ids (`country` includes Iceland) | `Á íslensku` | `Icelandic films and series` |
+| In Icelandic | TMDB `/discover` `with_original_language=is` by popularity with `vote_count.gte=10` (films and series; `language=is-IS` with English fallback per field), plus copies with Icelandic audio; TMDB holds 1,451 Icelandic films and 107 series; the row holds the ones over its vote floor, so the subtitle prints no total. Fallback: a build-time list of Icelandic ids (`country` includes Iceland) | `In Icelandic` | `Icelandic films and series` |
 | Saved | Saved, not started | `Saved` | – |
 | Browse your library | the doors (home-v2 4.4), over the add-on catalogs | `Browse your library` | `OK opens the shelf` |
 | Channels | favourites and recent | `Channels` | `Favourites and recent` |
@@ -487,7 +487,7 @@ rows, and a change is always announced.
 **Cold start** (no history): the Marquee is `Popular now · a pick for tonight` (Details is the primary),
 the team's next game, what is on, and `Pick what you like` (a genre picker: 3 chips seed the profile at 10 % each
 and are forgotten after 20 plays); the rows are Popular films, Popular series, New this year, Top rated (with a key),
-Á íslensku, Channels. Personal rows appear after 3 finished titles; blends after 3 titles carrying both genres.
+In Icelandic, Channels. Personal rows appear after 3 finished titles; blends after 3 titles carrying both genres.
 
 **Telling him why.** Every row's subtitle; `Hold OK · Why this row?` on any row title (the index) opens a one-card
 sheet: `Comedy for you · 55 % of what you watched in the last month is comedy · Always Sunny (8 episodes), The Office
@@ -499,7 +499,7 @@ sheet: `Comedy for you · 55 % of what you watched in the last month is comedy �
 
 - **Shelves**: Popular (Cinemeta `top`), New (Cinemeta `year`), Top rated (TMDB discover, vote-floored; hidden without a key), one per
   genre (TMDB discover with the exclusion table; Cinemeta `top/genre=G` re-filtered when there is no key), `Anime`
-  (TMDB keyword 210024, combinable with a genre), `Á íslensku`, the other add-ons' catalogs by their names, Saved,
+  (TMDB keyword 210024, combinable with a genre), `In Icelandic`, the other add-ons' catalogs by their names, Saved,
   History; the chips row of UI-SPEC 5.5 carries All · Popular · New · Top rated · four of his genres · More genres
   (a sheet). A TMDB shelf pages 20 at a time (`page`), a Cinemeta shelf 50 (`skip`).
 - **Paging**: by the source's page; the grid asks for the next page when the focus is 2 rows from the end of what
@@ -513,7 +513,7 @@ sheet: `Comedy for you · 55 % of what you watched in the last month is comedy �
   genre); `Top rated` is TMDB's vote-floored list only (the chip hides without a key), never the `imdbRating` catalog.
 - **Copies**: a poster shows no quality until its title was opened or checked; the title page asks the stream
   add-ons (the existing copies ranking) and the badge is cached 7 days.
-- **Icelandic** in the library: the `Á íslensku` shelf is built as the row is (section 6); the Filters' Language chip
+- **Icelandic** in the library: the `In Icelandic` shelf is built as the row is (section 6); the Filters' Language chip
   `Icelandic` applies the same rule.
 - **Search**: Cinemeta `search=` over films and series, the guide's titles for live, as UI-SPEC 5.7.
 - **The provider's VOD** is no longer read for Movies / Series (the owner's decision); a playlist account with no

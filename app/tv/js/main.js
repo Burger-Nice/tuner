@@ -54,9 +54,19 @@ const DIRS = new Set(['up', 'down', 'left', 'right']);
 const typing = () => { const a = document.activeElement; return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && !a.readOnly; };
 
 let okDown = null;   // { el, t, held, timer }
+// OK held down: the remote sends keydowns every ~50 ms until it is let go, and a TV's WebView doesn't always mark them
+// as repeats. Only the first counts; the rest are dropped everywhere (so a hold opens its menu and never also presses
+// the menu's first row, and never starts a film several times). A press more than 400 ms after the last keydown is a
+// new press even if its keyup went missing (the player took the key).
+let okIsDown = false, okLast = 0;
 document.addEventListener('keydown', (e) => {
   const k = keyName(e);
   if (!k) return;
+  if (k === 'ok') {
+    const now = performance.now(), again = e.repeat || (okIsDown && now - okLast < 400);
+    okIsDown = true; okLast = now;
+    if (again) { e.preventDefault(); e.stopPropagation(); return; }
+  }
   // A held key's repeats that waited behind a busy moment are dropped, so focus never runs on by several rows.
   if (e.repeat && DIRS.has(k) && performance.now() - e.timeStamp > 250) { e.preventDefault(); e.stopPropagation(); return; }
   if (!launchOpen()) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) launchKey(); return; }   // keys count from the wipe on; one skips to Home once it's ready
@@ -82,6 +92,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
   const k = keyName(e);
   if (DIRS.has(k)) document.documentElement.classList.remove('rep');
+  if (k === 'ok') okIsDown = false;
   if (k === 'ok' && okDown) {
     const d = okDown; okDown = null; clearTimeout(d.timer);
     // (a redraw while OK was down puts focus on the same item drawn anew: same data-key, still that press)

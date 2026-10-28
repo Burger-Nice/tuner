@@ -61,8 +61,10 @@
 /* no picture: a channel's logo on a flat field; a title without a backdrop: its poster upright on its glow */
 .hf-flat{background:var(--flat,var(--a-bg-1))}
 .hf-flat .wm{position:absolute;left:560px;top:120px;font:700 96px/1 var(--a-font-display);color:var(--a-text-1);letter-spacing:-.02em}
+.hf[data-mode="rows"] .hf-flat .wm{display:none}   /* (in the rows the card shows the logo; on the field it ran into the column and the index) */
 .hf-flat .wm img{height:120px;width:auto;max-width:320px;object-fit:contain;display:block}
 .hf-flat .glow{position:absolute;inset:0;background:radial-gradient(250px 190px at 697px 165px,var(--g,rgba(61,59,69,.9)) 0,rgba(21,19,29,0) 100%);opacity:.5}
+.hf-flat .glow.wide{background:radial-gradient(620px 420px at 700px 200px,var(--g,rgba(61,59,69,.9)) 0,rgba(21,19,29,0) 100%);opacity:.6}
 .hf-flat .pst{position:absolute;left:640px;top:80px;width:114px;height:171px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--a-border)}
 .hf-flat .pst img{width:100%;height:100%;object-fit:cover;display:block}
 
@@ -79,7 +81,7 @@ html.rep .hf-mq,html.rep .hf-rw,html.rep .hf-stack,html.rep .hf-track,html.rep .
 .hf-e .t .nm{flex:none}
 .hf-e .t small{font:500 16px/20px var(--a-font-text);color:var(--a-text-2);margin-left:12px;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;white-space:nowrap}
 .hf-e .cd{display:none}
-.hf-e.on{opacity:1;display:block;height:192px;padding:10px 18px;border-radius:18px;overflow:hidden;background:linear-gradient(90deg,color-mix(in srgb,var(--amb,#2D2B35) 45%,rgba(21,19,29,.5)),rgba(21,19,29,.22))}
+.hf-e.on{transition:none;opacity:1;display:block;height:192px;padding:10px 18px;border-radius:18px;overflow:hidden;background:linear-gradient(90deg,color-mix(in srgb,var(--amb,#2D2B35) 45%,rgba(21,19,29,.5)),rgba(21,19,29,.22))}
 .hf-e.on:focus{box-shadow:var(--a-focus-ring)}
 .hf-e.on .t{display:none}
 .hf-e.on .cd{display:block;animation:hf-in 120ms var(--a-ease) both}
@@ -118,13 +120,15 @@ html.rep .hf-mq,html.rep .hf-rw,html.rep .hf-stack,html.rep .hf-track,html.rep .
 .hf-note{position:absolute;left:72px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap}
 
 /* ---- the rows: the column, the index, the stack ---- */
-.hf-col{position:absolute;left:60px;top:92px;width:540px}
-.hf-col .hf-lg{display:block;height:48px;max-width:320px;width:auto;object-fit:contain;object-position:left center;margin:6px 0 6px}
+.hf-col{position:absolute;left:60px;top:80px;width:540px}
+.hf-col .hf-lg{display:block;height:48px;max-width:320px;width:auto;object-fit:contain;object-position:left center;margin:4px 0 4px}
 .hf-col span.hf-lg{position:relative;overflow:hidden}
-.hf-col .title{font:700 30px/36px var(--a-font-display);color:var(--a-text-1);margin:6px 0 6px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hf-col .meta{display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden}
+.hf-col .title{font:700 30px/36px var(--a-font-display);color:var(--a-text-1);margin:6px 0 6px;max-width:540px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hf-col .meta{max-width:500px;display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden}
 .hf-col .line{margin-top:4px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);max-width:500px;white-space:nowrap;overflow:hidden}
-.hf-col .hint{margin-top:8px}
+.hf-col .plot{margin-top:4px;width:500px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.hf-col .plot>span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hf-col .hint{margin-top:6px}
 .hf-index{position:absolute;right:48px;top:92px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;font:600 14px/18px var(--a-font-text);color:var(--a-text-2);text-align:right;white-space:nowrap}
 .hf-index .cur{color:var(--a-text-1);font-weight:700}
 .hf-index .cur::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--a-pink);margin-right:8px;vertical-align:2px}
@@ -173,7 +177,9 @@ html.rep .hf-mq,html.rep .hf-rw,html.rep .hf-stack,html.rep .hf-track,html.rep .
 .hf-w.chn .tile img{height:24px;max-width:64px;object-fit:contain;display:block}
 .hf-w.chn .n{position:absolute;right:12px;top:16px;font:600 14px/18px var(--a-font-text);color:var(--a-text-2);font-variant-numeric:tabular-nums}
 .hf-w.chn .ln{left:12px;right:12px;bottom:36px;font:650 15px/18px var(--a-font-text)}
-.hf-w.chn .u{position:absolute;left:12px;bottom:14px;font:500 14px/16px var(--a-font-text);color:var(--a-text-2);font-variant-numeric:tabular-nums}
+.hf-w.chn .u{position:absolute;left:12px;right:12px;bottom:14px;font:500 14px/16px var(--a-font-text);color:var(--a-text-2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hf-w.chn .tile{max-width:120px}
+.hf-w.chn .n{max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
 .hf-w.door{display:flex;flex-direction:column;justify-content:flex-end;padding:14px 16px;box-sizing:border-box;background:linear-gradient(160deg,var(--a-surface-2),var(--a-surface-1) 70%)}
 .hf-w.door b{font:700 18px/22px var(--a-font-display);color:var(--a-text-1)}
 .hf-w.door span{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-top:2px}

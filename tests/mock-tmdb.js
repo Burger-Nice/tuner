@@ -118,6 +118,15 @@ const RAW = [
   ['summerofsoul', 'm', 'Summer of Soul', 2021, ['Documentary', 'Music'], 'en', 'United States', 7.9, 400, 13, 117, 'The 1969 Harlem Cultural Festival.'],
   ['fireoflove', 'm', 'Fire of Love', 2022, ['Documentary'], 'en', 'United States', 7.6, 380, 12, 93, 'Two volcanologists in love.'],
 ];
+// more films and series (made-up names), so the discovery rows (trending, the services, hidden gems, a decade, short
+// films) have titles of their own after the rows above them took theirs
+const FW = ['Harbour', 'Ember', 'Silver', 'Quiet', 'Northern', 'Paper', 'Velvet', 'Iron', 'Glass', 'Hollow', 'Crimson', 'Distant'];
+const FN = ['Lights', 'Road', 'Tide', 'Country', 'Hours', 'Line', 'House', 'Winter'];
+const FG = [['Drama', 'Thriller'], ['Action', 'Adventure'], ['Sci-Fi', 'Thriller'], ['Drama', 'Romance'], ['Mystery', 'Crime'], ['Action', 'Sci-Fi'], ['Drama'], ['Adventure', 'Drama']];
+for (let i = 0; i < 288; i++) {
+  const series = i % 3 === 0, year = [2026, 2026, 1994, 1997, 2003, 2007, 2015, 2019][i % 8];
+  RAW.push([`fill${i}`, series ? 's' : 'm', `${FW[i % 12]} ${FN[Math.floor(i / 12) % 8]}${i >= 96 ? ` ${['II', 'III'][Math.floor(i / 96) - 1]}` : ''}`, year, FG[i % 8], 'en', 'United States', 6.6 + (i % 14) / 10, [180, 400, 900, 1400, 2600, 5200][i % 6], 8 + (i % 20), series ? 45 : [88, 95, 112, 124, 98, 135][i % 6], `A made-up ${series ? 'series' : 'film'} for the tests.`]);
+}
 const imdbOf = (i) => `tt95${String(i).padStart(5, '0')}`;
 const TITLES = RAW.map(([slug, t, name, year, genres, lang, country, rating, votes, pop, runtime, overview, anime], i) => ({
   i, slug, type: t === 's' ? 'series' : 'movie', name, year, genres, lang, country, rating, votes, pop, runtime, overview, anime: !!anime,
@@ -142,6 +151,8 @@ function recommendations(x) {
   if (ids) return ids.map((s) => TITLES.find((y) => y.slug === s)).filter((y) => y && y.type === x.type);   // (TMDB recommends within a type)
   return TITLES.filter((y) => y !== x && y.type === x.type && y.genres.some((g) => x.genres.includes(g))).sort((a, b) => b.genres.filter((g) => x.genres.includes(g)).length - a.genres.filter((g) => x.genres.includes(g)).length || b.pop - a.pop).slice(0, 20);
 }
+// the services a title is on (Netflix, Disney+, Max, Apple TV+): by its index
+const providers = (x) => [[8], [337], [1899], [350, 8]][(x.i + Math.floor(x.i / 8)) % 4];
 function discover(type, q) {
   const kind = type === 'tv' ? 'series' : 'movie';
   const list0 = TITLES.filter((x) => x.type === kind);
@@ -159,6 +170,12 @@ function discover(type, q) {
     if (+q.get('vote_average.gte') && x.rating < +q.get('vote_average.gte')) return false;
     const since = q.get('primary_release_date.gte') || q.get('first_air_date.gte');
     if (since && date(x) < since) return false;
+    const until = q.get('primary_release_date.lte') || q.get('first_air_date.lte');
+    if (until && date(x) > until) return false;
+    if (+q.get('vote_count.lte') && x.votes > +q.get('vote_count.lte')) return false;
+    if (+q.get('with_runtime.gte') && x.runtime < +q.get('with_runtime.gte')) return false;
+    if (+q.get('with_runtime.lte') && x.runtime > +q.get('with_runtime.lte')) return false;
+    if (q.get('with_watch_providers') && !providers(x).includes(+q.get('with_watch_providers'))) return false;
     return true;
   });
   const sort = q.get('sort_by') || 'popularity.desc';
@@ -224,6 +241,12 @@ module.exports = function tmdb(req, res, u) {
   let m;
   if (rest === '/authentication') { J(res, { success: true, status_code: 1, status_message: 'Success.' }); return true; }
   if ((m = /^\/discover\/(movie|tv)$/.exec(rest))) { J(res, discover(m[1], q)); return true; }
+  if ((m = /^\/trending\/(all|movie|tv)\/week$/.exec(rest))) {
+    const list = TITLES.filter((x) => (m[1] === 'all' || x.type === (m[1] === 'tv' ? 'series' : 'movie')) && x.year >= 2024).sort((a, b) => b.pop - a.pop);
+    const page = Math.max(1, +q.get('page') || 1);
+    J(res, { page, results: list.slice((page - 1) * 20, page * 20).map((x) => ({ ...result(x), media_type: x.type === 'series' ? 'tv' : 'movie' })), total_results: list.length, total_pages: Math.ceil(list.length / 20) });
+    return true;
+  }
   if ((m = /^\/(movie|tv)\/(\d+)\/recommendations$/.exec(rest))) { const x = byTmdb.get(`${m[1] === 'tv' ? 'series' : 'movie'}:${m[2]}`); J(res, { page: 1, results: x ? recommendations(x).map(result) : [], total_results: 0, total_pages: 1 }); return true; }
   if ((m = /^\/(movie|tv)\/(\d+)$/.exec(rest))) { const x = byTmdb.get(`${m[1] === 'tv' ? 'series' : 'movie'}:${m[2]}`); if (!x) { J(res, { success: false, status_code: 34 }, 404); return true; } J(res, details(x)); return true; }
   if ((m = /^\/find\/(tt\d+)$/.exec(rest))) { const x = byImdb.get(m[1]); J(res, { movie_results: x?.type === 'movie' ? [result(x)] : [], tv_results: x?.type === 'series' ? [result(x)] : [] }); return true; }
