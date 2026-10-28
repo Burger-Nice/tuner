@@ -142,13 +142,27 @@ Looked at as craft rather than structure. (S) throughout except the two platform
 | **Depth** | the focused card grows and lifts over its neighbours, the billboard sits behind a scrim | parallax on focus (needs layered images) | a lift and a glow | a lift with a border (1.1, P) | a lift | the ring + 1.05 lift, the scrims as the only depth; no parallax, no glow (brand) |
 | **Motion** | the billboard's trailer; cards expand after a dwell | smooth row scroll, parallax | the hero carousel auto-advances | preview video | cross-fades | one **entry** per visit (the fields slide in on game night, the art settles on other nights), the live wipe on a state change, otherwise still (SPEC 3.9) |
 | **Density** | 2025: fewer, bigger tiles | one row of big cards, lots of air | dense rows | medium | medium | 4 wide or 6 posters across, a peek, 11 rows at most, every row with a reason |
-| **Voice** | none on the home | none | none | none | none | the Icelandic greeting, `Ends 21:03`, `THE MORNING AFTER`, `no spoilers`, `A film for tonight` |
+| **Voice** | none on the home | none | none | none | none | the greeting (English by the owner's choice, Icelandic as an option), `THE MORNING AFTER`, `no spoilers`, `WHERE YOU WERE`, `A film for tonight`, `Something short before bed` |
+| **The end time** | not on the home | not on the home | no | no | on the player (Plex, Kodi and Jellyfin print it there too) | `Ends 21:03` on the Home billboard, before you press Resume: not new, but nobody puts it on the home screen |
 
 What airglow has that they cannot: one person's team and its colours, a spoiler shield that shapes the whole screen, a
-guide and a replay archive beside the films, and a language of its own. v1.1 spends the creativity there rather than on
-effects the brand bans or a WebView cannot afford.
+guide and a replay archive beside the films, and a language of its own. v1.1 and v1.2 spend the creativity there rather
+than on effects the brand bans or a WebView cannot afford.
 
-## 5. Sources
+## 7. Where v1.2's ideas come from (and what is new)
+
+| Idea (SPEC "The ideas") | Seen elsewhere | What is airglow's |
+|---|---|---|
+| A. Game night as a mode | Apple's Up Next puts a followed team's live game first with its score (S) | the whole screen changes shape in the team's colours, and the shield keeps the score out of it |
+| B. The doors (`Browse your library`) | Netflix 2025 put category shortcuts in the top bar (S); Plex's library hubs and Infuse's genre rows (S); Kodi skins' "smart playlists" (S) | a shelf with its own count and its first four posters as the door, built from filters the Movies tab already counts; `Surprise me` as one film, not a row |
+| C. `Where you were` | Apple TV and Plex show an episode's synopsis on the detail page; nobody prints it on the home billboard (S) | one line under the meta on the resume billboard, from the add-on's episode overview |
+| D. The shield as a visible mode | none found: spoiler modes in sports apps hide scores but do not mark the app as "in that mode" | the eye-off on the NBA tab, `no spoilers` on the chip, `Score hidden` on every surface of that game |
+| E. `New tonight` | Apple's Up Next adds a new episode of a followed show as a card (P, HIG Top Shelf: "feature new content"); Netflix's "New episode" badge (S) | the episode is the billboard for the first visit after it lands, with the show's logo and `Ends` |
+| F. Late mode | none found on a TV home; "short" filters exist on the web (S) | the same data re-sorted by the hour: short episodes up, long films out, after 23:00 |
+| G. Ambient colour | Netflix 2025 ("the background echoes the billboard artwork", S); Apple's blurred art (a blur, which the brand bans) | a flat colour computed in the WebView from the small copy |
+| H. The game-night entry | Netflix's billboard settles in; Android's featured carousel cross-fades (P) | the two fields slide in from their sides at the live wipe's angle; optional, measured first |
+
+## 8. Sources
 
 (P) Apple HIG: Top Shelf, Focus and selection, Playing video, Designing for tvOS (developer.apple.com/design/human-interface-guidelines/…).
 (P) Android TV design: Immersive list, Featured carousel, Cards (developer.android.com/design/ui/tv/guides/components/…).
