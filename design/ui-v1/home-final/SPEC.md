@@ -7,102 +7,16 @@ section 14) unless a line below changes them. It also sets the Movies and Series
 | File | What |
 |---|---|
 | `SPEC.md` | this: Decisions, Research, screens, layout, the remote, the row engine, the add-on library, game night, states, performance, other screens |
-| `01-evening.html` … `08-loading-missing-art.html` | the mocks at 960 × 540, real art (Cinemeta / metahub / ESPN, in `art/`), real titles, episodes, runtimes and ratings as of 28 Oct 2026 |
+| `01-evening.html` … `10-rows-nba.html` | the mocks at 960 × 540, real art (Cinemeta / metahub / ESPN, in `art/`), real titles, episodes, runtimes and ratings as of 28 Oct 2026 |
 | `png/*.png`, `png/contact-sheet.png` | the renders at 1920 × 1080 and the sheet of all of them |
 | `home-final.css` | the new classes (`hf-*`, `.e`, `.row`, `.column`, `.strip`, `.index` …), written to be appended to `app/tv/app.css` |
 | `tools/build.js`, `tools/render.js`, `tools/pages.json` | builds the pages from one timeline; renders them (Playwright) |
+| `CHANGES.md` | what changed between the reviewed versions (the history; this file describes the current design only) |
 
 The timeline: the owner's TV, Reykjavik (UTC), shield `My team`, languages Icelandic then English, add-ons Cinemeta
 plus a debrid add-on called `Northlight` (a stand-in name), live TV from the provider. Wed 28 Oct 2026 20:41 is the
 normal evening; the Grizzlies play at Portland on Thu 29 Oct at 02:00, and `04-game-night` is Thu 03:12 (one
 timeline: the game the evening mocks announce is the game the game-night mock shows).
-
----
-
-## v1.1 changes (answering REVIEW-independent-1.md and the outside UX opinion)
-
-The look and structure stay (the owner: "that's really nice"). This round makes it correct and solid, and shortens
-the walk to browsing, which the owner and the outside UX expert both raised. The data-source parts of the engine
-(Top rated, genre rows and blends, anime, Á íslensku, Because you watched) now read **TMDB's API** with the owner's
-own free key, after the catalog research of 28 Oct 2026 (section 6a); Cinemeta stays for ids, metas and search.
-
-**Must fix**
-
-| # | Review point | Answer (where to see it) |
-|---|---|---|
-| 1 | The rows' ring at x 40 | Rows start at x 56 (`.row { left: 56px }`), the lifted ring at x 49; the seventh poster still peeks at x 944 (`02`, `03`, `08`, `09`, `10`) |
-| 2 | The row index unreadable, `7 more` in text-4 | The index sits on its own backing (`.hf-sr`, a right-hand scrim from x 576 to canvas at 88 %), in text-2 with the current in chalk; `N more` in text-3; checked on the brightest art of the set (The Nice Guys, Spy x Family) |
-| 3 | `Top rated` from Cinemeta's `imdbRating` (`Featured`) catalog | `Top rated`, `Top rated <genre>` and `Something different` read TMDB `/discover` with `sort_by=vote_average.desc` and a votes floor (`vote_count.gte` 300 films / 150 series); never `imdbRating`. Without a TMDB key they fall back to the app's ratings file (`scripts/build-ratings.js`) joined to Cinemeta `top` pages, with a votes floor (section 6a) |
-| 4 | Genre catalogs hold titles outside the genre | Genre rows and blends read TMDB `/discover` with `with_genres` (AND) and a `without_genres` exclusion per row (a Comedy row excludes Drama, Thriller, Horror, Crime, Mystery, War), **a heuristic to tune**: TMDB's own Comedy filter also holds Parasite and Pulp Fiction. On the Cinemeta fallback every genre row re-filters by the title's own `genres`. The "too few" rule applies after the filter |
-| 5 | The anime rule tags Pixar | Anime = TMDB keyword **210024 (`anime`)** AND `original_language=ja` (optionally `with_genres=16` to drop live action). The research checked the negatives: Moana, Up, Frozen, Toy Story and Soul are not among the 2,395 anime-keyword films; Spy x Family, Mob Psycho 100, Haikyu!! come out of the anime + comedy blend. The fallback without a key is Animation with Japan as the *first* country plus a build-time deny list, tested on those negatives |
-| 6 | Genre shares double-count; "the seed's first genre" is alphabetical | Fixed in section 6: a title's weight is split across its genres (`w / n`), anime is its own genre that absorbs the title's Animation and Action weight, and `Because you watched X` queries the seed genre with the largest share in his profile, not the first in Cinemeta's alphabetical list |
-| 7 | `Á íslensku` has no real source; a made-up count; duplicates; Icelandic names | TMDB `/discover` with `with_original_language=is` (verified with the owner's key: **1,451 films and 107 series**: Trapped, Katla, Black Sands, The Valhalla Murders, Stella Blómkvist, Blackport …), the row sorted by popularity with `vote_count.gte=10`, the subtitle printing TMDB's totals; titles and overviews requested in `is-IS` with a field-by-field English fallback (`Drengir`, `Snerting`, `Dýrið` come back Icelandic; many titles have no Icelandic text). Every row de-duplicates by IMDb / TMDB id across sources (`08`). The fallback without a key is a build-time list of Icelandic ids (`country` includes Iceland) |
-| 8 | The play log does not exist | Section 6 now specifies it: an append-only `plays` store in IndexedDB (one record per session over 3 minutes: imdb id, type, episode, from, to, completion, when), the migration from today's `progress` store through `imdb.js` matching, and the first weeks as a cold start |
-
-**The four earlier points done badly**
-
-| Point | Answer |
-|---|---|
-| The focused logo's ink | Logos are cropped to their alpha bounding box when fetched and cached (`tools/build.js` did it to every logo in `art/`), and the ink is 56 px tall in the lit plate; Severance now renders about 330 × 56 (`01`), against 152 × 26 before |
-| The brightness cap | Normalised by the art: alpha = clamp(1 − target / mean luminance, .10, .60), the mean from the 32 px copy's right half; target .30 on the Marquee, .22 in the rows. Severance (mean .64) gets .53, Project Hail Mary (.19) gets .10; the mocks use the measured values |
-| The list jumping | **Owner's call after v1.1's first cut:** the lit line opens into its card **in place** (as direction A did: logo, facts, line, bar, the verb pill inside the ringed line), not in a separate plate below the list ("why is there a card on the bottom?"). The jump is solved differently: the open card has a **fixed height (192 px)**, so every Up / Down moves the lines below it by exactly the same 168 px, and that move is a **200 ms transform** on the lines (translateY, no layout of anything else; the picture, the peek and the bar never move). The order never changes, the distance never changes, and the motion is smooth instead of a cut, so the eye follows (`01`, `04`, `06`) |
-| The shortening rule and `06` | `06`'s meta is now `2026 · 2h 37m · Ends 23:18 · IMDb 8.2` by the rule (section 12), inside the plate; the `Details` pill has no ▶ (the glyph is for play verbs only) |
-
-**Should fix:** the rows' backdrop stops above the posters (`.hf-sb`, a 320 px bottom scrim to canvas at 97 %);
-Slow Horses reads `S6 · E4 · 3 new` and OK plays E4; the page is one list in every mock (15 rows: the index windows
-and the footer count agree, `Your shows` replaces the duplicate Continue watching row, `Tonight in the NBA` is row 2
-on a game day); the lit example meets its own rule (The Nice Guys, IMDb 7.4); the wide-card rows (`09 Your shows`),
-the game cards with `Score hidden` (`04`'s peek, `10`), the channel cards (`07`) and the title-without-backdrop
-variant (`08`) are mocked; series pages are trimmed to the engine's fields before caching and a daily fetch budget
-is set (section 9); the over-full page drops rows in a stated order (section 6); no text under 14 px remains
-except badges and the count chip (the wide card's second line is 14, `No poster` is 14); the library's focused
-caption wraps to two lines on its own plate and the other posters carry no caption (their art carries the title;
-a poster without art shows its name on the tile); `New` with a genre is `top/genre=G` sorted by year (section 7);
-the research section now reads the explanation study as what it tested and adds the API checks.
-
-**Nits:** `Cinemeta` is gone from the meta line (the add-on's name appears only when a copy is known); end times
-come from one function (`ends(now, minutes)`: Heat 23:31, Severance 21:02, Project Hail Mary 23:18); `#313` is the
-first cell of its row; `Prime Video` instead of TNT; nothing crosses the 12° split (the split moved to 83 % and
-the crests to the home field's side); `07` no longer repeats the lit text; the posterless title is a stand-in
-name for the state; Heartstone reads `Drama · Romance`; `Popular on Cinemeta`; the lifted ring clears the row
-title by 12 px.
-
-**The outside UX opinion (owner-backed: "it's a couple clicks before you can get to the browsing section")**
-
-| Point | Answer |
-|---|---|
-| Browsing was 7 presses down | **The lineup is 3 lines, 4 on a game day, each bigger** (the owner: "less options on the top thing and maybe just make it bigger"): Outfit 700 30 px in 42 px slots. The lines that earn the place: **Continue** (the thing he is in: 1 press to resume, the most used line), **New in your shows** (the next most common reason to open the app; `3 new` says there is more behind Right), **one pick for tonight** (`A film for tonight` before 23:00, `Something short` after; the one place the app chooses for him, with its reason and end time), and **the game** on a game day (first while live). Dropped: `Up next` (the next episode of a show he is between episodes of lives in the `Your shows` row and is one Right from the Continue line's Episodes) and the `On now` channel line (digits and the Live tab do it in 1–4 presses; the Channels row stays). **The first row peeks on the first screen** (its title and the top 78 px of its posters, at 85 %), and **row 1 is a browsing row** (`Comedy for you`; Continue watching and new episodes are the Marquee's lines and one wide `Your shows` row lower down). **P− jumps to the rows, P+ back to the Marquee** (the app already maps `ChannelDown` / `ChannelUp`, keycodes 166 / 167); the peek's title carries `P− Browse · 15 rows`. Browsing is now 5 presses (4 Downs past the lines on a game day, then the peek) or 1 with P−; resume and the game stay at 1 |
-| Back from the rows | Back goes to row 1 first, a second Back to the Marquee's first line, a third to the tab (section 4) |
-| The Tonight strip | Dropped; the rows screen shows the normal top bar, so Search and Movies are one Up from row 1 |
-| The focused title weaker than the unfocused | The unfocused lines are Outfit 700 23 at 62 %; the lit line is 26 at 100 % with the ring; the logo ink is 56 px in the plate |
-| The lit block hides the picture | The plate's fill is lighter (canvas at 45 % to 22 %) and leans on the left scrim |
-| Uneven gaps around `·` | One 2 px margin on every dot, dots in text-3 |
-| `06` overflow, ▶ on Details, the logo inset | Fixed (the shortening rule; `noicon` pill; the logo crop) |
-| `04` plate into the crest; text on the split; the empty bottom | The plate ends at x 526 (567 at its skewed top), the crests start at x 586; the split is at 83 %; the bottom holds the peeking NBA row |
-| The rows screens: the word three times, posters on art, 40 pieces of text | The eyebrow is gone (the logo or name, the facts, one line, the hint); the backdrop stops above the posters; the index has its backing; the top bar replaces the strip |
-| `05` cut captions, the context line over posters | The focused poster's title wraps on its own plate, the others carry no caption; the context line sits in a solid band |
-| `08` `NO POSTER`, the duplicate | `No poster` in sentence case at 14 px; no title appears twice in a row (de-duplication by IMDb id) |
-| The light show while moving | The picture swaps only after the focus rests **600 ms** (the plate, logo and glow change at once, they are text); the cap is normalised (above) |
-| Instructions that never go away | Each hint (`→ Episodes`, `Hold …`) fades after it has been used five times; the pink verb pill stays (section 5) |
-| Rows that contradict their reason | Held with the data-source research; the filter rule is decided (must fix 4) |
-| `3 new` but which one | E4 (the first unseen) |
-| The launch intro | Full on a cold start and at most once a day; any key skips it (section 10) |
-| Game night at 03:00 | Account > NBA gains `Game night: full / quiet` (quiet keeps the fields to the right third) |
-
-**Verified by the catalog research (28 Oct 2026), then with the owner's real TMDB key**: the discover parameters
-and semantics; the anime keyword 210024 and its negatives; CORS from a WebView; images need no key; the API returns
-401 without one. With the key: top-rated comedy with the exclusions gives 529 films led by Back to the Future, Toy
-Story 5, Puss in Boots, Klaus (so a grown-up genre row also excludes Animation 16 and Family 10751 unless his taste
-includes them: section 6a's rule); anime comedy films 592 (Castle of Cagliostro, Haikyu!!, Gintama); anime comedy
-series 1,975 by popularity, led by kids' long-runners (Doraemon, Sazae-san), so anime series rows sort by rating
-with a votes floor; Icelandic 1,451 films and 107 series; `/tv/2710/recommendations` (Always Sunny) gives Platonic,
-Great News, 'Til Death, Friday Night Dinner, Peep Show. The key stays with the owner: never in the repo, never in the
-mocks. Also **verified against Cinemeta today:** the manifest's catalogs (`top` with `genre`/`search`/`skip`, `year`
-with `genre` = a year, `imdbRating` named `Featured`), `top/genre=Comedy` answering at skip 3,000, `country` on the
-metas of the seven anime titles (Japan first) and of Heartstone, Godland and Rams (Iceland first or second), the
-episode lists, runtimes and ratings used in the mocks. **Not yet re-verified:** the reviewer's measurements of the
-`imdbRating` catalog's contents, the 6-of-50 off-genre titles in `top/genre=Comedy` and the Pixar titles passing the
-old anime rule; the source research decides what the engine reads, and the checks are rerun against that source.
 
 ---
 
@@ -125,7 +39,7 @@ old anime rule; the source research decides what the engine reads, and the check
    current one marked, `N more`. *Why:* Netflix has no map of its rows and people complain that rows move; here the names are the map,
    and the order is stable for the day.
 4. **Every row says why it exists** in a subtitle (`Because you watch Always Sunny, The Office and 12 more`, `Two
-   things you watch, together`, `This week on Cinemeta`, `A kind you rarely watch, rated 7.5 and up`). *Why:* the
+   things you watch, together`, `Popular now`, `A kind you rarely watch, rated 7.5 and up`). *Why:* the
    research on explanations (section 1) finds that short "because you watched" reasons plus a simple way to mute a
    theme restore trust; the mute is `Hold OK · Not interested` and `Hide this row`.
 5. **Personal rows are calibrated to his history**, not just "most likely to click". If 55 % of what he watches is
@@ -134,12 +48,8 @@ old anime rule; the source research decides what the engine reads, and the check
    anime, show me both", and it is what keeps a monothematic week from eating the page.
 6. **Blends are real rows with plain names.** Two of his genres that he watches *together* (titles carrying both)
    make a row: `Anime comedy`, `Crime dramas`, `Sci-fi thrillers`, `Horror comedies`. *Why:* the owner's example
-   ("maybe anime and comedy"); Cinemeta can serve it (a genre catalog filtered by the second genre and the
-   country); it is the most "mine" a row can feel.
-7. **Anime is Animation from Japan.** Cinemeta has no anime genre; a title is anime when its genres include
-   Animation and its `country` includes Japan (checked today: Spy x Family, One Punch Man, Mob Psycho 100, KonoSuba,
-   Kaguya-sama, Dandadan, Saiki K all carry `Japan`). An anime add-on's own catalog, when he has one, feeds the same
-   row and is named after the add-on.
+   ("maybe anime and comedy"); TMDB serves it (`/discover` with both genres, section 6a); it is the most "mine" a row can feel.
+7. **Anime is TMDB keyword 210024 in Japanese.** Cinemeta has no anime genre and Animation alone catches Pixar; a title is anime when TMDB tags it `anime` and its original language is `ja` (Spy x Family, One Punch Man, Mob Psycho 100, KonoSuba, Kaguya-sama come out of the blend; Moana, Up, Frozen, Toy Story and Soul do not). Without a key: Animation with Japan as the first country plus a deny list. An anime add-on's own catalog, when he has one, feeds the same row and is named after the add-on.
 8. **Films and series come from the add-ons and TMDB; the provider is live TV.** The personal rows, Top rated,
    anime and Á íslensku read TMDB's API with the owner's own free key (section 6a); Popular, New, Search, metas,
    episodes and ids read Cinemeta; copies come from the stream add-ons. The
@@ -147,8 +57,7 @@ old anime rule; the source research decides what the engine reads, and the check
    are deep (Popular films answer at skip 10,000) and carry genres, ratings, runtimes, countries and art for every
    title.
 9. **The library is one long scroll per shelf.** Movies and Series: Popular, New, Top rated, 19 (22) genres, the
-   other add-ons' catalogs, each a Cinemeta catalog paged 50 at a time as he scrolls, the scroll bubble saying
-   `#313 of 3,000+`. *Why:* it is what Cinemeta is shaped like, and the owner wants "browse everything" places; the
+   other add-ons' catalogs, Popular and New are Cinemeta catalogs (paged 50 at a time), Top rated, genres, anime and Á íslensku are TMDB lists (paged 20), the scroll bubble saying `#313 of 3,000+`. *Why:* it is what Cinemeta is shaped like, and the owner wants "browse everything" places; the
    existing Movies grid (6 posters a row, Sort / Filters / Jump) stays as it is, fed by the add-ons.
 10. **A hidden game shows `ON NOW` and `Score hidden`, nothing more**: no quarter, no clock, both records stamped
     `as of tip-off`, the fan line too. *Why:* the review and the catch-up spec (S4): a clock tells him how the game
@@ -156,11 +65,10 @@ old anime rule; the source research decides what the engine reads, and the check
 11. **Game night stays the Marquee's event**: the whole picture becomes the two teams, the game is the first line,
     `Watch live` is one press, the rest of the evening waits under it. *Why:* it was the best-scored game night of
     the round; the mode changes the picture and the first line, never the keys.
-12. **The review fixes are in**: every ring inside x 48 (the lineup and the rows at x 56), the score group inside
+12. **The review fixes are in**: every ring of every card kind inside the safe area (x ≥ 48: the lineup card at x 56, the rows and the peeks at x 60, the library grid at x 58 with 20 px gutters), the score group inside
     x 912, Right drawn as an arrow (never ▶), nothing printed on poster art (the end time is in the plate or the
     column), a designed no-picture area (the channel's logo on a flat field; a title without a backdrop shows its
-    poster upright on a flat ground), the 600 ms rest and the normalised brightness cap, and a lineup whose lines
-    never move (fixed slots, the lit line opened as its card in place). From F: the hero logo (56 px of ink). From D: the
+    poster upright on a flat ground), the 600 ms rest and the normalised brightness cap, and a lineup of fixed 42 px slots whose lit line opens as its card in place (the lines under it slide the same 158 px in 200 ms; the lines above never move). From F: the hero logo (56 px of ink). From D: the
     count chip (`3 new`) and the glow (the art's colour behind the lit line and its plate, from the 32 px copy, no
     blur).
 13. **OK means one thing per surface and the line says which.** On the Marquee OK plays (`Resume`, `Play`, `Watch
@@ -205,7 +113,7 @@ page could not be opened from this session, the finding is from its published su
   [Tom's Guide](https://www.tomsguide.com/entertainment/netflix/netflix-is-making-a-massive-change-to-its-homepage-for-the-first-time-in-years).
 - Netflix's row rules as published (Continue Watching first, then Top Picks, then Popular, then personalised genre
   rows; placement set by business rules) and the user complaint that **Continue Watching moves around**. → Our
-  Continue watching is pinned (the first Marquee line and row 1), and the row order holds for the day.
+  Continue watching is pinned (the Marquee's first line, and the `Your shows` row), and the row order holds for the day.
   [Forasoft summary](https://www.forasoft.com/learn/ott/articles-ott/personalized-merchandising-rows-artwork),
   [Stylist](https://www.stylist.co.uk/life/netflix-continue-watching-row-remove-movie-tv-show-title-homepage-hacks/401800).
 - Calibrated recommendations (Steck, Netflix, RecSys 2018; survey by Corrêa da Silva and Jannach, 2025, S): a
@@ -223,14 +131,14 @@ page could not be opened from this session, the finding is from its published su
   the **diversity** of what members watch. → Diversity is a goal of the engine, not a side effect.
   [Kellogg Insight](https://insight.kellogg.northwestern.edu/article/what-lures-netflix-viewers).
 
-**Catalog sources (v1.1, the catalog research of 28 Oct 2026)**
+**Catalog sources (the catalog research of 28 Oct 2026)**
 - TMDB API v3 (official references read: discover movie / tv, movie recommendations, append_to_response,
   authentication, rate limiting, FAQ, API terms): `/discover` filters by genre (AND / OR), keyword, original
   language, vote average with a votes floor, dates and runtime; `/recommendations` per title; free for
   non-commercial use with attribution; no caching beyond 6 months; no ML use; about 40 requests a second. The
   research confirmed on TMDB's own site that the vote-floored Top rated order is sensible, that keyword 210024 is
   `anime` (2,395 films, 2,435 series; none of Moana, Up, Frozen, Toy Story, Soul), that `original_language=is`
-  gives 1,401 films (89 with 10+ votes) and 9 series, that Icelandic translations are thin, and that TMDB's Comedy
+  gives 1,451 films and 107 series (verified with the owner's key; the row holds the ones over its 10-vote floor), that Icelandic translations are thin, and that TMDB's Comedy
   filter still holds Parasite and Pulp Fiction (hence the exclusion heuristic). → Section 6a and the rows that read
   TMDB. [Discover movie](https://developer.themoviedb.org/reference/discover-movie), [Discover TV](https://developer.themoviedb.org/reference/discover-tv),
   [Recommendations](https://developer.themoviedb.org/reference/movie-recommendations), [FAQ](https://developer.themoviedb.org/docs/faq),
@@ -298,23 +206,23 @@ page could not be opened from this session, the finding is from its published su
   CSS effects cause input lag. → No filters, no blur, no box-shadow spreads, transforms and opacity only.
   [TitanOS](https://docs.titanos.tv/performance-optimization-strategies), [Oxagile](https://www.oxagile.com/article/samsung-tizen-tv-apps-for-all-tips-for-low-end-tvs/).
 
-**The API as research (v1.1).** Checked on 28 Oct 2026 against `v3-cinemeta.strem.io`: the manifest's catalogs and
-their extras (`top`: genre, search, skip; `year`: genre = a year; `imdbRating`, named `Featured`), that
-`top/genre=Comedy` answers at skip 3,000 and Popular films at skip 10,000, the `country` field on the metas used
-(the seven anime titles list Japan first; Heartstone, Godland and Rams list Iceland), and every episode name,
-runtime and rating printed on the mocks. The independent review measured three things this round does not yet
-re-verify and the design now treats as true until the source research reports: the `imdbRating` catalog's first
-page is mostly 2026 and unrated, 6 of the first 50 `top/genre=Comedy` titles are not comedies by their own genres,
-and about 40 of the first 150 `top/genre=Animation` films list Japan among their countries. Those three findings
-are why Top rated, genre rows and anime now read TMDB (section 6a), with the Cinemeta fallbacks re-specified.
+**The API checks.** Verified on 28 Oct 2026 against `v3-cinemeta.strem.io`: the manifest's catalogs and their extras
+(`top`: genre, search, skip; `year`: genre = a year; `imdbRating`, named `Featured`), that `top/genre=Comedy` answers at
+skip 3,000 and Popular films at skip 10,000, the `country` field on the metas used (the seven anime titles list Japan
+first; Heartstone, Godland and Rams list Iceland), and every episode name, runtime and rating printed on the mocks.
+Verified with the owner's TMDB key (the numbers in section 6a): the discover parameters, the anime keyword and its
+negatives, 1,451 Icelandic films and 107 series, the recommendations. The independent review measured, in Cinemeta's
+own catalogs, that the `imdbRating` catalog's first page is mostly 2026 and unrated, that 6 of the first 50
+`top/genre=Comedy` titles are not comedies by their own genres, and that about 40 of the first 150 `top/genre=Animation`
+films list Japan among their countries. Those findings are why Top rated, genre rows and anime read TMDB.
 
 **Where this design departs on purpose**
 - No hero carousel and no autoplay, though Netflix, Max and Disney+ have them: the owner's rule (nothing moves by
   itself) and the review's point that the screen must not change under his thumb.
 - The first screen is a list of names with one picture, not rows of thumbnails: the reviewed strength of A
   (readable from the sofa), kept because the rows are one press away.
-- Rows are named by their reason, never by a promotion (`Trending`, `Top 10` are fine when they say where from:
-  `Popular films · This week on Cinemeta`).
+- Rows are named by their reason, never by a promotion (`Trending`, `Top 10` are fine when they say why:
+  `Popular films · Popular now`).
 - The row index is new: no streaming home shows a map of its rows. It costs one 14 px column and answers the most
   common complaint about Netflix's rows (that they move and hide).
 
@@ -324,16 +232,16 @@ are why Top rated, genre rows and anime now read TMDB (section 6a), with the Cin
 
 | Mock | State |
 |---|---|
-| `01-evening` | Wed 20:41, a game day (tip-off 02:00). The Marquee: four big lines, Severance's line open as its card in place: `CONTINUE WATCHING`, the Severance logo (56 px of ink), `S2 · E3 · Who Is Alive? · 21 min left · Ends 21:02 · 4K`, the episode's line, the bar, `Resume` pill · `→ Episodes` · `Hold Start over, Details`; the other lines Slow Horses (`New this week · S6 · E4 · 3 new`), Heat (`A film for tonight · ends 23:31 · 4K`), Grizzlies at Trail Blazers (`Tonight · 02:00 · ESPN`); the first row `Comedy for you` peeking at the bottom with `P− Browse · 15 rows` |
-| `02-rows-comedy` | Down from the lineup (or P−): the top bar, the picture answering The Nice Guys (IMDb 7.4), the row index on its backing, row 1 `Comedy for you · Because you watch Always Sunny, The Office and 12 more` (films and series together), `Popular films` peeking |
-| `03-rows-blend` | the blend row `Anime comedy · New row · Two things you watch, together · anime + comedy`, Spy x Family lit; `Because you watched Always Sunny` peeking with TMDB's real recommendations (Platonic, Peep Show, Friday Night Dinner, Great News, 'Til Death) |
+| `01-evening` | Wed 20:41, a game day (tip-off 02:00). The Marquee: four big lines, Severance's line open as its card in place: `CONTINUE WATCHING`, the Severance logo (56 px of ink), `S2 · E3 · Who Is Alive? · 21 min left · Ends 21:02 · 4K`, the episode's line, the bar, `Resume` pill · `→ Episodes` · `Hold Start over, Details`; the other lines Slow Horses (`New episodes · S6 · E4 · 3 new`), Heat (`A film for tonight · ends 23:31 · 4K`), Grizzlies at Blazers (`Tonight · 02:00`); the first row `Comedy for you` peeking at the bottom with `P− Browse · 15 rows` |
+| `02-rows-comedy` | Down from the lineup (or P−): the top bar, the picture answering Palm Springs (IMDb 7.4; its backdrop is a scene, never the poster's own art), the row index on its backing, row 1 `Comedy for you · Because you watch Always Sunny, The Office and 12 more` (films and series together), `Tonight in the NBA` peeking (the index's next name; the cards show art only) |
+| `03-rows-blend` | the blend row `Anime comedy · New row · Two things you watch, together · anime + comedy`, Spy x Family lit; `Popular series` peeking (the index's next name) |
 | `04-game-night` | Thu 03:12, Grizzlies at Trail Blazers live, shield on: the two fields, `ON NOW` on the chip, `Score hidden`, both records `as of tip-off`, the fan line `as of tip-off`, `Watch live` · `→ From tip-off` · `Hold Reveal, more`; four lines, the game's line open as its card (the Sharp plate), then Severance, Slow Horses and a short episode; `Tonight in the NBA` peeking with the hidden game's card reading `Score hidden`; the NBA tab carries no second pill |
-| `05-library-comedy` | the Movies tab, Comedy, Popular, scrolled to #313 of 3,000+ (the context line in its band, the scroll bubble, six posters a row, the focused one's title on its own plate) |
-| `06-cold-start` | a new user, no history: `Project Hail Mary · Popular on Cinemeta · a pick for tonight` lit (`Details` the primary, no ▶), `Grizzlies at Trail Blazers · Your team`, `Pick what you like · 3 genres start your rows` (three lines); `Popular films` peeking |
-| `07-rows-channels` | the `Channels` row: a channel has no picture, so the area shows the channel's logo on a flat field in the logo's colour; the column has `Kastljós · RÚV · 1 · 20:35 – 20:55 · 14 min left · HD` and `Next · Fréttir 20:55 …`; wide channel cards (`RÚV · 1 · Kastljós · until 20:55`); `Tune` · `Hold Save channel, Open in the guide` |
-| `08-loading-missing-art` | the row `Á íslensku · 1,451 films · 107 series · TMDB` (the verified totals): the lit title drawn as if it had no backdrop (its poster upright on a flat ground) and no logo (its name in Outfit), real Icelandic series from TMDB's list (Trapped, Katla, Black Sands, The Valhalla Murders), two posters still loading (flat blocks with the name), a title with no poster (`No poster` and the name on surface-1; the name is a stand-in for the state) |
-| `09-rows-continue` | the `Your shows` row: wide cards with the show's logo, the episode and the time left (Breaking Bad, The Bear, Andor, Slow Horses `new · 3`, The Last of Us); `New this year` peeking |
-| `10-rows-nba` | `Tonight in the NBA` at 20:42: the hub's game cards, nothing started, the plates are tip-off times; the column has the next game's facts and the pre-game fan line |
+| `05-library-comedy` | the Movies tab, Comedy, Popular, scrolled to #313 of 3,000+ (a solid band holds the context line, the focused title and its facts, and the scroll bubble; six posters a row, no caption over the next row) |
+| `06-cold-start` | a new user, no history: `Project Hail Mary · Popular now · a pick for tonight` lit (`Details` the primary, no ▶), `Grizzlies at Blazers · Your team · 02:00`, `Pick what you like · 3 genres start your rows` (three lines); `Popular films` peeking |
+| `07-rows-channels` | the `Channels` row: a channel has no picture, so the area shows the channel's logo on a flat field in the logo's colour; the column has `Kastljós · RÚV · 1 · 20:35 – 20:55 · 14 min left · HD` and `Next · Fréttir 20:55 …`; wide channel cards (a logo tile in the channel's colour, the number, the programme, `until 20:55` and its progress bar); under the last row `End of Home · P+ Back to the top`; `Tune` · `Hold Save channel, Open in the guide` |
+| `08-loading-missing-art` | the row `Á íslensku · Icelandic films and series` (no total: the row holds the titles over its 10-vote floor): the lit title drawn as if it had no backdrop (its poster upright, 114 × 171, between the column and the index on a glow of its colour) and no logo (its name in Outfit), real Icelandic titles from TMDB's list (Trapped, Katla, Godland), two posters still loading (a sheen block with no name), a title with no poster among the visible six (`No poster` and the name on surface-1; the name is a stand-in for the state) |
+| `09-rows-continue` | the `Your shows` row: wide cards with the show's logo, the episode and the time left (Breaking Bad, Severance, The Bear, Andor, Slow Horses `3 new`, The Last of Us); an episode he has not started shows the show's backdrop, never its own still; `New this year` peeking, one card height + 14 px under the row |
+| `10-rows-nba` | `Tonight in the NBA` at 20:42: the hub's game cards, nothing started, the plates are tip-off times (the slate: Celtics at Knicks and Mavs at Rockets 23:00, Nuggets at Thunder 01:30, Grizzlies at Trail Blazers 02:00, two more at 03:30 and 04:00); `Popular films` peeking; the column has the next game's facts and the pre-game fan line |
 
 Other states (no mock, the rules):
 - **Loading, cold start with nothing cached:** home-v2 3.6 Welcome; the Marquee draws its lines as their data lands
@@ -341,7 +249,7 @@ Other states (no mock, the rules):
 - **Loading with a cache:** Home as last drawn; a line or row is replaced only when its data changed.
 - **Offline with a cache:** the Marquee from the cache with `Needs a connection to play` under the lit line; the
   rows from the cache; no LIVE pills, no clocks; the pill `Offline · showing what airglow remembers` top right.
-- **No add-ons:** the lineup has no film and no `Up next` from Cinemeta; the rows are `Tonight in the NBA` and
+- **No add-ons:** the lineup has no film from Cinemeta; the rows are `Tonight in the NBA` and
   `Channels`; the footer says `Add a Stremio add-on for films and series` and OK on it opens Account > Add-ons.
 - **Empty row:** absent (never a placeholder). **Too few:** a row with fewer than 6 titles hides; a blend with fewer
   than 6 falls back to its larger genre row and says so in the subtitle (`Anime · not enough anime comedy yet`).
@@ -359,40 +267,40 @@ Other states (no mock, the rules):
 
 | Element | Geometry and type |
 |---|---|
-| Picture | one `<img>` 960 × 540, `object-fit: cover`, `object-position` per title (default 70 % 40 %; the subject in the right half); over it the brightness cap (bg-0 at 14 %), the left scrim (bg-0 to clear by x 770), the bottom scrim (220 px), the top scrim (120 px, for the bar), grain at 50 %; the glow `.hf-amb`: a flat radial of the art's colour at 55 % behind the lineup |
+| Picture | one `<img>` 960 × 540, `object-fit: cover`, `object-position` per title (default 70 % 40 %; the subject in the right half); over it the normalised brightness cap (section 9), the left scrim (bg-0 to clear by x 770), the bottom scrim (220 px), the top scrim (120 px, for the bar), grain at 50 %; the glow `.hf-amb`: a flat radial of the art's colour at 55 % behind the lineup |
 | Top bar | the app's, y 32–72: mark, Search, Home, Live, NBA, Movies, Series, Saved, the clock, the avatar. While the game is the lit line the NBA tab carries **no** pill |
-| Lineup | x 56, y 92, 470 wide, a `[data-col]`; lines are **42 px slots** and the lit line is its **card, 192 px, opened in place** (+ 4 px margins), so the lines under the lit one sit 158 px lower than they would and every press moves them by that same distance with a 200 ms `translateY` (the lines are one layer each; nothing else lays out). **Three lines** (Continue, New in your shows, the pick for tonight), **four on a game day** (the game first when it is live or within 3 h of tip-off, else last). Unfocused lines **Outfit 700 30/34** chalk at 66 % + the facts in Inter 500 16 (`New this week · S6 · E4`), padding 2/16; the count chip (`3 new`, surface-2, 12 px 650) after the facts. The lit line is replaced by its card (next row) |
-| The lit line's card | **in the lit line's slot, 470 × 192**, radius 18, the ring (5 px white, 2 px canvas gap), the glow colour at 45 % to canvas at 22 %: eyebrow 14 px caps pink-text (`CONTINUE WATCHING`, `NEW THIS WEEK`, `UP NEXT`, `A FILM FOR TONIGHT`, `GAME NIGHT`); the **logo, 56 px of ink, 340 wide at most** (Cinemeta `logo` cropped to its alpha box when fetched, chalk when black), else the name Outfit 700 34/40 (30 when longer than 18 characters); meta 15/20 text-2 with badges (section 12's shortening rule); the title's line 15/20 (one line, ellipsis at 434 px); the bar 280 × 4; the hint row at the plate's bottom: the **pill** (gradient, 30 high, ink, Outfit 700 15, the verb; a ▶ only on play verbs) · `→` key cap + word · `Hold` + words |
-| The peek | y 462: the first row's title (Outfit 700 18 text-2) with its reason and, at the right (ending at x 912), `P− Browse · 15 rows`; the top 78 px of its cards at 85 % (art may bleed) |
-| Game night | the fields: away x 0 to the split, home from the split, the split at 12° at 79 % (x 758 at the top); each field the team's real primary darkened for 4.5:1 chalk (`#12173F` Memphis navy with the Beale Street blue edge; Portland `#B9302F` with its black edge); the left shade (canvas to clear by x 576) under the lineup; crests 168 in the neutral disc at x 540 and x 744, y 126, names Outfit 700 24 and the record 14 under; the score group at x 524, y 392: the chip (gradient, 56 high, 12°, `ON NOW` Barlow 800 italic 34) and the plate (`Score hidden` with the eye-off) ending before x 912; the lit line is the Sharp plate (12°) |
-| No picture | the flat field (`.flat`, the logo's colour, else bg-1) with the channel's logo 120 px tall at x 560, y 120 (the facts live in the plate or the column, never repeated on the field); for a title without a backdrop: the poster upright 156 × 234 at x 560, y 92 on the poster's colour |
+| Lineup | x 56, y 92, 470 wide, a `[data-col]`; lines are **42 px slots** and the lit line is its **card, 192 px, opened in place** (+ 4 px margins), so the lines under the lit one sit 158 px lower than they would and every press moves them by that same distance with a 200 ms `translateY` (the lines are one layer each; nothing else lays out). **Three lines** (Continue, New in your shows, the pick for tonight), **four on a game day** (the game first when it is live or within 3 h of tip-off, else last). Unfocused lines **Outfit 700 30/34** chalk at 66 % + the facts in Inter 500 16 (`New episodes · S6 · E4`), padding 2/16; a line's name and facts stay inside the 470 px (a long name shortens first: `Trail Blazers` becomes `Blazers`, then the channel goes, then the reason); the count chip (`3 new`, surface-2, 12 px 650) after the facts. The lit line is replaced by its card (next row) |
+| The lit line's card | **in the lit line's slot, 470 × 192**, radius 18, the ring (5 px white, 2 px canvas gap), the glow colour at 45 % to canvas at 22 %: eyebrow 14 px caps pink-text (`CONTINUE WATCHING`, `NEW EPISODES`, `A FILM FOR TONIGHT`, `GAME NIGHT`); the **logo, 56 px of ink, 340 wide at most** (Cinemeta `logo` cropped to its alpha box when fetched, chalk when black), else the name Outfit 700 34/40 (30 when longer than 18 characters); meta 15/20 text-2 with badges (section 12's shortening rule); the title's line 15/20 (one line, ellipsis at 434 px); the bar 280 × 4; the hint row at the plate's bottom: the **pill** (gradient, 30 high, ink, Outfit 700 15, the verb; a ▶ only on play verbs) · `→` key cap + word · `Hold` + words |
+| The peek | y 462: the first row's title (Outfit 700 18 text-2) with its reason and, at the right (ending at x 912), `P− Browse · 15 rows`; the top of its cards at 85 % (art may bleed; a game card shows its status line only, never half a name) |
+| Game night | the fields: away x 0 to the split, home from the split, the split at 12° at 83 % (x 797 at the top); each field the team's real primary darkened for 4.5:1 chalk (`#12173F` Memphis navy with the Beale Street blue edge; Portland `#B9302F` with its black edge); the left shade (canvas to clear by x 576) under the lineup; crests 150 in the neutral disc at x 586 and x 762, y 118, names Outfit 700 24 and the record 14 under; the score group at x 582, y 392: the chip (gradient, 56 high, 12°, `ON NOW` Barlow 800 italic 34) and the plate (`Score hidden` with the eye-off) ending before x 912; the lit line is the Sharp plate (12°) |
+| No picture | the flat field (`.flat`, the logo's colour, else bg-1) with the channel's logo 120 px tall at x 560, y 120 (the facts live in the plate or the column, never repeated on the field); for a title without a backdrop: the poster upright, 114 × 171 at x 640, y 80, on a flat glow of its colour (`.glow`) |
 
 **The rows (`02`, `03`, `08`)**
 
 | Element | Geometry and type |
 |---|---|
-| Top bar | the app's own, unchanged (the `Tonight` strip of v1.0 is gone): Up from row 1 reaches it |
+| Top bar | the app's own, unchanged. **Up from row 1 goes to the Marquee** (the line he left lit); the top bar is one Up further, from the Marquee's first line |
 | Picture area | the full-bleed backdrop under the normalised cap (target .22), the left scrim, the index's backing (`.hf-sr`: canvas from 0 at x 576 to 88 % at x 960) and a 320 px bottom scrim to canvas at 97 %, so the posters sit on near-canvas and the picture is the top half |
-| Column | x 56, y 92, 540 wide: the logo 48 px (else the name Outfit 700 30/36); meta 15/20 (`2016 · Action · Comedy · Crime · 1h 56m · Ends 22:38 · IMDb 7.4`; a series: `2022– · Animation · Action · Comedy · 24 min · IMDb 8.2 · Japan`; the add-on's name only when a copy is known); one line of plot; the hint `OK Details · Hold Play now, Save, Not interested`. No eyebrow: the row's name is in the row title and the index |
+| Column | x 60, y 92, 540 wide: the logo 48 px (else the name Outfit 700 30/36); meta 15/20 (`2016 · Action · Comedy · Crime · 1h 56m · Ends 22:38 · IMDb 7.4`; a series: `2022– · Animation · Action · Comedy · 24 min · IMDb 8.2 · Japan`; the add-on's name only when a copy is known); one line of plot (cut at a word, never mid-word: written to fit 500 px); the hint `OK Details · Hold Play now, Save, Not interested`. No eyebrow: the row's name is in the row title and the index |
 | Row index | right-aligned at x 912, y 92, Inter 600 14 text-2 on the backing, pitch 22: six row names around the current one (two above, three below), the current chalk with a pink dot, then `N more` in text-3 |
-| The focused row | at x 56: title Outfit 700 20 at y 244 with the subtitle Inter 500 14 text-3 after it and the `New row` tag when so; cards from y 290: posters **124 × 186, radius 12, 24 px gutters, six across and the seventh peeking at x 944**; wide cards 198 × 111 (`Your shows`: the still, the show's logo at 22 px, `S3 · E6 · 12 min left`, the bar; `Channels`: the logo, the number, the programme, `until 20:55`); game cards as the hub's (272 × 124, the team edge, the status, two crests, the channel, the plate: a tip time, a quarter, `Score hidden` or a final). The focused card lifts 8 px and scales 1.05 with the ring (at x 49); nothing is printed on poster art except the quality badge (top left, when a copy was checked) and the progress bar |
-| The next row | its title at y 490 (Outfit 700 18 text-2) and the top 26 px of its cards, at 78 % |
+| The focused row | at x 60: title Outfit 700 20 at y 244 with the subtitle Inter 500 14 text-3 after it and the `New row` tag when so; cards from y 290: posters **124 × 186, radius 12, 24 px gutters, six across and the seventh peeking at x 948**; wide cards 198 × 111 (`Your shows`: the still, the show's logo at 22 px, `S3 · E6 · 12 min left`, the bar; `Channels`: the logo, the number, the programme, `until 20:55`); game cards as the hub's (272 × 124, the team edge, the status, two crests, the channel, the plate: a tip time, a quarter, `Score hidden` or a final). The focused card lifts (8 px, scale 1.05; a wide card 6 px, 1.05; a game card 6 px, 1.04) with the ring, whose left edge lands at x 51.9 for a poster, 50.1 for a wide card and 49.6 for a game card, all inside x 48; a card that starts past x 912 (the peeking one) shows its art and no text; nothing is printed on poster art except the quality badge (top left, when a copy was checked) and the progress bar |
+| The next row | **always the index's next name**: its title (Outfit 700 18 text-2) one card height + 14 px under the focused row's cards (y 490 under posters, 415 under wide cards, 428 under game cards, so no empty band) and the top of its cards, at 78 % (a game card shows no text). After the last row: `End of Home · P+ Back to the top` |
 | Scrolling | Down moves the page by one row: the row that was next becomes the focused row (its title at y 244), the picture area and the column answer the new focus, the index shifts. Nothing scrolls smoothly: the page translates once per press (200 ms, transform) |
 
-**The library (`05`)**: the Movies tab as UI-SPEC 5.5, scrolled: the context line in a solid 78 px band at the top
-(`Movies · Comedy · Popular · Cinemeta · 3,000+ titles`), the scroll bubble top right (`#313 of 3,000+ · Popular`,
-only while a key repeats), the grid 6 × 124 with 24 gutters, row pitch 210. Captions are drawn for the **focused
-poster only**: its title (two lines at most) and meta on a canvas plate under the art; the other posters carry
-their title on their art, and a poster without art shows its name on the tile. (A change from UI-SPEC 5.5's
-captions under every poster: one-line captions cut most titles, which reads as broken from the sofa.)
+**The library (`05`)**: the Movies tab as UI-SPEC 5.5, scrolled. A **solid 132 px band** (canvas, an 8 px fade under it) holds,
+at x 48: the context line (`Movies · Comedy · Popular`), the **focused title** (Outfit 700 24, one line) and its facts
+(`2014 · 1h 39m`, 14 px), and at the right the scroll bubble (`#313 of 3,000+`, only while a key repeats). The grid is
+6 × 124 with **20 px gutters at x 58** (844 wide, so the focused ring stays inside x 48–912: its left edge is x 49.9, the
+right-hand column's 910), row pitch 210, the focused row's top at y 156. The other posters carry no caption (their art
+carries the title; a poster without art shows its name on the tile); nothing is laid over a poster. (A change from
+UI-SPEC 5.5's captions under every poster: one-line captions cut most titles, which reads as broken from the sofa.)
 
 ---
 
 ## 4. The remote (every surface)
 
 **The Marquee.** Up / Down: the lineup, one line per press; the card closes on the line you leave and opens on the
-line you reach (its contents swap at once, they are text and a flat colour; the lines between slide 168 px in
-200 ms), the picture after the focus rests 600 ms (a 200 ms opacity crossfade of two image
+line you reach (its contents swap at once, they are text and a flat colour; the lines under it slide 158 px in 200 ms), the picture after the focus rests 600 ms (a 200 ms opacity crossfade of two image
 layers). Up from the first line: the top bar. **P−** (channel down): the rows, on row 1 at its remembered card, from
 any line; **P+** from the rows: the Marquee with its first line lit. **OK**: the line's one
 verb (the pill): Resume, Play, Watch live, Tune, Details (a pick), Open (the genre picker). **Right**: the line's
@@ -403,7 +311,7 @@ Blazers?` · Reveal · Keep hidden; a channel: Save channel · Open in the guide
 remembered card; the peek shows what is coming. **Back**: the Home tab; a second Back exits (the tab rule).
 
 **The rows.** Left / Right: along the row (both edges stop; Right past the last card reaches `See all`). Up / Down:
-the previous / next row, each row remembering its card (`data-key`). Up from row 1: the Marquee, with the line he left lit (the first line after P−). **OK** on a poster: the title page (Details). OK on a wide card:
+the previous / next row, each row remembering its card (`data-key`). Up from row 1: the Marquee, with the line he left lit (the first line after P−); this is the only rule for Up from row 1. **OK** on a poster: the title page (Details). OK on a wide card:
 play (continue, a new episode), tune (a channel), the game page or `Watch live` as the hub's rule. OK on `See all`:
 the Movies / Series tab with that shelf set. **Hold OK**: poster → `Play now` (the best copy, checked on the spot) ·
 `Save` · `Details` · `Not interested` (out of every personal and discovery row for 30 days) · `Hide this row`
@@ -418,14 +326,7 @@ browsing row 3 on a normal night, 4 on a game day, or 1 with P−**; `Comedy for
 title page +1; a channel: its number (1–3 digits) or the Live tab in 4; any named row: P− then its position in the
 index.
 
-From the top of Home to the first browsing row, counted from the first line lit (each Down past the last line lands
-on row 1):
-
-| Version | Lines | Presses (Down) | With P− |
-|---|---|---|---|
-| v1.0 (reviewed) | 6, and row 1 was a second Continue watching | 7 | – |
-| v1.1 first cut | 4 (5 on a game day) | 4 (5) | 1 |
-| **v1.1 (this)** | **3 (4 on a game day), bigger** | **3 (4)** | **1** |
+From the top of Home to the first browsing row, counted from the first line lit: **3 Downs (4 on a game day) past the lines, or 1 with P−**.
 
 ---
 
@@ -439,7 +340,7 @@ on row 1):
   Account > Home rows has `Show the hints again`.
 - **Key caps** (`.k`): 20 high, border-strong, the arrow glyphs drawn as SVG arrows (→ ↓ ↑), `OK` and `Hold` as
   words. Never ▶ for a direction.
-- **Count chip** (`.count`): surface-2, 12 px 650, after the facts: `3 new`, `2 live`, `4 unseen`.
+- **Count chip** (`.count`): surface-2, 12 px 650, after the facts: `3 new`, `2 live`, `4 unseen`. `3 new` means OK plays the first unseen episode (E4).
 - **Badges** (`.badge`): 4K, HDR, HD, IS (Icelandic sound); 11 px caps, five characters or fewer; only when a copy
   was checked (copies are known only after asking the stream add-ons for a title: the pick of the night and
   anything in Continue watching or Saved are checked in the background; a row's posters carry no badge until then).
@@ -449,14 +350,13 @@ on row 1):
   he reads at the right is what he will read at the left after a Down.
 - **Posters**: 124 × 186, radius 12, a 1 px border, the art fills; focus = ring + lift 8 + scale 1.05; no caption in
   the rows (the column above is the caption), captions in the library grid (title 15, meta 14).
-- **Wide cards**: 198 × 111, radius 16, the art under a bottom scrim, the title 14 and one line 13 (the episode's
-  `S6 · E6 · Judgement Day`), the progress bar flush at the bottom; a channel card: the logo tile, the number, the
-  programme and `until 20:55`.
+- **Wide cards**: 198 × 111, radius 16, the art under a bottom scrim, the show's logo at 22 px and one line at 14 (`S3 · E6 · 12 min left`), the progress bar flush at the bottom; **an episode he has not started shows the show's backdrop, never its own still** (a still can show a later scene); a channel card: a logo tile in the channel's colour, the number, the programme, `until 20:55` and its progress bar; a game card as the hub's.
+- **Dots**: two levels on purpose: a wide gap between facts (`2016  ·  1h 56m`) and a tight one inside a fact (`Action·Comedy`, `S2·E3`); dots in text-3.
 - **Type**: Outfit 700 for names and row titles, Inter for facts (tabular numbers), Barlow Condensed 800 italic
   only on the game chip. Nothing under 14 px except badges and the count chip.
 - **Colour**: the brand's tokens; pink-text for eyebrows; the gradient only on the pill, the progress bar, the chip
   and the avatar; red only as LIVE; team colours only on the fields (data, never UI).
-- **Motion**: the picture crossfade (200 ms, opacity) after a 250 ms rest; the lit line's extra lines fade in (120
+- **Motion**: the picture crossfade (200 ms, opacity) after a 600 ms rest; the lit line's extra lines fade in (120
   ms); the page translate between rows (200 ms); the lift (200 ms); game night's entry as home-v2 3.9. Reduced
   motion: 120 ms fades.
 
@@ -522,7 +422,7 @@ on row 1):
   TMDB API but is not endorsed or certified by TMDB."
 - **No key yet** (the first run, or a revoked key): the rows that need TMDB fall back to Cinemeta and are **named
   honestly**: `Popular comedies` (Cinemeta `top/genre=Comedy`, re-filtered by the title's own genres) instead of
-  `Comedy for you`'s TMDB list, `Top rated` from the app's ratings file over Cinemeta pages with a votes floor,
+  `Comedy for you`'s TMDB list, `Top rated` and `Top rated <genre>` hide (they are TMDB's lists only),
   `Anime` from Animation with Japan first plus the deny list, `Á íslensku` from the build-time Icelandic list,
   `Because you watched` from the Cinemeta scoring below; the blends and `Something different` hide. The Marquee
   shows a one-time line `Add your TMDB key for better rows · Account > Provider` on the first evening without one.
@@ -539,13 +439,13 @@ on row 1):
 | Blend | TMDB `/discover` `with_genres=A,B` (AND); anime blends add `with_keywords=210024&with_original_language=ja` | from the table below | `Two things you watch, together · anime + comedy` |
 | Anime | TMDB `with_keywords=210024&with_original_language=ja` (`with_genres=16` to drop live action), `vote_count.gte=150` | `Anime` | `Because you watch Spy x Family and 4 more` |
 | Because you watched X | TMDB `/recommendations` for each of his last 5–10 finished titles, merged on the device: a candidate's score = how many seeds recommend it (+1 per seed), unseen only, top 20; X is the seed that contributed most (verified: Always Sunny gives Platonic, Great News, 'Til Death, Friday Night Dinner, Peep Show). Fallback without a key: the seed's genre with the largest share in his profile, scored by shared genres (2 points each), director (3), cast (1 each, up to 3), decade (1) | `Because you watched Always Sunny` | `Same kind of thing · Comedy · Drama` |
-| Popular | `top` films / series | `Popular films` / `Popular series` | `This week on Cinemeta` |
-| New this year | `year` films / series | `New this year` | `2026 on Cinemeta` |
-| Top rated | TMDB `/discover` `sort_by=vote_average.desc&vote_count.gte=300` (150 for series); **never Cinemeta's `imdbRating` catalog** (it is `Featured`: mostly new, mostly unrated). Fallback: the app's ratings file (`scripts/build-ratings.js`) with a votes floor (25,000 films, 10,000 series) over Cinemeta `top` pages | `Top rated` | `Rated 8.0 and up · TMDB` |
+| Popular | `top` films / series | `Popular films` / `Popular series` | `Popular now` |
+| New this year | `year` films / series | `New this year` | `Released this year` |
+| Top rated | TMDB `/discover` `sort_by=vote_average.desc&vote_count.gte=300` (150 for series); **TMDB only, never Cinemeta's `imdbRating` catalog** (it is `Featured`: mostly new, mostly unrated); without a key the row hides | `Top rated` | `Rated 8.0 and up` |
 | Top rated in a genre | the same with `with_genres=G` | `Top rated comedies` | `Rated 7.5 and up` |
 | Something different | a genre with share < 3 %, the same, `vote_average.gte=7.5` | `Something different` | `Documentaries · a kind you rarely watch, rated 7.5 and up` |
 | Add-on catalog | another add-on's catalog (its manifest) | the catalog's name | `From <add-on>` |
-| Á íslensku | TMDB `/discover` `with_original_language=is` by popularity with `vote_count.gte=10` (films and series; `language=is-IS` with English fallback per field), plus copies with Icelandic audio; the subtitle prints TMDB's totals. Fallback: a build-time list of Icelandic ids (`country` includes Iceland) | `Á íslensku` | `1,451 films · 107 series · TMDB` |
+| Á íslensku | TMDB `/discover` `with_original_language=is` by popularity with `vote_count.gte=10` (films and series; `language=is-IS` with English fallback per field), plus copies with Icelandic audio; TMDB holds 1,451 Icelandic films and 107 series; the row holds the ones over its vote floor, so the subtitle prints no total. Fallback: a build-time list of Icelandic ids (`country` includes Iceland) | `Á íslensku` | `Icelandic films and series` |
 | Saved | Saved, not started | `Saved` | – |
 | Browse your library | the doors (home-v2 4.4), over the add-on catalogs | `Browse your library` | `OK opens the shelf` |
 | Channels | favourites and recent | `Channels` | `Favourites and recent` |
@@ -558,9 +458,7 @@ Blend names (both orders are looked up; a pair not in the table reads `Comedy an
 comedies`, `Fantasy+Adventure → Fantasy adventures`, `Drama+History → Period dramas`.
 
 **Selection** (the Netflix 2015 shape: candidates, then a greedy page):
-1. Anchors in fixed slots: Continue watching (row 1, when it has items), New in your shows (row 2), Tonight in the
-   NBA (row 3 on a game day, else after the personal rows), Channels last, `Browse your library` second last, Saved
-   before it.
+1. Anchors in fixed slots: **row 1 is the top browsing row** (never a copy of a Marquee line); Continue watching and New in your shows are the Marquee's lines and one `Your shows` row after the personal rows; Tonight in the NBA is row 2 on a game day (else after the personal rows); Channels last, `Browse your library` second last, Saved before it.
 2. Personal slots: `round(8 × share)` rows per genre, at least one for each genre ≥ 12 % and at most three; blends
    fill a slot when their candidate exists (a blend outranks the plain row of its smaller genre). Then one
    `Because you watched`, then `Something different`.
@@ -586,9 +484,9 @@ A genre that crosses 12 % adds a row marked `New row` for 7 days; a row he has n
 slot a week and leaves after 28 days (it stays available under Movies / Series). So the page is never the same six
 rows, and a change is always announced.
 
-**Cold start** (no history): the Marquee is `Popular on Cinemeta · a pick for tonight` (Details is the primary),
+**Cold start** (no history): the Marquee is `Popular now · a pick for tonight` (Details is the primary),
 the team's next game, what is on, and `Pick what you like` (a genre picker: 3 chips seed the profile at 10 % each
-and are forgotten after 20 plays); the rows are Popular films, Popular series, New this year, Top rated,
+and are forgotten after 20 plays); the rows are Popular films, Popular series, New this year, Top rated (with a key),
 Á íslensku, Channels. Personal rows appear after 3 finished titles; blends after 3 titles carrying both genres.
 
 **Telling him why.** Every row's subtitle; `Hold OK · Why this row?` on any row title (the index) opens a one-card
@@ -599,7 +497,7 @@ sheet: `Comedy for you · 55 % of what you watched in the last month is comedy �
 
 ## 7. The add-on library (Movies and Series tabs, Search, the title page)
 
-- **Shelves**: Popular (Cinemeta `top`), New (Cinemeta `year`), Top rated (TMDB discover, vote-floored), one per
+- **Shelves**: Popular (Cinemeta `top`), New (Cinemeta `year`), Top rated (TMDB discover, vote-floored; hidden without a key), one per
   genre (TMDB discover with the exclusion table; Cinemeta `top/genre=G` re-filtered when there is no key), `Anime`
   (TMDB keyword 210024, combinable with a genre), `Á íslensku`, the other add-ons' catalogs by their names, Saved,
   History; the chips row of UI-SPEC 5.5 carries All · Popular · New · Top rated · four of his genres · More genres
@@ -612,7 +510,7 @@ sheet: `Comedy for you · 55 % of what you watched in the last month is comedy �
   loading until 50 matches or 10 pages; the count shows `214 so far`.
 - **Sort** is the catalog (Popular / New / Top rated); Title A–Z sorts the loaded pages. **`New` with a genre** is
   `top/genre=G` sorted by year (Cinemeta's `year` catalog takes a year as its genre and cannot be combined with a
-  genre); `Top rated` is the ratings file over `top` pages (section 6), never the `imdbRating` catalog.
+  genre); `Top rated` is TMDB's vote-floored list only (the chip hides without a key), never the `imdbRating` catalog.
 - **Copies**: a poster shows no quality until its title was opened or checked; the title page asks the stream
   add-ons (the existing copies ranking) and the badge is cached 7 days.
 - **Icelandic** in the library: the `Á íslensku` shelf is built as the row is (section 6); the Filters' Language chip
@@ -628,8 +526,7 @@ sheet: `Comedy for you · 55 % of what you watched in the last month is comedy �
 The rules of home-v2 3.2 hold with these changes:
 - **Live, hidden**: the chip says `ON NOW` (no period, no clock, catch-up S4), the plate `Score hidden`; the lit line
   reads `On now · ESPN · 4K · Score hidden`; the fan line ends `· as of tip-off`; both records read `3-0 · as of
-  tip-off` and `1-3 · as of tip-off`. The other live game on the lineup is `Nuggets at Thunder · Also live · TNT`,
-  no score. The NBA tab's own pill is dropped while the game is the lit line (two pills at most: the eyebrow's and
+  tip-off` and `1-3 · as of tip-off`. Another live game shows only in the NBA row (`Nuggets at Thunder · Live · 3RD`, its card's plate). The NBA tab's own pill is dropped while the game is the lit line (two pills at most: the eyebrow's and
   a card's).
 - **Reveal** is Hold OK → `Reveal` → the confirm sheet `Reveal Grizzlies at Trail Blazers?` · `Reveal` · `Keep
   hidden`; a reveal marks the game seen.
@@ -652,9 +549,7 @@ The rules of home-v2 3.2 hold with these changes:
   clocks, the bar). A key press changes classes and one transform; no string is built on a press.
 - **Images at slot size**: metahub `/background/medium/` (1,440 wide) for the picture, `/poster/small/` for 124 px
   posters, `/logo/medium/` for logos, ESPN `500` crests; the Cinemeta `poster` URL rewritten by `sized()`.
-- **Loading by row, not by `loading="lazy"`**: the Marquee's picture and the first row get `src` at first paint; the
-  pictures of the lineup's other five lines are fetched in the request queue after `launchDone` (so a Down shows
-  its picture in the 250 ms rest); every other row's cards carry `data-src` and get `src` when their row comes
+- **Loading by row, not by `loading="lazy"`**: the Marquee's picture and the first row get `src` at first paint; the pictures of the lineup's other lines are fetched in the request queue after `launchDone` (so a Down shows its picture inside the 600 ms rest); every other row's cards carry `data-src` and get `src` when their row comes
   within one row of the focus; a row mounts 8 cards and appends the rest when Right reaches the sixth; rows more
   than three away from the focus are text only (their images released) so a 16-row page holds about 40 decoded
   images, under the Samsung guidance that images and node count are the two memory risks.
@@ -689,7 +584,7 @@ The rules of home-v2 3.2 hold with these changes:
 - **Account > Add-ons**: unchanged; the no-add-ons state of Home points here.
 - **Account > Provider** gains `TMDB key` (typed through the phone page, shown as `Set · ends …`, `Remove`); the
   first evening without one shows the Marquee's one-time line (section 6a).
-- **Account > About** gains the TMDB logo and the attribution line (section 6a).
+- **Account > About** gains the TMDB logo and the attribution line (section 6a) and credits the other sources (Cinemeta for catalogs and metas, ESPN, the add-ons). Source names never appear in Home's subtitles or eyebrows.
 - **First start**: the three quick choices gain `Pick what you like` (3 genre chips, skippable).
 - **The title page**: unchanged; it is where copies are checked and where OK from a row lands.
 - **The NBA tab**: drops its LIVE pill while Home's lit line is the game; unchanged otherwise.
@@ -704,25 +599,24 @@ The rules of home-v2 3.2 hold with these changes:
 
 ## 11. Strings
 
-Eyebrows: `CONTINUE WATCHING`, `UP NEXT`, `NEW TONIGHT`, `A FILM FOR TONIGHT`, `GAME NIGHT`, `LAST NIGHT`, `ON NOW ·
-RÚV · CHANNEL 1`, `POPULAR ON CINEMETA · A PICK FOR TONIGHT`, `<ROW> · <TITLE>` in the rows.
-Line facts: `New this week`, `Up next`, `A film for tonight`, `ends 23:33`, `Your team`, `On now`, `until 20:55`,
-`Also live`, `Short`, `3 new`.
+Eyebrows: `CONTINUE WATCHING`, `NEW EPISODES`, `A FILM FOR TONIGHT`, `GAME NIGHT`, `LAST NIGHT`, `ON NOW ·
+RÚV · CHANNEL 1`, `POPULAR NOW · A PICK FOR TONIGHT`.
+Line facts: `New episodes`, `A film for tonight`, `ends 23:31`, `Your team`, `On now`, `until 20:55`, `Short`, `3 new`.
 Pills: `Resume`, `Play`, `Watch live`, `Tune`, `Details`, `Open`. Hints: `Episodes`, `More popular films`, `From
 tip-off`, `Guide`, `Start over, Details`, `Reveal, more`, `Play now, Save, Not interested`, `Save channel`.
-Rows: the names and reasons of section 6; `New row`; `See all`; `Why this row?`; `Hide this row`; `Not interested`.
-The peek: `P− Browse · 15 rows`; `Add a Stremio add-on for films and series`. Rows: `Your shows · Where you are,
-and what is new`, `Channels · Favourites and recent`, `Á íslensku · Icelandic films and series`.
+Rows: the names and reasons of section 6 (`Popular now`, `Released this year`, `Rated 8.0 and up`, `Icelandic films
+and series`, `Where you are, and what is new`, `Favourites and recent`); `New row`; `See all`; `Why this row?`; `Hide this
+row`; `Not interested`. The peek: `P− Browse · 15 rows`; the end: `End of Home · P+ Back to the top`; `Add a Stremio
+add-on for films and series`.
 Game: `ON NOW`, `Score hidden`, `as of tip-off`, `Reveal Grizzlies at Trail Blazers?`, `Reveal`, `Keep hidden`.
 States: `Needs a connection to play`, `Offline · showing what airglow remembers`, `No poster`, `Not enough anime
-comedy yet`.
+comedy yet`. No source name (Cinemeta, TMDB) is printed in an eyebrow, a subtitle or a context line.
 
 ## 12. Acceptance (what the builder's audit checks)
 
-Safe area (every text and every ring inside x 48–912, y 27–513; art may bleed); one ring per screen; no text under
+Safe area (every text and every ring inside x 48–912, y 27–513, checked on the first card of every row kind (poster, wide, game, channel) and on the library grid's first and last columns; art may bleed; a peeking card shows no text); one ring per screen; no text under
 14 px except badges and the count chip; no `Ends` or title text printed on poster art; a hidden game shows no
 quarter, clock, score, OT or result anywhere on Home and every record carries `as of tip-off`; the LIVE pill and the
 ring never on a team colour (pixels sampled); at most two LIVE pills; every row has a reason line; a title in one
-row only; the row index names the rows on the page in order; the picture swap waits 250 ms; node count under 400;
-no `filter`, no width animation; images at slot size; the Marquee's lines ≤ 6 and within the lineup's width (long
-names at 32 px, the facts shortened by the rule `title first, then the reason, then the fact, then the badge`).
+row only; the row index names the rows on the page in order, and the row that peeks below is the index's next name; the picture swap waits 600 ms; node count under 400;
+no `filter`, no width animation; images at slot size; the Marquee has 3 lines (4 on a game day), each name plus facts within the lineup's 470 px (the facts shortened by the rule `title first, then the reason, then the fact, then the badge`).
