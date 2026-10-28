@@ -125,6 +125,8 @@ public class TunerPlayerPlugin extends Plugin {
         // player (the subs command): design/ui-v1/subtitles/PORT-NATIVE.md 0.
         r.put("probe", true);
         r.put("subs", 1);
+        // Skip intro / recap and Up next at the credits (design/ui-v1/skip/SPEC.md 9.5): the segments command
+        r.put("segments", true);
         // Add-ons (design/ui-v1/addons/PORT-NATIVE.md 0): the entry fields and the copy messages, the home-network phone
         // page, the safe launcher for another app's link, and the TV's own region for countryWhitelist
         r.put("addons", true);
@@ -249,7 +251,7 @@ public class TunerPlayerPlugin extends Plugin {
             String arg = args.length() > 1 ? args.optString(1, "") : "";
             if (p != null && p.session() == session) p.runOnUiThread(() -> p.command(what, arg));
             // The player is still starting (play() answers right after asking for it): keep what it must not miss.
-            else if (PlayerActivity.launching && ("queue".equals(what) || "subs".equals(what) || "versions".equals(what) || "queue-next".equals(what))) synchronized (early) { early.add(new String[] { what, arg }); }
+            else if (PlayerActivity.launching && ("queue".equals(what) || "subs".equals(what) || "versions".equals(what) || "queue-next".equals(what) || "segments".equals(what))) synchronized (early) { early.add(new String[] { what, arg }); }
         }
         call.resolve();
     }

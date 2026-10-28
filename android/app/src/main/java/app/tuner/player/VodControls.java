@@ -205,6 +205,7 @@ final class VodControls {
     /** After a skip from the pill, or when it goes: focus on the seek thumb. */
     void focusSeek() { row = 0; draw(); if (visible()) show(); }
     boolean scrubbing() { return scrubbing; }
+    boolean onButtons() { return row == 1; }
     /** For the emulator test: what has focus. */
     String focusName() { if (row == 0 || btn >= btns.size()) return "seek"; TextView t = btns.get(btn); return t.getText().length() > 0 ? t.getText().toString() : String.valueOf(t.getTag()); }
     /** ▲: the buttons, on the Skip pill while its window is fresh, else on Play. */

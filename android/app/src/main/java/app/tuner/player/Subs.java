@@ -236,6 +236,7 @@ final class Subs {
     String value() { return on != null ? on.lang : null; }
     String status() { return data == null ? "" : data.optString("status", ""); }
     String lastText() { return drawer.lastText; }
+    SubtitleView view() { return view; }
     double offsetNow() { return on == null ? 0 : on.mine; }
     String describe() { return "subs on=" + (on == null ? "" : on.lang + ":" + on.id) + " mine=" + offsetNow() + " files=" + files.size() + " shown=" + drawer.shownCount + " last=" + drawer.lastShown.replace('\n', ' ') + " now=" + lastText().replace('\n', ' ') + " chip=" + chipDone; }
 

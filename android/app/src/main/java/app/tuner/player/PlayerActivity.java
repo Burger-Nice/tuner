@@ -208,6 +208,10 @@ public class PlayerActivity extends AppCompatActivity {
     // subtitles from OpenSubtitles and the copy's real quality (design/ui-v1/subtitles): the settings, the downloads
     Subs subs;
     private JSONObject subSettings;
+    // Skip intro / recap and the credits (design/ui-v1/skip): episodes and films only
+    Skips skips;
+    private long lastKeyAt;          // the OK guard's 1.5 s of quiet (skip SPEC 2.2)
+    private long tickPos, tickDur;   // the item playing, a second ago: did it play past 80% (recapAuto 'prev')
     // catch-up (design/ui-v1/catchup): a replay session, its timeline, live TV paused or rewound
     Replay rp;
     Timeline tl;
@@ -263,10 +267,13 @@ public class PlayerActivity extends AppCompatActivity {
     private final Runnable chipTick = new Runnable() {
         @Override public void run() {
             if (!chipUp || chipKind == CHIP_OFFLINE) return;   // (the offline chip has no countdown)
+            if (chipIsUpNext) upNextKeys();
+            if (chipIsUpNext && endCard) { handler.postDelayed(this, 200); return; }   // (the end card has no count)
             long left = chipUntil - SystemClock.uptimeMillis();
-            if (chipIsUpNext && upNextAt > 0 && player != null && !player.isPlaying()) upNextAt += 200;   // (paused: the count waits)
+            // the count is playing time: paused or scrubbing, it waits (skip SPEC 5.1)
+            if (chipIsUpNext && upNextAt > 0 && player != null && (!player.isPlaying() || (vod != null && vod.scrubbing()))) upNextAt += 200;
             if (chipIsUpNext) left = upNextAt > 0 ? upNextAt - SystemClock.uptimeMillis() : upNextLeft();
-            if (left <= 0) { if (chipIsUpNext && upNextAt > 0) nextEpisode(); else hideChip(); return; }   // (the credits' card: the next one now)
+            if (left <= 0) { if (chipIsUpNext && upNextAt > 0) { watched(index); nextEpisode(); } else hideChip(); return; }   // (the credits' card: the next one now)
             float total = chipIsUpNext ? (upNextAt > 0 ? 15000f : UP_NEXT_MS) : 8000f;
             chipRing.set(Math.min(1, left / total), (int) Math.ceil(left / 1000.0));
             if (chipIsUpNext) chipTitle.setText("Next episode in " + (int) Math.ceil(left / 1000.0) + " s");
@@ -287,12 +294,14 @@ public class PlayerActivity extends AppCompatActivity {
                     e.put("d", d / 1000.0);
                     TunerPlayerPlugin.emit(e);
                     long pos = player.getCurrentPosition(), left = d - pos;
-                    // the credits: 3 s after the last spoken line, when that leaves 20 s to 5 min (from the subtitles)
-                    long last = subs != null ? subs.lastLineEnd() : -1;
-                    boolean credits = last > 0 && d - last >= 20000 && d - last <= 300000 && pos >= last + 3000;
-                    if (player.hasNextMediaItem() && stayIndex != index && left > 0 && (left <= UP_NEXT_MS || credits)) {
-                        if (!chipUp && open == null) showUpNext(left > UP_NEXT_MS);
-                    } else if (chipUp && chipIsUpNext) hideChip();
+                    tickPos = pos; tickDur = d;
+                    // Up next (skip SPEC 5.1): from where the credits start; a seek back before that puts it away, and it
+                    // comes back counting 15 s again when play gets there. After Back, only the end card.
+                    long from = upNextFrom(d);
+                    if (player.hasNextMediaItem() && stayIndex != index && left > 0 && pos >= from) {
+                        // (the guard: 1.5 s without a key, while there is still time for it)
+                        if (!chipUp && open == null && SystemClock.uptimeMillis() - lastKeyAt >= 1500) { showUpNext(left > UP_NEXT_MS); if (skips != null) skips.upNextFrom(upNextBy); }
+                    } else if (chipUp && chipIsUpNext && !endCard) { upNextGoneAt = SystemClock.uptimeMillis(); hideChip(); }
                 }
             }
             handler.postDelayed(this, 1000);
@@ -411,6 +420,7 @@ public class PlayerActivity extends AppCompatActivity {
                     if (rp != null) rp.ready();
                     if (ho != null && rp == null) ho.readyNow();
                     if (!live && rp == null && !askedVersions) { askedVersions = true; if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions"); }   // (the title block's line and Quality)
+                    if (skips != null) skips.ready();
                 }
                 if (s == Player.STATE_ENDED && rp != null) { rp.onEnded(); return; }
                 if (s == Player.STATE_ENDED && !live && !player.hasNextMediaItem()) finish();
@@ -427,6 +437,10 @@ public class PlayerActivity extends AppCompatActivity {
                 long now = SystemClock.uptimeMillis();
                 if (!playing && stallAt == 0) { stallAt = now; handler.postDelayed(lagTick, 1000); }
                 else if (playing && stallAt > 0) { lagMs += now - stallAt; stallAt = 0; sendLag(); }
+            }
+            // Back on Up next set the pause at the end: the picture holds its last frame and the end card shows (5.1)
+            @Override public void onPlayWhenReadyChanged(boolean ready, int reason) {
+                if (!ready && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM && !live && rp == null && stayIndex == index && player.hasNextMediaItem()) showEndCardSoon();
             }
             @Override public void onRenderedFirstFrame() {
                 vodWaits = 0;
@@ -477,8 +491,17 @@ public class PlayerActivity extends AppCompatActivity {
             }
             @Override public void onMediaItemTransition(MediaItem item, int reason) {
                 if (live || rp != null) return;
+                int wasIndex = index;
+                long wp = tickPos, wd = tickDur;
+                boolean counting = chipUp && chipIsUpNext && !endCard;
                 index = player.getCurrentMediaItemIndex();
                 if (index < 0 || index >= ring.size()) return;
+                boolean ended = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO;
+                if (ended && counting && wasIndex != index) watched(wasIndex);   // (the last-40 s card counted to the end)
+                player.setPauseAtEndOfMediaItems(false);   // (Back on Up next set it for that episode only)
+                endCard = false;
+                handler.removeCallbacks(endClose);
+                tickPos = tickDur = 0;
                 Entry was = cur;
                 cur = ring.get(index);
                 rd.source = cur.addon() ? cur.source : "";
@@ -486,6 +509,7 @@ public class PlayerActivity extends AppCompatActivity {
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && cur.start > 30) player.seekTo(cur.start * 1000);
                 if (chipUp && chipIsUpNext) hideChip();
                 if (subs != null) subs.itemChanged(index);   // (the app sends the next episode's subtitles)
+                if (skips != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) skips.itemStarted(cur, index, ended || (wd > 0 && wp >= wd * 0.8));
                 vod.setItem(cur, index < ring.size() - 1);
                 view.setResizeMode(resizeMode(pictureFor(cur)));
                 vod.show();
@@ -509,6 +533,8 @@ public class PlayerActivity extends AppCompatActivity {
             handler.post(tick);
         } else {
             vod = new VodControls(this, player, root);
+            skips = new Skips(this, player, root);
+            skips.itemStarted(cur, index, false);
             player.setMediaSources(sources(ring), index, cur.start > 30 ? cur.start * 1000 : 0);
             player.prepare();
             player.play();
@@ -735,6 +761,11 @@ public class PlayerActivity extends AppCompatActivity {
         chipGlyph.addView(Ui.iconView(this, "wifiOff", Ui.T1, 22), new FrameLayout.LayoutParams(Ui.dp(22), Ui.dp(22), Gravity.CENTER));
         chipGlyph.setVisibility(View.GONE);
         chip.addView(chipGlyph, gapped(new LinearLayout.LayoutParams(Ui.dp(40), Ui.dp(40)), 12));
+        nextDisc = new FrameLayout(this);   // the end card's next glyph in a 40 disc, where the ring would be (skip SPEC 5.1)
+        nextDisc.setBackground(Ui.circle(Ui.S2));
+        nextDisc.addView(Ui.iconView(this, "next", Ui.T1, 20), new FrameLayout.LayoutParams(Ui.dp(20), Ui.dp(20), Gravity.CENTER));
+        nextDisc.setVisibility(View.GONE);
+        chip.addView(nextDisc, gapped(new LinearLayout.LayoutParams(Ui.dp(40), Ui.dp(40)), 12));
         LinearLayout chc = new LinearLayout(this);
         chc.setOrientation(LinearLayout.VERTICAL);
         chipTitle = Ui.line(this, "", 16, Ui.T1, Ui.inter650);
@@ -752,6 +783,25 @@ public class PlayerActivity extends AppCompatActivity {
         chipOk = Ui.line(this, "to switch", 14, Ui.T1, Ui.inter500);
         chipOk.setMaxWidth(Ui.dp(120));
         chip.addView(chipOk);
+        // Up next's keys, stacked at the right: OK play now over Back stay here (20 high caps, 4 apart); not drawn with
+        // the controls up, where OK and Back work the controls (skip SPEC 2.1, 5.1)
+        upKeys = new LinearLayout(this);
+        upKeys.setOrientation(LinearLayout.VERTICAL);
+        for (int k = 0; k < 2; k++) {
+            LinearLayout r = new LinearLayout(this);
+            r.setGravity(Gravity.CENTER_VERTICAL);
+            TextView cap = Ui.kbd(this, k == 0 ? "OK" : "Back");
+            cap.setMinWidth(Ui.dp(44));
+            r.addView(cap, gapped(new LinearLayout.LayoutParams(-2, Ui.dp(20)), 6));
+            TextView w = Ui.text(this, k == 0 ? "play now" : "stay here", 14, Ui.T1, Ui.inter500);
+            r.addView(w);
+            if (k == 0) { upOkCap = cap; } else upBackWord = w;
+            LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(-2, -2);
+            if (k == 1) rl.topMargin = Ui.dp(4);
+            upKeys.addView(r, rl);
+        }
+        upKeys.setVisibility(View.GONE);
+        chip.addView(upKeys);
         chip.setVisibility(View.GONE);
         FrameLayout.LayoutParams chl = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
         chl.setMargins(0, 0, Ui.dp(48), Ui.dp(64));
@@ -878,8 +928,10 @@ public class PlayerActivity extends AppCompatActivity {
                 : new String[][] { { "OK", chipOk.getText().toString() }, { "◀ ▼", "Details" }, { "Back", "Dismiss" }, { "▲ ▼", "Zap" } };
         else if (chipUp && chipKind == CHIP_OFFLINE) h = new String[][] { { "Back", "Dismiss" }, { "▲ ▼", "Zap" } };
         else if (chipUp && chipKind == CHIP_PROGRAMME) h = tl != null && tl.visible() && hintsOn ? tl.hints() : null;
-        else if (chipUp) h = chipIsUpNext ? new String[][] { { "OK", "Play now" }, { "Back", "Stay on this one" } }
-                : new String[][] { { "OK", "Switch" }, { "Back", "Dismiss" }, { "◀", "Options" }, { "▶", "Game" }, { "▲ ▼", "Zap" } };
+        // Up next: its keys from the moment OK binds, the first 5 times for each card; with the controls up, theirs
+        else if (chipUp && chipIsUpNext && !(vod != null && vod.visible())) h = upHintOn && upNextBound() ? new String[][] { { "OK", "Play now" }, { "Back", endCard ? "Close" : "Stay here" } } : null;
+        else if (chipUp && !chipIsUpNext) h = new String[][] { { "OK", "Switch" }, { "Back", "Dismiss" }, { "◀", "Options" }, { "▶", "Game" }, { "▲ ▼", "Zap" } };
+        else if (!live && skips != null && !(vod != null && vod.visible()) && skips.hints() != null) h = skips.hints();
         else if (live && cardUp && banner.getVisibility() == View.VISIBLE && hintsOn)
             h = act.isEmpty() ? new String[][] { { "◀", "Details" }, { "Back", "Hide" }, { "▲ ▼", "Zap" } }
                     : new String[][] { { "OK", actLabel }, { "◀", "Details" }, { "Back", "Hide" }, { "▲ ▼", "Zap" } };
@@ -969,27 +1021,97 @@ public class PlayerActivity extends AppCompatActivity {
     private long upNextAt;   // the early card's end (uptime ms), 0: it counts down to the episode's end
     private void showUpNext(boolean early) {
         if (index + 1 >= ring.size()) return;
-        upNextAt = early ? SystemClock.uptimeMillis() + 15000 : 0;
+        upNextAt = early ? SystemClock.uptimeMillis() + 15000 : 0;   // (15 s of playing time from when it appears)
+        endCard = false;
+        upNextCard(false);
+        chipTitle.setText("Next episode in " + (early ? 15 : (int) Math.ceil(upNextLeft() / 1000.0)) + " s");
+    }
+    /** The card for Up next (a count) or the end card (no count, the next glyph, Back close). */
+    private void upNextCard(boolean end) {
         Entry n = ring.get(index + 1);
         chipIsUpNext = true;
         chipKind = CHIP_UPNEXT;
-        chipStyle(true, true);
-        chipTitle.setText("Next episode in " + (early ? 15 : (int) Math.ceil(upNextLeft() / 1000.0)) + " s");
+        chipStyle(!end, false);
+        chipGlyph.setVisibility(View.GONE);
+        nextDisc.setVisibility(end ? View.VISIBLE : View.GONE);
+        if (end) chipTitle.setText("Next episode");
         chipSub.setText(n.sub == null || n.sub.isEmpty() ? n.title : n.sub);
+        chipSub.setMinWidth(Ui.dp(180));   // (the name takes what is left, at least 180, with an ellipsis)
+        chipSub.setMaxWidth(Ui.dp(220));
         String say = ho != null ? ho.upNextSay : "";
         chipSay.setText(say);
         chipSay.setVisibility(say.isEmpty() ? View.GONE : View.VISIBLE);
-        chipOk.setText("play now");
+        upBackWord.setText(end ? "close" : "stay here");
+        upNextShownAt = SystemClock.uptimeMillis();
+        upHintAsked = upHintOn = false;
         chipUp = true;
+        upNextKeys();
         chip.setVisibility(View.VISIBLE);
         handler.removeCallbacks(chipTick);
         handler.post(chipTick);
         hintsChanged();
     }
+    /** The key column with the controls hidden only; the OK cap at 40% until OK binds (0.7 s); the hint bar from then. */
+    private void upNextKeys() {
+        boolean controls = vod != null && vod.visible();
+        upKeys.setVisibility(controls ? View.GONE : View.VISIBLE);
+        boolean b = upNextBound();
+        upOkCap.setAlpha(b ? 1f : 0.4f);
+        if (b && !upHintAsked && !controls) { upHintAsked = true; upHintOn = bump(endCard ? "upnextend" : "upnext"); hintsChanged(); }
+    }
+    private boolean upNextBound() { return chipUp && chipIsUpNext && SystemClock.uptimeMillis() >= upNextShownAt + 700; }
+    /** OK on Up next (controls hidden): the next episode once bound; its first 0.7 s OK pauses; 0.7 s after it went by
+     * itself OK does nothing (skip SPEC 2.2). */
+    boolean upNextOk() {
+        long now = SystemClock.uptimeMillis();
+        if (!(chipUp && chipIsUpNext)) return now - upNextGoneAt < 700;
+        if (!upNextBound()) return false;
+        watched(index);
+        nextEpisode();
+        return true;
+    }
+    /** Up next moved on: the episode it leaves is marked watched (5.1). */
+    private void watched(int i) { JSObject e = event("watched"); e.put("index", i); TunerPlayerPlugin.emit(e); }
+    // the end card: at the real end after Back (the pause at the end), with the guard; after 5 min with no key the
+    // player closes as Back would, and the screen may sleep (an OLED shouldn't hold a still frame)
+    private boolean endCard, upHintAsked, upHintOn;
+    private long upNextShownAt, upNextGoneAt;
+    private FrameLayout nextDisc;
+    private LinearLayout upKeys;
+    private TextView upOkCap, upBackWord;
+    private final Runnable endClose = () -> { getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); if (view != null) view.setKeepScreenOn(false); finish(); };
+    private void showEndCardSoon() {
+        if (isFinishing() || player == null || index + 1 >= ring.size() || player.getPlayWhenReady()) return;
+        long quiet = SystemClock.uptimeMillis() - lastKeyAt;
+        if (quiet < 1500 || open != null) { handler.postDelayed(this::showEndCardSoon, open != null ? 500 : 1500 - quiet); return; }
+        if (chipUp) hideChip();
+        endCard = true;
+        upNextCard(true);
+        handler.removeCallbacks(endClose);
+        handler.postDelayed(endClose, 300000);
+    }
+    /** Where Up next starts (5.1): the credits start after the checks, unless a spoken line comes after it (then 3 s after
+     * the last one if that leaves 15 s, else the last 40 s); without the list, 3 s after the last spoken line when that
+     * leaves 20 s to 5 min; else the last 40 s. upNextBy says which (the diagnosis log). */
+    private boolean upNextBy;
+    private long upNextFrom(long d) {
+        long credits = skips != null ? skips.creditsAt() : -1;
+        upNextBy = credits >= 0;
+        if (credits >= 0) {
+            long last = subs != null ? subs.lastSpokenAfter(credits + 5000) : -1;   // (a line within 5 s runs over the cut)
+            if (last < 0) return credits;
+            upNextBy = false;
+            return d - (last + 3000) >= 15000 ? last + 3000 : d - UP_NEXT_MS;
+        }
+        long last = subs != null ? subs.lastLineEnd() : -1;
+        return last > 0 && d - last >= 20000 && d - last <= 300000 ? last + 3000 : d - UP_NEXT_MS;
+    }
     boolean upNextShowing() { return chipUp && chipIsUpNext; }
     private void hideChip() {
         if (!chipUp) return;
         chipUp = false;
+        if (chipIsUpNext) { endCard = false; handler.removeCallbacks(endClose); upKeys.setVisibility(View.GONE); nextDisc.setVisibility(View.GONE); chipSub.setMinWidth(0); chipSub.setMaxWidth(Ui.dp(240)); }
+        chipIsUpNext = false;
         if (chipSay != null) chipSay.setVisibility(View.GONE);
         chipKind = 0;
         chip.setVisibility(View.GONE);
@@ -1014,6 +1136,7 @@ public class PlayerActivity extends AppCompatActivity {
         banner.setVisibility(View.GONE);
         handler.removeCallbacks(hideBanner);
         if (chipUp && !chipIsUpNext) hideChip();
+        if (skips != null) skips.panelOpened();
         if (vod != null) vod.hide();
         if (tl != null) tl.hide();
         if (cardUp && !(o instanceof FailedCard)) hideCard(false);
@@ -1289,6 +1412,8 @@ public class PlayerActivity extends AppCompatActivity {
                 matchFrameRate();
                 openOptions();
             }));
+            ListPanel.Item sk = skips != null && rp == null ? skips.optionsRow() : null;   // episodes: the last row (skip SPEC 4.1)
+            if (sk != null) items.add(sk);
         }
         for (ListPanel.Item it : items) it.chevron = it.ok != null && it.value != null && !"On".equals(it.value) && !"Off".equals(it.value);
         p.source(ListPanel.of(items), focusRow != null && items.contains(focusRow) ? items.indexOf(focusRow) : 0);
@@ -1932,6 +2057,8 @@ public class PlayerActivity extends AppCompatActivity {
     void nextEpisode() {
         if (player == null || live) return;
         hideChip();
+        player.setPauseAtEndOfMediaItems(false);   // (CH+ and Next episode clear Back's pause at the end)
+        if (!player.getPlayWhenReady()) player.play();
         if (player.hasNextMediaItem()) player.seekToNextMediaItem(); else showText("This is the last one", 2000);
     }
     void recordSeek() {
@@ -1962,6 +2089,8 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void down(int code, boolean repeat) {
+        lastKeyAt = SystemClock.uptimeMillis();
+        if (endCard) { handler.removeCallbacks(endClose); handler.postDelayed(endClose, 300000); }
         if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) { if (!repeat) back(); return; }
         if (open != null) {
             okInPlayer = false;
@@ -1989,7 +2118,11 @@ public class PlayerActivity extends AppCompatActivity {
             liveKey(code, repeat);
         }
         else {
-            if (vod.key(code, repeat)) { hintsChanged(); return; }
+            if (skips != null && skips.key(code, repeat)) { hintsChanged(); return; }   // (a skip chip's OK, once bound)
+            // ◀ or a seek away from the end: the end card goes and play goes on from there (the pause at the end stays)
+            boolean away = endCard && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_MEDIA_REWIND || code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) && !(vod.visible() && vod.onButtons());
+            if (away) hideChip();
+            if (vod.key(code, repeat)) { if (away) player.play(); hintsChanged(); return; }
             switch (code) {
                 case KeyEvent.KEYCODE_MENU: openOptions(); break;
                 case KeyEvent.KEYCODE_CAPTIONS: openSubtitles(false); break;
@@ -2061,11 +2194,11 @@ public class PlayerActivity extends AppCompatActivity {
     private void back() {
         if (open != null) { if (!open.back()) closeOverlay(); return; }
         if (chipUp) {
-            if (chipIsUpNext) {   // stay on this one: no autoplay
-                stayIndex = index;
-                if (player.getMediaItemCount() > index + 1) player.removeMediaItems(index + 1, player.getMediaItemCount());
-                while (ring.size() > index + 1) ring.remove(ring.size() - 1);
-                vod.setItem(cur, false);
+            if (chipIsUpNext && endCard) { finish(); return; }   // the end card: Back close, as Back at the end does
+            if (chipIsUpNext && vod != null && vod.visible()) { vod.back(); return; }   // (the keys aren't drawn: Back hides the controls)
+            if (chipIsUpNext) {   // stay here: the count stops, the queue stays (CH+, Next episode), no counting card again
+                stayIndex = index;   // for this episode, only the end card (skip SPEC 5.1)
+                player.setPauseAtEndOfMediaItems(true);
             }
             if (chipKind == CHIP_STUTTER && cur != null) stutterBacked.add(cur.id);
             hideChip();
@@ -2080,6 +2213,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (tl != null && tlActive() && tl.back()) return;
         if (rp != null) { finish(); return; }
         if (lp != null && lp.active()) { finish(); return; }   // Back on rewound live TV leaves the player, as a movie (13.3)
+        if (!live && skips != null && skips.back()) return;   // a skip chip: Back hides it, never leaves the player
         if (!live && vod != null && vod.back()) return;
         if (live && banner.getVisibility() == View.VISIBLE && hint.getVisibility() == View.VISIBLE && hintForce) { hideBanner.run(); return; }
         finish();
@@ -2122,6 +2256,7 @@ public class PlayerActivity extends AppCompatActivity {
                 }
                 case "versions": versions = new JSONObject(arg); if (vod != null && vod.visible()) fillWhat(vod); if (open instanceof ListPanel && "Quality".contentEquals(((ListPanel) open).title.getText())) openQuality(qualityFromOptions); break;
                 case "subs": if (subs != null) subs.command(arg); break;
+                case "segments": if (skips != null) skips.command(arg); break;   // an item's intro, recap and credits (skip SPEC 9.5)
                 case "copy": if (ho != null) ho.copy(new JSONObject(arg)); break;   // a copy's link, asked for with need: copy
                 case "queue-next": queueNext(new JSONObject(arg)); break;
                 case "pinned": pinned = arg == null || arg.isEmpty() ? null : new JSONObject(arg); break;
@@ -2373,6 +2508,7 @@ public class PlayerActivity extends AppCompatActivity {
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         if (subs != null) subs.drawer.stop();
+        if (skips != null) skips.release();
         cancelChecks();
         try { if (netCb != null) ((ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(netCb); } catch (Exception ignored) {}
         try { if (debug != null) unregisterReceiver(debug); } catch (Exception ignored) {}
@@ -3166,6 +3302,11 @@ public class PlayerActivity extends AppCompatActivity {
                 // (the emulator test: what the subtitles show now, as an event)
                 // (the emulator test: what the copies are doing; names and keys only, never a link or a header's value)
                 if (i.getStringExtra("addon") != null) handler.post(() -> { JSObject e = event("addon-state"); e.put("state", ho == null ? "none" : ho.describe()); TunerPlayerPlugin.emit(e); });
+                String sk = i.getStringExtra("skip");   // (the emulator test: the skip chips and Up next, and a seek with no key)
+                if (sk != null) handler.post(() -> {
+                    if (sk.startsWith("seek:") && player != null) { try { player.seekTo(Long.parseLong(sk.substring(5))); } catch (NumberFormatException ignored) {} }
+                    JSObject e = event("skip-state"); e.put("state", skipState()); TunerPlayerPlugin.emit(e);
+                });
                 if (i.getStringExtra("subs") != null) handler.post(() -> { JSObject e = event("subs-state"); e.put("state", subs == null ? "none" : subs.describe()); e.put("strip", subs == null ? "" : subs.stripState()); e.put("text", subs == null ? "" : subs.lastText()); e.put("shown", subs == null ? 0 : subs.drawer.shownCount); e.put("last", subs == null ? "" : subs.drawer.lastShown); e.put("mine", subs == null ? 0 : subs.offsetNow()); TunerPlayerPlugin.emit(e); });
             }
         };
@@ -3294,6 +3435,57 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     FrameLayout rootView() { return root; }
+
+    // ---------- what Skips asks (design/ui-v1/skip) ----------
+    boolean controlsUp() { return vod != null && vod.visible(); }
+    boolean panelOpen() { return open != null; }
+    boolean scrubbing() { return vod != null && vod.scrubbing(); }
+    long lastKeyAt() { return lastKeyAt; }
+    boolean bumpHint(String where) { return bump(where); }
+    VodControls vodControls() { return vod; }
+    boolean skipPillFresh() { return skips != null && skips.pillFresh(); }
+    void subsChanged() { if (skips != null) skips.subsChanged(); }
+    /** For the emulator test: the skip chips, Up next and the controls. */
+    String skipState() {
+        String s = skips == null ? "no-skips" : skips.describe();
+        return s + " upnext=" + (chipUp && chipIsUpNext) + " end=" + endCard + " upTitle=" + (chipUp && chipIsUpNext ? chipTitle.getText() : "") + " upKeys=" + (upKeys != null && upKeys.getVisibility() == View.VISIBLE)
+                + " upBound=" + upNextBound() + " stay=" + (stayIndex == index) + " index=" + index + " of=" + ring.size() + " pauseAtEnd=" + (player != null && player.getPauseAtEndOfMediaItems())
+                + " playing=" + (player != null && player.isPlaying()) + " controls=" + controlsUp() + " focus=" + (vod == null ? "" : vod.focusName()) + " subLift=" + liftNow;
+    }
+    // Subtitles and the chips (skip SPEC 2.1): when a chip is up and the subtitle text's box would touch it, the text steps
+    // up until its bottom is 8 above the chip's top; back when the chip goes. No animation; a short centred line stays.
+    private final android.text.TextPaint subPaint = new android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+    private String liftKey = "";
+    private float liftNow = 0.1f;
+    void liftSubtitles() {
+        if (root == null || player == null || live) return;
+        int left = -1, top = -1;
+        int[] b = skips != null ? skips.box() : null;
+        if (b != null) { left = b[0]; top = b[1]; }
+        else if (chipUp && chip.getVisibility() == View.VISIBLE && chip.getWidth() > 0) { left = chip.getLeft(); top = chip.getTop(); }
+        String text = "";
+        if (left >= 0) {
+            if (subs != null && subs.on != null) text = subs.lastText();
+            else { StringBuilder t = new StringBuilder(); for (androidx.media3.common.text.Cue c : player.getCurrentCues().cues) if (c.text != null) { if (t.length() > 0) t.append('\n'); t.append(c.text); } text = t.toString(); }
+        }
+        String key = left + ":" + top + ":" + text;
+        if (key.equals(liftKey)) return;
+        liftKey = key;
+        float f = 0.1f;
+        int h = root.getHeight(), w = root.getWidth();
+        if (left >= 0 && !text.isEmpty() && h > 0) {
+            subPaint.setTypeface(Ui.inter600);
+            subPaint.setTextSize(Ui.dp(28));
+            float widest = 0;
+            for (String line : text.split("\n")) widest = Math.max(widest, subPaint.measureText(line));
+            widest = Math.min(widest + Ui.dp(7), w * 0.9f);
+            if (w / 2f + widest / 2f >= left) f = Math.min(0.5f, (h - (top - Ui.dp(8))) / (float) h);
+        }
+        if (f == liftNow) return;
+        liftNow = f;
+        if (view.getSubtitleView() != null) view.getSubtitleView().setBottomPaddingFraction(f);
+        if (subs != null) subs.view().setBottomPaddingFraction(f);
+    }
     /** The VOD title block's line (SPEC 7.1): "[tick] 4K · HDR10 · Dolby Digital Plus 5.1 • best of 4 copies • Icelandic subtitles". */
     void fillWhat(VodControls v) {
         List<String> parts = new ArrayList<>();
