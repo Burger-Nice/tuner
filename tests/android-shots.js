@@ -54,7 +54,9 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
       if (r.step === 'keys') {
         if (r.data.text) { try { adb('shell', 'input', 'text', r.data.text); } catch (e) { console.log(`typing failed: ${e.message}`); } }
         // a shell command first (the playback diagnosis' debug intent: am broadcast … --es diag <cause>)
-        if (r.data.adb) { try { console.log(`adb shell ${r.data.adb.join(' ')}: ${adb('shell', ...r.data.adb).toString().trim().split('\n').pop()}`); } catch (e) { console.log(`adb failed: ${e.message}`); } await sleep(600); }
+        if (r.data.adb) { try { console.log(`adb shell ${r.data.adb.join(' ')}: ${adb('shell', ...r.data.adb).toString().trim().split('\n').pop()}`); } catch (e) { console.log(`adb failed: ${e.message}`); } if (!r.data.quick) await sleep(600); }
+        // a quick step (the skip chips' few seconds): no waits, no screenshot
+        if (r.data.quick) { for (const k of r.data.keys) { key(k); await sleep(250); } await ack(r.data.name); continue; }
         for (const k of r.data.keys) { key(k); await sleep(1200); }
         await sleep(r.data.name.startsWith('player') || r.data.name.startsWith('vod') ? 3500 : 900);
         shot(r.data.name);

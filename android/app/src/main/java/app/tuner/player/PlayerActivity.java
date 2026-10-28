@@ -3309,6 +3309,7 @@ public class PlayerActivity extends AppCompatActivity {
                 String sk = i.getStringExtra("skip");   // (the emulator test: the skip chips and Up next, and a seek with no key)
                 if (sk != null) handler.post(() -> {
                     if (sk.startsWith("seek:") && player != null) { try { player.seekTo(Long.parseLong(sk.substring(5))); } catch (NumberFormatException ignored) {} }
+                    if (sk.equals("play") && player != null) player.play();   // (so one failed check doesn't leave the rest paused)
                     JSObject e = event("skip-state"); e.put("state", skipState()); TunerPlayerPlugin.emit(e);
                 });
                 if (i.getStringExtra("subs") != null) handler.post(() -> { JSObject e = event("subs-state"); e.put("state", subs == null ? "none" : subs.describe()); e.put("strip", subs == null ? "" : subs.stripState()); e.put("text", subs == null ? "" : subs.lastText()); e.put("shown", subs == null ? 0 : subs.drawer.shownCount); e.put("last", subs == null ? "" : subs.drawer.lastShown); e.put("mine", subs == null ? 0 : subs.offsetNow()); TunerPlayerPlugin.emit(e); });
