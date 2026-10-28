@@ -272,6 +272,8 @@ final class Ui {
                 case "next": d("M5 5l9 7-9 7zM18 5v14"); break;
                 // catch-up (design/ui-v1/catchup): ⏮ to tip-off or a programme's start, the history glyph
                 case "skipBack": rect(5, 5, 2.6f, 14, 1); d("M19.5 5.2v13.6L9 12z"); f = true; break;
+                // Skip intro (design/ui-v1/skip SPEC 2.3): skipBack's mirror
+                case "skipFwd": d("M4.5 5.2v13.6L15 12z"); rect(16.4f, 5, 2.6f, 14, 1); f = true; break;
                 case "hist": d("M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4.5V9H8"); d("M12 7.5V12l3 2"); break;
                 case "speed": path.addCircle(12, 13, 8, Path.Direction.CW); d("M12 13l4-4M12 3v2"); break;
                 case "frames": rect(3, 4, 18, 16, 2.5f); d("M3 9h18M3 15h18"); break;

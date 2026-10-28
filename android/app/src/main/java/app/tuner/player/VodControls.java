@@ -139,14 +139,76 @@ final class VodControls {
         round(null, "−10", () -> seekBy(-10000));
         round(null, "+10", () -> seekBy(10000));
         if (hasNext) pill("Next episode", () -> a.nextEpisode());
-        View sp = new View(a);
-        buttons.addView(sp, new LinearLayout.LayoutParams(0, 1, 1));
+        skipBtn = null;
+        spacer = new View(a);
+        buttons.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1));
         round("cc", null, () -> a.openSubtitles());
         round("audio", null, () -> a.openAudio());
         round("pic", null, () -> a.openPicture());
         btn = 0;
+        if (skipLabel != null) addSkip();
         draw();
     }
+
+    // ---------- the Skip intro / Back to intro pill (design/ui-v1/skip SPEC 3.3): the last of the left group ----------
+    private View spacer;
+    private TextView skipBtn;
+    private String skipLabel, skipIcon;
+    private Runnable skipAct;
+    /** The pill (label null: none). Nothing to its left moves; when it goes with focus on it, focus goes to the thumb. */
+    void setSkip(String label, String icon, Runnable act) {
+        skipAct = act;
+        if (label == null) {
+            skipLabel = null;
+            if (skipBtn == null) return;
+            int at = btns.indexOf(skipBtn);
+            buttons.removeView(skipBtn);
+            btns.remove(at);
+            acts.remove(at);
+            skipBtn = null;
+            if (row == 1 && btn == at) row = 0;   // (the controls keep their 4 s timer)
+            else if (btn > at) btn--;
+            draw();
+            return;
+        }
+        boolean had = skipBtn != null;
+        skipLabel = label;
+        skipIcon = icon;
+        if (!had) addSkip(); else { skipBtn.setText(label); skipIcon(skipBtn, icon); acts.set(btns.indexOf(skipBtn), () -> { if (skipAct != null) skipAct.run(); }); }
+        draw();
+    }
+    private void addSkip() {
+        if (spacer == null) return;
+        TextView t = Ui.text(a, skipLabel, 16, Ui.T1, Ui.outfit700);
+        t.setGravity(Gravity.CENTER);
+        t.setSingleLine(true);
+        skipIcon(t, skipIcon);
+        t.setCompoundDrawablePadding(Ui.dp(8));
+        t.setPadding(Ui.dp(14), 0, Ui.dp(18), 0);
+        t.setTag("pill");
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, Ui.dp(40));
+        lp.setMarginStart(Ui.dp(6));   // (16 either side with the pill before it)
+        lp.setMarginEnd(Ui.dp(16));
+        int at = buttons.indexOfChild(spacer), bi = 0;
+        for (int i = 0; i < at; i++) if (btns.contains(buttons.getChildAt(i))) bi++;
+        buttons.addView(t, at, lp);
+        btns.add(bi, t);
+        acts.add(bi, () -> { if (skipAct != null) skipAct.run(); });
+        if (btn >= bi && row == 1) btn++;   // (focus stays on what it was on: a late answer adds the pill without moving it)
+        skipBtn = t;
+    }
+    private static void skipIcon(TextView t, String icon) {
+        android.graphics.drawable.Drawable d = Ui.icon(icon == null ? "skipFwd" : icon, Ui.T1, 18);
+        d.setBounds(0, 0, Ui.dp(18), Ui.dp(18));
+        t.setCompoundDrawables(d, null, null, null);
+    }
+    /** After a skip from the pill, or when it goes: focus on the seek thumb. */
+    void focusSeek() { row = 0; draw(); if (visible()) show(); }
+    boolean scrubbing() { return scrubbing; }
+    /** For the emulator test: what has focus. */
+    String focusName() { if (row == 0 || btn >= btns.size()) return "seek"; TextView t = btns.get(btn); return t.getText().length() > 0 ? t.getText().toString() : String.valueOf(t.getTag()); }
+    /** ▲: the buttons, on the Skip pill while its window is fresh, else on Play. */
+    private int upTo() { return skipBtn != null && a.skipPillFresh() ? btns.indexOf(skipBtn) : 0; }
 
     private TextView round(String icon, String text, Runnable act) {
         TextView t = Ui.text(a, text == null ? "" : text, 16, Ui.T1, Ui.inter650);
@@ -286,7 +348,7 @@ final class VodControls {
             }
             case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_NUMPAD_ENTER:
                 if (repeat) return true;
-                if (!shown && a.upNextShowing()) { a.nextEpisode(); return true; }
+                if (!shown && a.upNextOk()) return true;   // (Up next's OK guard: its first 0.7 s OK pauses)
                 if (shown && row == 1) { acts.get(btn).run(); return true; }
                 toggle();
                 return true;
@@ -295,7 +357,7 @@ final class VodControls {
             case KeyEvent.KEYCODE_MEDIA_PAUSE: p.pause(); show(); return true;
             case KeyEvent.KEYCODE_DPAD_UP:
                 if (shown && row == 1) return true;
-                row = 1; btn = 0; show(); return true;
+                row = 1; btn = upTo(); show(); return true;
             case KeyEvent.KEYCODE_DPAD_DOWN:
                 if (shown && row == 1) { row = 0; show(); return true; }
                 if (!repeat) a.openOptions();

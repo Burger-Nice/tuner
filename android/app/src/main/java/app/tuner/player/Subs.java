@@ -159,6 +159,7 @@ final class Subs {
             }
         }
         if (a.isOpen(panel)) open(panelFromOptions);
+        a.subsChanged();
     }
     /** A language as the app names it ("Icelandic") or a code -> the ISO 639-1 code Media3 compares. */
     static String codeOf(String lang) {
@@ -179,16 +180,33 @@ final class Subs {
         on = t;
         p.setTrackSelectionParameters(p.getTrackSelectionParameters().buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build());   // ExoPlayer's own view stays empty
         drawer.set(t);
+        a.subsChanged();
     }
     /** The download goes (a file track or Off was picked). */
-    void drop() { if (on != null) { on = null; drawer.set(null); } }
+    void drop() { if (on != null) { on = null; drawer.set(null); a.subsChanged(); } }
     /** Where the last spoken line ends, as timed now (ms into the file), from the file that's on or any downloaded one:
-     *  the credits start a little after it. -1 when there's none. */
-    long lastLineEnd() {
-        SrtTrack t = on != null ? on : files.isEmpty() ? null : files.values().iterator().next();
-        if (t == null || t.lines.isEmpty()) return -1;
-        SrtTrack.Line l = t.lines.get(t.lines.size() - 1);
-        return t.showAt(l) + (l.end - l.start);
+     *  the credits start a little after it. -1 when there's none. Spoken: not a subtitler's credit or an advert, not
+     *  only music or sounds (design/ui-v1/skip SPEC 9.4). */
+    long lastLineEnd() { SrtTrack t = anyFile(); return t == null ? -1 : SkipRules.lastSpoken(cues(t)); }
+    /** The end of the last spoken line that starts after from (ms), in any downloaded file; -1: none (skip SPEC 5.1). */
+    long lastSpokenAfter(long from) { SrtTrack t = anyFile(); return t == null ? -1 : SkipRules.lastSpokenAfter(cues(t), from); }
+    SrtTrack anyFile() { return on != null ? on : files.isEmpty() ? null : files.values().iterator().next(); }
+    /** The file that counts for intros (skip SPEC 9.4): a downloaded one lined up with this copy or made for it, once it
+     * is here; the one that's on first. */
+    SrtTrack anchoredFile() {
+        if (on != null && on.anchored) return on;
+        for (SrtTrack t : files.values()) if (t.anchored) return t;
+        return null;
+    }
+    /** A file's lines as drawn: its stored fix, its speed and his Early or late steps. */
+    static List<SkipRules.Cue> cues(SrtTrack t) {
+        List<SkipRules.Cue> out = new ArrayList<>(t.lines.size());
+        for (SrtTrack.Line l : t.lines) {
+            int it = 0;
+            for (int i = 0; i + 1 < l.italics.length; i += 2) it += l.italics[i + 1] - l.italics[i];
+            out.add(new SkipRules.Cue(t.showAt(l), t.hideAt(l), l.plain, it * 2 >= l.plain.trim().length()));
+        }
+        return out;
     }
     private void restoreText() {
         p.setTrackSelectionParameters(prefer(p.getTrackSelectionParameters().buildUpon()).build());
@@ -484,6 +502,7 @@ final class Subs {
         e.put("value", on.mine);
         e.put("release", on.release);
         TunerPlayerPlugin.emit(e);
+        a.subsChanged();   // (every step: the intro's subtitle check runs again, skip SPEC 9.4)
     }
 
     /** The strip: a HUD at the top centre (x 220 to 740, y 27 to 155) with no focus ring; the subtitles stay in view. */
