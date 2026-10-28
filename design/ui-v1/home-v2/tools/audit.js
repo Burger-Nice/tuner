@@ -8,13 +8,14 @@
 //   BAR      the top bar is away on a scrolled page, present otherwise; the context line only when scrolled
 //   HERO     the billboard's text column ends before x 600 (the art side) and its buttons sit at y 232-276
 //   LINES    a card's title and meta, the billboard's meta and fan line, a row title and a game card's status are one line each
-//   RECORD   on a shield mock with a game billboard the records are partial (the eye-off), never a full W-L
+//   RECORD   while a team game is unseen (meta tl.unseen) no plate shows a full W-L (partial record, eye-off)
 //   LIVEBG   the pixels around every LIVE pill are dark canvas, never a team colour (read from the screenshot)
 //   DATA     a channel card never carries art (the Xtream guide has none): the logo tile, or the game's team colours
 //   FANLINE  while a team game is unseen the fan line has no seed or streak and names its copy's game (review 2 item 1)
 //   CONSIST  the page's timeline facts (<meta name="tl">) agree with what is drawn: records, partial state, streak, the NBA row's order and its "In …" times
 //   NOTRUNC  a card's meta line and a next-game line are never cut
-// --inject puts one fault per new check into the pages (a second primary, a swapped row order, a caption in a peek row,
+// --inject puts one fault per check into the pages (a second primary, a swapped row order, a caption in a peek row, a seed while
+// a game is unseen, a full record, a wrong record, a wrapped and a cut meta, a LIVE pill on team colour, art on a channel card, a moved button row,
 // a score on a shield page) to prove they fire.
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 (async () => {
@@ -32,6 +33,16 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const rows = [...document.querySelectorAll('.hv-row')]; const c = rows.find((r) => r.dataset.rail === 'cont'); if (c && rows[1]) { const t = c.style.top; c.style.top = rows[1].style.top; rows[1].style.top = t; }
       const pk = document.querySelector('.rail.peek .wc .tx,.rail.peek .pc .cap'); if (pk) pk.style.visibility = 'visible';
       if (document.querySelector('meta[name="shield"]')) s.insertAdjacentHTML('beforeend', '<div style="position:absolute;left:300px;top:30px;font:500 16px Inter;color:#F3EFE6;z-index:30">Final 118–112</div>');
+      // v1.2 faults, one per new check
+      const ctx = document.querySelector('.hv-bb:not(.hv-hidden) .hv-ctx'); if (ctx) ctx.insertAdjacentHTML('beforeend', '<span class="dot-sep"></span>3rd in the West');            // FANLINE / CONSIST (seed)
+      const rp = document.querySelector('.hv-side .rc .nb-rp'); if (rp) rp.replaceWith('4-1');                                                                                     // RECORD / CONSIST (partial)
+      const rcf = document.querySelector('.hv-side .rc'); if (rcf && !rcf.querySelector('.nb-rp')) rcf.textContent = '9-9';                                                        // CONSIST (record text)
+      const meta = document.querySelector('.rail:not(.peek) .wc .tx span:not(.dot-sep)'); if (meta) { meta.style.display = 'inline-block'; meta.style.maxWidth = '60px'; meta.style.whiteSpace = 'normal'; }  // LINES
+      const met2 = document.querySelectorAll('.rail:not(.peek) .wc .tx span:not(.dot-sep)')[1]; if (met2) met2.textContent = 'S1 · E3 · 21 min left of a very long episode name';  // NOTRUNC
+      const fa = document.querySelector('.hv-fa'); const lp = document.querySelector('.hv-status .a-live'); if (fa && lp) { const cl = lp.cloneNode(true); cl.style.cssText = 'position:absolute;left:200px;top:150px;z-index:40'; s.appendChild(cl); }  // LIVEBG
+      const chc = document.querySelector('.wc.chc'); if (chc) chc.insertAdjacentHTML('afterbegin', '<div class="art"><img src="x.png" alt=""></div>');                               // DATA
+      const hbb = document.querySelector('.hv-btns'); if (hbb) hbb.style.top = (parseFloat(getComputedStyle(hbb).top) + 12) + 'px';                                                // HERO
+      const gcs = document.querySelectorAll('.hv-row[data-rail="nba"] .gc:not(.next)'); if (gcs.length > 1) gcs[0].parentElement.insertBefore(gcs[gcs.length - 1], gcs[0]);        // CONSIST (row order)
     });
     const r = await p.evaluate(() => {
       const SAFE = { l: 48, r: 912, t: 27, b: 513 }, TOL = 1.5;
@@ -246,7 +257,10 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       // ---- NOTRUNC (review 2 item 5): a card's meta is never cut (the time left is the point of the card)
       for (const e of document.querySelectorAll('.wc .tx span:not(.dot-sep):not(.epn):not(.cu-may),.gc.next .ng small,.hv-where')) { if (!vis(e) || e.closest('.sb-shot,.rail.peek')) continue; const host = e.closest('.ng') || e; if (host.scrollWidth > host.clientWidth + 1) issues.home.push(`NOTRUNC: "${e.textContent.trim().slice(0, 30)}" is cut`); }
       // ---- RECORD (review 3): a shield mock with a game billboard never shows a full W-L on a plate
-      if (document.querySelector('meta[name="shield"]') && document.querySelector('.hv-bb.game')) for (const rc of document.querySelectorAll('.hv-side .rc')) if (!rc.closest('.sb-shot') && !rc.querySelector('.nb-rp') && /\d+-\d+/.test(rc.textContent)) issues.home.push(`RECORD: a full record "${rc.textContent.trim()}" under the shield`);
+      // v1.2: a full record is fine when every earlier team game is seen (the record is last night's and before);
+      // it must be partial while a team game is unseen (meta tl.unseen), and CONSIST checks it reads back the timeline.
+      { const tlm = document.querySelector('meta[name="tl"]'); const tlu = tlm ? (JSON.parse(tlm.content).unseen || []) : [];
+        if (document.querySelector('meta[name="shield"]') && document.querySelector('.hv-bb.game') && tlu.length) for (const rc of document.querySelectorAll('.hv-side .rc')) if (!rc.closest('.sb-shot') && !rc.querySelector('.nb-rp') && /\d+-\d+/.test(rc.textContent)) issues.home.push(`RECORD: a full record "${rc.textContent.trim()}" while ${tlu.join(', ')} is unseen`); }
       // ---- FANLINE (review 2 item 1) and CONSIST (item 6): the page's timeline facts, read back
       const tlm = document.querySelector('meta[name="tl"]'); const tl = tlm ? JSON.parse(tlm.content) : null;
       if (tl) {
