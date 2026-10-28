@@ -101,8 +101,8 @@ function streams(k, type, id, host) {
       { name: 'Northlight\n1080p', title: 'Tenzing.2026.1080p.WEB-DL\n💾 4.0 GB', url: media(host, 'tenzing2.mp4'), behaviorHints: { filename: 'Tenzing.2026.1080p.WEB-DL.mkv', videoSize: 4e9 } },
     ];
     if (id.startsWith('tt9000020:')) { const [, s, e] = id.split(':'); return [{ name: 'Northlight\n1080p', title: `The.Bear.S0${s}E0${e}.1080p.WEB-DL\n💾 1.6 GB`, url: media(host, `bear-${s}-${e}.mp4`), behaviorHints: { filename: `The.Bear.S0${s}E0${e}.1080p.WEB-DL.mkv`, videoSize: 1.6e9, bingeGroup: 'northlight|1080p|web' } }]; }
-    // Home's titles: one 1080p copy each (a film, or any episode)
-    if (/^tt95\d{5}(:\d+:\d+)?$/.test(id)) return [{ name: 'Northlight\n1080p', title: `${(tmdb.cinemetaMeta(id, host)?.name || 'Title').replace(/\W+/g, '.')}.1080p.WEB-DL\n💾 2.4 GB`, url: media(host, `h-${id.replace(/:/g, '-')}.mp4`), behaviorHints: { filename: `${id}.1080p.WEB-DL.mkv`, videoSize: 2.4e9, bingeGroup: 'northlight|1080p|web' } }];
+    // Home's and the library's titles: one 1080p copy each (a film, or any episode)
+    if (/^tt9[15]\d{5}(:\d+:\d+)?$/.test(id)) return [{ name: 'Northlight\n1080p', title: `${(tmdb.cinemetaMeta(id, host)?.name || 'Title').replace(/\W+/g, '.')}.1080p.WEB-DL\n💾 2.4 GB`, url: media(host, `h-${id.replace(/:/g, '-')}.mp4`), behaviorHints: { filename: `${id}.1080p.WEB-DL.mkv`, videoSize: 2.4e9, bingeGroup: 'northlight|1080p|web' } }];
     return runtimeless;
   }
   if (k === 'kestrel') {

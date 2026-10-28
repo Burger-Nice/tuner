@@ -223,15 +223,17 @@ window.TUNER_TEST = true;
       check('detail page', state()?.screen === 'detail');
       await press(['DPAD_CENTER'], 'vod', 3500);
       check('vod in the native player', state()?.watching);
-      await press(['DPAD_DOWN'], 'vod-options');
-      await press(['BACK'], 'vod-options-closed');
-      await press(['DPAD_UP'], 'vod-buttons');
-      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-buttons-moved');
-      await press(['BACK'], 'vod-controls-hidden');
-      await press(['DPAD_RIGHT'], 'vod-seek');
-      await press(['BACK'], 'vod-controls-hidden-2');
-      await press(['BACK'], 'vod-closed', 1500);
-      await press(['BACK'], 'detail-closed');
+      if (state()?.watching) {   // (if it didn't play, these Backs would walk out of the app)
+        await press(['DPAD_DOWN'], 'vod-options');
+        await press(['BACK'], 'vod-options-closed');
+        await press(['DPAD_UP'], 'vod-buttons');
+        await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'vod-buttons-moved');
+        await press(['BACK'], 'vod-controls-hidden');
+        await press(['DPAD_RIGHT'], 'vod-seek');
+        await press(['BACK'], 'vod-controls-hidden-2');
+        await press(['BACK'], 'vod-closed', 1500);
+      }
+      if (state()?.screen === 'detail') await press(['BACK'], 'detail-closed');
 
       // Subtitles and real quality (design/ui-v1/subtitles, PORT-NATIVE.md 4): the quality check on the fake film (its
       // size and OpenSubtitles fingerprint, the same as the JS gives), no partial reads, a refusal, plays on this TV;

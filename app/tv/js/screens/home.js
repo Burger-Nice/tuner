@@ -337,13 +337,14 @@ function applyPicture(spec) {
   const target = mode === 'rows' ? 0.22 : 0.3;
   const field = pic.querySelector('.hf-field'), flat = pic.querySelector('.hf-flat');
   const layers = [...pic.querySelectorAll('.hf-bd')];
+  const imgOf = (x) => x.querySelector('img') || x.appendChild(document.createElement('img'));   // (always one per layer)
   const setCap = (a) => { pic.style.setProperty('--capa', capFor(a, target).toFixed(2)); pic.style.setProperty('--amb', a ? glowOf(a, 1) : 'transparent'); };
   const showOnly = (which) => { field.classList.toggle('vis', which === 'field'); flat.classList.toggle('vis', which === 'flat'); if (which !== 'img') layers.forEach((x) => x.classList.remove('vis')); };
   if (spec.kind === 'img') {
-    const showing = layers.find((x) => x.classList.contains('vis') && x.querySelector('img').getAttribute('src') === spec.url);
+    const showing = layers.find((x) => x.classList.contains('vis') && imgOf(x).getAttribute('src') === spec.url);
     if (showing && !field.classList.contains('vis') && !flat.classList.contains('vis')) { const a = known(spec.url); setCap(a); return; }
     const next = layers.find((x) => !x.classList.contains('vis')) || layers[1];
-    const img = next.querySelector('img');
+    const img = imgOf(next);
     const swap = () => {
       if (picKey !== key) return;
       layers.forEach((x) => x.classList.toggle('vis', x === next));
