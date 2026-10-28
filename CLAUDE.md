@@ -34,7 +34,15 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   - `js/conncheck.js` the playback diagnosis's connection check (`design/ui-v1/diagnosis/`).
   - `js/player.js` talks to the native player (commands and events). `js/sfx.js` UI sounds (Android SoundPool via the
     plugin for no delay; Web Audio for the launch sound). `js/launch.js` the launch animation.
-  - `js/screens/` home, live (the guide), nba (the NBA tab host), team, game, lib (Movies/Series), detail, search, saved, account, first (sign-in).
+  - Home (`design/ui-v1/home-final/SPEC.md`): `js/screens/home.js` the Marquee (3 lines, 4 on a game day, the lit one
+    its card in place, the picture after a 600 ms rest, game night) and the browsing rows (index, reasons, P−/P+, Back to
+    row 1 first); `js/rows.js` the row engine (the `plays` log migrated from progress, the taste profile, candidates,
+    the page, cold start's genre picker, Why this row?, hidden rows, Not interested); `js/shelves.js` the item shape,
+    Cinemeta / TMDB / add-on shelves and their paging, opening a title (its IMDb id first); `js/tmdb.js` TMDB v3 with the
+    owner's key (Account > Provider, typed or sent from the phone page; never in the repo; cached, 4 at a time);
+    `js/art.js` the 32 px probe (the brightness cap, the glow) and logos cropped to their ink. Styles: `home.css`.
+  - `js/screens/` home, live (the guide), nba (the NBA tab host), team, game, lib (Movies/Series: the add-on library,
+    never the provider's VOD), detail, search, saved, account, first (sign-in).
   - Styles: `ui.css` (the design kit) and `app.css` (app-specific), `launch.css`, `nba*.css` (the NBA pages).
 - `app/core.js` providers (Xtream + M3U, with `catchup()` replay links), settings and storage. `app/nba.js` ESPN's public JSON. `app/titles.js` title matching.
 - `android/app/src/main/java/app/tuner/player/`: `PlayerActivity` (Media3 player and its overlays: channel list,
@@ -52,7 +60,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   and takes screenshots (see `tests/tv/example-layout.js`). `tests/tv/serve.sh --test` + `node tests/tv/walkthrough.js
   <outdir>` runs the CI walkthrough in a browser (the 3 native-player checks can't pass there; restart the fake provider
   between walkthrough runs, it keeps the reports). NBA page scripts: `tests/tv/nba-{host,league,news,team}.js`, and the
-  bug-hunt scripts `tests/tv/hunt-*.js`.
+  bug-hunt scripts `tests/tv/hunt-*.js`. Home: `tests/tv/home-{marquee,gamenight,rows,cold,library}.js` (a fake TMDB,
+  `tests/mock-tmdb.js`, on the fake provider; `home-common.js` seeds an owner-like history).
 - CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign`) builds Windows, Android, iOS and runs
   `tests/android-test-boot.js` on an Android TV emulator (45 checks; the run fails if a check fails or the test doesn't finish). Its screenshots and `reports.json` are uploaded
   to the `android-test` release as `android-test-shots.tgz`.

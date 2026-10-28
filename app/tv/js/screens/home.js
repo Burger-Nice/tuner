@@ -18,7 +18,7 @@ import { openOverlay, contextMenu, toast, scrollList, confirmMenu } from '../ui.
 import { resumeItem, openTitle } from '../actions.js';
 import { launchOpen, launchDone } from '../launch.js';
 import { gameMenu } from '../nba/hub.js';
-import { morningGame, WINDOW, findReplays, replaysOf, programmeView, heroRow, videoMask } from '../catchup.js';
+import { morningGame, WINDOW, findReplays, replaysOf, programmeView, heroRow, videoMask, sourceCaption } from '../catchup.js';
 import { heroAct, heroHold, resumeGame, watchFromTipoff, playProgramme } from '../replay.js';
 import { resumeAddonItem } from '../titlecopies.js';
 import { anyStreamAddon } from '../imdb.js';
@@ -215,7 +215,9 @@ function lineView(l) {
       v.verb = 'Game page'; v.play = false; v.right = replaysOf(g)?.length ? 'Watch again' : ''; v.hold = hid ? 'Reveal, more' : 'Teams, more';
     }
     const ra = recLine(g.away, g), rh = recLine(g.home, g);
-    v.line = ra || rh ? `${g.away.name} ${recordFor(g.away).text || '–'} · ${g.home.name} ${recordFor(g.home).text || '–'}${g.state !== 'pre' && (hid || live) ? ' · as of tip-off' : ''}` : '';
+    // the morning after: where the replay is and until when ("US: ESPN HD · replays until Thu 29 · late")
+    if ((row?.kind === 'morning' || row?.kind === 'resume') && row.src) v.line = sourceCaption(row.src, { short: false }).replace(/<[^>]*>/g, '').replace(/&amp;/g, '&');
+    else v.line = ra || rh ? `${g.away.name} ${recordFor(g.away).text || '–'} · ${g.home.name} ${recordFor(g.home).text || '–'}${g.state !== 'pre' && (hid || live) ? ' · as of tip-off' : ''}` : '';
     v.picture = { kind: 'game', g, key: `g:${g.id}:${g.state}:${hid}:${hid ? '' : `${g.period}:${g.clock}:${g.away.score}:${g.home.score}`}:${ra}:${rh}` };
     return v;
   }
@@ -354,6 +356,7 @@ function applyPicture(spec) {
   }
   if (spec.kind === 'game') {
     setHtml(field, fieldHtml(spec.g, spec.quiet), false);
+    field.classList.toggle('quiet', settings().gameNight === 'quiet');   // (Account > NBA > Game night: quiet)
     showOnly('field');
     pic.style.setProperty('--capa', '0');
     return;
@@ -939,7 +942,8 @@ function softRedraw(full) {
   if (full || mode !== 'rows') { if (!pendingPage) { const keep = rows[fi]?.id; drawStack(); const i = rows.findIndex((r) => r.id === keep); fi = i >= 0 ? i : 0; } }
   if (mode === 'rows') {
     // live rows (Your shows, the NBA, Channels) redraw their cards in place; focus follows the item (data-key)
-    rows.forEach((r, i) => { if (r.live && mounted[r.id] !== undefined) { const fresh = shownRows().find((x) => x.id === r.id); if (fresh) { r.list = fresh.list; r.reason = fresh.reason; mounted[r.id] = undefined; } } });
+    const now = rows.some((r) => r.live && mounted[r.id] !== undefined) ? shownRows() : [];
+    rows.forEach((r) => { if (r.live && mounted[r.id] !== undefined) { const fresh = now.find((x) => x.id === r.id); if (fresh) { r.list = fresh.list; r.reason = fresh.reason; mounted[r.id] = undefined; } } });
     mountRows(); placeRows();
   }
 }

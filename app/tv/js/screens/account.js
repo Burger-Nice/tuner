@@ -76,7 +76,8 @@ function body() {
       ${row('shield', 'Spoiler shield', more(mode), 'Hides scores, leaders, records and finals everywhere until you reveal them')}
       ${row('bug', 'Score on picture', toggle(!!s.scoreBug), 'A small score in the corner while you watch a game')}
       ${row('delays', 'Score delay', more('Per channel'), esc(named || 'Set in the player: ◀ then Sync score. New channels start at 60 s'))}
-      ${row('replays', 'Replays play', more(REPLAYS[s.replaysPlay || 'channel'][0]), 'What Watch from tip-off plays. Hold OK on it lists every source')}`;
+      ${row('replays', 'Replays play', more(REPLAYS[s.replaysPlay || 'channel'][0]), 'What Watch from tip-off plays. Hold OK on it lists every source')}
+      ${row('gamenight', 'Game night on Home', more(s.gameNight === 'quiet' ? 'Quiet' : 'Full'), 'Full: the picture is the two teams. Quiet keeps their colours to the right third')}`;
   }
   if (group === 'languages') {
     // design/ui-v1/subtitles/SPEC.md 6.2 (account-languages)
@@ -198,6 +199,7 @@ function act(a) {
   else if (a === 'shield') radioMenu({ title: 'Spoiler shield', value: shieldMode(), rows: [{ v: 'off', l: 'Off', sub: 'Scores everywhere' }, { v: 'mine', l: 'My team', sub: 'Your team\'s games hidden' }, { v: 'all', l: 'All games', sub: 'Every game hidden' }], extra: '<div class="t-cap" style="padding:8px 8px 2px">Reveal a game with its Reveal score button. Watching it counts as revealing it.</div>', onPick: (v) => { setShield(v); draw(); } });
   else if (a === 'replays') radioMenu({ title: 'Replays play', value: s.replaysPlay || 'channel', rows: Object.entries(REPLAYS).map(([v, [l, sub]]) => ({ v, l, sub })), style: 'right:48px;top:120px;width:420px',
     extra: '<div class="t-cap" style="padding:8px 8px 2px">Hold OK on Watch from tip-off lists every source, whatever this says.</div>', onPick: (v) => { saveSettings({ replaysPlay: v }); forgetReplays(); draw(); } });
+  else if (a === 'gamenight') radioMenu({ title: 'Game night on Home', value: s.gameNight === 'quiet' ? 'quiet' : 'full', rows: [{ v: 'full', l: 'Full', sub: 'The two teams\' colours' }, { v: 'quiet', l: 'Quiet', sub: 'The right third only' }], onPick: (v) => { saveSettings({ gameNight: v }); draw(); } });
   else if (a === 'bug') { saveSettings({ scoreBug: !s.scoreBug }); flip(!s.scoreBug); draw(); }
   else if (a === 'delays') {
     const ds = store.get(`a:${S.acc?.id}:delays`, {});

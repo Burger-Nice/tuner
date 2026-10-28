@@ -7,6 +7,7 @@ import { ensure, catalog } from '../catalog.js';
 import { signIn, switchTo } from '../session.js';
 import { setShield, favTeam } from '../games.js';
 import { teamSheet } from './account.js';
+import * as R from '../rows.js';
 import { go, current } from '../router.js';
 import { focus } from '../focus.js';
 import { toast } from '../ui.js';
@@ -67,7 +68,7 @@ function choices() {
       <div class="t-cap" style="margin-top:8px">My team hides your team's score everywhere until you reveal it. Other games stay visible.</div>
       <div class="t-label" style="margin:16px 0 8px">Languages shown first</div>
       <div class="chips" data-row>${['English', 'Spanish', 'French', 'Swedish', 'Dutch', 'German', 'Icelandic'].map((l) => t('lang', l, l, langs.includes(l))).join('')}</div></div>
-    <div class="abs" data-row style="left:48px;top:462px"><span class="btn fx" tabindex="-1" data-act="done" style="transform-origin:0 50%">Done</span></div>`;
+    <div class="abs row-flex" data-row style="left:48px;top:462px;gap:16px"><span class="btn fx" tabindex="-1" data-act="done" style="transform-origin:0 50%">Done</span><span class="btn2 fx" tabindex="-1" data-act="picks">${R.picked().length ? `Your rows start from ${esc(R.picked().join(', '))}` : 'Pick what you like · 3 genres start your rows'}</span></div>`;
 }
 
 function draw(state) {
@@ -176,6 +177,7 @@ export default {
       if (!b) return;
       if (b.dataset.acc != null) { const a = S.accounts[+b.dataset.acc]; run({ name: a.name, saved: a }); return; }
       const a = b.dataset.act;
+      if (a === 'picks') { import('./home.js').then((H) => H.pickSheet(() => { draw(); focus(el.querySelector('[data-act="done"]')); })); return; }   // (home-final SPEC 10: skippable)
       if (a === 'type') { step = 'type'; err = ''; draw(); }
       else if (a === 'm3u') { step = 'm3u'; err = ''; draw(); }
       else if (a === 'signin') signInTyped();

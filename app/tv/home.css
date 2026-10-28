@@ -36,6 +36,7 @@
 .hf-field.vis,.hf-flat.vis{opacity:1}
 .hf-field>*{position:absolute}
 .hf-field .away{inset:0;background:var(--c)}
+.hf-field.quiet .away{left:64%}   /* quiet: the teams keep to the right third, the canvas under the lineup */
 .hf-field .home{top:0;bottom:0;left:83%;right:-200px;background:var(--c);transform:skewX(-12deg);transform-origin:top}
 .hf-field .edge{top:0;bottom:0;left:83%;width:10px;transform:skewX(-12deg);transform-origin:top}
 .hf-field .edge i{position:absolute;top:0;bottom:0;width:5px}
