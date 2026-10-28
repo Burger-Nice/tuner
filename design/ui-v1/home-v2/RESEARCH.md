@@ -130,6 +130,24 @@ this session's network, so those points are (S) and the owner can check them on 
 - Attention: on the web most viewing time goes to the first screenful (Nielsen Norman Group, S, web not TV); on a TV
   with a remote the cost of a row is a Down press, so the order is the whole design.
 
+## 6. What makes the beautiful ones beautiful (v1.1, for the owner's "unique, innovative, amazing, beautiful")
+
+Looked at as craft rather than structure. (S) throughout except the two platform guides.
+
+| Craft | Netflix | Apple TV app | Disney+ / Max | Google TV | Infuse | What airglow takes |
+|---|---|---|---|---|---|---|
+| **Art direction of the billboard** | one key frame, subject right, text left, the title as a logo treatment, the row of cards below as a bar of colour | the same frame with a lockup logo, generous dark air | Disney+ "cinematic poster-style artwork", brand rows | the hero with the subject top-right (its own design guide says so, P) | a wide fanart with the title | the same frame grammar (subject right, text left, the title logo when the add-on has one), and the **matchup as a frame** on game night, which none of them have |
+| **Colour from the artwork** | 2025: "the background echoes the colors from our billboard artwork" | a dark blur of the art behind the lockup (a blur, which the brand bans) | brand colours per tab | the hero fades into the launcher's dark | a blurred fanart | a **flat** ambient colour from the image (SPEC 3.8): the effect without the blur |
+| **Typography** | bold condensed title logos, light meta | SF Pro large and quiet, meta in small caps | Disney's own display face | Google Sans | system | Outfit 700 for titles, Inter for meta, Barlow italic for the clock only; the **greeting** in caps pink-text as the one playful word |
+| **Depth** | the focused card grows and lifts over its neighbours, the billboard sits behind a scrim | parallax on focus (needs layered images) | a lift and a glow | a lift with a border (1.1, P) | a lift | the ring + 1.05 lift, the scrims as the only depth; no parallax, no glow (brand) |
+| **Motion** | the billboard's trailer; cards expand after a dwell | smooth row scroll, parallax | the hero carousel auto-advances | preview video | cross-fades | one **entry** per visit (the fields slide in on game night, the art settles on other nights), the live wipe on a state change, otherwise still (SPEC 3.9) |
+| **Density** | 2025: fewer, bigger tiles | one row of big cards, lots of air | dense rows | medium | medium | 4 wide or 6 posters across, a peek, 11 rows at most, every row with a reason |
+| **Voice** | none on the home | none | none | none | none | the Icelandic greeting, `Ends 21:03`, `THE MORNING AFTER`, `no spoilers`, `A film for tonight` |
+
+What airglow has that they cannot: one person's team and its colours, a spoiler shield that shapes the whole screen, a
+guide and a replay archive beside the films, and a language of its own. v1.1 spends the creativity there rather than on
+effects the brand bans or a WebView cannot afford.
+
 ## 5. Sources
 
 (P) Apple HIG: Top Shelf, Focus and selection, Playing video, Designing for tvOS (developer.apple.com/design/human-interface-guidelines/…).

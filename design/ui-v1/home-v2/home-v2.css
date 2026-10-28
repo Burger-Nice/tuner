@@ -148,3 +148,5 @@
 .sb-cap b{font-weight:650;color:var(--a-text-1)}
 /* scrolled: the billboard stays mounted (its image decoded once), hidden under the lifted page */
 .hv-bb.hv-hidden{visibility:hidden}
+/* a peeking game card sits 2 px higher inside its slot so its LIVE pill is whole above the screen edge */
+.hv-row .rail.peek .gc{padding-top:8px}
