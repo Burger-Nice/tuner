@@ -87,10 +87,22 @@ module.exports = async ({ p, shot, key }) => {
   check('series pill: S1 · E1', /S1 · E1/.test(await pill()), await pill());
   for (let i = 0; i < 4; i++) { if (/data-season|chip/.test(await C.where(p))) break; await key('ArrowDown', 1, 300); }
   await ok(p, 'a season chip', 'chip');
+  // the episode row holds still when the page redraws (copies, progress): no slide back to the start and over again
+  await key('ArrowDown', 1, 400); await key('ArrowRight', 4, 250); await p.waitForTimeout(600);
+  const tx = await ev(async () => {
+    const { emit } = await import('/tv/js/state.js');
+    const tr = () => getComputedStyle(document.querySelector('[data-screen="detail"] .track[data-eps]')).transform;
+    const out = [tr()];
+    emit('progress'); emit('copies');
+    for (let i = 0; i < 6; i++) { await new Promise((r) => setTimeout(r, 40)); out.push(tr()); }
+    return out;
+  });
+  check('a redraw keeps the episode row where it is', tx[0] !== 'none' && tx.every((x) => x === tx[0]), [...new Set(tx)].join(' / '));
+  await key('ArrowUp', 1, 400); await key('ArrowLeft', 6, 150);
   for (let i = 0; i < 6; i++) { if (/Season 4/.test(await C.where(p))) break; await key('ArrowRight', 1, 200); }
   await key('Enter', 1, 600); await key('ArrowDown', 1, 500); await p.waitForTimeout(1500); await shot('detail-series-s4');
   const s4 = await ev(() => [...document.querySelectorAll('[data-screen="detail"] .ep')].map((e) => e.innerText.replace(/\s+/g, ' ')));
-  check('season 4: add-on episodes marked', s4.length === 2 && s4.every((x) => /Add-on/.test(x)), s4.join(' | '));
+  check('season 4: the add-on episodes, with no Add-on badge', s4.length === 2 && !s4.some((x) => /Add-on/.test(x)), s4.join(' | '));
   check('their best copy on the summary line', await ev(() => /Northlight/.test(document.querySelector('[data-screen="detail"] .epsyn')?.innerText || '')));
   await key('Enter', 1, 800);
   const v3 = await lastVod();
