@@ -1,365 +1,290 @@
-// Movies and Series: one grid (6 posters a row), Popular first, view chips over the same Sort/Filter state, one Filters
-// sheet with live counts, and Jump. Only the rows around the focus are mounted, so 50,000 titles scroll like 50.
-import { posterTag } from '../quality.js';
-import { $, esc, ic, dot, setHtml, compact } from '../util.js';
+// Movies and Series: the add-on library (design/ui-v1/home-final/SPEC.md 7). One long scroll per shelf: Popular and New
+// (Cinemeta's catalogs, paged 50 at a time), Top rated, the genres, Anime and Á íslensku (TMDB's lists, paged 20; Cinemeta's
+// genre catalogs re-filtered when there is no TMDB key), the other add-ons' catalogs, Saved and History. The grid is
+// six posters a row (124 px, 20 px gutters from x 58, so every ring stays inside the safe area); scrolled, a solid band
+// at the top holds where you are, the focused title and its facts, and the bubble while a key repeats.
+// The provider's own films and series are never listed here (the owner's decision): a title the provider also has
+// opens the provider's page, where its copy is ranked with the add-ons' (shelves.js titleOf).
+import { esc, ic, dot, setHtml, compact, initials } from '../util.js';
 import { S, on, store, scoped, toggleFav, isFav, markWatched } from '../state.js';
-import { catalog, ensure, takeFresh, browse, SORTS, DECADES, IMDB_MIN, facetCounts, filterCount, jumpTargets, prefLangs, genresOf } from '../catalog.js';
-import { poster } from '../cards.js';
-import { push, go, barHidden, current, mayFocus } from '../router.js';
+import { barHidden, current, mayFocus, go } from '../router.js';
 import { focus } from '../focus.js';
-import { openDetail } from '../actions.js';
-import { videoMask } from '../catchup.js';
 import { openOverlay, contextMenu, toast, scrollList, radioMenu } from '../ui.js';
+import { anyStreamAddon } from '../imdb.js';
+import * as SH from '../shelves.js';
+import * as TM from '../tmdb.js';
 import * as AD from '../addons.js';
-import { providerByImdb } from '../imdb.js';
-import { openAddonSheet, SPIN } from './addons.js';
+import * as R from '../rows.js';
+import { videoMask } from '../catchup.js';
 
-const COLS = 6, PITCH = 252, COLW = 148, MOUNT_BEFORE = 2, MOUNT_AFTER = 3;
-const CHIP_GENRES = 4;
+const COLS = 6, PITCH = 210, COLW = 144, X0 = 58, TOP0 = 184, TOPF = 156, BEFORE = 3, AFTER = 4;
+const ORDERS = [['popular', 'Popular'], ['new', 'New'], ['top', 'Top rated'], ['az', 'Title A–Z']];
+const DECADES = [['2020s', 2020, 2099], ['2010s', 2010, 2019], ['2000s', 2000, 2009], ['1990s', 1990, 1999], ['Older', 0, 1989]];
+const RUNTIMES = { movie: [['short', 'Under 1h 30m', 0, 89], ['mid', '1h 30m to 2h', 90, 120], ['long', 'Over 2 hours', 121, 999]], series: [['short', 'Under 30 min', 0, 29], ['mid', '30 to 50 min', 30, 50], ['long', 'Over 50 min', 51, 999]] };
+const LANGS = [['en', 'English', 'United States|United Kingdom|Canada|Australia|Ireland|New Zealand'], ['is', 'Icelandic', 'Iceland'], ['ja', 'Japanese', 'Japan'], ['ko', 'Korean', 'Korea'], ['fr', 'French', 'France'], ['es', 'Spanish', 'Spain|Mexico|Argentina']];
+const DEFAULT_G = { movie: ['Comedy', 'Action', 'Drama', 'Sci-Fi'], series: ['Comedy', 'Drama', 'Crime', 'Sci-Fi'] };
 
 export default function lib(kind) {
   const label = kind === 'movie' ? 'Movies' : 'Series';
-  let el, list = [], view = null, row = 0, bubbleT = 0, repeatSince = 0, loadT = 0, unhook = () => {};
-  // An add-on catalog chip in use (design/ui-v1/addons/SPEC.md 4.2): its own order, paged with skip, merged with the
-  // provider's titles by IMDb id. { key, a, c, genre, items, ids, mine (provider titles shown), state: 'loading' |
-  // 'ok' | 'down' | 'end', more: '' | 'loading' | 'failed', onlyMine }
-  let ad = null;
-  const adChips = () => AD.chipCatalogs(kind);
-  const vkey = () => scoped(kind + 'View');
-  function loadView() {
-    const v = store.get(vkey(), {});
-    const ok = SORTS.some(([k]) => k === v.sort);
-    // Every language is shown, yours first (the order is the "English first" toggle); "Your languages" is a filter.
-    const f = v.f && typeof v.f === 'object' && !['first', 'any'].includes(v.f.lang) ? v.f : {};
-    view = { sort: ok ? v.sort : 'popular', f, chip: v.chip || 'All', langFirst: v.langFirst !== false };
-  }
+  let el, grid, view = null, pager = null, list = [], row = 0, inGrid = false, bubbleT = 0, repeatSince = 0, gen = 0, myG = DEFAULT_G[kind], want = 0;
+  const vkey = () => scoped(`${kind}Shelf`);
+  const loadView = () => { const v = store.get(vkey(), {}); view = { shelf: v.shelf || 'popular', order: v.order || 'popular', f: v.f && typeof v.f === 'object' ? v.f : {} }; };
   const saveView = () => store.set(vkey(), view);
-
-  // View chips write into the same Sort / Filter state, so nothing is filtered in two places.
+  // ---------- the shelf in use ----------
+  const genreOf = (k) => (k.startsWith('g:') ? k.slice(2) : '');
+  function shelfDef() {
+    const k = view.shelf, g = genreOf(k);
+    if (g) return { ...SH.genreShelf(kind, g), order: view.order };
+    const s = SH.shelves(kind).find((x) => x.key === k);
+    if (s?.src === 'anime') return { ...s, order: view.order };
+    return s || SH.shelves(kind)[0];
+  }
+  const shelfName = () => { const k = view.shelf, g = genreOf(k); return g || SH.shelves(kind).find((x) => x.key === k)?.label || 'Popular'; };
+  const orderName = () => (['popular', 'new', 'top'].includes(view.shelf) ? '' : ORDERS.find(([k]) => k === view.order)?.[1] || '');
+  // the pager for this shelf and order (a genre's New is its own list: newest first; Title A–Z sorts what is loaded)
+  function openShelf() {
+    const d = shelfDef();
+    const o = view.order;
+    const def = d.src === 'genre' || d.src === 'anime' ? { ...d, ...(o === 'top' ? { tmOrder: 'top' } : o === 'new' ? { tmOrder: 'new' } : {}) } : d;
+    pager = new SH.Pager(def);
+    list = [];
+    row = 0;
+    const my = ++gen;
+    loadMore(my);
+  }
+  // Filters over the shelf (SPEC 7): applied to what has loaded, and it keeps loading until 50 match or 10 more pages
+  const fCount = () => Object.values(view.f).filter((v) => v != null && v !== '').length;
+  function passes(it) {
+    const f = view.f;
+    if (f.genre && !(it.genres || []).map(SH.canon).includes(f.genre)) return false;
+    if (f.decade) { const d = DECADES.find(([l]) => l === f.decade); if (d && !(it.year >= d[1] && it.year <= d[2])) return false; }
+    if (f.imdb && !(it.rating >= +f.imdb)) return false;
+    if (f.runtime) { const r = RUNTIMES[kind].find(([k]) => k === f.runtime); const m = it.runtime || it._d?.runtime || 0; if (r && !(m >= r[2] && m <= r[3])) return false; }
+    if (f.lang) { const l = LANGS.find(([k]) => k === f.lang); if (l && !(it.lang === l[0] || (!it.lang && new RegExp(`^(${l[2]})`).test(SH.firstCountry(it.country))))) return false; }
+    if (videoMask({ kind: 'movie', id: it.id, name: it.name })) return false;   // (a hidden game's video: left out, SPEC 10 of the add-ons)
+    return true;
+  }
+  function relist() {
+    let l = pager.items.filter(passes);
+    if (view.order === 'az') l = [...l].sort((a, b) => a.name.localeCompare(b.name));
+    else if (view.order === 'new' && !pager.tm && (genreOf(view.shelf) || view.shelf === 'anime')) l = [...l].sort((a, b) => (b.year || 0) - (a.year || 0));
+    list = l;
+  }
+  async function loadMore(my = gen, rounds = 0) {
+    if (!pager || pager.end || pager.busy) return;
+    const before = list.length;
+    draw();
+    try { await pager.more(); } catch { if (my !== gen) return; draw(); return; }
+    if (my !== gen) return;
+    relist();
+    // filtered: keep reading until there are 50 matches (or 10 pages); unfiltered: until the focus has room below
+    const need = fCount() ? 50 : (row + AFTER + 2) * COLS;
+    if (!pager.end && list.length < need && rounds < (fCount() ? 10 : 3) && list.length - before < need) return loadMore(my, rounds + 1);
+    draw();
+  }
+  // ---------- the header and the chips ----------
   function chipDefs() {
-    const g = catalog[kind]?.facets?.genres?.slice(0, CHIP_GENRES) || [];
-    const keep = view.f.lang ? { lang: view.f.lang } : {};
-    return [['All', { sort: 'popular', f: { ...keep } }], [kind === 'movie' ? `New in ${prefLangs()[0]}` : 'New episodes', { sort: kind === 'movie' ? 'year' : 'added', f: { lang: 'mine' } }],
-      ['Top rated', { sort: 'rating', f: { ...keep } }], ['4K', { sort: view.sort, f: { ...keep, q: '4K' } }],
-      ...g.map((x) => [x, { sort: view.sort, f: { ...keep, genre: x } }])];
+    const key = TM.hasKey();
+    const base = [['popular', 'Popular'], ['new', 'New'], ...(key ? [['top', 'Top rated']] : [])];
+    const g = myG.slice(0, 4).map((x) => [`g:${x}`, x]);
+    const more = SH.shelves(kind).filter((s) => !['popular', 'new', 'top'].includes(s.key)).map((s) => [s.key, s.label, s.by]);
+    return [...base, ...g, ['more', 'More genres'], ...more];
   }
-  // the add-on chips after a divider: the catalog's name, then the add-on in text-3 (SPEC 4.2)
-  function addonChips() {
-    const cs = adChips();
-    if (!cs.length) return '';
-    return `<span class="ad-cut"></span>${cs.map((x) => `<span class="chip lg fx${x.key === view.chip ? ' sel' : ''}" tabindex="-1" data-chip="${esc(x.key)}" data-hold>${esc(x.name)}<span class="ad-by">${esc(x.by)}</span></span>`).join('')}`;
-  }
-  function adHeader() {
-    const gOpts = AD.genreOf(ad.c)?.options || [];
-    const cap = ad.state === 'loading' ? `${SPIN}Asking ${esc(AD.label(ad.a))}…` : `${esc(AD.catalogName(ad.a, ad.c))} from ${esc(AD.label(ad.a))}${ad.genre ? `${dot}${esc(ad.genre)}` : ''}${ad.onlyMine ? `${dot}only titles your provider has` : ad.mine.size ? `${dot}<span class="ad-legend"><i>${ic('tv')}</i>also on your provider</span>` : ''}`;
-    return `<div class="lib-head" data-row><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px">${cap}</span><span class="grow"></span>
-      ${gOpts.length ? `<span class="pillbtn fx" tabindex="-1" data-act="genre">${ic('sliders')}Genre${ad.genre ? `<b>${esc(ad.genre)}</b>` : ''}</span>` : ''}</div>
-      <div class="lib-chips" data-row>${chipDefs().map(([c]) => `<span class="chip lg fx" tabindex="-1" data-chip="${esc(c)}">${esc(c)}</span>`).join('')}${addonChips()}</div>`;
-  }
+  const countLine = () => {
+    if (!pager) return '';
+    if (fCount()) return `${list.length.toLocaleString()} so far${pager.end ? '' : ' · still looking'}`;
+    if (view.order === 'az') return `${list.length.toLocaleString()} loaded, A–Z`;
+    return `${pager.totalLabel()} titles`;
+  };
   function header() {
-    if (ad) return adHeader();
-    const n = catalog[kind]?.titles?.length || 0;
-    const sortL = SORTS.find(([k]) => k === view.sort)?.[1] || 'Popular';
-    const fc = filterCount(view.f);
-    const langNote = view.langFirst && view.sort !== 'az' ? `${dot}${prefLangs()[0]} first` : '';
-    return `<div class="lib-head" data-row><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px">${list.length === n ? `${n.toLocaleString()} titles` : `${list.length.toLocaleString()} of ${n.toLocaleString()}`}${langNote}</span><span class="grow"></span>
+    const ctx = [shelfName(), orderName()].filter(Boolean).join(' · ');
+    const chips = chipDefs().map(([k, l, by]) => `<span class="chip lg fx${k === view.shelf || (k === 'more' && genreOf(view.shelf) && !myG.includes(genreOf(view.shelf))) ? ' sel' : ''}" tabindex="-1" data-chip="${esc(k)}">${esc(k === 'more' && genreOf(view.shelf) && !myG.includes(genreOf(view.shelf)) ? genreOf(view.shelf) : l)}${by ? `<span class="ad-by">${esc(by)}</span>` : ''}</span>`).join('');
+    return `<div class="lib-head" data-row><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px">${esc(ctx)}${dot}${esc(countLine())}</span><span class="grow"></span>
       <span class="pillbtn fx" tabindex="-1" data-act="search">${ic('search')}Search</span>
-      <span class="pillbtn fx" tabindex="-1" data-act="sort">${ic('sort')}Sort<b>${esc(sortL)}</b></span>
-      <span class="pillbtn fx" tabindex="-1" data-act="filters">${ic('sliders')}Filters${fc > 0 ? `<span class="cnt">${fc}</span>` : ''}</span>
+      <span class="pillbtn fx" tabindex="-1" data-act="sort">${ic('sort')}Sort<b>${esc(ORDERS.find(([k]) => k === (['popular', 'new', 'top'].includes(view.shelf) ? view.shelf : view.order))?.[1] || 'Popular')}</b></span>
+      <span class="pillbtn fx" tabindex="-1" data-act="filters">${ic('sliders')}Filters${fCount() ? `<span class="cnt">${fCount()}</span>` : ''}</span>
       <span class="pillbtn fx" tabindex="-1" data-act="jump">${ic('chevD')}Jump</span></div>
-      <div class="lib-chips" data-row>${chipDefs().map(([c]) => `<span class="chip lg fx${c === view.chip ? ' sel' : ''}" tabindex="-1" data-chip="${esc(c)}">${esc(c)}</span>`).join('')}${addonChips()}</div>`;
+      <div class="lib-chips" data-row>${chips}</div>`;
   }
-  function refreshList(keepFocus) {
-    const cs = view.chip?.startsWith('ad') && adChips().find((x) => x.key === view.chip);
-    if (view.chip?.startsWith('ad') && !cs) view.chip = 'All';   // (its add-on or catalog went)
-    if (cs) { if (ad?.key !== cs.key) openAd(cs); list = ad.items; }
-    else { ad = null; list = browse(kind, view); }
-    setHtml(el.querySelector('[data-head]'), header());
-    if (!keepFocus) row = 0;
-    drawGrid();
+  // ---------- the grid ----------
+  function cell(it, i) {
+    const art = it.poster ? `<img src="${esc(SH.posterSmall(it.poster))}" alt="" decoding="async" data-ini="${esc(initials(it.name))}">` : '';
+    return `<div class="lb-p fx${it.poster ? '' : ' txt'}" tabindex="-1" data-i="${i}" data-key="t:${esc(it.kind)}:${esc(it.imdb || it.id)}" data-hold style="left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px">${art}${it.poster ? '' : `<small>No poster</small><b>${esc(it.name)}</b>`}</div>`;
   }
-  // Mount the rows around `row` (the focused one), positioned absolutely; the grid slides by whole rows.
   function drawGrid(focusIdx) {
-    const grid = el.querySelector('.lib-grid');
-    grid.querySelectorAll('.ad-skel, .ad-more').forEach((x) => x.remove());
-    if (ad && !list.length) {
-      const who = esc(AD.label(ad.a));
-      grid.innerHTML = ad.state === 'loading' ? Array.from({ length: 12 }, (_, i) => `<span class="skb" style="position:absolute;left:${(i % 6) * COLW}px;top:${Math.floor(i / 6) * PITCH}px;width:124px;height:186px;border-radius:12px"></span>`).join('')
-        : ad.state === 'down' ? `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('wifiOff')}</div><b>${who} isn't answering</b><p>Its catalogs come back when it does. Your provider's ${label.toLowerCase()} are all still here, under All.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="adretry">Try again</span><span class="btn2 fx" tabindex="-1" data-act="clear">All ${label.toLowerCase()}</span></span></div>`
-        : `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('tv')}</div><b>${ad.onlyMine ? 'None of these are on your provider' : 'Nothing here yet'}</b><p>${ad.onlyMine ? `No add-on of yours gives copies of ${esc(AD.catalogName(ad.a, ad.c))}'s titles, and your provider has none of them.` : `${who} sent no titles for this.`}</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn2 fx" tabindex="-1" data-act="clear">All ${label.toLowerCase()}</span></span></div>`;
-      grid.style.transform = 'translateY(176px)';
+    if (!anyStreamAddon()) {
+      grid.innerHTML = `<div class="state big" style="position:relative;margin:24px auto 0;left:0;width:620px"><div class="ico">${ic('film')}</div><b>Films and series come from your add-ons</b><p>Add a Stremio add-on for films and series. Your provider stays your live TV.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="addons">Add an add-on</span></span></div>`;
+      grid.style.transform = `translateY(${TOP0}px)`;
       return;
     }
     if (!list.length) {
-      const n = catalog[kind]?.titles?.length || 0;
-      grid.innerHTML = n ? `<div class="state big" style="margin:24px auto 0;position:relative;left:0"><div class="ico">${ic('sliders')}</div><b>Nothing matches these filters</b><p>Remove the last one, or clear them all to see every title again.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="clear">Clear all</span></span></div>` : '';
+      const loading = pager && !pager.end && !pager.failed;
+      grid.innerHTML = loading ? Array.from({ length: 12 }, (_, i) => `<span class="skb" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px;width:124px;height:186px;border-radius:12px"></span>`).join('')
+        : pager?.failed ? `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('wifiOff')}</div><b>This shelf isn't answering</b><p>Try again in a minute, or pick another shelf.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="retry">Try again</span></span></div>`
+        : `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('sliders')}</div><b>${fCount() ? 'Nothing matches these filters' : 'Nothing here yet'}</b><p>${fCount() ? 'Remove the last one, or clear them all.' : view.shelf === 'saved' ? 'Titles you save show up here.' : 'Titles you watch show up here.'}</p>${fCount() ? '<span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="clear">Clear filters</span></span>' : ''}</div>`;
+      grid.style.transform = `translateY(${TOP0}px)`;
       return;
     }
-    const scrolled = row >= 1;
-    const topRow = scrolled ? row - 1 : 0;
-    const a = Math.max(0, row - MOUNT_BEFORE), b = Math.min(Math.ceil(list.length / COLS), row + MOUNT_AFTER + 1);
+    // at most 8 rows (48 titles) mounted around the focus; the rest are drawn again from the list on the way back
+    const a = Math.max(0, row - BEFORE), b = Math.min(Math.ceil(list.length / COLS), row + AFTER + 1);
     const want = new Set();
     for (let r = a; r < b; r++) for (let c = 0; c < COLS; c++) { const i = r * COLS + c; if (i < list.length) want.add(i); }
-    const have = new Map([...grid.children].filter((x) => x.dataset.i).map((x) => [+x.dataset.i, x]));
-    // (a card is drawn again when the shield's mask on it changes: catch-up 5.8; or its real quality: subtitles 6.1)
-    const mk = (t) => `${videoMask(t)?.kind || ''}|${t.kind === 'movie' ? posterTag(t) : ''}`;
-    for (const [i, node] of have) if (!want.has(i) || node._t !== list[i] || (node._m || '') !== mk(list[i])) { if (node === document.activeElement) continue; node.remove(); have.delete(i); }
+    for (const node of [...grid.children]) { const i = +node.dataset.i; if (!node.dataset.i || !want.has(i) || node._t !== list[i]) { if (node === document.activeElement) continue; node.remove(); } }
+    const have = new Set([...grid.children].map((n) => +n.dataset.i));
     let html = '';
-    for (const i of want) if (!have.has(i)) html += poster(list[i], i, { mine: !!ad?.mine.has(list[i]) }).replace('class="pc fx', `data-c="${i % COLS}" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px" class="pc fx`);
+    for (const i of want) if (!have.has(i)) html += cell(list[i], i);
     if (html) grid.insertAdjacentHTML('beforeend', html);
-    // the next page on its way: static blocks on the next row; a page that failed: one inline card (SPEC 4.2, S9)
-    const nextTop = Math.ceil(list.length / COLS) * PITCH;
-    if (ad?.more === 'loading' && b >= Math.ceil(list.length / COLS)) grid.insertAdjacentHTML('beforeend', Array.from({ length: COLS }, (_, c) => `<span class="ad-skel" style="left:${c * COLW}px;top:${nextTop}px"></span>`).join(''));
-    if (ad?.more === 'failed') grid.insertAdjacentHTML('beforeend', `<div class="card ad-more" style="position:absolute;left:0;top:${nextTop}px;width:864px;height:64px;box-sizing:border-box;display:flex;align-items:center;gap:14px;padding:0 20px"><span class="ad-bang">${ic('bang')}</span><span class="grow"><b style="display:block;font:650 16px/20px var(--a-font-text)">${esc(AD.label(ad.a))} didn't send the next page</b><span class="t-cap">The titles above stay. ▼ to try again</span></span><span class="btn2 sm">Try again</span></div>`);
-    for (const node of grid.children) if (node.dataset.i) { node._t = list[+node.dataset.i]; node._m = mk(node._t); }
-    // Scrolled, the focused row sits low enough to show the row above under the top fade, and high enough that its own
-    // titles stay on screen (a card is 238 tall: poster 186 + title and year): its bottom lands inside the safe edge (513).
-    grid.style.transform = `translateY(${(scrolled ? 22 : 176) - topRow * PITCH}px)`;
-    el.querySelector('[data-head]').style.opacity = scrolled ? 0 : 1;
-    el.querySelector('[data-head]').style.visibility = scrolled ? 'hidden' : '';
-    barHidden(scrolled && current() === kind);
-    const ctx = el.querySelector('.ctxline');
-    ctx.hidden = !scrolled;
-    el.querySelector('.lib-cover').hidden = !scrolled;
-    const fc = filterCount(view.f);
-    ctx.innerHTML = `${label}${dot}${esc(SORTS.find(([k]) => k === view.sort)?.[1])}${fc > 0 ? `${dot}${fc} filter${fc > 1 ? 's' : ''}` : ''}`;
+    for (const node of grid.children) if (node.dataset.i) node._t = list[+node.dataset.i];
+    const rows = Math.ceil(list.length / COLS);
+    grid.querySelectorAll('.lb-more').forEach((x) => x.remove());
+    if (!pager.end && b >= rows) grid.insertAdjacentHTML('beforeend', pager.failed ? `<div class="lb-more card" style="top:${rows * PITCH}px">${ic('bang')}<span class="grow">The next page didn't come · ▼ tries again</span></div>` : Array.from({ length: COLS }, (_, c) => `<span class="lb-more ad-skel" style="left:${c * COLW}px;top:${rows * PITCH}px"></span>`).join(''));
+    grid.style.transform = `translateY(${(inGrid ? TOPF : TOP0) - row * PITCH}px)`;
     if (focusIdx != null) focus(grid.querySelector(`[data-i="${focusIdx}"]`));
   }
+  function band() {
+    const b = el.querySelector('.lb-band');
+    b.hidden = !inGrid;
+    el.querySelector('[data-head]').style.visibility = inGrid ? 'hidden' : '';
+    barHidden(inGrid && current() === kind);
+    if (!inGrid) return;
+    const a = document.activeElement, it = a?.closest?.('.lb-p') ? list[+a.dataset.i] : null;
+    const ctx = [label, shelfName(), orderName() || (['popular', 'new', 'top'].includes(view.shelf) ? '' : 'Popular'), fCount() ? `${fCount()} filter${fCount() > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+    const d = it?._d || {};
+    const rt = d.runtime || it?.runtime;
+    const facts = it ? [it.year ? (kind === 'series' ? `${it.year}–` : String(it.year)) : '', rt ? (kind === 'series' ? `${rt} min` : rt >= 60 ? `${Math.floor(rt / 60)}h ${String(rt % 60).padStart(2, '0')}m` : `${rt} min`) : '', (it.genres || []).slice(0, 2).join(' · '), it.rating && it.src !== 'tmdb' ? `IMDb ${it.rating.toFixed(1)}` : ''].filter(Boolean).join('  ·  ') : '';
+    setHtml(b.querySelector('.lb-txt'), `<span class="cx">${esc(ctx)}</span><b class="ft">${esc(it?.name || '')}</b><span class="fm">${esc(facts)}</span>`, false);
+  }
+  function draw(focusIdx) {
+    if (!el || current() !== kind) return;
+    setHtml(el.querySelector('[data-head]'), header());
+    drawGrid(focusIdx);
+    band();
+  }
+  // ▼ near the end asks for the next page; ◀ ▶ stop at the edges; ▲ from the first row goes to the chips
   function gridHook(dir, cur, repeat) {
     const i = +cur.dataset.i, n = list.length;
     let t = null;
     if (dir === 'left') { if (i % COLS === 0) return false; t = i - 1; }
     else if (dir === 'right') { if (i % COLS === COLS - 1 || i + 1 >= n) return false; t = i + 1; }
     else if (dir === 'up') {
-      if (i < COLS) {
-        // Up from the first row: the view chips (the one in use), then Sort / Filters / Jump above them.
-        row = 0; drawGrid();
-        const chip = el.querySelector('.lib-chips .chip.sel') || el.querySelector('.lib-chips .chip');
-        return chip ? focus(chip) : undefined;
-      }
+      if (i < COLS) { inGrid = false; row = 0; draw(); const chip = el.querySelector('.lib-chips .chip.sel') || el.querySelector('.lib-chips .chip'); return chip ? focus(chip) : undefined; }
       t = i - COLS;
-    }
-    else {
-      if (i + COLS < n) t = i + COLS; else if (Math.floor(i / COLS) < Math.floor((n - 1) / COLS)) t = n - 1;
-      else if (ad && ad.more === 'failed') { loadMore(); return true; }          // ▼ on the last row tries again
-      else if (ad && (ad.more === 'loading' || ad.state !== 'end')) return true;  // on its way: focus stays, even under key repeat
+    } else {
+      if (i + COLS < n) t = i + COLS;
+      else if (Math.floor(i / COLS) < Math.floor((n - 1) / COLS)) t = n - 1;
+      else if (pager.failed) { pager.failed = false; loadMore(); return true; }
+      else if (!pager.end) { loadMore(); return true; }   // (on its way: focus stays, even under key repeat)
       else return false;
     }
-    row = Math.floor(t / COLS);
-    if (ad && dir === 'down' && row >= Math.ceil(n / COLS) - 2) loadMore();
-    drawGrid(t);
-    bubble(repeat && (dir === 'up' || dir === 'down'), t);
+    move(t, repeat && (dir === 'up' || dir === 'down'));
     return true;
   }
-  // While Down is held for more than 1.5 s: where you are in the sort ("#720 of 4,812 · Popular").
+  function move(t, rep) {
+    inGrid = true;
+    row = Math.floor(t / COLS);
+    if (row >= Math.ceil(list.length / COLS) - 2) loadMore();
+    drawGrid(t);
+    band();
+    bubble(rep, t);
+  }
+  // While ▲▼ repeat: "#313 of 3,000+"
   function bubble(rep, i) {
-    const b = el.querySelector('.bubble');
-    if (!rep) { repeatSince = 0; return; }
+    const b = el.querySelector('.lb-bubble');
+    if (!rep) { repeatSince = 0; b.hidden = true; return; }
     if (!repeatSince) repeatSince = Date.now();
-    if (Date.now() - repeatSince < 1500) return;
-    const t = list[i];
-    const key = view.sort === 'rating' ? (t._ir ? t._ir.toFixed(1) : '–') : view.sort === 'year' ? t.year || '–' : view.sort === 'az' ? (t.name[0] || '#').toUpperCase() : `#${(i + 1).toLocaleString()}`;
-    const sortL = SORTS.find(([k]) => k === view.sort)?.[1];
-    b.innerHTML = `<b>${esc(key)}</b><span>${view.sort === 'popular' || view.sort === 'added' ? `of ${list.length.toLocaleString()}` : `#${(i + 1).toLocaleString()} of ${list.length.toLocaleString()}`}${dot}${esc(sortL)}</span>`;
+    if (Date.now() - repeatSince < 700) return;
+    b.innerHTML = `<b>#${(i + 1).toLocaleString()}</b><span>of ${esc(fCount() ? `${list.length} so far` : pager.totalLabel())}</span>`;
     b.hidden = false;
     clearTimeout(bubbleT);
-    bubbleT = setTimeout(() => (b.hidden = true), 600);
+    bubbleT = setTimeout(() => (b.hidden = true), 700);
   }
-
-  function openAd(cs) {
-    ad = { key: cs.key, a: cs.a, c: cs.c, genre: '', items: [], ids: new Set(), mine: new Set(), state: 'loading', more: '', onlyMine: !AD.coveredByStreams(cs.a, cs.c), got: 0 };
-    const g = AD.genreOf(cs.c);
-    if (g?.isRequired && g.options?.length) ad.genre = g.options[0];
-    loadPage(ad, true);
+  // ---------- sheets ----------
+  function setShelf(shelf, order) {
+    view = { ...view, shelf, order: order || (['popular', 'new', 'top'].includes(shelf) ? shelf : view.order === 'az' ? 'popular' : view.order) };
+    saveView(); openShelf(); draw();
   }
-  async function loadPage(st, first) {
-    let metas;
-    try { metas = await AD.catalogPage(st.a, st.c, { genre: st.genre, skip: st.got }); }
-    catch { if (ad !== st) return; if (first) st.state = 'down'; else st.more = 'failed'; return redrawAd(); }
-    if (ad !== st) return;
-    const prov = await providerByImdb(kind);
-    if (ad !== st) return;
-    st.got += metas.length;
-    let fresh = 0;
-    for (const m of metas) {
-      if (st.ids.has(m.id)) continue;
-      st.ids.add(m.id); fresh++;
-      const t = prov.get(m.id);
-      if (t) { if (!st.items.includes(t)) { st.items.push(t); st.mine.add(t); } continue; }
-      if (st.onlyMine) continue;
-      if (videoMask({ kind, id: m.id, name: m.name })) continue;   // an add-on video naming a hidden game's teams (SPEC 10): left out, never its name or art
-      st.items.push({ kind, key: m.id, id: m.id, name: m.name, poster: m.poster, year: m.year ? String(m.year) : '', versions: [], _qs: new Set(), _langs: new Set(), _genres: m.genres, _ir: parseFloat(m.imdbRating) || 0, _s: window.Titles.norm(m.name), addon: { key: st.a.key, type: m.type || kind }, released: m.released, releaseInfo: m.releaseInfo });
-    }
-    // it stops when a page is empty or brings only titles already shown (Cinemeta sends 49 or 50: SPEC 4.2)
-    st.state = !metas.length || !fresh || !AD.pageable(st.c) ? 'end' : 'ok';
-    st.more = '';
-    if (st.onlyMine && st.state === 'ok' && st.items.length < 12) return loadPage(st, false);   // (few of them are his: keep reading)
-    redrawAd();
+  function genreSheet() {
+    const all = SH.GENRES[kind];
+    radioMenu({ title: 'Genres', value: genreOf(view.shelf), rows: all.map((g) => ({ v: g, l: g })), onPick: (g) => { setShelf(`g:${g}`); focus(el.querySelector('.lib-chips .chip.sel')); } });
   }
-  function loadMore() {
-    if (!ad || ad.more === 'loading' || ad.state === 'end' || ad.state === 'loading') return;
-    ad.more = 'loading'; drawGrid();
-    loadPage(ad, false);
-  }
-  function redrawAd() {
-    if (!el || current() !== kind || !ad) return;
-    list = ad.items;
-    setHtml(el.querySelector('[data-head]'), header());
-    const inGrid = el.querySelector('.lib-grid').contains(document.activeElement);
-    const onChip = document.activeElement?.dataset?.chip === ad.key;
-    drawGrid();
-    if (ad.state === 'down' && onChip) focus(el.querySelector('[data-act="adretry"]'));   // (the card's Try again, SPEC 4.2)
-    else if (!inGrid && !el.contains(document.activeElement) && mayFocus()) focus(el.querySelector('.lib-chips .chip.sel'));
-  }
-  function genreMenu() {
-    const opts = AD.genreOf(ad.c)?.options || [], req = AD.genreOf(ad.c)?.isRequired;
-    radioMenu({ title: 'Genre', value: ad.genre, rows: [...(req ? [] : [{ v: '', l: 'Any' }]), ...opts.map((o) => ({ v: o, l: o }))], onPick: (v) => {
-      ad = { ...ad, genre: v, items: [], ids: new Set(), mine: new Set(), got: 0, state: 'loading', more: '' };
-      loadPage(ad, true); list = []; row = 0;
-      setHtml(el.querySelector('[data-head]'), header()); drawGrid();
-      focus(el.querySelector('[data-act="genre"]'));
+  function sortMenu() {
+    const fixed = ['popular', 'new', 'top'].includes(view.shelf);
+    const rows = ORDERS.filter(([k]) => k !== 'top' || TM.hasKey()).map(([v, l]) => ({ v, l, sub: v === 'az' ? 'What has loaded so far' : '' }));
+    radioMenu({ title: 'Sort by', value: fixed ? view.shelf : view.order, rows, onPick: (v) => {
+      if (fixed && v !== 'az') setShelf(v, v);
+      else { view = { ...view, order: v }; saveView(); if (v === 'az') { relist(); row = 0; draw(); } else { openShelf(); draw(); } }
+      focus(el.querySelector('[data-act="sort"]'));
     } });
   }
-
-  function setView(patch, chip) {
-    view = { ...view, ...patch, f: { ...(patch.f || view.f) } };
-    if (chip) view.chip = chip;
-    else if (patch.f || patch.sort) view.chip = matchingChip();
-    saveView();
-    refreshList();
-  }
-  const matchingChip = () => { const same = (a, b) => JSON.stringify(a) === JSON.stringify(b); return chipDefs().find(([, v]) => v.sort === view.sort && same(v.f, view.f))?.[0] || ''; };
-
-  function sortMenu(opener) {
-    const rows = SORTS.map(([v, l, sub]) => `<div class="lr fx" tabindex="-1" data-act="s:${v}"><span class="rd${v === view.sort ? ' on' : ''}"></span>${esc(l)}<small>${esc(sub)}</small></div>`).join('');
-    const first = view.langFirst;
-    const ov = openOverlay(`<div class="menu" style="right:48px;top:120px;width:352px"><h3>Sort by</h3><div data-col>${rows}<div class="sep"></div>
-      <div class="lr fx" tabindex="-1" data-act="lf" style="height:60px"><span class="grow">${esc(prefLangs()[0])} first<div class="t-cap" style="margin-top:0">Before other languages</div></span><span class="onoff">${first ? 'On' : 'Off'}</span><span class="tg${first ? ' on' : ''}"><i></i></span></div></div></div>`, {
-      focusSel: `[data-act="s:${view.sort}"]`,
-      onClick: (act) => {
-        if (act === 'lf') { ov.close(); setView({ langFirst: !first }); return; }
-        ov.close(); setView({ sort: act.slice(2) });
-      },
-    });
-  }
-  // Filters: every chip shows its live count, zero-count chips are disabled (never hidden); Back keeps the changes.
   function filterSheet() {
     let draft = { ...view.f };
-    const langs = [...new Set(catalog[kind].titles.flatMap((t) => [...t._langs]))];
-    const otherLangs = langs.filter((l) => !prefLangs().includes(l)).slice(0, 6);
-    const genres = catalog[kind].facets.genres.slice(0, 14);
-    const secs = () => [
-      ['Language', 'lang', [['mine', 'Your languages'], ['all', 'All languages'], ...otherLangs.map((l) => [l, l])]],
-      ['Genre', 'genre', [['', 'Any'], ...genres.map((g) => [g, g])], 'Pick as many as you like'],
-      ['Quality', 'q', [['', 'Any'], ['hd', 'HD and up'], ['4K', '4K']]],
-      ['Subtitles', 'sub', [['', 'Any'], [true, 'With subtitles']]],
-      ['IMDb', 'imdb', [['', 'Any'], ...IMDB_MIN.map(([l, v]) => [v, l])]],
-      ['Decade', 'decade', [['', 'Any'], ...DECADES.map(([l]) => [l, l])]],
-    ];
-    const total = () => browse(kind, { ...view, f: draft }).length;
-    const body = () => {
-      const all = facetCounts(kind, draft, secs().map(([, key, opts]) => [key, opts.map(([v]) => (v === '' ? undefined : v))]));
-      return secs().map(([title, key, opts, note]) => {
-      const counts = all[key];
-      const picked = genresOf(draft);
-      return `<div class="sec">${title}${note ? `<span class="t-cap" style="margin-left:10px;font-weight:500;text-transform:none;letter-spacing:0">${note}</span>` : ''}</div><div class="chips" data-row>${opts.map(([v, l], j) => {
-        const sel = key === 'genre' ? (v === '' ? !picked.length : picked.includes(v))
-          : (draft[key] ?? '') === v || (v === '' && !draft[key]) || (key === 'lang' && v === 'all' && !draft.lang);
-        const n = v === '' || v === 'all' ? null : counts[j];
-        return `<span class="chip fx${sel ? ' sel' : ''}${n === 0 && !sel ? ' dis' : ''}" tabindex="-1" data-act="f" data-k="${key}" data-v="${esc(String(v))}">${esc(l)}${n != null ? `<span class="n">${compact(n)}</span>` : ''}</span>`;
-      }).join('')}</div>`;
-      }).join('');
-    };
-    const active = () => filterCount(draft);
-    const draw = () => {
-      const keep = document.activeElement?.dataset;
-      const k = keep?.k, v = keep?.v, a = keep?.act;
-      ov.el.querySelector('.inner').innerHTML = body();
-      ov.el.querySelector('[data-n]').textContent = `${active()} active`;
-      ov.el.querySelector('[data-act="show"]').textContent = `Show ${total().toLocaleString()} ${total() === 1 ? 'title' : 'titles'}`;
-      const back = a === 'f' ? ov.el.querySelector(`[data-k="${k}"][data-v="${CSS.escape(v)}"]`) : null;
-      if (back) focus(back);
-    };
-    const ov = openOverlay(`<div class="sheet" style="gap:8px"><div class="row-flex" data-row style="gap:12px"><h3 class="grow">Filters</h3><span class="t-cap" data-n>${active()} active</span><span class="pillbtn fx" tabindex="-1" data-act="clear" style="height:32px;padding:0 14px;font-size:14px">Clear all</span></div>
-      <div class="sheet-body"><div class="inner">${body()}</div></div>
-      <div class="sheet-foot" data-row><span class="btn btn-full fx" tabindex="-1" data-act="show">Show ${total().toLocaleString()} ${total() === 1 ? 'title' : 'titles'}</span></div></div>`, {
+    const gs = SH.GENRES[kind];
+    const secs = [['Genre', 'genre', gs.map((g) => [g, g])], ['Decade', 'decade', DECADES.map(([l]) => [l, l])], ['IMDb', 'imdb', [['6', '6+'], ['7', '7+'], ['8', '8+']]], ['Runtime', 'runtime', RUNTIMES[kind].map(([k, l]) => [k, l])], ['Language', 'lang', LANGS.map(([k, l]) => [k, l])]];
+    const n = () => pager.items.filter((it) => { const keep = view.f; view.f = draft; const ok = passes(it); view.f = keep; return ok; }).length;
+    const body = () => secs.map(([t, key, opts]) => `<div class="sec">${t}</div><div class="chips" data-row><span class="chip fx${!draft[key] ? ' sel' : ''}" tabindex="-1" data-act="f" data-k="${key}" data-v="">Any</span>${opts.map(([v, l]) => `<span class="chip fx${draft[key] === v ? ' sel' : ''}" tabindex="-1" data-act="f" data-k="${key}" data-v="${esc(v)}">${esc(l)}</span>`).join('')}</div>`).join('');
+    const foot = () => `Show ${n().toLocaleString()} so far`;
+    const ov = openOverlay(`<div class="sheet" style="gap:8px"><div class="row-flex" data-row style="gap:12px"><h3 class="grow">Filters</h3><span class="t-cap">Over the titles loaded; more load as you scroll</span><span class="pillbtn fx" tabindex="-1" data-act="clear" style="height:32px;padding:0 14px;font-size:14px">Clear all</span></div>
+      <div class="sheet-body"><div class="inner">${body()}</div></div><div class="sheet-foot" data-row><span class="btn btn-full fx" tabindex="-1" data-act="show">${foot()}</span></div></div>`, {
       focusSel: '.chip.sel',
       onClick: (act, t) => {
-        if (act === 'f') {
-          const key = t.dataset.k; let v = t.dataset.v;
-          if (key === 'imdb') v = v ? +v : '';
-          if (key === 'sub') v = v === 'true';
-          if (key === 'genre' && v) {
-            // Genres add up: each OK turns one on or off; "Any" clears them.
-            const set = genresOf(draft);
-            v = set.includes(v) ? set.filter((g) => g !== v) : [...set, v];
-            v = v.length > 1 ? v : v[0] || '';
-          }
-          draft = { ...draft, [key]: v };
-          if (!v || (key === 'lang' && v === 'all')) delete draft[key];
-          // the chip you pressed shows its new state at once; the counts follow on the next frame
-          if (key === 'genre') { const g = genresOf(draft); ov.el.querySelectorAll('[data-k="genre"]').forEach((c) => c.classList.toggle('sel', c.dataset.v ? g.includes(c.dataset.v) : !g.length)); }
-          else { ov.el.querySelectorAll(`[data-k="${key}"]`).forEach((c) => c.classList.toggle('sel', c === t)); }
-          requestAnimationFrame(() => setTimeout(draw, 0));
-        } else if (act === 'clear') { draft = {}; draw(); }
+        if (act === 'f') { const k = t.dataset.k, v = t.dataset.v; draft = { ...draft, [k]: v }; if (!v) delete draft[k]; ov.el.querySelectorAll(`[data-k="${k}"]`).forEach((c) => c.classList.toggle('sel', c === t)); ov.el.querySelector('[data-act="show"]').textContent = foot(); }
+        else if (act === 'clear') { draft = {}; ov.el.querySelector('.inner').innerHTML = body(); ov.el.querySelector('[data-act="show"]').textContent = foot(); focus(ov.el.querySelector('.chip')); }
         else if (act === 'show') ov.close();
       },
-      onClose: () => { if (JSON.stringify(draft) !== JSON.stringify(view.f)) setView({ f: draft }); },
+      onClose: () => { if (JSON.stringify(draft) !== JSON.stringify(view.f)) { view = { ...view, f: draft }; saveView(); relist(); row = 0; inGrid = false; loadMore(); draw(); } },
     });
     scrollList(ov.el);
   }
   function jumpMenu() {
-    const targets = jumpTargets(view, list);
-    const sortL = SORTS.find(([k]) => k === view.sort)?.[1];
-    const ov = openOverlay(`<div class="menu" style="right:48px;top:120px;width:352px"><h3>Jump to</h3><div data-col><div class="lr fx" tabindex="-1" data-act="0"><span class="grow">Top of the list</span>${ic('chevU', 'sm')}</div></div>
-      <div class="sep"></div><div class="t-label" style="padding:2px 8px 6px">By ${view.sort === 'year' ? 'decade' : view.sort === 'az' ? 'letter' : view.sort === 'added' ? 'month' : 'rank'} (${esc(sortL)})</div>
-      <div class="chips" data-row style="padding:0 6px 4px">${targets.map(([l, at]) => `<span class="chip lg fx" tabindex="-1" data-act="${at}">${esc(l)}</span>`).join('')}</div></div>`, {
-      onClick: (act) => { ov.close(false); const i = +act; row = Math.floor(i / COLS); drawGrid(i); },
-    });
+    const marks = [0, 100, 250, 500, 1000, 2000].filter((x) => x < list.length);
+    radioMenu({ title: 'Jump to', value: null, rows: marks.map((x) => ({ v: String(x), l: x ? `#${x.toLocaleString()}` : 'Top of the list' })), extra: '<div class="t-cap" style="padding:8px 8px 2px">Further down loads as you scroll</div>', onPick: (v) => { const i = +v; move(i, false); } });
+  }
+  // the genres he watches most come first in the chips (the taste profile, else a sensible default)
+  async function learnGenres() {
+    try {
+      const p = await R.profile();
+      const top = Object.entries(p.share).filter(([g]) => SH.GENRES[kind].includes(g)).sort((a, b) => b[1] - a[1]).map(([g]) => g);
+      const next = [...new Set([...top, ...DEFAULT_G[kind]])].slice(0, 4);
+      if (next.join() !== myG.join()) { myG = next; if (current() === kind) setHtml(el.querySelector('[data-head]'), header()); }
+    } catch {}
   }
 
   return {
     name: kind,
     mount(root) {
       el = root;
-      root.innerHTML = `<div data-head></div><div class="lib-cover" hidden></div><div class="ctxline" hidden></div><div class="bubble" hidden></div><div class="lib-grid" data-grid data-cols="6" style="display:block;top:0;height:${PITCH}px;transition:transform 320ms var(--a-ease)"></div>`;
-      root.querySelector('.lib-grid').navHook = gridHook;
+      root.innerHTML = `<div data-head></div><div class="lb-band" hidden><div class="lb-txt"></div><div class="lb-bubble" hidden></div></div><div class="lb-grid" data-grid data-cols="6"></div>`;
+      grid = root.querySelector('.lb-grid');
+      grid.navHook = gridHook;
       root.addEventListener('click', (e) => {
         const chip = e.target.closest('[data-chip]');
-        if (chip && chip.dataset.chip.startsWith('ad')) { const cs = adChips().find((x) => x.key === chip.dataset.chip); if (cs) { view.chip = cs.key; saveView(); ad = null; refreshList(); } focus(el.querySelector(`[data-chip="${CSS.escape(chip.dataset.chip)}"]`)); return; }
-        if (chip) { ad = null; const d = chipDefs().find(([c]) => c === chip.dataset.chip); if (d) setView({ ...d[1] }, d[0]); focus(el.querySelector(`[data-chip="${CSS.escape(chip.dataset.chip)}"]`)); return; }
+        if (chip) { const k = chip.dataset.chip; if (k === 'more') return genreSheet(); setShelf(k); focus(el.querySelector(`[data-chip="${CSS.escape(k)}"]`)); return; }
         const b = e.target.closest('[data-act]');
-        if (b?.dataset.act === 'sort') return sortMenu(b);
-        if (b?.dataset.act === 'filters') return filterSheet();
-        if (b?.dataset.act === 'jump') return jumpMenu();
-        if (b?.dataset.act === 'search') { go('search', { scope: kind, from: kind }); return; }   // (only this tab's titles; Back returns here)
-        if (b?.dataset.act === 'clear') { ad = null; setView({ f: {} }, 'All'); focus(el.querySelector('[data-chip="All"]')); return; }
-        if (b?.dataset.act === 'genre') return genreMenu();
-        if (b?.dataset.act === 'adretry') { const cs = adChips().find((x) => x.key === ad?.key); if (cs) { ad = null; refreshList(); focus(el.querySelector('.lib-chips .chip.sel')); } return; }
-        const card = e.target.closest('.pc');
-        if (card) openDetail(list[+card.dataset.i]);
+        const act = b?.dataset.act;
+        if (act === 'sort') return sortMenu();
+        if (act === 'filters') return filterSheet();
+        if (act === 'jump') return jumpMenu();
+        if (act === 'search') return go('search', { scope: kind, from: kind });
+        if (act === 'addons') return go('account', { group: 'addons' });
+        if (act === 'retry') { openShelf(); return; }
+        if (act === 'clear') { view = { ...view, f: {} }; saveView(); relist(); draw(); return; }
+        const card = e.target.closest('.lb-p');
+        if (card) SH.openItem(list[+card.dataset.i]);
       });
       root.addEventListener('tvhold', (e) => {
-        // hold OK on an add-on chip: Hide this chip (focused; it comes back from the add-on's sheet), or its catalogs
-        const ch = e.target.closest('[data-chip^="ad"]');
-        if (ch) {
-          const cs = adChips().find((x) => x.key === ch.dataset.chip); if (!cs) return;
-          contextMenu(ch, [
-            { icon: 'eyeOff', label: 'Hide this chip', run: () => { AD.setCatalog(cs.a, cs.c, false); if (view.chip === cs.key) { ad = null; setView({ f: {} }, 'All'); } else refreshList(true); toast(`${cs.name} is hidden. It comes back from ${cs.by}'s sheet in Account`); focus(el.querySelector('.lib-chips .chip.sel') || el.querySelector('.lib-chips .chip')); } },
-            { icon: 'chevR', label: `${cs.by}'s catalogs`, run: () => openAddonSheet(cs.a) },
-          ]);
-          return;
-        }
-        const card = e.target.closest('.pc'); if (!card) return;
-        const t = list[+card.dataset.i];
+        const card = e.target.closest('.lb-p'); if (!card) return;
+        const it = list[+card.dataset.i]; if (!it) return;
+        const fav = { kind, id: it.imdb || it.id, key: it.imdb || it.id, name: it.name, poster: it.poster, year: it.year ? String(it.year) : '', addon: { type: kind }, _genres: it.genres };
         contextMenu(card, [
-          { icon: 'saved', label: isFav(t) ? 'Remove from Saved' : 'Save to Saved', run: () => { const nm = videoMask(t)?.title || t.name; toast(toggleFav(t) ? `Saved ${nm}` : `Removed ${nm}`); } },   // (a masked video: airglow's name)
-          ...(t.addon ? [] : [{ icon: 'check', label: 'Mark watched', run: () => { markWatched(t.versions[0]); drawGrid(); } }]),
-          { icon: 'info', label: 'Details', run: () => openDetail(t) },
+          { icon: 'saved', label: isFav(fav) ? 'Remove from Saved' : 'Save to Saved', run: async () => { const id = await SH.imdbOfItem(it); if (!id) return toast('airglow couldn\'t find this title\'s details'); fav.id = fav.key = id; toast(toggleFav(fav) ? `Saved ${it.name}` : `Removed ${it.name}`); } },
+          { icon: 'check', label: 'Mark watched', run: async () => { const id = await SH.imdbOfItem(it); if (id) { markWatched({ kind: kind === 'series' ? 'series' : 'movie', id, name: it.name, _title: it.name, year: it.year }); toast(`${it.name} is marked watched`); } } },
+          { icon: 'info', label: 'Details', run: () => SH.openItem(it) },
         ]);
       });
       root.addEventListener('tvfocus', (e) => {
-        if (!e.target.closest('.lib-grid') && row !== 0) { row = 0; drawGrid(); }
+        if (!e.target.closest('.lb-grid') && inGrid) { inGrid = false; row = 0; draw(); }
+        // into the grid from the chips: the grid moves up under the band (the posters carry no caption: the band is it)
+        if (e.target.closest('.lb-p')) { if (!inGrid) { inGrid = true; row = Math.floor(+e.target.dataset.i / COLS); drawGrid(); } band(); }
         // A long chip row scrolls sideways so the focused chip is always on screen.
         const strip = e.target.closest('.lib-chips');
         if (strip) {
@@ -369,39 +294,30 @@ export default function lib(kind) {
           strip.classList.toggle('scrolled', strip.scrollLeft > 0);
         }
       });
-      on('session', () => { view = null; list = []; ad = null; });
-      on('addons', () => { if (current() === kind && el.querySelector('.lib-chips')) setHtml(el.querySelector('[data-head]'), header()); });
-      on('nba', () => { if (current() === kind && list.length) drawGrid(); });   // (the shield's masks follow what you've seen)
-      on('probed', () => { if (current() === kind && kind === 'movie' && list.length && !ad) drawGrid(); });   // (the posters' tags fill in as checks land)
-      on('catalog', (k) => {
-        if (k !== kind) return;
-        if (current() !== kind && current() !== 'detail') { list = []; return; }   // rebuilt on the next open; don't hold the old titles
-        if (current() === kind && row === 0 && !el.querySelector('.lib-grid').contains(document.activeElement)) refreshList();
-      });
+      on('session', () => { view = null; pager = null; list = []; });
+      on('addons', () => { if (current() === kind) draw(); });
+      on('tmdb', () => { if (view) { pager = null; if (current() === kind) { openShelf(); draw(); } } });
+      on('nba', () => { if (current() === kind && pager) { relist(); drawGrid(); } });   // (the shield's masks follow what you've seen)
     },
     enter(root, params, { fresh }) {
       if (!view) loadView();
-      if (!catalog[kind]) {
-        root.querySelector('[data-head]').innerHTML = `<div class="lib-head"><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px">Loading…</span></div>`;
-        root.querySelector('.lib-grid').innerHTML = Array.from({ length: 12 }, (_, i) => `<span class="skb" style="position:absolute;left:${(i % 6) * COLW}px;top:${Math.floor(i / 6) * PITCH}px;width:124px;height:186px;border-radius:12px"></span>`).join('');
-        root.querySelector('.lib-grid').style.transform = 'translateY(176px)';
-        const load = () => {
-          clearTimeout(loadT); loadT = 0;
-          document.removeEventListener('keydown', onDown, true);
-          ensure(kind).then(() => { if (current() === kind) { refreshList(); if (!root.contains(document.activeElement) && mayFocus()) focus(root.querySelector('.pc')); } })
-            .catch((e) => { if (e.message !== 'stale') root.querySelector('.lib-grid').innerHTML = `<div class="state big" style="position:relative;margin:24px auto 0"><div class="ico">${ic('wifiOff')}</div><b>Could not load ${label.toLowerCase()}</b><p>${esc(e.message)}</p></div>`; });
-        };
-        const onDown = (e) => { if (e.key === 'ArrowDown' || e.key === 'Enter') load(); };
-        // Passing over the tab on the top bar doesn't load tens of thousands of titles: resting on it (0.8 s), OK or Down does.
-        if (mayFocus()) load();
-        else { clearTimeout(loadT); loadT = setTimeout(() => { if (current() === kind) load(); }, 800); document.addEventListener('keydown', onDown, true); unhook = () => document.removeEventListener('keydown', onDown, true); }
-        return;
-      }
-      if (takeFresh(kind) || fresh || !list.length) refreshList(!fresh);
-      else drawGrid();
+      if (params?.shelf) { view = { ...view, shelf: params.shelf, order: ['popular', 'new', 'top'].includes(params.shelf) ? params.shelf : 'popular', f: {} }; saveView(); pager = null; inGrid = false; }
+      if (genreOf(view.shelf) && !SH.GENRES[kind].includes(genreOf(view.shelf))) view.shelf = 'popular';
+      if (!SH.shelves(kind).some((s) => s.key === view.shelf) && !genreOf(view.shelf)) view.shelf = 'popular';
+      if (!pager) openShelf();
+      if (fresh) { inGrid = false; row = 0; }
+      draw();
+      learnGenres();
+      // the provider's films and series, for its copies of what the add-ons list (once, quietly, after a rest here)
+      clearTimeout(want); want = setTimeout(() => { if (current() === kind) SH.warmProvider(kind); }, 800);
     },
-    leave() { barHidden(false); clearTimeout(loadT); loadT = 0; unhook(); },
-    entry: (root) => root.querySelector(`.pc[data-i="${row * COLS}"]`) || root.querySelector('.pc') || root.querySelector('.chip.sel'),
-    toTop(root) { row = 0; drawGrid(); },
+    leave() { barHidden(false); clearTimeout(want); },
+    key(k) {
+      if (!el || current() !== kind || !inGrid) return false;
+      if (k === 'chup' || k === 'chdown') { const a = document.activeElement; const i = +a?.dataset?.i || 0; const t = k === 'chdown' ? Math.min(list.length - 1, i + 3 * COLS) : Math.max(0, i - 3 * COLS); move(t, false); return true; }
+      return false;
+    },
+    entry: (root) => root.querySelector(`.lb-p[data-i="${row * COLS}"]`) || root.querySelector('.lb-p') || root.querySelector('.lib-chips .chip.sel'),
+    toTop() { if (el.contains(document.activeElement)) document.activeElement.blur(); inGrid = false; row = 0; draw(); },
   };
 }
