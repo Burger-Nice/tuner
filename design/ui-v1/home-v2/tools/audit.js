@@ -11,6 +11,9 @@
 //   RECORD   on a shield mock with a game billboard the records are partial (the eye-off), never a full W-L
 //   LIVEBG   the pixels around every LIVE pill are dark canvas, never a team colour (read from the screenshot)
 //   DATA     a channel card never carries art (the Xtream guide has none): the logo tile, or the game's team colours
+//   FANLINE  while a team game is unseen the fan line has no seed or streak and names its copy's game (review 2 item 1)
+//   CONSIST  the page's timeline facts (<meta name="tl">) agree with what is drawn: records, partial state, streak, the NBA row's order and its "In …" times
+//   NOTRUNC  a card's meta line and a next-game line are never cut
 // --inject puts one fault per new check into the pages (a second primary, a swapped row order, a caption in a peek row,
 // a score on a shield page) to prove they fire.
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
@@ -215,7 +218,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       }
       // ---- HUE: no amber or yellow anywhere in the UI, red only on LIVE (art, team plates and crests excluded)
       { const hue = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); if (v[3] === 0) return null; const [r, g, b] = v.map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 0.25) return null; const l = (mx + mn) / 2, sat = d / (1 - Math.abs(2 * l - 1)); if (sat < 0.45) return null; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; return h; };
-        for (const e of document.querySelectorAll('.screen *')) { if (e.closest('svg,.art,.tedge,.hv-mt .side,.team,.wc.crest,.sb-shot') || e.matches('.tedge,.hv-fa,.hv-fh') || !vis(e)) continue; const cs = getComputedStyle(e);
+        for (const e of document.querySelectorAll('.screen *')) { if (e.closest('svg,.art,.tedge,.hv-mt .side,.team,.wc.crest,.sb-shot,.hv-split,.chlogo') || e.matches('.tedge,.hv-fa,.hv-fh') || !vis(e)) continue; const cs = getComputedStyle(e);
           for (const [k, c] of [['color', cs.color], ['background', cs.backgroundColor], ['border', cs.borderTopWidth !== '0px' ? cs.borderTopColor : ''], ['border-b', cs.borderBottomWidth !== '0px' ? cs.borderBottomColor : '']]) { const h = hue(c); if (h == null) continue;
             if (k === 'color' && !(e.childNodes.length && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))) continue;
             if (h >= 32 && h <= 68) issues.overlap.push(`HUE: amber/yellow ${k} on ${short(e)}`);
@@ -232,16 +235,42 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       if (!scrolled && document.querySelector('.ctxline')) issues.home.push('BAR: a context line while the bar is present');
       if (scrolled) { const bbEl = document.querySelector('.hv-bb'); if (!bbEl) issues.home.push('BAR: the billboard is unmounted on a scrolled page (hide it, keep its image)'); else if (getComputedStyle(bbEl).visibility !== 'hidden' && bbEl.getBoundingClientRect().bottom > 0) issues.home.push('BAR: the billboard shows on a scrolled page'); }
       const rws = [...document.querySelectorAll('.hv-row')].map((r) => ({ id: r.dataset.rail, top: parseFloat(r.style.top) })).sort((a, b) => a.top - b.top);
-      if (rws.length) { const ci = rws.findIndex((r) => r.id === 'cont'); if (ci > 0) issues.home.push(`ORDER: Continue watching is row ${ci + 1}, not first`); const chi = rws.findIndex((r) => r.id === 'channels'); if (chi >= 0 && chi !== rws.length - 1) issues.home.push('ORDER: Channels is not the last row'); }
+      if (rws.length) { const ci = rws.findIndex((r) => r.id === 'cont'); if (ci > 0) issues.home.push(`ORDER: Continue watching is row ${ci + 1}, not first`); const chi = rws.findIndex((r) => r.id === 'channels'); if (chi >= 0 && chi !== rws.length - 1 && !document.querySelector('meta[name="m3u"]')) issues.home.push('ORDER: Channels is not the last row'); }
       const col = document.querySelector('.hv-col'); if (col) { for (const t of texts) if (col.contains(t.e) && t.x1 > 600.5) issues.home.push(`HERO: column text "${t.txt}" past x 600`); }
-      const hb = document.querySelector('.hv-btns'); if (hb) { const q = hb.getBoundingClientRect(); if (!NOFOCUS && (Math.abs(q.top - 232) > 0.5 || Math.abs(q.bottom - 276) > 0.5)) issues.home.push(`HERO: the button row sits at y ${q.top.toFixed(0)}-${q.bottom.toFixed(0)}, not 232-276`); }
+      const hb = document.querySelector('.hv-btns'); if (hb) { const q = hb.getBoundingClientRect(); const want = document.querySelector('.hv-bb.game') ? 236 : 232; if (!NOFOCUS && (Math.abs(q.top - want) > 0.5 || Math.abs(q.bottom - want - 44) > 0.5)) issues.home.push(`HERO: the button row sits at y ${q.top.toFixed(0)}-${q.bottom.toFixed(0)}, not ${want}-${want + 44}`); }
       // ---- LINES (review 1): one line each
       for (const e of document.querySelectorAll('.wc .tx b,.wc .tx span:not(.dot-sep):not(.epn):not(.cu-may),.hv-meta,.hv-ctx,.hv-rt,.gc .st,.pc .cap,.pc .cm,.hv-eye,.hv-status')) {
         if (!vis(e) || e.closest('.sb-shot')) continue; const q = e.getBoundingClientRect(), lh = parseFloat(getComputedStyle(e).lineHeight) || 20;
         if (q.height > lh * 1.5) issues.home.push(`LINES: "${e.textContent.trim().replace(/\s+/g, ' ').slice(0, 28)}" wraps to ${Math.round(q.height / lh)} lines (${short(e)})`);
       }
+      // ---- NOTRUNC (review 2 item 5): a card's meta is never cut (the time left is the point of the card)
+      for (const e of document.querySelectorAll('.wc .tx span:not(.dot-sep):not(.epn):not(.cu-may),.gc.next .ng small,.hv-where')) { if (!vis(e) || e.closest('.sb-shot,.rail.peek')) continue; const host = e.closest('.ng') || e; if (host.scrollWidth > host.clientWidth + 1) issues.home.push(`NOTRUNC: "${e.textContent.trim().slice(0, 30)}" is cut`); }
       // ---- RECORD (review 3): a shield mock with a game billboard never shows a full W-L on a plate
       if (document.querySelector('meta[name="shield"]') && document.querySelector('.hv-bb.game')) for (const rc of document.querySelectorAll('.hv-side .rc')) if (!rc.closest('.sb-shot') && !rc.querySelector('.nb-rp') && /\d+-\d+/.test(rc.textContent)) issues.home.push(`RECORD: a full record "${rc.textContent.trim()}" under the shield`);
+      // ---- FANLINE (review 2 item 1) and CONSIST (item 6): the page's timeline facts, read back
+      const tlm = document.querySelector('meta[name="tl"]'); const tl = tlm ? JSON.parse(tlm.content) : null;
+      if (tl) {
+        const ctx = document.querySelector('.hv-bb:not(.hv-hidden) .hv-ctx'); const ctxT = ctx ? ctx.textContent.replace(/\s+/g, ' ') : '';
+        const unseen = (tl.unseen || []).length > 0;
+        if (ctx && unseen) {
+          if (/in the (West|East)|in a row|streak|straight/i.test(ctxT)) issues.home.push(`FANLINE: a seed or streak while a team game is unseen ("${ctxT.slice(0, 40)}")`);
+          if (!/as of tip-off, \w+ at \w+/.test(ctxT)) issues.home.push('FANLINE: the copy is not named by its game while a team game is unseen');
+        }
+        if (ctx && !unseen && tl.seed && !ctxT.includes(tl.seed)) issues.home.push(`CONSIST: the fan line's seed is not the timeline's (${tl.seed})`);
+        for (const sd of document.querySelectorAll('.hv-bb:not(.hv-hidden) .hv-side')) {
+          if (!sd.querySelector('img[src*="logo-MEM"]')) continue; const rc = sd.querySelector('.rc'); const txt = (rc.textContent.match(/\d+-\d+/) || [''])[0];
+          if (tl.mem && txt !== tl.mem) issues.home.push(`CONSIST: the Grizzlies' record reads ${txt}, the timeline says ${tl.mem}`);
+          if (unseen !== !!rc.querySelector('.nb-rp')) issues.home.push(`CONSIST: the record is ${rc.querySelector('.nb-rp') ? 'partial' : 'full'} but ${unseen ? 'a game is unseen' : 'nothing is unseen'}`);
+        }
+        const m = /(\d+) in a row/.exec(ctxT); if (m && tl.mem && +m[1] > +tl.mem.split('-')[0]) issues.home.push(`CONSIST: a ${m[1]}-game streak on a ${tl.mem} record`);
+        // the NBA row: live, then upcoming, then final; "In Xh Ym" agrees with the tip time and the mock's clock
+        const cards = [...document.querySelectorAll('.hv-row[data-rail="nba"] .gc:not(.next)')]; const ord = { in: 0, pre: 1, post: 2 };
+        for (let i = 1; i < cards.length; i++) if (ord[cards[i].dataset.state] < ord[cards[i - 1].dataset.state]) { issues.home.push('CONSIST: the NBA row is not ordered live, upcoming, final'); break; }
+        const [nh, nm] = tl.now.split(':').map(Number);
+        for (const c of cards) { if (c.dataset.state !== 'pre') continue; const st = c.querySelector('.st span').textContent, tip = c.querySelector('.plate .score'); if (!tip) continue; const [th, tm] = tip.textContent.split(':').map(Number);
+          let diff = (th * 60 + tm) - (nh * 60 + nm); if (diff < -60) diff += 1440; const mm = /In (\d+)h (\d+)m/.exec(st) ? +RegExp.$1 * 60 + +RegExp.$2 : /In (\d+) min/.exec(st) ? +RegExp.$1 : /Tip-off/.test(st) ? 0 : null;
+          if (mm != null && Math.abs(mm - diff) > 1) issues.home.push(`CONSIST: "${st}" for a ${tip.textContent} tip-off at ${tl.now}`); }
+      }
       // ---- DATA (review 4): a channel card never carries art
       for (const c of document.querySelectorAll('.wc.chc')) if (c.querySelector('.art-svg,.art img')) issues.home.push('DATA: a channel card with art (live TV has none)');
       const livePills = [...document.querySelectorAll('.a-live:not(.compact)')].filter((e) => vis(e) && !e.closest('.sb-shot') && !e.closest('.rail')).map((e) => { const q = e.getBoundingClientRect(); return [q.left, q.top, q.right, q.bottom]; });
@@ -260,9 +289,9 @@ const { chromium } = require('playwright'); const path = require('path'); const 
     if (r.livePills.length) {
       const q = await b.newPage(); await q.setContent('<canvas></canvas>');
       const res = await q.evaluate(async ({ shot, pills }) => { const im = new Image(); im.src = 'data:image/png;base64,' + shot; await im.decode(); const c = document.querySelector('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
-        return pills.map(([l, t, rr, bb]) => { const pts = [[l - 8, (t + bb) / 2], [rr + 8, (t + bb) / 2], [(l + rr) / 2, t - 8], [(l + rr) / 2, bb + 8]]; let worst = 0; for (const [px, py] of pts) { const d = x.getImageData(Math.round(px * 2), Math.round(py * 2), 1, 1).data; const sat = Math.max(d[0], d[1], d[2]) - Math.min(d[0], d[1], d[2]); worst = Math.max(worst, sat); } return worst; }); }, { shot, pills: r.livePills });
+        return pills.map(([l, t, rr, bb]) => { const pts = [[l - 8, (t + bb) / 2], [rr + 8, (t + bb) / 2], [(l + rr) / 2, t - 8], [(l + rr) / 2, bb + 8]]; let worst = 0; for (const [px, py] of pts) { const d = x.getImageData(Math.round(px * 2), Math.round(py * 2), 1, 1).data; const off = Math.max(Math.abs(d[0] - 21), Math.abs(d[1] - 19), Math.abs(d[2] - 29)); worst = Math.max(worst, off); } return worst; }); }, { shot, pills: r.livePills });
       await q.close();
-      res.forEach((sat, i) => { if (sat > 40) { bad++; lines.push(`    LIVEBG   LIVE pill ${i + 1}: a coloured ground next to it (saturation ${sat}/255, max 40)`); } });
+      res.forEach((off, i) => { if (off > 28) { bad++; lines.push(`    LIVEBG   LIVE pill ${i + 1}: the ground next to it is not the canvas (off by ${off}/255, max 28)`); } });
     }
     for (const g of r.fr) {
       const off = g.inset ? -1.5 : 3.6 * g.sc, pts = [], skip = g.rad * g.sc + 4;

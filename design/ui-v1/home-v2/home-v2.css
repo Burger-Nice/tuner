@@ -26,6 +26,8 @@
 .hv-meta .star{display:inline-flex;align-items:center;gap:5px;color:var(--a-text-1);font-weight:650}
 .hv-meta .star svg{width:16px;height:16px}
 .hv-meta .ends{color:var(--a-text-3)}
+.hv-where{margin-top:6px;font:500 16px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:560px}
+.hv-where b{font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3);margin-right:10px}
 .hv-plot{margin-top:6px;font:500 16px/20px var(--a-font-text);color:var(--a-text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:520px}
 .hv-prog{margin-top:12px;width:320px}
 .hv-btns{position:absolute;left:48px;top:232px;display:flex;align-items:center;gap:20px;height:44px}
@@ -34,34 +36,50 @@
 /* the billboard's poster, when a title has only a 2:3 poster (no backdrop): on the right, upright, on the canvas */
 .hv-pst{position:absolute;right:48px;top:84px;width:128px;height:192px;border-radius:12px;overflow:hidden;border:1px solid var(--a-border);background:var(--a-surface-1)}
 
-/* game billboard, game-night mode (SPEC 3.2): the away field left, the home field right, split at 12° through the middle;
-   crests 88 in the neutral disc; the score plate (bg-1 at 92 %, 12°) in the middle with the clock chip (the one gradient slab, small) */
-.hv-bb.game .hv-fa,.hv-bb.game .hv-fh{position:absolute;top:0;bottom:0}
-.hv-bb.game .hv-fa{left:0;right:449px;clip-path:polygon(0 0,100% 0,calc(100% - 62px) 100%,0 100%)}
-.hv-bb.game .hv-fh{left:449px;right:0;clip-path:polygon(62px 0,100% 0,100% 100%,0 100%)}
-.hv-bb.game .hv-sy{height:120px}
+/* game billboard, game-night mode (SPEC 3.2): the band y 116-222 with hard edges carries the two flat team fields split at 12°
+   and the teams' 4 px secondary edges along the split; the status row sits on the canvas above it, the buttons on the canvas
+   below it, so no LIVE pill and no ring ever touches a team colour (review 2 item 2) */
+.hv-bb.game{background:var(--a-bg-0)}
+.hv-bb.game .hv-st{height:116px;background:var(--a-bg-0)}
+.hv-band{position:absolute;left:0;right:0;top:116px;height:106px;overflow:hidden}
+.hv-band .hv-fa,.hv-band .hv-fh{position:absolute;top:0;bottom:0}
+.hv-band .hv-fa{left:0;right:457px;clip-path:polygon(0 0,100% 0,calc(100% - 23px) 100%,0 100%)}
+.hv-band .hv-fh{left:457px;right:0;clip-path:polygon(23px 0,100% 0,100% 100%,0 100%)}
+.hv-band .hv-split{position:absolute;left:468px;top:0;bottom:0;width:24px;transform:skewX(var(--a-skew));display:flex;gap:4px}
+.hv-band .hv-split i{display:block;width:4px;height:100%}
+.hv-band .hv-split i:first-child{margin-left:6px}
+.hv-band .hv-grain{opacity:.35}
 .hv-status{position:absolute;left:48px;top:84px;display:flex;align-items:center;gap:12px;height:24px;white-space:nowrap}
-.hv-mu{position:absolute;left:48px;right:48px;top:116px;height:80px;display:flex;align-items:center;justify-content:space-between}
-.hv-side{display:flex;align-items:center;gap:14px;height:80px;width:300px}
+.hv-status>.dot-sep{margin:0}
+.hv-mu{position:absolute;left:48px;right:48px;top:120px;height:72px;display:flex;align-items:center;justify-content:space-between}
+.hv-side{display:flex;align-items:center;gap:14px;height:72px;width:280px}
 .hv-side.r{justify-content:flex-end;text-align:right}
-.hv-side .nm{font:700 28px/30px var(--a-font-display);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.hv-side .nm{font:700 26px/28px var(--a-font-display);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 .hv-side .rc{font:500 15px/18px var(--a-font-text);color:var(--a-text-2);margin-top:2px}
-.team.xxl{width:80px;height:80px}.team.xxl img{width:66px;height:66px}
-.hv-sp{position:relative;height:72px;min-width:236px;display:flex;align-items:center;justify-content:center;gap:12px;padding:0 24px}
+.team.xxl{width:72px;height:72px}.team.xxl img{width:60px;height:60px}
+.hv-sp{position:relative;height:64px;min-width:236px;display:flex;align-items:center;justify-content:center;gap:12px;padding:0 24px}
 .hv-sp::before{content:"";position:absolute;inset:0;background:rgba(30,27,40,.92);transform:skewX(var(--a-skew));border-radius:var(--a-radius-sm) 0 0 var(--a-radius-sm);border:1px solid var(--a-border)}
 .hv-sp>*{position:relative}
-.hv-sp .score{font-size:64px;line-height:60px}
+.hv-sp .score{font-size:56px;line-height:52px}
 .hv-sp .dash{font:700 24px var(--a-font-display);color:var(--a-text-3)}
-.hv-sp .score.md{font-size:40px;line-height:40px}
-.hv-sp .shield{height:48px;padding:0 14px;font-size:17px;gap:8px;background:transparent;white-space:nowrap}
-.hv-clk{position:relative;height:72px;min-width:112px;margin-left:-1px;margin-right:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 22px 0 18px;color:var(--a-ink)}
+.hv-sp .score.md{font-size:36px;line-height:36px}
+.hv-sp .shield{height:44px;padding:0 14px;font-size:17px;gap:8px;background:transparent;white-space:nowrap}
+.hv-clk{position:relative;height:64px;min-width:112px;margin-left:-1px;margin-right:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 30px 0 18px;color:var(--a-ink)}
 .hv-clk::before{content:"";position:absolute;inset:0;background:var(--a-grad);transform:skewX(var(--a-skew));border-radius:0 var(--a-radius-sm) var(--a-radius-sm) 0}
 .hv-clk>*{position:relative}
-.hv-clk .big{font:italic 800 30px/32px var(--a-font-live);white-space:nowrap;letter-spacing:.01em}
+.hv-clk .big{font:italic 800 28px/30px var(--a-font-live);white-space:nowrap;letter-spacing:.01em;text-transform:uppercase}
 .hv-clk .cap{font:650 14px/16px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;margin-top:2px}
-.hv-ctx{position:absolute;left:48px;top:202px;height:20px;display:flex;align-items:center;font:500 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
+.hv-ctx{position:absolute;left:48px;top:198px;height:18px;display:flex;align-items:center;font:500 15px/18px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
+.hv-ctx .dot-sep{margin:0 8px}
 .hv-ctx .asof{display:inline-flex;align-items:center;gap:4px;margin-left:10px;color:var(--a-text-2);font-size:14px}
+.hv-bb.game .hv-btns{top:236px}
 .hv-bb.game .hv-btns .t-cap{color:var(--a-text-2)}
+/* the shield as a visible mode (idea D): while a result is being kept from him, the NBA tab carries the eye-off instead of LIVE */
+.hv-quiet{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--a-surface-2);color:var(--a-text-2);margin-left:2px}
+.hv-quiet svg{width:13px;height:13px}
+/* the ▶ beside LIVE on a live game card on Home: OK is Watch live there (SPEC 6) */
+.gc .st .hv-play{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--a-surface-3);color:var(--a-text-1);margin:0 -2px}
+.gc .st .hv-play svg{width:10px;height:10px;fill:currentColor;stroke:none}
 
 /* ---------- rows (SPEC 4) ---------- */
 .hv-page{position:absolute;left:0;right:0;top:0;height:540px}
@@ -72,8 +90,7 @@
 .hv-row .rail{position:absolute;left:0;right:0;top:38px;padding:10px 0 10px 48px;margin:-10px 0 0;overflow:visible;clip-path:inset(0 0 0 36px)}
 .hv-row .track{display:flex;gap:24px;align-items:flex-start}
 .hv-row.poster .rail{top:40px}   /* a poster's lift is 4.65 px: two more pixels of air under the title */
-.hv-row .rail.peek .wc .tx,.hv-row .rail.peek .pc .cap,.hv-row .rail.peek .pc .cm,.hv-row .rail.peek .pc .ad-mine,.hv-row .rail.peek .gc .tr .nm,.hv-row .rail.peek .gc .tr .rc,.hv-row .rail.peek .gc .plate,.hv-row .rail.peek .gc .ng span,.hv-row .rail.peek .gc .ng small,.hv-row .rail.peek .endcard span{visibility:hidden}   /* a peeking row: its art and its top line (status, label, tile, tag), never text that the edge would slice */
-.hv-row .rail.peek.deep .wc .tl,.hv-row .rail.peek.deep .wc .tr,.hv-row .rail.peek.deep .wc .ch,.hv-row .rail.peek.deep .wc .crs,.hv-row .rail.peek.deep .pc .tl,.hv-row .rail.peek.deep .pc .tr,.hv-row .rail.peek.deep .gc .st,.hv-row .rail.peek.deep .gc .tr,.hv-row .rail.peek.deep .endcard .ic{visibility:hidden}   /* under 26 px of card: the edge alone */
+.hv-row .rail.peek .wc .tx,.hv-row .rail.peek .wc .tl,.hv-row .rail.peek .wc .tr,.hv-row .rail.peek .wc .ch .a-live,.hv-row .rail.peek .pc .cap,.hv-row .rail.peek .pc .cm,.hv-row .rail.peek .pc .tl,.hv-row .rail.peek .pc .tr,.hv-row .rail.peek .pc .ad-mine,.hv-row .rail.peek .gc .st,.hv-row .rail.peek .gc .tr .nm,.hv-row .rail.peek .gc .tr .rc,.hv-row .rail.peek .gc .plate,.hv-row .rail.peek .gc .ng span,.hv-row .rail.peek .gc .ng small,.hv-row .rail.peek .endcard span,.hv-row .rail.peek .endcard .ic{visibility:hidden}   /* a peeking row is art only: crests, team edges, logo tiles and poster art; no text under the edge fade (review 2 item 5) */
 
 /* wide card 198 x 111 (16:9): art under a bottom scrim, title and meta at the bottom, a label at the top for NEW / REPLAY only */
 .wc .tx span.dot-sep{display:inline-block}   /* ui.css blocks every span in .tx; the separator stays inline so the meta is one line */
@@ -85,7 +102,10 @@
 .wc.pst .tx{left:74px;padding:30px 12px 10px 12px;background:linear-gradient(180deg,var(--a-surface-1),var(--a-surface-1))}
 /* a channel card: the provider's logo tile on surface-2 (no art exists for live TV); a game channel gets the team colours (SPEC 5.4) */
 .wc.chc .art.chf{background:var(--a-surface-2)}
-.wc.chc .ch .logo{width:44px;height:44px;border-radius:10px;font-size:15px;background:var(--a-surface-3);color:var(--a-text-1);border:1px solid var(--a-border-strong)}
+.wc.chc .ch{top:10px;left:10px}
+.wc.chc .ch .logo{width:56px;height:56px;border-radius:12px;font-size:17px;background:var(--a-surface-3);color:var(--a-text-1);border:1px solid var(--a-border-strong)}
+.wc.chc .chlogo{display:block;width:64px;height:40px;border-radius:8px;background:var(--a-surface-3);overflow:hidden}
+.wc.chc .chlogo svg{width:100%;height:100%;display:block}
 .wc.chc .tx{padding-top:26px}
 /* named 4K: the dashed tag of the Movies grid (subtitles SPEC 6.1) */
 .tag.q.named{background:transparent;border:1.5px dashed var(--a-border-strong);color:var(--a-text-2)}
@@ -102,10 +122,14 @@
 .wc.cu-noart .art{background:var(--a-surface-2)}
 /* next-game card: your team's next game as a game card with one row and the tip time plate */
 .gc.next .tr{height:38px}
-.gc.next .ng{display:flex;align-items:center;gap:10px;height:38px;padding-right:96px;white-space:nowrap;font:650 16px/20px var(--a-font-text);color:var(--a-text-1)}
+.gc.next .ng{display:flex;align-items:center;gap:10px;height:38px;padding-right:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:650 16px/20px var(--a-font-text);color:var(--a-text-1)}
 .gc.next .ng small{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
 .gc .st .mine{color:var(--a-pink-text)}
 .gc .plate .x .t-cap{letter-spacing:0;text-transform:none}
+/* a door (SPEC 4.4): a 2 x 2 poster mosaic under the card's scrim, the label and count at the bottom */
+.wc.dr .mos{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;background:var(--a-surface-1)}
+.wc.dr .mos .art{position:relative;inset:auto}
+.wc.dr .tx{padding-top:40px}
 /* end card: 124 x 186 for poster rows, 198 x 111 for wide rows */
 .endcard.w{width:198px;height:111px;border-radius:16px}
 .endcard .ic{width:24px;height:24px;color:var(--a-text-2)}
@@ -135,6 +159,8 @@
 /* a hold-OK menu on Home dims the page (bg-0 at 60 %) so the billboard's primary cannot compete with the menu's ring */
 .hv-dim{position:absolute;inset:0;background:rgba(21,19,29,.6);z-index:21}
 .hv-dim~.ctxmenu{z-index:22}
+.hv-dim~.hv-page .wc.lit,.hv-dim~.hv-page .gc.lit{transform:scale(1.05);position:relative;z-index:22;transform-origin:0 50%}   /* the source card stays lit above the dim, lifted, without a second ring (one ring per screen: the menu's) */
+.ctxmenu.hv-menu h3{font:650 14px/18px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-3);padding:6px 12px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
 /* the offline pill beside the avatar (the bar is present when Home is unscrolled) */
 .offline-bar.hv{left:auto;right:48px;top:84px;bottom:auto;height:32px;z-index:8}
 /* the storyboard page (home-live-entry): three stills of the entry at 0.3 scale */
@@ -148,5 +174,3 @@
 .sb-cap b{font-weight:650;color:var(--a-text-1)}
 /* scrolled: the billboard stays mounted (its image decoded once), hidden under the lifted page */
 .hv-bb.hv-hidden{visibility:hidden}
-/* a peeking game card sits 2 px higher inside its slot so its LIVE pill is whole above the screen edge */
-.hv-row .rail.peek .gc{padding-top:8px}
