@@ -60,7 +60,7 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   and takes screenshots (see `tests/tv/example-layout.js`). `tests/tv/serve.sh --test` + `node tests/tv/walkthrough.js
   <outdir>` runs the CI walkthrough in a browser (the 3 native-player checks can't pass there; restart the fake provider
   between walkthrough runs, it keeps the reports). NBA page scripts: `tests/tv/nba-{host,league,news,team}.js`, and the
-  bug-hunt scripts `tests/tv/hunt-*.js`. Home: `tests/tv/home-{marquee,gamenight,rows,cold,library}.js` (a fake TMDB,
+  bug-hunt scripts `tests/tv/hunt-*.js`. Home: `tests/tv/home-{marquee,gamenight,rows,cold,library,curate}.js` (a fake TMDB,
   `tests/mock-tmdb.js`, on the fake provider; `home-common.js` seeds an owner-like history).
 - CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign`) builds Windows, Android, iOS and runs
   `tests/android-test-boot.js` on an Android TV emulator (45 checks; the run fails if a check fails or the test doesn't finish). Its screenshots and `reports.json` are uploaded
