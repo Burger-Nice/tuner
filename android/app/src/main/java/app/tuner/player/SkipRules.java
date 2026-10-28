@@ -113,15 +113,11 @@ final class SkipRules {
     /** Spoken lines within 5 s of an edge trim the window to clear them (a cold open's last word, the scene's first);
      * a window trimmed under 8 s gets nothing (null). */
     static long[] trim(long[] w, List<Cue> cues) {
-        long s = w[0], e = w[1];
-        for (boolean moved = true; moved; ) {
-            moved = false;
-            for (Cue c : cues) {
-                if (!counts(c, cues)) continue;
-                if (c.start < s + 5000 && c.end > s) { s = c.end; moved = true; }
-                if (c.end > e - 5000 && c.start < e) { e = c.start; moved = true; }
-                if (e - s < MIN_WINDOW) return null;
-            }
+        long s = w[0], e = w[1];   // (one pass, from the window's own edges: dense speech or lyrics don't eat it away)
+        for (Cue c : cues) {
+            if (!counts(c, cues)) continue;
+            if (c.start < w[0] + 5000 && c.end > w[0]) s = Math.max(s, c.end);
+            if (c.end > w[1] - 5000 && c.start < w[1]) e = Math.min(e, c.start);
         }
         return e - s < MIN_WINDOW ? null : new long[] { s, e };
     }

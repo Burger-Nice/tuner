@@ -125,6 +125,27 @@ function stalls(req, res, file) {
   req.on('close', () => clearTimeout(t));
 }
 
+// TheIntroDB's answers (section 0, curl on 27 Oct 2026): It's Always Sunny S1 E1 to E3 as they are; Lost's recap and
+// intro as they are, its credits moved into the 22:01 test clip (the real 42:48 is past its end). Named cases change one.
+const SUNNY = 'tt0472954', LOST = 'tt0411008';
+const seg = (s, e) => ({ start_ms: s, end_ms: e });
+function introAnswer(kase, imdb, season, episode) {
+  const k = `${imdb}:${season}:${episode}`;
+  const base = { tvdb_id: imdb === SUNNY ? 75805 : 73739, type: 'tv', season: +season, episode: +episode, intro: [], recap: [], credits: [], preview: [] };
+  const A = {
+    [`${SUNNY}:1:1`]: { intro: [seg(104000, 131646)], credits: [seg(1288000, null)] },
+    [`${SUNNY}:1:2`]: { intro: [seg(78900, 105900)], credits: [seg(1250000, null)] },
+    [`${SUNNY}:1:3`]: { recap: [seg(0, 0)], credits: [seg(1299000, null)] },
+    [`${LOST}:1:6`]: { credits: [seg(1290000, null)] },
+    [`${LOST}:2:1`]: { recap: [seg(2000, 28000)], intro: [seg(239000, 250500)], credits: [seg(1288000, null)] },
+  };
+  let a = A[k];
+  if (kase === 'SK-18' && k === `${SUNNY}:1:1`) a = { intro: [seg(350700, 398800)], credits: [seg(351200, 399700)] };   // Stranger Things' wrong label
+  if ((kase === 'SK-26' || kase === 'SK-28') && k === `${SUNNY}:1:2`) a = { recap: [seg(20000, 76900)], intro: [seg(78900, 105900)], credits: [seg(1250000, null)] };   // a recap 2 s before the intro
+  if (kase === 'SK-32' && k === `${SUNNY}:1:3`) a = { intro: [seg(90000, 118000)], credits: [seg(1299000, null)] };
+  return a ? { ...base, ...a } : null;
+}
+
 const log = [];
 const reports = [];
 let m0;
@@ -186,6 +207,13 @@ http.createServer((req, res) => {
   if (/^\/movie-norange\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { const f = path.join(MEDIA, 'movie.mp4'); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': fs.statSync(f).size }); return fs.createReadStream(f).pipe(res); }
   if (/^\/movie-refuse\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) { res.writeHead(458, { 'Content-Type': 'text/plain' }); return res.end('Too many connections'); }
   if (addons(req, res, u)) return;
+  // A fake TheIntroDB (design/ui-v1/skip/SPEC.md 14): the app's tuner.introBase points at /introdb/v4, or at
+  // /introdb/case/<SK-n>/v4 for a check's own answers. How often it was asked: /_hits?prefix=/introdb/
+  if ((m0 = /^\/introdb\/(?:case\/([\w-]+)\/)?v4\/media$/.exec(u.pathname))) {
+    const a = introAnswer(m0[1] || '', u.searchParams.get('imdb_id'), u.searchParams.get('season'), u.searchParams.get('episode'));
+    res.writeHead(a ? 200 : 404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(a || { error: 'no_submissions' }));
+  }
   if (u.pathname === '/player_api.php') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(api(u.searchParams, +req.headers['x-mock-now'] || Date.now()))); }
   if (u.pathname === '/espn/scoreboard') return sendFile(req, res, path.join(ESPN, `scoreboard${u.searchParams.get('dates') ? '-' + u.searchParams.get('dates') : ''}.json`), 'application/json');
   if (u.pathname === '/espn/summary') {
@@ -231,6 +259,8 @@ http.createServer((req, res) => {
   // (the .m3u8 timeshift link replays come first with: the test clip's playlist)
   if (/^\/timeshift\/demo\/demo\/\d+\/\d{4}-\d\d-\d\d:\d\d-\d\d\/\d+\.m3u8$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'hls/index.m3u8'), 'application/vnd.apple.mpegurl');
   if ((m = /^\/timeshift\/demo\/demo\/\d+\/\d{4}-\d\d-\d\d:\d\d-\d\d\/(seg\d+\.ts)$/.exec(u.pathname))) return sendFile(req, res, path.join(MEDIA, 'hls', m[1]), 'video/mp2t');
+  // episodes play the 22:01 clip (Skip intro's real times fit it); films the 60 s one
+  if (/^\/series\/demo\/demo\/\d+\.mp4$/.test(u.pathname) && fs.existsSync(path.join(MEDIA, 'episode.mp4'))) return sendFile(req, res, path.join(MEDIA, 'episode.mp4'), 'video/mp4');
   if (/^\/(movie|series)\/demo\/demo\/\d+\.mp4$/.test(u.pathname)) return sendFile(req, res, path.join(MEDIA, 'movie.mp4'), 'video/mp4');
   res.writeHead(404); res.end();
 }).listen(PORT, () => console.log('mock xtream on ' + B));

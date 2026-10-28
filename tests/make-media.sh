@@ -12,6 +12,9 @@ while [ $i -lt 30 ]; do
   i=$((i+1))
 done
 ffmpeg -loglevel error -y -f lavfi -i testsrc=size=1280x720:rate=25 -f lavfi -i sine=frequency=330 -i "$M/subs.srt" -t 60 -map 0:v -map 1:a -map 2:s -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -c:s mov_text -metadata:s:s:0 language=eng -movflags +faststart "$M/movie.mp4"
+# a 22:01 episode, small (320x180, 10 fps, a keyframe a second): Skip intro and Up next at the credits at real times
+# (design/ui-v1/skip/SPEC.md 14; the fake TheIntroDB in mock-provider.js)
+ffmpeg -loglevel error -y -f lavfi -i testsrc=size=320x180:rate=10 -f lavfi -i sine=frequency=330 -t 1321 -c:v libx264 -preset ultrafast -crf 40 -g 10 -pix_fmt yuv420p -c:a aac -b:a 24k -ac 1 -movflags +faststart "$M/episode.mp4"
 # a 30 s clip: the fake add-on's "still downloading" placeholder (design/ui-v1/addons/SPEC.md 12.11)
 ffmpeg -loglevel error -y -f lavfi -i testsrc=size=1280x720:rate=25 -f lavfi -i sine=frequency=550 -t 30 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "$M/short.mp4"
 cp "$M/live.ts" "$M/uhd.ts"
