@@ -6,7 +6,11 @@
 //   PEEK     a peeking row (its cards cross the safe line) shows art only: no text, no badge, inside the screen
 //   SLABTXT  nothing but the slab's own content over the slab polygon
 //   BAR      the top bar is away on a scrolled page, present otherwise; the context line only when scrolled
-//   HERO     the billboard's text column ends before x 600 (the slab / art side) and its buttons sit at y 242-286
+//   HERO     the billboard's text column ends before x 600 (the art side) and its buttons sit at y 232-276
+//   LINES    a card's title and meta, the billboard's meta and fan line, a row title and a game card's status are one line each
+//   RECORD   on a shield mock with a game billboard the records are partial (the eye-off), never a full W-L
+//   LIVEBG   the pixels around every LIVE pill are dark canvas, never a team colour (read from the screenshot)
+//   DATA     a channel card never carries art (the Xtream guide has none): the logo tile, or the game's team colours
 // --inject puts one fault per new check into the pages (a second primary, a swapped row order, a caption in a peek row,
 // a score on a shield page) to prove they fire.
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
@@ -29,7 +33,8 @@ const { chromium } = require('playwright'); const path = require('path'); const 
     const r = await p.evaluate(() => {
       const SAFE = { l: 48, r: 912, t: 27, b: 513 }, TOL = 1.5;
       const sel = '.f,.f-ring,.f-in,.lift';
-      const focusEls = [...document.querySelectorAll(sel)];
+      const focusEls = [...document.querySelectorAll(sel)].filter((e) => !e.closest('.sb-shot'));
+      const NOFOCUS = !!document.querySelector('meta[name="nofocus"],meta[name="storyboard"]');
       const all = document.querySelectorAll('.screen *').length, art = document.querySelectorAll('.art-svg, .art-svg *').length;
       const small = [], banned = [];
       const issues = { overlap: [], clip: [], safe: [], contrast: [], home: [] };
@@ -38,7 +43,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       // ---- text boxes: one Range rect per text-bearing element (direct text nodes only)
       const texts = [];
       for (const e of document.querySelectorAll('.screen *')) {
-        if (e.closest('svg') || e.closest('.art') && !e.closest('.noart')) continue;
+        if (e.closest('svg') || e.closest('.sb-shot') || e.closest('.art') && !e.closest('.noart')) continue;
         const cs = getComputedStyle(e);
         if (cs.filter !== 'none' || cs.backdropFilter !== 'none') banned.push(e.className);
         if (!vis(e)) continue;
@@ -72,7 +77,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       // ---- text against component boxes
       const BOXES = '.btn,.btn2,.chip,.tag,.logo,.team,.shield,.kbd,.toast,.lr,.arow,.wc,.pc .box,.gc,.menu,.sheet,.ctxmenu,.endcard,.offline-bar,.hv-pst';
       const cover = !!document.querySelector('.hv-cover');
-      const boxEls = [...document.querySelectorAll(BOXES)].filter((b) => !b.closest('.art')).filter((b) => { const q = b.getBoundingClientRect(); return q.width > 8 && q.height > 8 && vis(b) && !(cover && q.bottom < 84); });   // (a card under the scrolled page's cover band is not on screen)
+      const boxEls = [...document.querySelectorAll(BOXES)].filter((b) => !b.closest('.art') && !b.closest('.sb-shot')).filter((b) => { const q = b.getBoundingClientRect(); return q.width > 8 && q.height > 8 && vis(b) && !(cover && q.bottom < 84); });   // (a card under the scrolled page's cover band is not on screen)
       for (const t of texts) for (const b of boxEls) {
         const q = b.getBoundingClientRect(); const inside = b.contains(t.e);
         if (inside) { if (b.matches('.sheet,.menu')) continue; if (t.x0 < q.left - 2 || t.x1 > q.right + 2 || t.y0 < q.top - 2 || t.y1 > q.bottom + 2) issues.clip.push(`text "${t.txt}" escapes ${short(b)}`); }
@@ -169,11 +174,11 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       }
       // ---- PEEK: a peeking row shows art only, nothing sliced by the bottom edge
       for (const t of texts) {
-        if (t.e.closest('.rail.peek')) { if (!t.e.closest('.hv-rt')) issues.home.push(`PEEK: text "${t.txt}" in a peeking row`); continue; }
+        if (t.e.closest('.rail.peek')) { if (t.e.closest('.tx,.cap,.cm,.nm,.rc,.plate')) issues.home.push(`PEEK: body text "${t.txt}" in a peeking row`); else if (t.y1 > 540.5) issues.home.push(`PEEK: "${t.txt}" sliced by the edge (y ${t.y1.toFixed(0)})`); continue; }
         if (t.e.closest('.rail') && (t.y1 > 540.5 || (t.y0 < 540 && t.y1 > 540))) issues.safe.push(`rail text "${t.txt}" sliced by the bottom edge`);
         if (t.e.closest('.rail') && t.y1 > 513.5 && !t.e.closest('.rail.peek')) issues.safe.push(`rail text "${t.txt}" below the safe line (y ${t.y1.toFixed(0)})`);
       }
-      for (const bd of document.querySelectorAll('.rail.peek .tag,.rail.peek .tl,.rail.peek .tr,.rail.peek .ch,.rail.peek .crs,.rail.peek .a-live')) if (vis(bd)) issues.home.push(`PEEK: a badge (${short(bd)}) in a peeking row`);
+      for (const bd of document.querySelectorAll('.rail.peek .tag,.rail.peek .tl,.rail.peek .tr,.rail.peek .ch,.rail.peek .crs,.rail.peek .a-live')) { if (!vis(bd)) continue; const q = bd.getBoundingClientRect(); if (q.bottom > 540.5) issues.home.push(`PEEK: a badge (${short(bd)}) sliced by the edge`); }
       // ---- RAILFOCUS: a rail that takes focus keeps its cards inside the safe line when focused (card bottom <= 513)
       for (const rl of document.querySelectorAll('.rail:not(.peek)')) {
         for (const c of rl.querySelectorAll('.wc,.pc .box,.gc,.endcard')) { const q = c.getBoundingClientRect(); if (q.left > 912 || q.right < 48) continue;
@@ -210,7 +215,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       }
       // ---- HUE: no amber or yellow anywhere in the UI, red only on LIVE (art, team plates and crests excluded)
       { const hue = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const v = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); if (v[3] === 0) return null; const [r, g, b] = v.map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 0.25) return null; const l = (mx + mn) / 2, sat = d / (1 - Math.abs(2 * l - 1)); if (sat < 0.45) return null; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; return h; };
-        for (const e of document.querySelectorAll('.screen *')) { if (e.closest('svg,.art,.tedge,.hv-mt .side,.team,.wc.crest') || e.matches('.tedge') || !vis(e)) continue; const cs = getComputedStyle(e);
+        for (const e of document.querySelectorAll('.screen *')) { if (e.closest('svg,.art,.tedge,.hv-mt .side,.team,.wc.crest,.sb-shot') || e.matches('.tedge,.hv-fa,.hv-fh') || !vis(e)) continue; const cs = getComputedStyle(e);
           for (const [k, c] of [['color', cs.color], ['background', cs.backgroundColor], ['border', cs.borderTopWidth !== '0px' ? cs.borderTopColor : ''], ['border-b', cs.borderBottomWidth !== '0px' ? cs.borderBottomColor : '']]) { const h = hue(c); if (h == null) continue;
             if (k === 'color' && !(e.childNodes.length && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))) continue;
             if (h >= 32 && h <= 68) issues.overlap.push(`HUE: amber/yellow ${k} on ${short(e)}`);
@@ -219,29 +224,46 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const allText = texts.map((t) => t.e.textContent).join(' | ');
       { const j = allText.match(/\b\d{1,2}(:\d\d)?\s?(am|pm|a\.m\.|p\.m\.)\b/i); if (j) issues.overlap.push(`CLOCK: "${j[0]}" is a 12 h time`); }
       // ---- Home v2 checks
-      const prim = [...document.querySelectorAll('.btn')].filter(vis);
+      const prim = [...document.querySelectorAll('.btn')].filter((e) => vis(e) && !e.closest('.sb-shot'));
       if (prim.length > 1) issues.home.push(`PRIMARY: ${prim.length} gradient buttons on screen`);
       const scrolled = !!document.querySelector('.topbar.away');
-      if (!scrolled && document.querySelector('.hv-bb') && !document.querySelector('.ctxmenu') && prim.length === 1 && !prim[0].classList.contains('f')) issues.home.push('PRIMARY: the billboard\'s primary is not the focused element');
+      if (!scrolled && !NOFOCUS && document.querySelector('.hv-bb') && !document.querySelector('.ctxmenu') && prim.length === 1 && !prim[0].classList.contains('f')) issues.home.push('PRIMARY: the billboard\'s primary is not the focused element');
       if (scrolled && !document.querySelector('.ctxline')) issues.home.push('BAR: scrolled page without its context line');
       if (!scrolled && document.querySelector('.ctxline')) issues.home.push('BAR: a context line while the bar is present');
-      if (scrolled && document.querySelector('.hv-bb')) issues.home.push('BAR: the billboard is mounted on a scrolled page');
+      if (scrolled) { const bbEl = document.querySelector('.hv-bb'); if (!bbEl) issues.home.push('BAR: the billboard is unmounted on a scrolled page (hide it, keep its image)'); else if (getComputedStyle(bbEl).visibility !== 'hidden' && bbEl.getBoundingClientRect().bottom > 0) issues.home.push('BAR: the billboard shows on a scrolled page'); }
       const rws = [...document.querySelectorAll('.hv-row')].map((r) => ({ id: r.dataset.rail, top: parseFloat(r.style.top) })).sort((a, b) => a.top - b.top);
       if (rws.length) { const ci = rws.findIndex((r) => r.id === 'cont'); if (ci > 0) issues.home.push(`ORDER: Continue watching is row ${ci + 1}, not first`); const chi = rws.findIndex((r) => r.id === 'channels'); if (chi >= 0 && chi !== rws.length - 1) issues.home.push('ORDER: Channels is not the last row'); }
       const col = document.querySelector('.hv-col'); if (col) { for (const t of texts) if (col.contains(t.e) && t.x1 > 600.5) issues.home.push(`HERO: column text "${t.txt}" past x 600`); }
-      const hb = document.querySelector('.hv-btns'); if (hb) { const q = hb.getBoundingClientRect(); if (Math.abs(q.top - 242) > 0.5 || Math.abs(q.bottom - 286) > 0.5) issues.home.push(`HERO: the button row sits at y ${q.top.toFixed(0)}-${q.bottom.toFixed(0)}, not 242-286`); }
+      const hb = document.querySelector('.hv-btns'); if (hb) { const q = hb.getBoundingClientRect(); if (!NOFOCUS && (Math.abs(q.top - 232) > 0.5 || Math.abs(q.bottom - 276) > 0.5)) issues.home.push(`HERO: the button row sits at y ${q.top.toFixed(0)}-${q.bottom.toFixed(0)}, not 232-276`); }
+      // ---- LINES (review 1): one line each
+      for (const e of document.querySelectorAll('.wc .tx b,.wc .tx span:not(.dot-sep):not(.epn):not(.cu-may),.hv-meta,.hv-ctx,.hv-rt,.gc .st,.pc .cap,.pc .cm,.hv-eye,.hv-status')) {
+        if (!vis(e) || e.closest('.sb-shot')) continue; const q = e.getBoundingClientRect(), lh = parseFloat(getComputedStyle(e).lineHeight) || 20;
+        if (q.height > lh * 1.5) issues.home.push(`LINES: "${e.textContent.trim().replace(/\s+/g, ' ').slice(0, 28)}" wraps to ${Math.round(q.height / lh)} lines (${short(e)})`);
+      }
+      // ---- RECORD (review 3): a shield mock with a game billboard never shows a full W-L on a plate
+      if (document.querySelector('meta[name="shield"]') && document.querySelector('.hv-bb.game')) for (const rc of document.querySelectorAll('.hv-side .rc')) if (!rc.closest('.sb-shot') && !rc.querySelector('.nb-rp') && /\d+-\d+/.test(rc.textContent)) issues.home.push(`RECORD: a full record "${rc.textContent.trim()}" under the shield`);
+      // ---- DATA (review 4): a channel card never carries art
+      for (const c of document.querySelectorAll('.wc.chc')) if (c.querySelector('.art-svg,.art img')) issues.home.push('DATA: a channel card with art (live TV has none)');
+      const livePills = [...document.querySelectorAll('.a-live:not(.compact)')].filter((e) => vis(e) && !e.closest('.sb-shot') && !e.closest('.rail')).map((e) => { const q = e.getBoundingClientRect(); return [q.left, q.top, q.right, q.bottom]; });
       const fr = focusEls.map((fe) => { const q = fe.getBoundingClientRect(), cs = getComputedStyle(fe); return { cls: short(fe), inset: cs.boxShadow.includes('inset') || fe.classList.contains('f-in'), x0: q.left, y0: q.top, x1: q.right, y1: q.bottom, rad: parseFloat(cs.borderTopLeftRadius) || 0, sc: q.width / (fe.offsetWidth || q.width) }; });
-      return { focus: focusEls.length, ui: all - art, small: [...new Set(small)], banned: banned.length, issues, fr };
+      return { focus: focusEls.length, ui: all - art, small: [...new Set(small)], banned: banned.length, issues, fr, nofocus: NOFOCUS, livePills };
     });
-    const iss = r.issues; const n = iss.overlap.length + iss.clip.length + iss.safe.length + iss.contrast.length + iss.home.length + (r.banned ? 1 : 0) + r.small.length + (r.focus !== 1 ? 1 : 0);
+    const iss = r.issues; const n = iss.overlap.length + iss.clip.length + iss.safe.length + iss.contrast.length + iss.home.length + (r.banned ? 1 : 0) + r.small.length + (r.focus !== 1 && !r.nofocus ? 1 : 0);
     bad += n;
     lines.push(f.padEnd(28) + ' focus ' + r.focus + ' nodes ' + String(r.ui).padStart(4) + (n ? '  FAIL ' + n : '  ok'));
-    if (r.focus !== 1) lines.push(`    FOCUS    ${r.focus} focus rings (one per screen)`);
+    if (r.focus !== 1 && !r.nofocus) lines.push(`    FOCUS    ${r.focus} focus rings (one per screen)`);
     if (n || !quiet) for (const k of ['overlap', 'clip', 'safe', 'contrast', 'home']) for (const m of [...new Set(iss[k])]) lines.push(`    ${k.toUpperCase().padEnd(8)} ${m}`);
     if (r.small.length) lines.push('    SMALL    ' + r.small.join(' | '));
     if (r.banned) lines.push('    BANNED   ' + r.banned);
     // ---- RING: sample the screenshot just outside every edge of each focused element: the ring must really be there
     const shot = (await p.screenshot()).toString('base64');
+    if (r.livePills.length) {
+      const q = await b.newPage(); await q.setContent('<canvas></canvas>');
+      const res = await q.evaluate(async ({ shot, pills }) => { const im = new Image(); im.src = 'data:image/png;base64,' + shot; await im.decode(); const c = document.querySelector('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+        return pills.map(([l, t, rr, bb]) => { const pts = [[l - 8, (t + bb) / 2], [rr + 8, (t + bb) / 2], [(l + rr) / 2, t - 8], [(l + rr) / 2, bb + 8]]; let worst = 0; for (const [px, py] of pts) { const d = x.getImageData(Math.round(px * 2), Math.round(py * 2), 1, 1).data; const sat = Math.max(d[0], d[1], d[2]) - Math.min(d[0], d[1], d[2]); worst = Math.max(worst, sat); } return worst; }); }, { shot, pills: r.livePills });
+      await q.close();
+      res.forEach((sat, i) => { if (sat > 40) { bad++; lines.push(`    LIVEBG   LIVE pill ${i + 1}: a coloured ground next to it (saturation ${sat}/255, max 40)`); } });
+    }
     for (const g of r.fr) {
       const off = g.inset ? -1.5 : 3.6 * g.sc, pts = [], skip = g.rad * g.sc + 4;
       for (let x = g.x0 + skip; x <= g.x1 - skip; x += 3) { pts.push([x, g.y0 - off, 't'], [x, g.y1 + off, 'b']); }

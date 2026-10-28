@@ -1,68 +1,122 @@
 [
  {
+  "file": "home-live-hidden.html",
+  "title": "Game night: live, score hidden",
+  "note": "Tue 27 Oct 01:52, shield My team, the game is on and he has not started watching. Game-night mode: the two teams' colours split the billboard at 12°, crests in the neutral disc, the score tile says hidden, the chip ON NOW (no period, no clock), Watch live · From tip-off · Reveal score; one fan line copied at tip-off. The NBA tab's LIVE pill is the other game-night sign.",
+  "group": "Home"
+ },
+ {
   "file": "home-live.html",
-  "title": "Game night: your team is live",
-  "note": "Tue 27 Oct 01:52. Grizzlies at Jazz in Q2 and he is watching it (so the score shows). The billboard is the broadcast lower-third: plates, score, Watch live focused, From tip-off, the clock on the slab. Continue watching first, Tonight in the NBA under it, the rest below.",
+  "title": "Game night: live, revealed",
+  "note": "The same minute with the score shown (shield Off, or after Reveal score): the score in Barlow on the plate, 2ND 4:12 on the chip (never Q2, which reads as 02 at 3 m), Synced · 38 s in the status row.",
+  "group": "Home"
+ },
+ {
+  "file": "home-behind.html",
+  "title": "Game night: behind in a replay",
+  "note": "02:35: he started from tip-off and stopped in Q1. LIVE on the clock, the chip shows HIS position (1ST 8:20 · you stopped here), Resume · Back to live · Game page; no live clock anywhere (catch-up 7.2).",
   "group": "Home"
  },
  {
   "file": "home-pre.html",
   "title": "Before tip-off",
-  "note": "Tue 27 Oct 00:11, 49 minutes to tip-off. VS between the plates, the minutes on the slab (the time is shown once), Watch pre-game focused.",
+  "note": "00:11, 49 minutes to tip-off: VS on the plate, 49 MIN on the chip, the tip time once in the status row, Watch pre-game focused. Records partial: the Kings final in Continue watching is still unseen.",
+  "group": "Home"
+ },
+ {
+  "file": "home-pre-choose.html",
+  "title": "Before tip-off, no channel found",
+  "note": "The guide match failed (the owner's provider often says \"No guide information\"): Choose channel opens the sheet (EPG match, NBA / League Pass channels, the Sports group), Open guide second; the pick is remembered per team.",
   "group": "Home"
  },
  {
   "file": "home-morning.html",
   "title": "The morning after",
-  "note": "Tue 27 Oct 10:40, shield My team. Last night's game is unseen and kept: Watch from tip-off is focused, no score, records only up to the seen games. In the NBA row the Grizzlies card is hidden (Ended, no plate); the other finals show (My team rule).",
+  "note": "Tue 27 Oct 10:40. \"The morning after\" is the eyebrow; the chip reads REPLAY · no spoilers; no score, no result word, records partial, the fan line as of tip-off. In the NBA row the Grizzlies card is hidden (Ended, no plate); the other finals show (My team rule).",
+  "group": "Home"
+ },
+ {
+  "file": "home-final-seen.html",
+  "title": "Final, seen",
+  "note": "03:40, he watched it to the buzzer: the final score on the plate, FINAL on the chip, W 112–104, Box score focused, Watch again. The billboard holds 30 minutes, then the next kind takes over.",
   "group": "Home"
  },
  {
   "file": "home-evening.html",
   "title": "A normal evening",
-  "note": "Wed 28 Oct 20:41, no Grizzlies game. The billboard is the episode he is in the middle of (its backdrop, Resume focused). Continue watching first (the billboard's own title not repeated), then Tonight in the NBA led by the Grizzlies' next game, then New in your shows.",
+  "note": "Wed 28 Oct 20:41, no Grizzlies game. The greeting in Icelandic opens the eyebrow (Gott kvöld · Pick up where you left off); the episode's own name sits in the meta line; Resume focused. Continue watching first (the billboard's title not repeated; Salt & Static has no backdrop, so its poster stands at the left), the NBA row led by the next game.",
+  "group": "Home"
+ },
+ {
+  "file": "home-new-season.html",
+  "title": "New season of a show he follows",
+  "note": "Signal Hill, a show he finished through S3, got a fourth season today: the billboard shows it with the show's own logo (Cinemeta), the season line, Play S4 · E1 focused. It holds for 48 h or until he starts it; New in your shows carries the rest.",
+  "group": "Home"
+ },
+ {
+  "file": "home-upnext.html",
+  "title": "Up next: the next episode",
+  "note": "He finished S1 · E3 last night: the next episode is the billboard (Up next · S1 · E4 · \"The Relay\" · 48 min, the episode's line), Play focused, Details.",
   "group": "Home"
  },
  {
   "file": "home-scrolled.html",
   "title": "A row in focus mid-page",
-  "note": "Down three times from Continue watching: the page lifts so the focused row's title sits at y 84, the bar steps away (Back brings it back), the next rows peek below. Posters carry the [tv] mark when the provider has the add-on's title too.",
+  "note": "Down three times from Continue watching: the page lifts so the focused row's title sits at y 84, the bar steps away (Back brings the billboard's primary back), the next rows peek below. Posters carry the [tv] mark when the provider has the add-on's title too.",
   "group": "Home"
  },
  {
   "file": "home-channels.html",
   "title": "The channels, at the bottom",
-  "note": "The last row: favourites first, then the channels he watched lately (the old On now, folded low as he asked). Nothing peeks below it: Down stops here.",
-  "group": "Home"
- },
- {
-  "file": "home-discover.html",
-  "title": "Nothing to continue: a top pick",
-  "note": "Sat 31 Oct 21:10. Nothing in progress for 7 days, so the billboard is the day's top pick (Popular, his languages, unseen, the add-on's backdrop and line). Play focused, Details, Save; the pick changes once a day, never under his thumb.",
-  "group": "Home"
- },
- {
-  "file": "home-first.html",
-  "title": "First start",
-  "note": "Signed in a minute ago, nothing watched. The billboard is Popular's first title in his languages with the provider's poster (no backdrop yet: the poster stands upright on the canvas). No Continue watching, no Because you watched: the NBA first (it needs no history), Top picks, Series to start, then New on your provider and Channels below.",
+  "note": "The last row: the lift is clamped so Channels sits at the bottom with Saved for later above it. A channel card is the provider's logo tile on surface-2 (no art exists for live TV); a channel carrying a game gets the teams' colours and crests; no guide = the channel name alone.",
   "group": "Home"
  },
  {
   "file": "home-card-menu.html",
   "title": "Hold OK on a card",
-  "note": "Hold OK on The Long Take: Resume first and focused, Start over, Details, Mark watched, Remove from Home (it leaves Continue watching; the title stays in History). A poster's menu is Save to Saved · Details · Not interested.",
+  "note": "Hold OK on The Long Take: the page dims to 60 % under the menu, which sits beside its card and never over the billboard's primary. Resume first and focused, Start over, Details, Mark watched, Remove from Home.",
   "group": "Home"
  },
  {
   "file": "home-offline.html",
   "title": "Offline, with a cache",
-  "note": "The provider does not answer: Home is drawn from what airglow kept (the billboard, Continue watching, the last slate marked \"As of 20:12\", the catalog rows). No LIVE pills, no clocks; New in your shows is left out (it needs the provider). One slim bar, never focusable.",
+  "note": "The provider does not answer: Home is drawn from what airglow kept; the pill sits beside the avatar; the billboard says Needs a connection to play (Resume stays focused: it leads to the diagnosis card). No LIVE pills, no clocks; New in your shows is left out.",
+  "group": "Home"
+ },
+ {
+  "file": "home-discover.html",
+  "title": "Nothing to continue: a top pick",
+  "note": "Sat 31 Oct 21:10. Nothing in progress for 7 days, so the billboard is the day's pick (Popular, his languages, unseen, the add-on's backdrop and line). Details focused (owner decision), Play, Save; the caption names the playable fact. The pick changes once a day, never under his thumb.",
+  "group": "Home"
+ },
+ {
+  "file": "home-first.html",
+  "title": "First start",
+  "note": "Signed in a minute ago, nothing watched. The billboard is Popular's first title in his languages with the provider's poster (no backdrop yet: the poster stands upright). The NBA first (it needs no history), Top picks, Series to start, then New on your provider and Channels below.",
+  "group": "Home"
+ },
+ {
+  "file": "home-welcome.html",
+  "title": "Welcome: the first minute",
+  "note": "A first start before the channel list is in: the ramp, the welcome line, flat skeleton blocks where the NBA row and Top picks will be; nothing is focused (a progress screen, UI-SPEC SF9), Back cancels. The first row takes focus only when nothing is focused yet.",
+  "group": "Home"
+ },
+ {
+  "file": "home-m3u.html",
+  "title": "Live only (M3U): no films, no series",
+  "note": "A playlist account with no films or series and nothing to continue: the next game is the billboard (the two fields, VS, the tip time, Game page · Remind me), then tonight's games and the channels. Two rows, no empty shelves.",
   "group": "Home"
  },
  {
   "file": "home-rows-setting.html",
   "title": "Account: Home rows",
-  "note": "Every row with its toggle and its place. OK turns a row off or on; hold OK lifts it and ▲▼ move it (the Saved page's reorder). Continue watching is pinned first (no grip). The list scrolls: 10 rows, 4 on screen.",
+  "note": "Every row with its toggle and its place. OK turns a row off or on; hold OK lifts it and ▲▼ move it (the Saved page's reorder). Continue watching is pinned first (no grip). The list scrolls: 11 rows then Reset order.",
+  "group": "Home"
+ },
+ {
+  "file": "home-live-entry.html",
+  "title": "Game-night entry (storyboard)",
+  "note": "Three stills of the 280 ms entry: the team fields slide in from their sides, the plate and the crests settle, then the ring lands on Watch live. The only motion Home adds; transform and opacity only.",
   "group": "Home"
  }
 ]

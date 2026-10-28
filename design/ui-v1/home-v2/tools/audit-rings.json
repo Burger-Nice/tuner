@@ -1,5 +1,22 @@
 [
  {
+  "f": "home-live-hidden.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   225.6,
+   220.4,
+   282.4
+  ],
+  "safe": -5.3
+ },
+ {
   "f": "home-live.html",
   "el": ".btn.f",
   "inset": false,
@@ -10,9 +27,26 @@
   "min": 100,
   "ring": [
    42.7,
-   235.6,
+   225.6,
    220.4,
-   292.4
+   282.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-behind.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   225.6,
+   199.3,
+   282.4
   ],
   "safe": -5.3
  },
@@ -27,11 +61,28 @@
   "min": 100,
   "ring": [
    42.7,
-   235.6,
+   225.6,
    275.1,
-   292.4
+   282.4
   ],
   "safe": -5.3
+ },
+ {
+  "f": "home-pre-choose.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   225.7,
+   264.1,
+   282.3
+  ],
+  "safe": -5.2
  },
  {
   "f": "home-morning.html",
@@ -44,11 +95,28 @@
   "min": 100,
   "ring": [
    42.7,
-   235.6,
+   225.6,
    290.8,
-   292.4
+   282.4
   ],
   "safe": -5.3
+ },
+ {
+  "f": "home-final-seen.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   225.7,
+   213.8,
+   282.3
+  ],
+  "safe": -5.2
  },
  {
   "f": "home-evening.html",
@@ -61,9 +129,43 @@
   "min": 100,
   "ring": [
    42.7,
-   235.6,
+   225.6,
    199.3,
-   292.4
+   282.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-new-season.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   225.6,
+   223.6,
+   282.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-upnext.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   225.6,
+   171.2,
+   282.4
   ],
   "safe": -5.3
  },
@@ -86,7 +188,7 @@
  },
  {
   "f": "home-channels.html",
-  "el": ".wc.f",
+  "el": ".wc.chc",
   "inset": false,
   "top": 100,
   "bottom": 100,
@@ -95,11 +197,45 @@
   "min": 100,
   "ring": [
    42.8,
-   114,
+   388,
    261.1,
-   241
+   515
   ],
   "safe": -5.2
+ },
+ {
+  "f": "home-card-menu.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   274,
+   236,
+   502,
+   294
+  ],
+  "safe": 209
+ },
+ {
+  "f": "home-offline.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   225.6,
+   199.3,
+   282.4
+  ],
+  "safe": -5.3
  },
  {
   "f": "home-discover.html",
@@ -112,9 +248,9 @@
   "min": 100,
   "ring": [
    42.7,
-   235.6,
-   171.2,
-   292.4
+   225.6,
+   193.3,
+   282.4
   ],
   "safe": -5.3
  },
@@ -129,31 +265,14 @@
   "min": 100,
   "ring": [
    42.7,
-   235.6,
-   171.2,
-   292.4
+   225.6,
+   193.3,
+   282.4
   ],
   "safe": -5.3
  },
  {
-  "f": "home-card-menu.html",
-  "el": ".lr.f-ring",
-  "inset": false,
-  "top": 100,
-  "bottom": 100,
-  "left": 100,
-  "right": 100,
-  "min": 100,
-  "ring": [
-   274,
-   216,
-   502,
-   274
-  ],
-  "safe": 189
- },
- {
-  "f": "home-offline.html",
+  "f": "home-m3u.html",
   "el": ".btn.f",
   "inset": false,
   "top": 100,
@@ -163,9 +282,9 @@
   "min": 100,
   "ring": [
    42.7,
-   235.6,
-   199.3,
-   292.4
+   225.6,
+   230,
+   282.4
   ],
   "safe": -5.3
  },
@@ -180,9 +299,9 @@
   "min": 100,
   "ring": [
    267,
-   403,
+   395,
    917,
-   469
+   461
   ],
   "safe": -5
  }

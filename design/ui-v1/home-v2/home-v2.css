@@ -7,49 +7,61 @@
 .hv-bb .hv-art{position:absolute;inset:0;overflow:hidden}
 .hv-bb .hv-art>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:70% 30%}
 /* three flat scrims: left-to-right (text column), bottom (into the canvas), top (under the bar). Two-stop or three-stop, never animated */
-.hv-sx{position:absolute;inset:0;background:linear-gradient(90deg,var(--a-bg-0) 0,rgba(21,19,29,.94) 30%,rgba(21,19,29,.6) 56%,rgba(21,19,29,.1) 100%)}
+.hv-bb{background:linear-gradient(90deg,var(--amb2,var(--a-bg-1)) 0,var(--a-bg-0) 70%)}   /* the ambient: the art's own colour, deep, behind the column (SPEC 3.8) */
+.hv-sx{position:absolute;inset:0;background:linear-gradient(90deg,var(--amb2,var(--a-bg-0)) 0,rgba(21,19,29,.86) 34%,rgba(21,19,29,.5) 58%,rgba(21,19,29,.08) 100%)}
 .hv-sy{position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(180deg,rgba(21,19,29,0),var(--a-bg-0) 96%)}
 .hv-st{position:absolute;left:0;right:0;top:0;height:96px;background:linear-gradient(180deg,rgba(21,19,29,.86),rgba(21,19,29,0))}
+.hv-bb.game .hv-st{height:124px;background:linear-gradient(180deg,rgba(21,19,29,.94) 0,rgba(21,19,29,.86) 76px,rgba(21,19,29,0))}   /* the status row (and its LIVE pill) sits on the canvas, not on a team colour */
 .hv-grain{position:absolute;inset:0;background:url("../../../app/tv/brand/sprites/grain.png");opacity:.5;pointer-events:none}
 
-.hv-col{position:absolute;left:48px;top:90px;width:540px}
+.hv-col{position:absolute;left:48px;top:84px;width:540px}
 .hv-eye{display:flex;align-items:center;gap:12px;height:22px}
 .hv-eye .t-label{white-space:nowrap}
 .hv-title{margin-top:6px;font:700 34px/40px var(--a-font-display);color:var(--a-text-1);letter-spacing:-.01em;max-height:80px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .hv-logo{margin-top:10px;height:72px;display:flex;align-items:flex-end}
 .hv-logo img{max-height:72px;max-width:360px;display:block}
-.hv-meta{margin-top:8px;display:flex;align-items:center;gap:8px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.hv-logotext{font:700 40px/44px var(--a-font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--a-text-1)}   /* a stand-in for the show's logo PNG */
+.hv-meta{margin-top:6px;display:flex;align-items:center;gap:8px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
 .hv-meta .dot-sep{margin:0}
 .hv-meta .star{display:inline-flex;align-items:center;gap:5px;color:var(--a-text-1);font-weight:650}
 .hv-meta .star svg{width:16px;height:16px}
-.hv-plot{margin-top:6px;font:500 16px/21px var(--a-font-text);color:var(--a-text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:520px}
+.hv-meta .ends{color:var(--a-text-3)}
+.hv-plot{margin-top:6px;font:500 16px/20px var(--a-font-text);color:var(--a-text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:520px}
 .hv-prog{margin-top:12px;width:320px}
-.hv-btns{position:absolute;left:48px;top:242px;display:flex;align-items:center;gap:20px;height:44px}
+.hv-btns{position:absolute;left:48px;top:232px;display:flex;align-items:center;gap:20px;height:44px}
 .hv-btns .t-cap{margin-left:4px;line-height:18px;white-space:nowrap}
 .hv-btns>.btn:first-child.f,.hv-btns>.btn2:first-child.f{transform-origin:0 50%}
 /* the billboard's poster, when a title has only a 2:3 poster (no backdrop): on the right, upright, on the canvas */
-.hv-pst{position:absolute;right:48px;top:96px;width:128px;height:192px;border-radius:12px;overflow:hidden;border:1px solid var(--a-border);background:var(--a-surface-1)}
+.hv-pst{position:absolute;right:48px;top:84px;width:128px;height:192px;border-radius:12px;overflow:hidden;border:1px solid var(--a-border);background:var(--a-surface-1)}
 
-/* game billboard: the broadcast lower-third. Plates 88 high, crests 64, score 64 */
-.hv-mtbox{position:absolute;left:0;top:128px;width:628px;height:88px;overflow:hidden}
-.hv-mt{position:absolute;left:48px;top:0;height:88px;display:flex;align-items:center}
-.hv-mt .side{position:relative;display:flex;align-items:center;gap:14px;height:88px;padding:0 24px 0 0}
-.hv-mt .side::before{content:"";position:absolute;inset:0 -4px 0 -200px;background:var(--tp);border-bottom:4px solid var(--ta);transform:skewX(var(--a-skew));border-radius:0 var(--a-radius-sm) 0 0}
-.hv-mt .side.r{padding:0 0 0 24px}.hv-mt .side.r::before{inset:0 -22px 0 -4px;border-radius:var(--a-radius-sm) 0 0 var(--a-radius-sm)}
-.hv-mt .side>*{position:relative}
-.hv-mt .nm{font:700 26px/28px var(--a-font-display);color:var(--tc,var(--a-text-1));max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hv-mt .rc{font:500 15px/18px var(--a-font-text);color:var(--tc,var(--a-text-2));opacity:.88;margin-top:2px}
-.hv-mt .sc{display:flex;align-items:center;gap:10px;padding:0 20px;height:88px}
-.hv-mt .sc .score{font-size:64px;line-height:60px}
-.hv-mt .sc .shield{height:48px;padding:0 14px;font-size:17px;gap:8px}
-.hv-status{position:absolute;left:48px;top:92px;display:flex;align-items:center;gap:12px;height:24px}
-/* the slab: the Sharp signature, running off the right edge. Content stays inside x 912 */
-.hv-slab{position:absolute;top:84px;bottom:0;left:632px;right:0;--sk:23px}
-.hv-slab .slabfill{clip-path:polygon(calc(2 * var(--sk)) 0,100% 0,100% 100%,0 100%)}
-.hv-slab .slabcontent.ink{padding:0 56px 0 64px;align-items:flex-start}
-.hv-slab .slabcontent.ink .big{font-size:60px;line-height:62px}
-.hv-slab .slabcontent.ink .big+.big{margin-top:10px}
-.hv-slab .slabcontent.ink .cap{margin-top:10px}
+/* game billboard, game-night mode (SPEC 3.2): the away field left, the home field right, split at 12° through the middle;
+   crests 88 in the neutral disc; the score plate (bg-1 at 92 %, 12°) in the middle with the clock chip (the one gradient slab, small) */
+.hv-bb.game .hv-fa,.hv-bb.game .hv-fh{position:absolute;top:0;bottom:0}
+.hv-bb.game .hv-fa{left:0;right:449px;clip-path:polygon(0 0,100% 0,calc(100% - 62px) 100%,0 100%)}
+.hv-bb.game .hv-fh{left:449px;right:0;clip-path:polygon(62px 0,100% 0,100% 100%,0 100%)}
+.hv-bb.game .hv-sy{height:120px}
+.hv-status{position:absolute;left:48px;top:84px;display:flex;align-items:center;gap:12px;height:24px;white-space:nowrap}
+.hv-mu{position:absolute;left:48px;right:48px;top:116px;height:80px;display:flex;align-items:center;justify-content:space-between}
+.hv-side{display:flex;align-items:center;gap:14px;height:80px;width:300px}
+.hv-side.r{justify-content:flex-end;text-align:right}
+.hv-side .nm{font:700 28px/30px var(--a-font-display);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.hv-side .rc{font:500 15px/18px var(--a-font-text);color:var(--a-text-2);margin-top:2px}
+.team.xxl{width:80px;height:80px}.team.xxl img{width:66px;height:66px}
+.hv-sp{position:relative;height:72px;min-width:236px;display:flex;align-items:center;justify-content:center;gap:12px;padding:0 24px}
+.hv-sp::before{content:"";position:absolute;inset:0;background:rgba(30,27,40,.92);transform:skewX(var(--a-skew));border-radius:var(--a-radius-sm) 0 0 var(--a-radius-sm);border:1px solid var(--a-border)}
+.hv-sp>*{position:relative}
+.hv-sp .score{font-size:64px;line-height:60px}
+.hv-sp .dash{font:700 24px var(--a-font-display);color:var(--a-text-3)}
+.hv-sp .score.md{font-size:40px;line-height:40px}
+.hv-sp .shield{height:48px;padding:0 14px;font-size:17px;gap:8px;background:transparent;white-space:nowrap}
+.hv-clk{position:relative;height:72px;min-width:112px;margin-left:-1px;margin-right:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 22px 0 18px;color:var(--a-ink)}
+.hv-clk::before{content:"";position:absolute;inset:0;background:var(--a-grad);transform:skewX(var(--a-skew));border-radius:0 var(--a-radius-sm) var(--a-radius-sm) 0}
+.hv-clk>*{position:relative}
+.hv-clk .big{font:italic 800 30px/32px var(--a-font-live);white-space:nowrap;letter-spacing:.01em}
+.hv-clk .cap{font:650 14px/16px var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;margin-top:2px}
+.hv-ctx{position:absolute;left:48px;top:202px;height:20px;display:flex;align-items:center;font:500 15px/20px var(--a-font-text);color:var(--a-text-1);white-space:nowrap}
+.hv-ctx .asof{display:inline-flex;align-items:center;gap:4px;margin-left:10px;color:var(--a-text-2);font-size:14px}
+.hv-bb.game .hv-btns .t-cap{color:var(--a-text-2)}
 
 /* ---------- rows (SPEC 4) ---------- */
 .hv-page{position:absolute;left:0;right:0;top:0;height:540px}
@@ -60,9 +72,23 @@
 .hv-row .rail{position:absolute;left:0;right:0;top:38px;padding:10px 0 10px 48px;margin:-10px 0 0;overflow:visible;clip-path:inset(0 0 0 36px)}
 .hv-row .track{display:flex;gap:24px;align-items:flex-start}
 .hv-row.poster .rail{top:40px}   /* a poster's lift is 4.65 px: two more pixels of air under the title */
-.hv-row .rail.peek .wc .tx,.hv-row .rail.peek .wc .tl,.hv-row .rail.peek .wc .tr,.hv-row .rail.peek .wc .ch,.hv-row .rail.peek .wc .crs,.hv-row .rail.peek .pc .cap,.hv-row .rail.peek .pc .cm,.hv-row .rail.peek .pc .tl,.hv-row .rail.peek .pc .tr,.hv-row .rail.peek .pc .ad-mine,.hv-row .rail.peek .gc .tr,.hv-row .rail.peek .gc .plate,.hv-row .rail.peek .gc .st,.hv-row .rail.peek .gc .ng,.hv-row .rail.peek .endcard span,.hv-row .rail.peek .endcard .ic{visibility:hidden}   /* a peeking row is art only */
+.hv-row .rail.peek .wc .tx,.hv-row .rail.peek .pc .cap,.hv-row .rail.peek .pc .cm,.hv-row .rail.peek .pc .ad-mine,.hv-row .rail.peek .gc .tr .nm,.hv-row .rail.peek .gc .tr .rc,.hv-row .rail.peek .gc .plate,.hv-row .rail.peek .gc .ng span,.hv-row .rail.peek .gc .ng small,.hv-row .rail.peek .endcard span{visibility:hidden}   /* a peeking row: its art and its top line (status, label, tile, tag), never text that the edge would slice */
+.hv-row .rail.peek.deep .wc .tl,.hv-row .rail.peek.deep .wc .tr,.hv-row .rail.peek.deep .wc .ch,.hv-row .rail.peek.deep .wc .crs,.hv-row .rail.peek.deep .pc .tl,.hv-row .rail.peek.deep .pc .tr,.hv-row .rail.peek.deep .gc .st,.hv-row .rail.peek.deep .gc .tr,.hv-row .rail.peek.deep .endcard .ic{visibility:hidden}   /* under 26 px of card: the edge alone */
 
-/* wide card 198 x 111 (16:9): art under a bottom scrim, title and meta at the bottom, badges at the top */
+/* wide card 198 x 111 (16:9): art under a bottom scrim, title and meta at the bottom, a label at the top for NEW / REPLAY only */
+.wc .tx span.dot-sep{display:inline-block}   /* ui.css blocks every span in .tx; the separator stays inline so the meta is one line */
+.wc .tx span.epn{display:inline}
+.wc .tx{padding:34px 12px 10px;background:linear-gradient(180deg,rgba(21,19,29,0),rgba(21,19,29,.86) 40%,rgba(21,19,29,.94))}
+/* no backdrop: the poster upright at the left, the title beside it on surface-1 (SPEC 5.1) */
+.wc.pst .pl{position:absolute;left:0;top:0;width:74px;height:111px;overflow:hidden;background:var(--a-surface-2)}
+.wc.pst .pl .art{position:absolute;inset:0}
+.wc.pst .tx{left:74px;padding:30px 12px 10px 12px;background:linear-gradient(180deg,var(--a-surface-1),var(--a-surface-1))}
+/* a channel card: the provider's logo tile on surface-2 (no art exists for live TV); a game channel gets the team colours (SPEC 5.4) */
+.wc.chc .art.chf{background:var(--a-surface-2)}
+.wc.chc .ch .logo{width:44px;height:44px;border-radius:10px;font-size:15px;background:var(--a-surface-3);color:var(--a-text-1);border:1px solid var(--a-border-strong)}
+.wc.chc .tx{padding-top:26px}
+/* named 4K: the dashed tag of the Movies grid (subtitles SPEC 6.1) */
+.tag.q.named{background:transparent;border:1.5px dashed var(--a-border-strong);color:var(--a-text-2)}
 .wc .tl .t-label{font-size:14px;line-height:22px;letter-spacing:.08em;color:var(--a-text-1);background:rgba(21,19,29,.78);padding:0 7px;border-radius:var(--a-radius-sm)}
 .wc .tr.n{font:650 14px/22px var(--a-font-text);color:var(--a-text-1);background:rgba(21,19,29,.72);padding:0 7px;border-radius:var(--a-radius-sm)}
 .wc .ch{position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:6px}
@@ -105,3 +131,20 @@
 
 /* the offline bar on Home v2: bottom right, inside the safe line, clear of the peeking row's title */
 .hv-page~.offline-bar,.offline-bar.hv{left:auto;right:48px;bottom:27px}
+
+/* a hold-OK menu on Home dims the page (bg-0 at 60 %) so the billboard's primary cannot compete with the menu's ring */
+.hv-dim{position:absolute;inset:0;background:rgba(21,19,29,.6);z-index:21}
+.hv-dim~.ctxmenu{z-index:22}
+/* the offline pill beside the avatar (the bar is present when Home is unscrolled) */
+.offline-bar.hv{left:auto;right:48px;top:84px;bottom:auto;height:32px;z-index:8}
+/* the storyboard page (home-live-entry): three stills of the entry at 0.3 scale */
+.sb{position:absolute;left:48px;right:48px;top:84px}
+.sb-h .t-cap{margin-top:4px;white-space:normal;line-height:18px}
+.sb-row{display:flex;gap:16px;margin-top:18px}
+.sb-frame{width:277px}
+.sb-shot{position:relative;width:277px;height:84px;overflow:hidden;border-radius:8px;border:1px solid var(--a-border)}
+.sb-shot .hv-bb{transform:scale(.2885);transform-origin:0 0;width:960px}
+.sb-cap{margin-top:8px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2)}
+.sb-cap b{font-weight:650;color:var(--a-text-1)}
+/* scrolled: the billboard stays mounted (its image decoded once), hidden under the lifted page */
+.hv-bb.hv-hidden{visibility:hidden}
