@@ -14,7 +14,9 @@ import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js
 import { sfx } from '../sfx.js';
 import { connectionCheck } from '../conncheck.js';
 import { forgetReplays, keptWords, NOT_KEPT } from '../catchup.js';
-import { addonsPane, addonsAct, addonsHold, addonsEnter, addonsEntry } from './addons.js';
+import { addonsPane, addonsAct, addonsHold, addonsEnter, addonsEntry, tmdbKeyScreen, tmdbTypeKey, phoneKeyReady } from './addons.js';
+import * as TMDB from '../tmdb.js';
+import * as R from '../rows.js';
 
 const GROUPS = [['provider', 'Provider'], ['addons', 'Add-ons'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
@@ -42,6 +44,7 @@ function body() {
       ${row('add', 'Add account', ic('plus', 'sm'))}
       ${row('guidecheck', 'Check the guide', more(short(lastCh()?.name || 'No channel yet', 28)), 'What your provider sends for the last channel you watched')}
       ${row('conncheck', 'Check the connection', more('Run'), 'Tests your Wi-Fi, internet and provider, and how fast a channel arrives')}
+      ${row('tmdb', 'TMDB key', more(TMDB.keyLabel()), TMDB.tmdbKey() && !TMDB.hasKey() ? 'TMDB refused this key · set it again' : 'Your own free key: better rows on Home and in Movies and Series')}
       ${row('refresh', 'Refresh channels and guide', esc(catalog.live?._at ? `Updated ${new Date(catalog.live._at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''))}
       ${row('signout', 'Sign out', ic('chevR', 'sm'))}`;
   }
@@ -86,9 +89,19 @@ function body() {
       ${row('subonline', 'Subtitles from OpenSubtitles', more(v.online ? 'On' : 'Off'), 'When the file has none in your languages')}`;
   }
   if (group === 'home') {
+    // design/ui-v1/home-final/SPEC.md 10: every kind of row the engine makes, On / Off; the rows he hid; the resets
+    const off = R.rowsOff(), hidden = Object.entries(R.hiddenRows());
     return `<div class="t-title" style="margin-bottom:10px">Home rows</div>
-      ${row('hero', 'Your team first', toggle(s.heroGame !== false), 'On game days your team\'s game is the big card on Home')}
-      ${row('alert', 'Tell me when my team is live', toggle(s.liveAlert !== false), 'A quiet chip while you watch something else')}`;
+      ${row('hero', 'Your team first', toggle(s.heroGame !== false), 'On game days your team\'s game is a line on Home, first when it is close')}
+      ${row('alert', 'Tell me when my team is live', toggle(s.liveAlert !== false), 'A quiet chip while you watch something else')}
+      <div class="t-label" style="margin:14px 4px 6px">Rows</div>
+      ${R.ROW_KINDS.map(([k, l]) => row(`rk:${k}`, esc(l), toggle(!off[k]))).join('')}
+      ${hidden.length ? `<div class="t-label" style="margin:14px 4px 6px">Hidden</div>${hidden.map(([id, h]) => row(`rh:${esc(id)}`, esc(h.name || 'A row'), more('Show again'), `Hidden ${new Date(h.at).toLocaleDateString([], { day: 'numeric', month: 'short' })}`)).join('')}` : ''}
+      <div class="t-label" style="margin:14px 4px 6px">Start again</div>
+      ${row('picks', 'Pick what you like', more(R.picked().join(', ') || 'Not picked'), 'Three genres that start your rows before airglow knows what you watch')}
+      ${row('hints', 'Show the hints again', more('Show'), 'The key hints on Home fade after you have used them five times')}
+      ${row('rowsreset', 'Reset Home rows', more('Reset'), 'Hidden rows and Not interested titles come back')}
+      ${row('forget', 'Forget what you like', more('Forget'), 'Clears what the rows learnt. Continue watching and History stay')}`;
   }
   if (group === 'updates') {
     const u = upd();
@@ -102,6 +115,8 @@ function body() {
     ${row('info', 'airglow', esc(native?.info().version || ''), 'An ad-free player for your own TV provider')}
     ${row('info', 'Scores', 'ESPN', 'Live scores, box scores and plays')}
     ${row('info', 'Ratings', 'IMDb', 'From IMDb\'s free datasets, updated weekly')}
+    ${row('info', 'Catalogs and details', 'Cinemeta', 'Stremio\'s catalog of films and series, and your add-ons')}
+    <div class="arow fx tmdb-credit" tabindex="-1" data-act="info"><span class="tmdb-mark" aria-label="TMDB"></span><span class="grow" style="min-width:0">Lists of films and series<div class="t-cap" style="margin-top:0">This product uses the TMDB API but is not endorsed or certified by TMDB.</div></span></div>
     ${row('info', 'Channels', esc(catalog.live ? catalog.live.items.length.toLocaleString() : '…'), esc(catalog.movie ? `${catalog.movie.titles?.length.toLocaleString()} movies${catalog.series ? ` · ${catalog.series.titles?.length.toLocaleString()} series` : ''}` : ''))}`;
 }
 function draw() {
@@ -202,6 +217,21 @@ function act(a) {
     extra: '<div class="t-cap" style="padding:8px 8px 2px">airglow sends the film\'s IMDb id and the copy\'s fingerprint to OpenSubtitles through Stremio\'s add-on.</div>', onPick: (v) => { saveSubSettings({ subOnline: v === 'on' }); draw(); } });
   else if (a === 'hero') { saveSettings({ heroGame: s.heroGame === false }); flip(s.heroGame === false); draw(); }
   else if (a === 'alert') { saveSettings({ liveAlert: s.liveAlert === false }); flip(s.liveAlert === false); draw(); }
+  else if (a === 'tmdb') {
+    const has = !!TMDB.tmdbKey();
+    radioMenu({ title: 'TMDB key', value: null, style: 'right:48px;top:120px;width:440px', rows: [
+      ...(phoneKeyReady() ? [{ v: 'phone', l: 'Send it from your phone', sub: 'Easiest' }] : []),
+      { v: 'type', l: 'Type it on the TV' }, ...(has ? [{ v: 'remove', l: 'Remove the key', sub: TMDB.keyLabel() }] : []),
+    ], extra: '<div class="t-cap" style="padding:8px 8px 2px">Free from themoviedb.org: Settings, API, the API Read Access Token. It stays on this TV.</div>', onPick: (v) => {
+      if (v === 'phone') tmdbKeyScreen(draw); else if (v === 'type') tmdbTypeKey(draw);
+      else if (v === 'remove') { TMDB.clearKey(); toast('TMDB key removed · the rows use Cinemeta\'s lists'); draw(); }
+    } });
+  } else if (a?.startsWith('rk:')) { const k = a.slice(3), on = !!R.rowsOff()[k]; R.setRowOn(k, on); flip(on); draw(); }
+  else if (a?.startsWith('rh:')) { R.unhideRow(a.slice(3)); toast('The row comes back on Home'); draw(); }
+  else if (a === 'picks') import('./home.js').then((H) => H.pickSheet(() => draw()));
+  else if (a === 'hints') { R.resetHints(); toast('The hints show again on Home'); }
+  else if (a === 'rowsreset') { R.resetRows(); toast('Home rows are reset'); draw(); }
+  else if (a === 'forget') confirmMenu({ title: 'Forget what you like?', text: 'Your rows start again from popular titles. Continue watching and History stay.', yes: 'Forget', onYes: () => { R.forgetTaste(); toast('Forgotten · your rows start again'); draw(); } });
   else if (a === 'install') native?.updates.install();
   else if (a === 'check') native?.updates.check();
 }
@@ -226,7 +256,7 @@ export default {
     native?.updates.onStatus(() => { if (current() === 'account') draw(); });
     on('info', () => { if (current() === 'account') draw(); });
   },
-  enter() { draw(); if (group === 'addons') addonsEnter(draw); },
+  enter(root, params) { if (params?.group && GROUPS.some(([k]) => k === params.group)) { group = params.group; scroll = 0; } draw(); if (group === 'addons') addonsEnter(draw); },
   entry: (root) => (group === 'addons' && root.querySelector('.ad-row')) || root.querySelector('.arow') || root.querySelector('.gl.sel'),
 };
 

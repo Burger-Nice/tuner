@@ -11,6 +11,7 @@ import { openOverlay, toast, contextMenu, scrollList, closeTop } from '../ui.js'
 import { focus } from '../focus.js';
 import { qrSvg } from '../qr.js';
 import { native } from '../native.js';
+import * as TMDB from '../tmdb.js';
 
 const PUZZLE = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4.5a2 2 0 1 1 4 0V6h3.5a1 1 0 0 1 1 1v3.5H17a2 2 0 1 0 0 4h1.5V18a1 1 0 0 1-1 1H14v-1.5a2 2 0 1 0-4 0V19H6.5a1 1 0 0 1-1-1v-3.5H7a2 2 0 1 0 0-4H5.5V7a1 1 0 0 1 1-1H10z"/></svg>';
 const LINK = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
@@ -436,6 +437,72 @@ function phoneScreen() {
   t10 = setTimeout(() => { if (ov.el.isConnected) ov.close(); }, 10 * 60e3);
   ov.el.addEventListener('click', (e) => { if (e.target.closest('[data-act="type"]')) typeLink(); });
   draw();
+}
+
+// ---------- the TMDB key (home-final SPEC 6a): sent from his phone through the same page, or typed ----------
+// done(key) after TMDB said yes. The key is never shown, logged or put in a message: only its last 4 characters.
+export const phoneKeyReady = () => A.phonePageReady() && !!native?.info?.()?.phoneKey;
+export function tmdbKeyScreen(done) {
+  if (!phoneKeyReady()) return tmdbTypeKey(done);
+  const token = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join('');
+  const code = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+  let c = code(), addr = '', note = '', off = null, open = true, t10 = 0;
+  const ov = full('<div data-step></div>', { onClose: () => { open = false; off?.remove?.(); clearTimeout(t10); native?.phone?.stop(); } });
+  const step = ov.el.querySelector('[data-step]');
+  const draw = () => {
+    const url = addr ? `http://${addr}/${token}` : '';
+    step.innerHTML = `<div class="abs t-head" style="left:48px;top:64px">Send your TMDB key from your phone</div>
+      <div class="abs" style="left:48px;top:118px;width:470px"><ol class="ad-steps"><li>On themoviedb.org, sign in and open Settings, API. Copy the <b>API Read Access Token</b>. It's free.</li><li>Scan the code with your phone on the same home network, and paste it.</li><li>Tap Send. The TV checks it with TMDB and keeps it on this TV only.</li></ol>${note ? `<div class="t-cap" style="margin-top:6px">${esc(note)}</div>` : ''}</div>
+      <div class="abs" style="left:616px;top:64px;width:296px;text-align:center"><div class="qrbox">${url ? qrSvg(url, 200) : '<div style="width:200px;height:200px"></div>'}</div><div class="t-cap" style="margin-top:10px">${esc(addr)} · code <b style="color:var(--a-text-1)">${c.slice(0, 3)} ${c.slice(3)}</b></div></div>
+      <div class="card ad-wait" data-row>${SPIN}<div class="grow"><b>Waiting for your phone</b><div class="t-cap">The page closes in 10 minutes, or when you go back</div></div><span class="btn2 sm fx" tabindex="-1" data-act="type">Type it instead</span></div>`;
+    focus(step.querySelector('[data-act="type"]'));
+  };
+  (async () => {
+    const l = await native.phone.onEvent(async (e) => {
+      if (!open) return;
+      if (e.type === 'locked') { c = code(); note = 'Too many wrong codes · here\'s a new one'; native.phone.start({ token, code: c, port: 8790, kind: 'tmdb' }).catch(() => {}); draw(); }
+      else if (e.type === 'key' && e.key) {
+        note = 'Checking the key with TMDB…'; draw();
+        const r = await TMDB.checkKey(e.key);
+        if (!open) return;
+        if (r.ok) { TMDB.setKey(TMDB.cleanKey(e.key)); ov.close(false); toast('TMDB key kept · your rows get better from here'); done?.(); }
+        else { note = r.why; draw(); }
+      }
+    });
+    if (!open) { l?.remove?.(); return; }
+    off = l;
+    try { const r = await native.phone.start({ token, code: c, port: 8790, kind: 'tmdb' }); addr = r?.address || ''; } catch { note = 'The TV couldn\'t open its page. Type the key instead.'; }
+    if (!open) { native.phone.stop(); return; }
+    if (ov.el.isConnected) draw();
+  })();
+  t10 = setTimeout(() => { if (ov.el.isConnected) ov.close(); }, 10 * 60e3);
+  ov.el.addEventListener('click', (e) => { if (e.target.closest('[data-act="type"]')) { ov.close(false); tmdbTypeKey(done); } });
+  draw();
+}
+export function tmdbTypeKey(done) {
+  let err = '';
+  const ov = full('<div data-step></div>');
+  const step = ov.el.querySelector('[data-step]');
+  const draw = () => {
+    const v = step.querySelector('#tmKey')?.value || '';
+    step.innerHTML = `<div class="abs t-head" style="left:48px;top:64px">Type your TMDB key</div>
+      <div class="abs t-body" style="left:48px;top:104px;width:720px;color:var(--a-text-2)">The <b style="color:var(--a-text-1)">API Read Access Token</b> from themoviedb.org, Settings, API (free). It stays on this TV.</div>
+      <div class="abs" data-col style="left:48px;top:160px;width:720px"><div class="fld" data-row><div class="fl">TMDB key</div><input class="field fx" tabindex="-1" id="tmKey" type="text" placeholder="eyJhbGciOiJIUzI1NiJ9…" readonly spellcheck="false" autocomplete="off" style="width:100%"></div>${err ? `<div class="ad-err">${ic('bang')}<span>${esc(err)}</span></div>` : ''}</div>
+      <div class="abs row-flex" data-row style="left:48px;top:${err ? 290 : 262}px;gap:14px"><span class="btn fx" tabindex="-1" data-act="go" style="transform-origin:0 50%">Check and keep</span><span class="t-cap">OK on the field opens the keyboard · Back returns</span></div>`;
+    step.querySelector('#tmKey').value = v;
+  };
+  fieldKeys(ov.el, ['tmKey'], () => step.querySelector('[data-act="go"]'));
+  ov.el.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act="go"]'); if (!b) return;
+    const v = TMDB.cleanKey(step.querySelector('#tmKey').value);
+    if (!v) { err = 'Type or paste the key first'; draw(); return focus(step.querySelector('#tmKey')); }
+    b.textContent = 'Checking…';
+    const r = await TMDB.checkKey(v);
+    if (!ov.el.isConnected) return;
+    if (!r.ok) { err = r.why; draw(); return focus(step.querySelector('#tmKey')); }
+    TMDB.setKey(v); ov.close(false); toast('TMDB key kept · your rows get better from here'); done?.();
+  });
+  draw(); focus(step.querySelector('#tmKey'));
 }
 
 // ---------- the setup card (SPEC 3.7) ----------
