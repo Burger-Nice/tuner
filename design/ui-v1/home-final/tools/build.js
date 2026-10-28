@@ -16,7 +16,7 @@ const ends = (clock, minutes) => { const [h, m] = clock.split(':').map(Number); 
 const LUM = { severance: 0.641, niceguys: 0.625, heartstone: 0.398, spyxfamily: 0.4, heat: 0.362, breakingbad: 0.463, slowhorses: 0.152, nakedgun: 0.448, hailmary: 0.188 };
 const cap = (art, target) => Math.min(0.6, Math.max(0.1, 1 - target / LUM[art])).toFixed(2);
 // the page's rows tonight (section 6's selection for this profile: comedy 55 %, anime 25 %, crime 20 %; a game day)
-const ROWS = ['Comedy for you', 'Tonight in the NBA', 'Popular films', 'Anime comedy', 'Popular series', 'Crime dramas', 'Because you watched The Bear', 'Your shows', 'New this year', 'Something different', 'Top rated', 'Á íslensku', 'Saved', 'Browse your library', 'Channels'];
+const ROWS = ['Comedy for you', 'Tonight in the NBA', 'Popular films', 'Anime comedy', 'Popular series', 'Crime dramas', 'Because you watched Always Sunny', 'Your shows', 'New this year', 'Something different', 'Top rated', 'Á íslensku', 'Saved', 'Browse your library', 'Channels'];
 
 const head = (title, extra = '') => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=960,height=540">
@@ -101,7 +101,7 @@ column({ ey: 'Anime comedy · Spy x Family', logo: 'spyxfamily', title: 'Spy x F
   hint: rowsHint('Play S1 · E1') }) +
 index('Anime comedy') +
 row('Anime comedy', 'Two things you watch, together · anime + comedy', [poster('spyxfamily', { on: true }), poster('onepunch'), poster('mobpsycho'), poster('konosuba'), poster('kaguya'), poster('bocchi'), poster('gintama')], { isNew: true }) +
-peek('Popular series', 'Popular on Cinemeta', ['gemstones', 'wwdits', 'ozark', 'narcos', 'mindhunter', 'frieren', 'dandadan'].map((f) => poster(f))) + foot;
+peek('Because you watched Always Sunny', 'Same kind of thing · TMDB', ['platonic', 'peepshow', 'fnd', 'greatnews', 'tildeath', 'wwdits', 'gemstones'].map((f) => poster(f))) + foot;
 
 // ---------------------------------------------------------------- 4. game night (Thu 03:12, Grizzlies at Trail Blazers, shield on)
 const gameNight = () => head('Home, game night', `
@@ -164,7 +164,7 @@ column({ ey: 'Á íslensku · Heartstone', title: 'Heartstone',
   line: 'In a fishing village in Iceland, a boy develops feelings for his best friend as the summer ends.',
   hint: rowsHint('Play now') }) +
 index('Á íslensku') +
-row('Á íslensku', 'Icelandic films and series · 97', [poster('heartstone', { on: true }), poster('godland'), `<div class="poster load"><b>Woman at War</b></div>`, `<div class="poster load"><b>Rams</b></div>`, poster('lamb'), `<div class="poster txt"><small>No poster</small><b>Northern Comfort</b></div>`, poster('touch')]) +
+row('Á íslensku', '1,451 films · 107 series · TMDB', [poster('heartstone', { on: true }), poster('trapped'), poster('katla'), `<div class="poster load"><b>Black Sands</b></div>`, `<div class="poster load"><b>The Valhalla Murders</b></div>`, poster('godland'), `<div class="poster txt"><small>No poster</small><b>Northern Comfort</b></div>`]) +
 peek('Saved', '4 titles you have not started', ['oppenheimer', 'dune2', 'sinners', 'mickey17'].map((f) => poster(f))) + foot;
 
 // ---------------------------------------------------------------- 9. rows: Continue watching (wide cards)

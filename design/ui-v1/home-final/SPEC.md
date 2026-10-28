@@ -36,7 +36,7 @@ own free key, after the catalog research of 28 Oct 2026 (section 6a); Cinemeta s
 | 4 | Genre catalogs hold titles outside the genre | Genre rows and blends read TMDB `/discover` with `with_genres` (AND) and a `without_genres` exclusion per row (a Comedy row excludes Drama, Thriller, Horror, Crime, Mystery, War), **a heuristic to tune**: TMDB's own Comedy filter also holds Parasite and Pulp Fiction. On the Cinemeta fallback every genre row re-filters by the title's own `genres`. The "too few" rule applies after the filter |
 | 5 | The anime rule tags Pixar | Anime = TMDB keyword **210024 (`anime`)** AND `original_language=ja` (optionally `with_genres=16` to drop live action). The research checked the negatives: Moana, Up, Frozen, Toy Story and Soul are not among the 2,395 anime-keyword films; Spy x Family, Mob Psycho 100, Haikyu!! come out of the anime + comedy blend. The fallback without a key is Animation with Japan as the *first* country plus a build-time deny list, tested on those negatives |
 | 6 | Genre shares double-count; "the seed's first genre" is alphabetical | Fixed in section 6: a title's weight is split across its genres (`w / n`), anime is its own genre that absorbs the title's Animation and Action weight, and `Because you watched X` queries the seed genre with the largest share in his profile, not the first in Cinemeta's alphabetical list |
-| 7 | `Á íslensku` has no real source; a made-up count; duplicates; Icelandic names | TMDB `/discover` with `with_original_language=is` and `vote_count.gte=10` (about 89 films and 8 series today; the row prints TMDB's `total_results`), titles and overviews requested in `is-IS` with a field-by-field English fallback (the research found Icelandic text on few titles: `Snerting` yes, most no). Every row de-duplicates by IMDb / TMDB id across sources (`08`). The fallback without a key is a build-time list of Icelandic ids (`country` includes Iceland) |
+| 7 | `Á íslensku` has no real source; a made-up count; duplicates; Icelandic names | TMDB `/discover` with `with_original_language=is` (verified with the owner's key: **1,451 films and 107 series**: Trapped, Katla, Black Sands, The Valhalla Murders, Stella Blómkvist, Blackport …), the row sorted by popularity with `vote_count.gte=10`, the subtitle printing TMDB's totals; titles and overviews requested in `is-IS` with a field-by-field English fallback (`Drengir`, `Snerting`, `Dýrið` come back Icelandic; many titles have no Icelandic text). Every row de-duplicates by IMDb / TMDB id across sources (`08`). The fallback without a key is a build-time list of Icelandic ids (`country` includes Iceland) |
 | 8 | The play log does not exist | Section 6 now specifies it: an append-only `plays` store in IndexedDB (one record per session over 3 minutes: imdb id, type, episode, from, to, completion, when), the migration from today's `progress` store through `imdb.js` matching, and the first weeks as a cold start |
 
 **The four earlier points done badly**
@@ -89,11 +89,15 @@ title by 12 px.
 | The launch intro | Full on a cold start and at most once a day; any key skips it (section 10) |
 | Game night at 03:00 | Account > NBA gains `Game night: full / quiet` (quiet keeps the fields to the right third) |
 
-**Verified by the catalog research (28 Oct 2026, `catalog-research`)**: TMDB's discover parameters and semantics
-from the official references; the anime keyword 210024 and its negatives; the Icelandic counts; the vote-floored
-Top rated order (Shawshank, The Godfather …); CORS from a WebView (`access-control-allow-origin: *`, the
-`Authorization` header allowed); images need no key; the API returns 401 without one. Not called with a real key
-from this session, so the first run on the TV confirms the shapes. Also **verified against Cinemeta today:** the manifest's catalogs (`top` with `genre`/`search`/`skip`, `year`
+**Verified by the catalog research (28 Oct 2026), then with the owner's real TMDB key**: the discover parameters
+and semantics; the anime keyword 210024 and its negatives; CORS from a WebView; images need no key; the API returns
+401 without one. With the key: top-rated comedy with the exclusions gives 529 films led by Back to the Future, Toy
+Story 5, Puss in Boots, Klaus (so a grown-up genre row also excludes Animation 16 and Family 10751 unless his taste
+includes them: section 6a's rule); anime comedy films 592 (Castle of Cagliostro, Haikyu!!, Gintama); anime comedy
+series 1,975 by popularity, led by kids' long-runners (Doraemon, Sazae-san), so anime series rows sort by rating
+with a votes floor; Icelandic 1,451 films and 107 series; `/tv/2710/recommendations` (Always Sunny) gives Platonic,
+Great News, 'Til Death, Friday Night Dinner, Peep Show. The key stays with the owner: never in the repo, never in the
+mocks. Also **verified against Cinemeta today:** the manifest's catalogs (`top` with `genre`/`search`/`skip`, `year`
 with `genre` = a year, `imdbRating` named `Featured`), `top/genre=Comedy` answering at skip 3,000, `country` on the
 metas of the seven anime titles (Japan first) and of Heartstone, Godland and Rams (Iceland first or second), the
 episode lists, runtimes and ratings used in the mocks. **Not yet re-verified:** the reviewer's measurements of the
@@ -109,7 +113,7 @@ old anime rule; the source research decides what the engine reads, and the check
    on a game day) and one full-screen picture that answers the line you are on. The first browsing row peeks at
    the bottom of that screen, and Down past the last line (or **P−** from anywhere) is the browsing half: rows
    like Netflix (Popular, New, Top rated, genres) and rows built from what he watches (`Comedy for you`, `Anime
-   comedy`, `Crime dramas`, `Because you watched The Bear`). *Why:* the owner asked for both: "the continue
+   comedy`, `Crime dramas`, `Because you watched Always Sunny`). *Why:* the owner asked for both: "the continue
    watching of course and the game thing" and "genres and popular and all that". The review scored the Marquee
    highest for ease and clarity; the rows are where "finding something to watch" happens.
 2. **In the rows the picture still answers the focus, but gently.** The top 44 % of the screen shows the focused
@@ -323,12 +327,12 @@ are why Top rated, genre rows and anime now read TMDB (section 6a), with the Cin
 |---|---|
 | `01-evening` | Wed 20:41, a game day (tip-off 02:00). The Marquee: five lines in fixed slots, `Severance · Continue · S2 · E3 · 21 min left` lit; the plate: `CONTINUE WATCHING`, the Severance logo (56 px of ink), `S2 · E3 · Who Is Alive? · 21 min left · Ends 21:02 · 4K`, the episode's line, the bar, `Resume` pill · `→ Episodes` · `Hold Start over, Details`; the other lines Slow Horses (`New this week · S6 · E4 · 3 new`), Breaking Bad (`Up next · S3 · E7`), Heat (`A film for tonight · ends 23:31 · 4K`), Grizzlies at Trail Blazers (`Tonight · 02:00 · ESPN`); the first row `Comedy for you` peeking at the bottom with `P− Browse · 15 rows` |
 | `02-rows-comedy` | Down from the lineup (or P−): the top bar, the picture answering The Nice Guys (IMDb 7.4), the row index on its backing, row 1 `Comedy for you · Because you watch Always Sunny, The Office and 12 more` (films and series together), `Popular films` peeking |
-| `03-rows-blend` | the blend row `Anime comedy · New row · Two things you watch, together · anime + comedy`, Spy x Family lit, `Popular series` peeking |
+| `03-rows-blend` | the blend row `Anime comedy · New row · Two things you watch, together · anime + comedy`, Spy x Family lit; `Because you watched Always Sunny` peeking with TMDB's real recommendations (Platonic, Peep Show, Friday Night Dinner, Great News, 'Til Death) |
 | `04-game-night` | Thu 03:12, Grizzlies at Trail Blazers live, shield on: the two fields, `ON NOW` on the chip, `Score hidden`, both records `as of tip-off`, the fan line `as of tip-off`, `Watch live` · `→ From tip-off` · `Hold Reveal, more`; five lines (the game first); `Tonight in the NBA` peeking with the hidden game's card reading `Score hidden`; the NBA tab carries no second pill |
 | `05-library-comedy` | the Movies tab, Comedy, Popular, scrolled to #313 of 3,000+ (the context line in its band, the scroll bubble, six posters a row, the focused one's title on its own plate) |
 | `06-cold-start` | a new user, no history: `Project Hail Mary · Popular on Cinemeta · a pick for tonight` lit (`Details` the primary, no ▶), `Grizzlies at Trail Blazers · Your team`, `Kastljós · On now` (a habit line, see section 3), `Pick what you like · 3 genres start your rows`; `Popular films` peeking |
 | `07-rows-channels` | the `Channels` row: a channel has no picture, so the area shows the channel's logo on a flat field in the logo's colour; the column has `Kastljós · RÚV · 1 · 20:35 – 20:55 · 14 min left · HD` and `Next · Fréttir 20:55 …`; wide channel cards (`RÚV · 1 · Kastljós · until 20:55`); `Tune` · `Hold Save channel, Open in the guide` |
-| `08-loading-missing-art` | the row `Á íslensku`: the lit title drawn as if it had no backdrop (its poster upright on a flat ground) and no logo (its name in Outfit), two posters still loading (flat blocks with the name), a title with no poster (`No poster` and the name on surface-1; the name is a stand-in for the state) |
+| `08-loading-missing-art` | the row `Á íslensku · 1,451 films · 107 series · TMDB` (the verified totals): the lit title drawn as if it had no backdrop (its poster upright on a flat ground) and no logo (its name in Outfit), real Icelandic series from TMDB's list (Trapped, Katla, Black Sands, The Valhalla Murders), two posters still loading (flat blocks with the name), a title with no poster (`No poster` and the name on surface-1; the name is a stand-in for the state) |
 | `09-rows-continue` | the `Your shows` row: wide cards with the show's logo, the episode and the time left (Breaking Bad, The Bear, Andor, Slow Horses `new · 3`, The Last of Us); `New this year` peeking |
 | `10-rows-nba` | `Tonight in the NBA` at 20:42: the hub's game cards, nothing started, the plates are tip-off times; the column has the next game's facts and the pre-game fan line |
 
@@ -484,6 +488,11 @@ channel: its number (1–3 digits) or the Live tab in 4; any named row: P− the
   key`), kept in the app's settings store, **never in the repo** (the repo is public). Free for non-commercial use;
   airglow has no ads or payments. CORS is open from the WebView. Rate: about 40 requests a second upper bound; a
   Home build is 12 to 20 calls; a 429 backs off and uses the cache.
+- **Two rules every TMDB row follows** (from the verified runs): a **votes floor** (`vote_count.gte` 300 films /
+  150 series for rated rows, 100 for genre rows, 50 for anime series, 10 for Icelandic) and, for a grown-up genre
+  row, the **family exclusion** `without_genres` adds Animation (16) and Family (10751) unless his profile's share
+  of Animation + Family is 5 % or more (anime is its own genre and never excluded by this); anime series rows sort by
+  `vote_average.desc` under their floor, not by popularity, so Doraemon and Sazae-san do not lead them.
 - **What TMDB gives each row**: `/discover/{movie,tv}` with `with_genres` (comma = AND), `without_genres`,
   `with_keywords=210024` (anime), `with_original_language` (`ja`, `is`), `sort_by=vote_average.desc` with
   `vote_count.gte`, `primary_release_date` / `first_air_date` ranges; `/movie/{id}/recommendations` and
@@ -519,14 +528,14 @@ channel: its number (1–3 digits) or the Live tab in 4; any named row: P− the
 | Genre for you | TMDB `/discover` `with_genres=G` and the row's `without_genres` exclusion (Comedy: 18,53,27,80,9648,10752; Crime: none; Horror: 35,16 … a table the builder tunes), `vote_count.gte=100`, `sort_by=popularity.desc`, films and series interleaved by his type share, unseen, ≥ 6.5 | `Comedy for you` | `Because you watch Always Sunny, The Office and 12 more` (the three heaviest titles of that genre in his history) |
 | Blend | TMDB `/discover` `with_genres=A,B` (AND); anime blends add `with_keywords=210024&with_original_language=ja` | from the table below | `Two things you watch, together · anime + comedy` |
 | Anime | TMDB `with_keywords=210024&with_original_language=ja` (`with_genres=16` to drop live action), `vote_count.gte=150` | `Anime` | `Because you watch Spy x Family and 4 more` |
-| Because you watched X | TMDB `/recommendations` for each of his last 5–10 finished titles, merged on the device: a candidate's score = how many seeds recommend it (+1 per seed), unseen only, top 20; X is the seed that contributed most. Fallback without a key: the seed's genre with the largest share in his profile, scored by shared genres (2 points each), director (3), cast (1 each, up to 3), decade (1) | `Because you watched The Bear` | `Same kind of thing · Comedy · Drama` |
+| Because you watched X | TMDB `/recommendations` for each of his last 5–10 finished titles, merged on the device: a candidate's score = how many seeds recommend it (+1 per seed), unseen only, top 20; X is the seed that contributed most (verified: Always Sunny gives Platonic, Great News, 'Til Death, Friday Night Dinner, Peep Show). Fallback without a key: the seed's genre with the largest share in his profile, scored by shared genres (2 points each), director (3), cast (1 each, up to 3), decade (1) | `Because you watched Always Sunny` | `Same kind of thing · Comedy · Drama` |
 | Popular | `top` films / series | `Popular films` / `Popular series` | `This week on Cinemeta` |
 | New this year | `year` films / series | `New this year` | `2026 on Cinemeta` |
 | Top rated | TMDB `/discover` `sort_by=vote_average.desc&vote_count.gte=300` (150 for series); **never Cinemeta's `imdbRating` catalog** (it is `Featured`: mostly new, mostly unrated). Fallback: the app's ratings file (`scripts/build-ratings.js`) with a votes floor (25,000 films, 10,000 series) over Cinemeta `top` pages | `Top rated` | `Rated 8.0 and up · TMDB` |
 | Top rated in a genre | the same with `with_genres=G` | `Top rated comedies` | `Rated 7.5 and up` |
 | Something different | a genre with share < 3 %, the same, `vote_average.gte=7.5` | `Something different` | `Documentaries · a kind you rarely watch, rated 7.5 and up` |
 | Add-on catalog | another add-on's catalog (its manifest) | the catalog's name | `From <add-on>` |
-| Á íslensku | TMDB `/discover` `with_original_language=is&vote_count.gte=10` (films and series; `language=is-IS` with English fallback per field), plus copies with Icelandic audio; the count is TMDB's `total_results`. Fallback: a build-time list of Icelandic ids (`country` includes Iceland) | `Á íslensku` | `Icelandic films and series · 97` |
+| Á íslensku | TMDB `/discover` `with_original_language=is` by popularity with `vote_count.gte=10` (films and series; `language=is-IS` with English fallback per field), plus copies with Icelandic audio; the subtitle prints TMDB's totals. Fallback: a build-time list of Icelandic ids (`country` includes Iceland) | `Á íslensku` | `1,451 films · 107 series · TMDB` |
 | Saved | Saved, not started | `Saved` | – |
 | Browse your library | the doors (home-v2 4.4), over the add-on catalogs | `Browse your library` | `OK opens the shelf` |
 | Channels | favourites and recent | `Channels` | `Favourites and recent` |
