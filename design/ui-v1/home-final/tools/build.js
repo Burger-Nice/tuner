@@ -35,31 +35,30 @@ const picture = (art, pos, capa) => `<div class="hf-bd" style="--pos:${pos}"><im
 <div class="hf-cap" style="--capa:${capa}"></div><div class="hf-sx"></div><div class="hf-sy"></div><div class="hf-st"></div><div class="hf-grain"></div>\n`;
 
 const line = (name, facts, on = false, sharp = false) => `  <div class="e${on ? ' on' : ''}${sharp ? ' sharp' : ''}"><div class="t">${name}<small>${facts}</small></div></div>\n`;
-const plateL = (o) => `<div class="plate-l${o.sharp ? ' sharp' : ''}" style="--ambt:${o.ambt}">
+const card = (o) => `  <div class="e on${o.sharp ? ' sharp' : ''}" style="--ambt:${o.ambt}">
   <div class="ey">${o.ey}</div>
   ${o.logo ? `<img class="logo" src="art/${o.logo}-logo.png" alt="${o.title}">` : `<div class="big${o.long ? ' long' : ''}">${o.title}</div>`}
   <div class="meta">${o.meta}</div>
   ${o.line ? `<div class="line">${o.line}</div>` : ''}
   ${o.p ? `<div class="bar" style="--p:${o.p}"><i></i></div>` : ''}
   <div class="hint">${o.hint}</div>
-</div>\n`;
+  </div>\n`;
 const firstPeek = (title, sub, cards) => `<div class="peek first"><div class="rt">${title}<span>${sub}</span><span class="pk"><span class="k">P−</span>Browse · 15 rows</span></div><div class="cards">${cards.join('')}</div></div>\n`;
 
 // ---------------------------------------------------------------- 1. a normal evening (Wed 20:41)
-const LINES = (lit) => [
+const LINES = (lit, cardHtml) => [
   ['Severance', `Continue${dot}S2 · E3${dot}21 min left`],
   ['Slow Horses', `New this week${dot}S6 · E4<span class="count">3 new</span>`],
   ['Breaking Bad', `Up next${dot}S3 · E7`],
   ['Heat', `A film for tonight${dot}ends ${ends('20:41', 170)}${dot}4K`],
   ['Grizzlies at Trail Blazers', `Tonight${dot}02:00${dot}ESPN`],
-].map(([n, f], i) => line(n, f, i === lit)).join('');
+].map(([n, f], i) => (i === lit ? cardHtml : line(n, f))).join('');
 
 const evening = () => head('Home, a normal evening') + `<div class="hf-amb" style="--amb:#3B5247"></div>` +
-picture('severance', '78% 30%', cap('severance', 0.30)) + topbar({ clock: 'Wed 20:41' }) + `<div class="lineup">\n${LINES(0)}</div>\n` +
-plateL({ ambt: 'rgba(59,82,71,.6)', ey: 'Continue watching', logo: 'severance', title: 'Severance',
+picture('severance', '78% 30%', cap('severance', 0.30)) + topbar({ clock: 'Wed 20:41' }) + `<div class="lineup">\n${LINES(0, card({ ambt: 'rgba(59,82,71,.6)', ey: 'Continue watching', logo: 'severance', title: 'Severance',
   meta: `<span>S2 · E3</span>${dot}<span>Who Is Alive?</span>${dot}<span>21 min left</span>${dot}<span>Ends ${ends('20:41', 21)}</span><span class="badge">4K</span>`,
   line: 'Mark, Helly, Irving and Dylan search for answers.', p: '57%',
-  hint: `<span class="pill">${PLAY}Resume</span><span>${ARROW_R}Episodes</span><span><span class="k">Hold</span>Start over, Details</span>` }) +
+  hint: `<span class="pill">${PLAY}Resume</span><span>${ARROW_R}Episodes</span><span><span class="k">Hold</span>Start over, Details</span>` }))}</div>\n` +
 firstPeek('Comedy for you', 'Because you watch Always Sunny, The Office and 12 more', ['niceguys', 'gemstones', 'hotfuzz', 'friendship', 'wwdits', 'gamenight', 'palmsprings'].map((f) => poster(f))) + foot;
 
 // ---------------------------------------------------------------- shared: the rows state
@@ -117,11 +116,12 @@ const gameNight = () => head('Home, game night', `
 <div class="crest c2"><img src="art/por.png" alt=""><div class="n"><b>Trail Blazers</b><span>1-3 · as of tip-off</span></div></div>
 <div class="score"><div class="clock"><span class="q">ON NOW</span></div><div class="plate"><span class="s">${EYE}Score hidden</span></div></div>
 <div class="lineup">
-${line('Grizzlies at Trail Blazers', `Game night${dot}<span class="live">Live</span>`, true, true)}${line('Severance', `Continue${dot}S2 · E3${dot}21 min left`)}${line('Slow Horses', `New this week${dot}S6 · E4<span class="count">3 new</span>`)}${line('It’s Always Sunny', `Short${dot}S18 · E10${dot}25 min`)}${line('Nuggets at Thunder', `Also live${dot}Prime Video`)}</div>
-` + plateL({ sharp: true, ambt: 'rgba(18,23,63,.7)', ey: `Game night <span class="live">Live</span>`, title: 'Grizzlies at Trail Blazers', long: true,
+` + card({ sharp: true, ambt: 'rgba(18,23,63,.7)', ey: `Game night <span class="live">Live</span>`, title: 'Grizzlies at Trail Blazers', long: true,
   meta: `<span>On now</span>${dot}<span>ESPN</span><span class="badge">4K</span>${dot}${EYE}<span>Score hidden</span>`,
   line: '3rd in the West · 3 in a row · Morant 27.8 · as of tip-off',
   hint: `<span class="pill">${PLAY}Watch live</span><span>${ARROW_R}From tip-off</span><span><span class="k">Hold</span>Reveal, more</span>` }) +
+`${line('Severance', `Continue${dot}S2 · E3${dot}21 min left`)}${line('Slow Horses', `New this week${dot}S6 · E4<span class="count">3 new</span>`)}${line('It’s Always Sunny', `Short${dot}S18 · E10${dot}25 min`)}${line('Nuggets at Thunder', `Also live${dot}Prime Video`)}</div>
+` +
 firstPeek('Tonight in the NBA', '6 games · 1 live · 2 final · 3 later', [gameCard({ mine: true, ta: '#5D76A9', st: 'Your team · live', a: 'mem', an: 'Grizzlies', sep: 'at', h: 'por', hn: 'Blazers', ch: 'ESPN · 4K', pl: 'Score hidden' }), gameCard({ ta: '#FEC524', st: 'Live', a: 'den', an: 'Nuggets', sep: 'at', h: 'okc', hn: 'Thunder', ch: 'Prime Video', pl: '3RD' }), gameCard({ ta: '#BA9653', st: 'Final', a: 'bos', an: 'Celtics', sep: 'at', h: 'ny', hn: 'Knicks', ch: '', pl: '112 – 104' })]) + foot;
 
 // ---------------------------------------------------------------- 5. the library: Movies, Comedy, scrolled deep (#313 is the first cell of its row: 313 = 52 x 6 + 1)
@@ -136,11 +136,12 @@ const library = () => head('Movies: Comedy, scrolled deep', `.grid { --gy: -96px
 // ---------------------------------------------------------------- 6. cold start: a new user, no history (the meta shortened by the rule: year · length · Ends · rating)
 const coldStart = () => head('Home, first evening: no history yet') + `<div class="hf-amb" style="--amb:#4A3A2A"></div>` + picture('hailmary', '60% 30%', cap('hailmary', 0.30)) + topbar({ clock: 'Wed 20:41' }) + `
 <div class="lineup">
-${line('Project Hail Mary', `Popular on Cinemeta${dot}a pick for tonight`, true)}${line('Grizzlies at Trail Blazers', `Your team${dot}Tonight 02:00${dot}ESPN`)}${line('Kastljós', `On now${dot}RÚV${dot}until 20:55`)}${line('Pick what you like', `3 genres start your rows`)}</div>
-` + plateL({ ambt: 'rgba(74,58,42,.55)', ey: 'Popular on Cinemeta · a pick for tonight', logo: 'hailmary', title: 'Project Hail Mary',
+` + card({ ambt: 'rgba(74,58,42,.55)', ey: 'Popular on Cinemeta · a pick for tonight', logo: 'hailmary', title: 'Project Hail Mary',
   meta: `<span>2026</span>${dot}<span>2h 37m</span>${dot}<span>Ends ${ends('20:41', 157)}</span>${dot}<span>IMDb 8.2</span>`,
   line: 'A science teacher wakes up alone on a spaceship. As his memory returns, he uncovers an impossible task.',
   hint: `<span class="pill noicon">Details</span><span>${ARROW_R}More popular films</span><span><span class="k">Hold</span>Play now, Save</span>` }) +
+`${line('Grizzlies at Trail Blazers', `Your team${dot}Tonight 02:00${dot}ESPN`)}${line('Kastljós', `On now${dot}RÚV${dot}until 20:55`)}${line('Pick what you like', `3 genres start your rows`)}</div>
+` +
 firstPeek('Popular films', 'Popular on Cinemeta', ['toystory5', 'weapons', 'superman', 'onebattle', 'sinners', 'f1', 'mickey17'].map((f) => poster(f))) + foot;
 
 // ---------------------------------------------------------------- 7. the rows: Channels (a channel has no picture: its logo on a flat field)
@@ -199,7 +200,7 @@ peek('Comedy for you', 'Because you watch Always Sunny, The Office and 12 more',
 const pages = { '01-evening.html': evening(), '02-rows-comedy.html': rowsComedy(), '03-rows-blend.html': rowsBlend(), '04-game-night.html': gameNight(), '05-library-comedy.html': library(), '06-cold-start.html': coldStart(), '07-rows-channels.html': channel(), '08-loading-missing-art.html': loading(), '09-rows-continue.html': rowsContinue(), '10-rows-nba.html': rowsNba() };
 for (const [f, html] of Object.entries(pages)) fs.writeFileSync(path.join(root, f), html);
 fs.writeFileSync(path.join(root, 'tools', 'pages.json'), JSON.stringify([
-  { file: '01-evening.html', title: 'A normal evening', note: 'Wed 20:41 · the Marquee: five lines in fixed slots (the game is tonight), the lit line’s plate, the first row peeking; P− jumps to the rows' },
+  { file: '01-evening.html', title: 'A normal evening', note: 'Wed 20:41 · the Marquee: five lines (the game is tonight), the lit line open as its card in place, the first row peeking; P− jumps to the rows' },
   { file: '02-rows-comedy.html', title: 'The rows: Comedy for you', note: 'Down from the lineup · films and series together · the picture answers the poster · the row index on its backing' },
   { file: '03-rows-blend.html', title: 'The rows: Anime comedy', note: 'A blend row: two of his genres together, named plainly, marked New row for a week' },
   { file: '04-game-night.html', title: 'Game night', note: 'Thu 03:12 · Grizzlies at Trail Blazers live, shield on: ON NOW, no clock, records as of tip-off' },

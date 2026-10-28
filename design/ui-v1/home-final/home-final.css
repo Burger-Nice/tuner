@@ -40,30 +40,24 @@ html, body { margin: 0; width: 960px; height: 540px; overflow: hidden; backgroun
 .count { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--a-surface-2); color: var(--a-text-1); font: 650 12px/1 var(--a-font-text); margin-left: 8px; letter-spacing: .02em; }
 .dot { color: var(--a-text-3); margin: 0 2px; }
 
-/* ---- the lineup: six lines in fixed slots (pitch 38 from y 92), nothing moves on a press ---- */
+/* ---- the lineup: lines in fixed 32 px slots; the lit line opens into its card in place (fixed 192 px, so every press moves the lines below by the same 168 px, animated with a 200 ms transform) ---- */
 .lineup { left: 56px; top: 92px; width: 470px; display: flex; flex-direction: column; gap: 0; }
 .e { position: relative; height: 32px; box-sizing: border-box; padding: 2px 16px; border-radius: 10px; opacity: .62; display: flex; align-items: center; }
 .e .t { font: 700 23px/26px var(--a-font-display); color: var(--a-text-1); white-space: nowrap; letter-spacing: -.01em; display: flex; align-items: baseline; }
 .e .t small { font: 500 14px/18px var(--a-font-text); color: var(--a-text-2); margin-left: 10px; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; }
-.e.on { opacity: 1; box-shadow: var(--a-focus-ring); background: linear-gradient(90deg, var(--ambt, rgba(45,43,53,.7)), rgba(45,43,53,.5)); }
-.e.on .t { font-size: 26px; }
+.e.on { opacity: 1; display: block; height: 192px; margin: 4px 0; padding: 10px 18px; border-radius: 18px; box-shadow: var(--a-focus-ring); background: linear-gradient(90deg, var(--ambt, rgba(21,19,29,.45)), rgba(21,19,29,.22)); overflow: hidden; }
+.e.on .ey { font: 650 14px/16px var(--a-font-text); letter-spacing: .12em; text-transform: uppercase; color: var(--a-pink-text); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.e.on .logo { display: block; height: 56px; max-width: 340px; width: auto; object-fit: contain; object-position: left center; margin: 6px 0 4px; }
+.e.on .big { font: 700 34px/40px var(--a-font-display); color: var(--a-text-1); margin: 8px 0 8px; letter-spacing: -.01em; white-space: nowrap; }
+.e.on .big.long { font-size: 30px; }
+.e.on .meta { display: flex; align-items: center; gap: 6px; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.e.on .line { font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); margin-top: 2px; max-width: 434px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e.on .bar { width: 280px; height: 4px; border-radius: 2px; background: var(--a-surface-2); margin-top: 8px; overflow: hidden; }
+.e.on .bar i { display: block; height: 100%; width: var(--p, 40%); background: var(--a-grad); border-radius: 2px; }
+.e.on .hint { position: absolute; left: 18px; bottom: 10px; }
 .e.on.sharp { border-radius: 6px; transform: skewX(-12deg); transform-origin: bottom left; }
 .e.on.sharp > * { transform: skewX(12deg); }
-
-/* the lit line's plate: fixed at y 330-506, the card of whatever line is lit (logo ink 56, the facts, the verb) */
-.plate-l { left: 56px; top: 260px; width: 470px; height: 192px; box-sizing: border-box; padding: 10px 18px 10px; border-radius: 18px; background: linear-gradient(90deg, var(--ambt, rgba(21,19,29,.45)), rgba(21,19,29,.22)); }
-.plate-l .ey { font: 650 14px/16px var(--a-font-text); letter-spacing: .12em; text-transform: uppercase; color: var(--a-pink-text); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.plate-l .logo { display: block; height: 56px; max-width: 340px; width: auto; object-fit: contain; object-position: left center; margin: 6px 0 4px; }
-.plate-l .big { font: 700 34px/40px var(--a-font-display); color: var(--a-text-1); margin: 8px 0 8px; letter-spacing: -.01em; white-space: nowrap; }
-.plate-l .big.long { font-size: 30px; }
-.plate-l .meta { display: flex; align-items: center; gap: 6px; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.plate-l .line { font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); margin-top: 2px; max-width: 434px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.plate-l .bar { width: 280px; height: 4px; border-radius: 2px; background: var(--a-surface-2); margin-top: 8px; overflow: hidden; }
-.plate-l .bar i { display: block; height: 100%; width: var(--p, 40%); background: var(--a-grad); border-radius: 2px; }
-.plate-l .hint { position: absolute; left: 18px; bottom: 10px; }
-.plate-l.sharp { border-radius: 6px; transform: skewX(-12deg); transform-origin: bottom left; }
-.plate-l.sharp > * { transform: skewX(12deg); }
-.plate-l.sharp .hint { left: 30px; }
+.e.on.sharp .hint { left: 30px; }
 .more { right: 48px; bottom: 36px; display: flex; align-items: center; gap: 8px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); white-space: nowrap; }
 .more.left { right: auto; left: 56px; bottom: 20px; }
 .more svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
