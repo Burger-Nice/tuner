@@ -49,7 +49,6 @@ const firstPeek = (title, sub, cards) => `<div class="peek first"><div class="rt
 const LINES = (lit, cardHtml) => [
   ['Severance', `Continue${dot}S2 · E3${dot}21 min left`],
   ['Slow Horses', `New this week${dot}S6 · E4<span class="count">3 new</span>`],
-  ['Breaking Bad', `Up next${dot}S3 · E7`],
   ['Heat', `A film for tonight${dot}ends ${ends('20:41', 170)}${dot}4K`],
   ['Grizzlies at Trail Blazers', `Tonight${dot}02:00${dot}ESPN`],
 ].map(([n, f], i) => (i === lit ? cardHtml : line(n, f))).join('');
@@ -120,9 +119,9 @@ const gameNight = () => head('Home, game night', `
   meta: `<span>On now</span>${dot}<span>ESPN</span><span class="badge">4K</span>${dot}${EYE}<span>Score hidden</span>`,
   line: '3rd in the West · 3 in a row · Morant 27.8 · as of tip-off',
   hint: `<span class="pill">${PLAY}Watch live</span><span>${ARROW_R}From tip-off</span><span><span class="k">Hold</span>Reveal, more</span>` }) +
-`${line('Severance', `Continue${dot}S2 · E3${dot}21 min left`)}${line('Slow Horses', `New this week${dot}S6 · E4<span class="count">3 new</span>`)}${line('It’s Always Sunny', `Short${dot}S18 · E10${dot}25 min`)}${line('Nuggets at Thunder', `Also live${dot}Prime Video`)}</div>
+`${line('Severance', `Continue${dot}S2 · E3${dot}21 min left`)}${line('Slow Horses', `New this week${dot}S6 · E4<span class="count">3 new</span>`)}${line('It’s Always Sunny', `Short${dot}S18 · E10${dot}25 min`)}</div>
 ` +
-firstPeek('Tonight in the NBA', '6 games · 1 live · 2 final · 3 later', [gameCard({ mine: true, ta: '#5D76A9', st: 'Your team · live', a: 'mem', an: 'Grizzlies', sep: 'at', h: 'por', hn: 'Blazers', ch: 'ESPN · 4K', pl: 'Score hidden' }), gameCard({ ta: '#FEC524', st: 'Live', a: 'den', an: 'Nuggets', sep: 'at', h: 'okc', hn: 'Thunder', ch: 'Prime Video', pl: '3RD' }), gameCard({ ta: '#BA9653', st: 'Final', a: 'bos', an: 'Celtics', sep: 'at', h: 'ny', hn: 'Knicks', ch: '', pl: '112 – 104' })]) + foot;
+firstPeek('Tonight in the NBA', '6 games · 2 live · 2 final · 2 later', [gameCard({ mine: true, ta: '#5D76A9', st: 'Your team · live', a: 'mem', an: 'Grizzlies', sep: 'at', h: 'por', hn: 'Blazers', ch: 'ESPN · 4K', pl: 'Score hidden' }), gameCard({ ta: '#FEC524', st: 'Live', a: 'den', an: 'Nuggets', sep: 'at', h: 'okc', hn: 'Thunder', ch: 'Prime Video', pl: '3RD' }), gameCard({ ta: '#BA9653', st: 'Final', a: 'bos', an: 'Celtics', sep: 'at', h: 'ny', hn: 'Knicks', ch: '', pl: '112 – 104' })]) + foot;
 
 // ---------------------------------------------------------------- 5. the library: Movies, Comedy, scrolled deep (#313 is the first cell of its row: 313 = 52 x 6 + 1)
 const LIB = [['stepbrothers', 'Step Brothers', '2008 · 1h 38m'], ['superbad', 'Superbad', '2007 · 1h 53m'], ['lebowski', 'The Big Lebowski', '1998 · 1h 57m'], ['holdovers', 'The Holdovers', '2023 · 2h 13m'], ['popstar', 'Popstar', '2016 · 1h 27m'], ['officespace', 'Office Space', '1999 · 1h 29m'],
@@ -140,7 +139,7 @@ const coldStart = () => head('Home, first evening: no history yet') + `<div clas
   meta: `<span>2026</span>${dot}<span>2h 37m</span>${dot}<span>Ends ${ends('20:41', 157)}</span>${dot}<span>IMDb 8.2</span>`,
   line: 'A science teacher wakes up alone on a spaceship. As his memory returns, he uncovers an impossible task.',
   hint: `<span class="pill noicon">Details</span><span>${ARROW_R}More popular films</span><span><span class="k">Hold</span>Play now, Save</span>` }) +
-`${line('Grizzlies at Trail Blazers', `Your team${dot}Tonight 02:00${dot}ESPN`)}${line('Kastljós', `On now${dot}RÚV${dot}until 20:55`)}${line('Pick what you like', `3 genres start your rows`)}</div>
+`${line('Grizzlies at Trail Blazers', `Your team${dot}Tonight 02:00${dot}ESPN`)}${line('Pick what you like', `3 genres start your rows`)}</div>
 ` +
 firstPeek('Popular films', 'Popular on Cinemeta', ['toystory5', 'weapons', 'superman', 'onebattle', 'sinners', 'f1', 'mickey17'].map((f) => poster(f))) + foot;
 
@@ -200,12 +199,12 @@ peek('Comedy for you', 'Because you watch Always Sunny, The Office and 12 more',
 const pages = { '01-evening.html': evening(), '02-rows-comedy.html': rowsComedy(), '03-rows-blend.html': rowsBlend(), '04-game-night.html': gameNight(), '05-library-comedy.html': library(), '06-cold-start.html': coldStart(), '07-rows-channels.html': channel(), '08-loading-missing-art.html': loading(), '09-rows-continue.html': rowsContinue(), '10-rows-nba.html': rowsNba() };
 for (const [f, html] of Object.entries(pages)) fs.writeFileSync(path.join(root, f), html);
 fs.writeFileSync(path.join(root, 'tools', 'pages.json'), JSON.stringify([
-  { file: '01-evening.html', title: 'A normal evening', note: 'Wed 20:41 · the Marquee: five lines (the game is tonight), the lit line open as its card in place, the first row peeking; P− jumps to the rows' },
+  { file: '01-evening.html', title: 'A normal evening', note: 'Wed 20:41 · the Marquee: four big lines (the game is tonight), the lit one open as its card in place, the first row peeking; 4 Downs or P− reach the rows' },
   { file: '02-rows-comedy.html', title: 'The rows: Comedy for you', note: 'Down from the lineup · films and series together · the picture answers the poster · the row index on its backing' },
   { file: '03-rows-blend.html', title: 'The rows: Anime comedy', note: 'A blend row: two of his genres together, named plainly, marked New row for a week' },
   { file: '04-game-night.html', title: 'Game night', note: 'Thu 03:12 · Grizzlies at Trail Blazers live, shield on: ON NOW, no clock, records as of tip-off' },
   { file: '05-library-comedy.html', title: 'Movies: Comedy, deep', note: 'The add-on library: one long Cinemeta scroll per genre, #313 of 3,000+' },
-  { file: '06-cold-start.html', title: 'First evening', note: 'No history: a popular pick (Details), the team, the channel, Pick what you like' },
+  { file: '06-cold-start.html', title: 'First evening', note: 'No history: a popular pick (Details), the team, Pick what you like; three lines' },
   { file: '07-rows-channels.html', title: 'The rows: Channels', note: 'A channel has no picture: its logo on a flat field, the programme’s progress and what is next; wide channel cards' },
   { file: '08-loading-missing-art.html', title: 'Missing art', note: 'A title without a backdrop (its poster upright on a flat ground), posters loading, a title with no poster' },
   { file: '09-rows-continue.html', title: 'The rows: Your shows', note: 'Continue watching and new episodes in one wide-card row (they are also the Marquee’s lines); New this year peeks' },

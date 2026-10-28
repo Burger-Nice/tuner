@@ -40,11 +40,11 @@ html, body { margin: 0; width: 960px; height: 540px; overflow: hidden; backgroun
 .count { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--a-surface-2); color: var(--a-text-1); font: 650 12px/1 var(--a-font-text); margin-left: 8px; letter-spacing: .02em; }
 .dot { color: var(--a-text-3); margin: 0 2px; }
 
-/* ---- the lineup: lines in fixed 32 px slots; the lit line opens into its card in place (fixed 192 px, so every press moves the lines below by the same 168 px, animated with a 200 ms transform) ---- */
+/* ---- the lineup: 3 lines (4 on a game day) in 42 px slots; the lit line opens into its card in place (fixed 192 px + 4 px margins, so every press moves the lines below by the same 158 px, animated with a 200 ms transform) ---- */
 .lineup { left: 56px; top: 92px; width: 470px; display: flex; flex-direction: column; gap: 0; }
-.e { position: relative; height: 32px; box-sizing: border-box; padding: 2px 16px; border-radius: 10px; opacity: .62; display: flex; align-items: center; }
-.e .t { font: 700 23px/26px var(--a-font-display); color: var(--a-text-1); white-space: nowrap; letter-spacing: -.01em; display: flex; align-items: baseline; }
-.e .t small { font: 500 14px/18px var(--a-font-text); color: var(--a-text-2); margin-left: 10px; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; }
+.e { position: relative; height: 42px; box-sizing: border-box; padding: 2px 16px; border-radius: 10px; opacity: .66; display: flex; align-items: center; }
+.e .t { font: 700 30px/34px var(--a-font-display); color: var(--a-text-1); white-space: nowrap; letter-spacing: -.01em; display: flex; align-items: baseline; }
+.e .t small { font: 500 16px/20px var(--a-font-text); color: var(--a-text-2); margin-left: 12px; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; }
 .e.on { opacity: 1; display: block; height: 192px; margin: 4px 0; padding: 10px 18px; border-radius: 18px; box-shadow: var(--a-focus-ring); background: linear-gradient(90deg, var(--ambt, rgba(21,19,29,.45)), rgba(21,19,29,.22)); overflow: hidden; }
 .e.on .ey { font: 650 14px/16px var(--a-font-text); letter-spacing: .12em; text-transform: uppercase; color: var(--a-pink-text); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .e.on .logo { display: block; height: 56px; max-width: 340px; width: auto; object-fit: contain; object-position: left center; margin: 6px 0 4px; }

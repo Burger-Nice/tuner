@@ -71,7 +71,7 @@ title by 12 px.
 
 | Point | Answer |
 |---|---|
-| Browsing was 7 presses down | **The lineup is 4 lines, 5 on a game day** (Continue, New in your shows, Up next, A film for tonight, and the game when it is today); the `On now` channel line is gone (digits and the Live tab do it in 1–4 presses; the Channels row stays). **The first row peeks on the first screen** (its title and the top 78 px of its posters, at 85 %), and **row 1 is a browsing row** (`Comedy for you`; Continue watching and new episodes are the Marquee's lines and one wide `Your shows` row lower down). **P− jumps to the rows, P+ back to the Marquee** (the app already maps `ChannelDown` / `ChannelUp`, keycodes 166 / 167); the peek's title carries `P− Browse · 15 rows`. Browsing is now 5 presses (4 Downs past the lines on a game day, then the peek) or 1 with P−; resume and the game stay at 1 |
+| Browsing was 7 presses down | **The lineup is 3 lines, 4 on a game day, each bigger** (the owner: "less options on the top thing and maybe just make it bigger"): Outfit 700 30 px in 42 px slots. The lines that earn the place: **Continue** (the thing he is in: 1 press to resume, the most used line), **New in your shows** (the next most common reason to open the app; `3 new` says there is more behind Right), **one pick for tonight** (`A film for tonight` before 23:00, `Something short` after; the one place the app chooses for him, with its reason and end time), and **the game** on a game day (first while live). Dropped: `Up next` (the next episode of a show he is between episodes of lives in the `Your shows` row and is one Right from the Continue line's Episodes) and the `On now` channel line (digits and the Live tab do it in 1–4 presses; the Channels row stays). **The first row peeks on the first screen** (its title and the top 78 px of its posters, at 85 %), and **row 1 is a browsing row** (`Comedy for you`; Continue watching and new episodes are the Marquee's lines and one wide `Your shows` row lower down). **P− jumps to the rows, P+ back to the Marquee** (the app already maps `ChannelDown` / `ChannelUp`, keycodes 166 / 167); the peek's title carries `P− Browse · 15 rows`. Browsing is now 5 presses (4 Downs past the lines on a game day, then the peek) or 1 with P−; resume and the game stay at 1 |
 | Back from the rows | Back goes to row 1 first, a second Back to the Marquee's first line, a third to the tab (section 4) |
 | The Tonight strip | Dropped; the rows screen shows the normal top bar, so Search and Movies are one Up from row 1 |
 | The focused title weaker than the unfocused | The unfocused lines are Outfit 700 23 at 62 %; the lit line is 26 at 100 % with the ring; the logo ink is 56 px in the plate |
@@ -108,9 +108,8 @@ old anime rule; the source research decides what the engine reads, and the check
 
 ## 0. Decisions (each with its reason, in plain words)
 
-1. **Home has two halves and one key joins them.** The top is the Marquee: four lines down the left (what you are
-   in the middle of, what is new in your shows, what is up next, a film that fits before bed; a fifth, the game,
-   on a game day) and one full-screen picture that answers the line you are on. The first browsing row peeks at
+1. **Home has two halves and one key joins them.** The top is the Marquee: three big lines down the left (what
+   you are in the middle of, what is new in your shows, one pick for tonight; a fourth, the game, on a game day) and one full-screen picture that answers the line you are on. The first browsing row peeks at
    the bottom of that screen, and Down past the last line (or **P−** from anywhere) is the browsing half: rows
    like Netflix (Popular, New, Top rated, genres) and rows built from what he watches (`Comedy for you`, `Anime
    comedy`, `Crime dramas`, `Because you watched Always Sunny`). *Why:* the owner asked for both: "the continue
@@ -325,12 +324,12 @@ are why Top rated, genre rows and anime now read TMDB (section 6a), with the Cin
 
 | Mock | State |
 |---|---|
-| `01-evening` | Wed 20:41, a game day (tip-off 02:00). The Marquee: five lines, Severance's line open as its card in place: `CONTINUE WATCHING`, the Severance logo (56 px of ink), `S2 · E3 · Who Is Alive? · 21 min left · Ends 21:02 · 4K`, the episode's line, the bar, `Resume` pill · `→ Episodes` · `Hold Start over, Details`; the other lines Slow Horses (`New this week · S6 · E4 · 3 new`), Breaking Bad (`Up next · S3 · E7`), Heat (`A film for tonight · ends 23:31 · 4K`), Grizzlies at Trail Blazers (`Tonight · 02:00 · ESPN`); the first row `Comedy for you` peeking at the bottom with `P− Browse · 15 rows` |
+| `01-evening` | Wed 20:41, a game day (tip-off 02:00). The Marquee: four big lines, Severance's line open as its card in place: `CONTINUE WATCHING`, the Severance logo (56 px of ink), `S2 · E3 · Who Is Alive? · 21 min left · Ends 21:02 · 4K`, the episode's line, the bar, `Resume` pill · `→ Episodes` · `Hold Start over, Details`; the other lines Slow Horses (`New this week · S6 · E4 · 3 new`), Heat (`A film for tonight · ends 23:31 · 4K`), Grizzlies at Trail Blazers (`Tonight · 02:00 · ESPN`); the first row `Comedy for you` peeking at the bottom with `P− Browse · 15 rows` |
 | `02-rows-comedy` | Down from the lineup (or P−): the top bar, the picture answering The Nice Guys (IMDb 7.4), the row index on its backing, row 1 `Comedy for you · Because you watch Always Sunny, The Office and 12 more` (films and series together), `Popular films` peeking |
 | `03-rows-blend` | the blend row `Anime comedy · New row · Two things you watch, together · anime + comedy`, Spy x Family lit; `Because you watched Always Sunny` peeking with TMDB's real recommendations (Platonic, Peep Show, Friday Night Dinner, Great News, 'Til Death) |
-| `04-game-night` | Thu 03:12, Grizzlies at Trail Blazers live, shield on: the two fields, `ON NOW` on the chip, `Score hidden`, both records `as of tip-off`, the fan line `as of tip-off`, `Watch live` · `→ From tip-off` · `Hold Reveal, more`; five lines, the game's line open as its card (the Sharp plate); `Tonight in the NBA` peeking with the hidden game's card reading `Score hidden`; the NBA tab carries no second pill |
+| `04-game-night` | Thu 03:12, Grizzlies at Trail Blazers live, shield on: the two fields, `ON NOW` on the chip, `Score hidden`, both records `as of tip-off`, the fan line `as of tip-off`, `Watch live` · `→ From tip-off` · `Hold Reveal, more`; four lines, the game's line open as its card (the Sharp plate), then Severance, Slow Horses and a short episode; `Tonight in the NBA` peeking with the hidden game's card reading `Score hidden`; the NBA tab carries no second pill |
 | `05-library-comedy` | the Movies tab, Comedy, Popular, scrolled to #313 of 3,000+ (the context line in its band, the scroll bubble, six posters a row, the focused one's title on its own plate) |
-| `06-cold-start` | a new user, no history: `Project Hail Mary · Popular on Cinemeta · a pick for tonight` lit (`Details` the primary, no ▶), `Grizzlies at Trail Blazers · Your team`, `Kastljós · On now` (a habit line, see section 3), `Pick what you like · 3 genres start your rows`; `Popular films` peeking |
+| `06-cold-start` | a new user, no history: `Project Hail Mary · Popular on Cinemeta · a pick for tonight` lit (`Details` the primary, no ▶), `Grizzlies at Trail Blazers · Your team`, `Pick what you like · 3 genres start your rows` (three lines); `Popular films` peeking |
 | `07-rows-channels` | the `Channels` row: a channel has no picture, so the area shows the channel's logo on a flat field in the logo's colour; the column has `Kastljós · RÚV · 1 · 20:35 – 20:55 · 14 min left · HD` and `Next · Fréttir 20:55 …`; wide channel cards (`RÚV · 1 · Kastljós · until 20:55`); `Tune` · `Hold Save channel, Open in the guide` |
 | `08-loading-missing-art` | the row `Á íslensku · 1,451 films · 107 series · TMDB` (the verified totals): the lit title drawn as if it had no backdrop (its poster upright on a flat ground) and no logo (its name in Outfit), real Icelandic series from TMDB's list (Trapped, Katla, Black Sands, The Valhalla Murders), two posters still loading (flat blocks with the name), a title with no poster (`No poster` and the name on surface-1; the name is a stand-in for the state) |
 | `09-rows-continue` | the `Your shows` row: wide cards with the show's logo, the episode and the time left (Breaking Bad, The Bear, Andor, Slow Horses `new · 3`, The Last of Us); `New this year` peeking |
@@ -362,7 +361,7 @@ Other states (no mock, the rules):
 |---|---|
 | Picture | one `<img>` 960 × 540, `object-fit: cover`, `object-position` per title (default 70 % 40 %; the subject in the right half); over it the brightness cap (bg-0 at 14 %), the left scrim (bg-0 to clear by x 770), the bottom scrim (220 px), the top scrim (120 px, for the bar), grain at 50 %; the glow `.hf-amb`: a flat radial of the art's colour at 55 % behind the lineup |
 | Top bar | the app's, y 32–72: mark, Search, Home, Live, NBA, Movies, Series, Saved, the clock, the avatar. While the game is the lit line the NBA tab carries **no** pill |
-| Lineup | x 56, y 92, 470 wide, a `[data-col]`; lines are 32 px slots and the lit line is its **card, 192 px, opened in place** (+ 4 px margins), so the lines under the lit one sit 168 px lower than they would and every press moves them by that same distance with a 200 ms `translateY` (the lines are one layer each; nothing else lays out). Four lines (Continue, New in your shows, Up next, A film for tonight), five on a game day (the game first when it is live or within 3 h of tip-off, else last); the `On now` channel line only as a habit line (a channel he tunes at the same hour on 3 of the last 7 days). Unfocused lines Outfit 700 23/26 chalk at 62 % + the facts in Inter 500 14 (`New this week · S6 · E4`), padding 2/16; the count chip (`3 new`, surface-2, 12 px 650) after the facts. The lit line is replaced by its card (next row) |
+| Lineup | x 56, y 92, 470 wide, a `[data-col]`; lines are **42 px slots** and the lit line is its **card, 192 px, opened in place** (+ 4 px margins), so the lines under the lit one sit 158 px lower than they would and every press moves them by that same distance with a 200 ms `translateY` (the lines are one layer each; nothing else lays out). **Three lines** (Continue, New in your shows, the pick for tonight), **four on a game day** (the game first when it is live or within 3 h of tip-off, else last). Unfocused lines **Outfit 700 30/34** chalk at 66 % + the facts in Inter 500 16 (`New this week · S6 · E4`), padding 2/16; the count chip (`3 new`, surface-2, 12 px 650) after the facts. The lit line is replaced by its card (next row) |
 | The lit line's card | **in the lit line's slot, 470 × 192**, radius 18, the ring (5 px white, 2 px canvas gap), the glow colour at 45 % to canvas at 22 %: eyebrow 14 px caps pink-text (`CONTINUE WATCHING`, `NEW THIS WEEK`, `UP NEXT`, `A FILM FOR TONIGHT`, `GAME NIGHT`); the **logo, 56 px of ink, 340 wide at most** (Cinemeta `logo` cropped to its alpha box when fetched, chalk when black), else the name Outfit 700 34/40 (30 when longer than 18 characters); meta 15/20 text-2 with badges (section 12's shortening rule); the title's line 15/20 (one line, ellipsis at 434 px); the bar 280 × 4; the hint row at the plate's bottom: the **pill** (gradient, 30 high, ink, Outfit 700 15, the verb; a ▶ only on play verbs) · `→` key cap + word · `Hold` + words |
 | The peek | y 462: the first row's title (Outfit 700 18 text-2) with its reason and, at the right (ending at x 912), `P− Browse · 15 rows`; the top 78 px of its cards at 85 % (art may bleed) |
 | Game night | the fields: away x 0 to the split, home from the split, the split at 12° at 79 % (x 758 at the top); each field the team's real primary darkened for 4.5:1 chalk (`#12173F` Memphis navy with the Beale Street blue edge; Portland `#B9302F` with its black edge); the left shade (canvas to clear by x 576) under the lineup; crests 168 in the neutral disc at x 540 and x 744, y 126, names Outfit 700 24 and the record 14 under; the score group at x 524, y 392: the chip (gradient, 56 high, 12°, `ON NOW` Barlow 800 italic 34) and the plate (`Score hidden` with the eye-off) ending before x 912; the lit line is the Sharp plate (12°) |
@@ -414,9 +413,19 @@ the first line lit (where OK resumes), a third Back to the tab.
 **The library.** As UI-SPEC 5.5 (Left / Right / Up / Down in the grid, OK Details, Hold OK Save · Mark watched ·
 Details, CH± pages, Back scrolls to the top then leaves). Digits on Home tune a channel number as in Live.
 
-Press counts: resume 1; the game live 1 (from tip-off 2); the film the app picked 4; **the first browsing row 5
-on a game day (4 on other nights), or 1 with P−**; `Comedy for you`'s first poster 5 / 1, its title page +1; a
-channel: its number (1–3 digits) or the Live tab in 4; any named row: P− then its position in the index.
+Press counts: resume 1; the game live 1 (from tip-off 2); the pick for tonight 3 (Down, Down, OK); **the first
+browsing row 3 on a normal night, 4 on a game day, or 1 with P−**; `Comedy for you`'s first poster the same, its
+title page +1; a channel: its number (1–3 digits) or the Live tab in 4; any named row: P− then its position in the
+index.
+
+From the top of Home to the first browsing row, counted from the first line lit (each Down past the last line lands
+on row 1):
+
+| Version | Lines | Presses (Down) | With P− |
+|---|---|---|---|
+| v1.0 (reviewed) | 6, and row 1 was a second Continue watching | 7 | – |
+| v1.1 first cut | 4 (5 on a game day) | 4 (5) | 1 |
+| **v1.1 (this)** | **3 (4 on a game day), bigger** | **3 (4)** | **1** |
 
 ---
 
