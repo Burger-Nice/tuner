@@ -300,7 +300,7 @@ public class PlayerActivity extends AppCompatActivity {
                     long from = upNextFrom(d);
                     if (player.hasNextMediaItem() && stayIndex != index && left > 0 && pos >= from) {
                         // (the guard: 1.5 s without a key, while there is still time for it)
-                        if (!chipUp && open == null && SystemClock.uptimeMillis() - lastKeyAt >= 1500) { showUpNext(left > UP_NEXT_MS); if (skips != null) skips.upNextFrom(upNextBy); }
+                        if (!chipUp && open == null && SystemClock.uptimeMillis() - lastKeyAt >= 1500) { showUpNext(upNextCounts && left > 3000); if (skips != null) skips.upNextFrom(upNextBy); }
                     } else if (chipUp && chipIsUpNext && !endCard) { upNextGoneAt = SystemClock.uptimeMillis(); hideChip(); }
                 }
             }
@@ -1093,18 +1093,22 @@ public class PlayerActivity extends AppCompatActivity {
     /** Where Up next starts (5.1): the credits start after the checks, unless a spoken line comes after it (then 3 s after
      * the last one if that leaves 15 s, else the last 40 s); without the list, 3 s after the last spoken line when that
      * leaves 20 s to 5 min; else the last 40 s. upNextBy says which (the diagnosis log). */
-    private boolean upNextBy;
+    private boolean upNextBy, upNextCounts;   // (counts: a 15 s count; else the last 40 s, counting to the end)
     private long upNextFrom(long d) {
         long credits = skips != null ? skips.creditsAt() : -1;
         upNextBy = credits >= 0;
+        upNextCounts = true;
         if (credits >= 0) {
             long last = subs != null ? subs.lastSpokenAfter(credits + 5000) : -1;   // (a line within 5 s runs over the cut)
             if (last < 0) return credits;
             upNextBy = false;
-            return d - (last + 3000) >= 15000 ? last + 3000 : d - UP_NEXT_MS;
+            if (d - (last + 3000) >= 15000) return last + 3000;
+        } else {
+            long last = subs != null ? subs.lastLineEnd() : -1;
+            if (last > 0 && d - last >= 20000 && d - last <= 300000) return last + 3000;
         }
-        long last = subs != null ? subs.lastLineEnd() : -1;
-        return last > 0 && d - last >= 20000 && d - last <= 300000 ? last + 3000 : d - UP_NEXT_MS;
+        upNextCounts = false;
+        return d - UP_NEXT_MS;
     }
     boolean upNextShowing() { return chipUp && chipIsUpNext; }
     private void hideChip() {

@@ -371,6 +371,99 @@ window.TUNER_TEST = true;
       } catch (e) { report('error', `add-ons: ${(e && e.stack) || e}`); }
       for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-addon-closed-${k + 7}`, 1500);
 
+      // Skip intro / recap and Up next at the credits (design/ui-v1/skip/SPEC.md 14): the fake TheIntroDB at the fake
+      // provider (its real answers for It's Always Sunny and Lost), two fake series matched to them, episodes that play a
+      // 22:01 clip. Seeks go through the debug intent, with no key, so the OK guard's 1.5 s of quiet holds.
+      try {
+        const TP = window.Capacitor?.Plugins?.TunerPlayer;
+        const info = await TP.info();
+        check('skip: the player takes the segments command', info.segments === true, { info: JSON.stringify(info) });
+        localStorage.setItem('tuner.introBase', JSON.stringify(`${API}/introdb/v4`));
+        const mod = (m) => import(`./tv/js/${m}.js`);
+        const [CA, PL, ST, IM, AC] = await Promise.all(['catalog', 'player', 'state', 'imdb', 'actions'].map(mod));
+        ST.saveSettings({ skipIntro: 'button' });
+        await CA.ensure('series');
+        const [sunny, lost] = CA.catalog.series.items;
+        IM.pickMatch(sunny, 'tt0472954');
+        IM.pickMatch(lost, 'tt0411008');
+        const epsOf = (t) => AC.episodesOf({ seriesId: t.id, seriesName: t.name, poster: t.poster });
+        const bc = ['am', 'broadcast', '-a', 'app.tuner.player.DIAG', '-p', 'app.tuner.player', '--es', 'skip'];
+        const sk = async (name, arg = 'state', after = 200) => { window.__skip = null; await step({ keys: [], adb: [...bc, arg], name }, after); await until(() => window.__skip, 3000); return window.__skip?.state || ''; };
+        const poll = async (name, ok, ms) => { let s = ''; for (let t0 = Date.now(), k = 0; Date.now() - t0 < ms; k++) { s = await sk(`${name}-${k}`); if (ok(s)) break; await wait(300); } return s; };
+        const pos = (s) => +(/pos=(\d+)/.exec(s) || [])[1];
+        const has = (s, re) => re.test(s);
+        const eps = await epsOf(sunny), s1 = eps.filter((e) => +e.season === 1);
+        await PL.playVod(s1[0], { queue: eps, restart: true });
+        await until(() => state()?.watching, 10000);
+        await wait(3500);
+        // SK-1: from 1:40 with no key, the Skip intro chip at 1:44
+        await sk('skip-sunny-e1-seek', 'seek:100000', 1500);
+        let s = await poll('skip-chip', (x) => has(x, /chip=skip /), 9000);
+        await shot('player-skip-chip');
+        check('skip SK-1: the Skip intro chip at 1:44', has(s, /chip=skip .*title=Skip intro sub=/) && pos(s) >= 103500 && pos(s) <= 107500, { s });
+        // SK-2: OK after a second skips to 2:11.1, the way-back chip says Intro skipped / 28 s
+        await wait(1200);
+        await press(['DPAD_CENTER'], 'skip-ok');
+        s = await sk('skip-after-ok');
+        await shot('player-skip-skipped');
+        check('skip SK-2: OK skips to the intro\'s end − 0.5 s, the way-back chip', has(s, /chip=back .*title=Intro skipped sub=28 s ok=go back/) && pos(s) >= 131000 && pos(s) <= 134500, { s });
+        // SK-5: OK on the way-back chip (a pressed skip) goes back to 1:44; the window is left alone; ▲ lands on Play
+        await wait(1600);
+        await press(['DPAD_CENTER'], 'skip-go-back');
+        s = await sk('skip-after-back');
+        const back = s;
+        await press(['DPAD_UP'], 'skip-back-buttons', 300);
+        s = await sk('skip-back-focus');
+        check('skip SK-5: back to 1:44, no chip again, ▲ lands on Play', has(back, /chip=none /) && pos(back) >= 103800 && pos(back) <= 107000 && has(back, /intro@104000-131646:once:alone/) && has(s, /focus=play /) && has(s, /pill=Skip intro /), { back, s });
+        await press(['BACK'], 'skip-back-controls-hidden', 1600);
+        // SK-16 and SK-33: the credits at 21:28: Next episode in 15 s; with the controls up the keys go and the count goes on
+        await sk('skip-credits-seek', 'seek:1286000', 1500);
+        s = await poll('skip-upnext', (x) => has(x, /upnext=true /), 8000);
+        await shot('player-upnext-credits');
+        const up = s;
+        await press(['DPAD_UP'], 'skip-upnext-controls', 1500);
+        const upCtl = await sk('skip-upnext-controls-state');
+        await press(['BACK'], 'skip-upnext-controls-hidden', 300);
+        const upBack = await sk('skip-upnext-keys-back');
+        const n0 = +(/Next episode in (\d+) s/.exec(up) || [])[1], n1 = +(/Next episode in (\d+) s/.exec(upCtl) || [])[1];
+        check('skip SK-33: controls up while Up next counts: no key column, the count goes on, the keys come back', has(upCtl, /upnext=true .*upKeys=false/) && n1 < n0 && has(upBack, /upKeys=true/), { up, upCtl, upBack });
+        s = await poll('skip-upnext-moved-on', (x) => has(x, /index=1 /), 22000);
+        check('skip SK-16: Up next at 21:28 counts 15 s, then S1 E2 plays and S1 E1 is marked watched', pos(up) >= 1287000 && pos(up) <= 1291500 && n0 >= 13 && has(s, /index=1 /) && !!ST.progressOf(s1[0])?.done, { up, s, e1: JSON.stringify(ST.progressOf(s1[0]) || null) });
+        // SK-7: ▲ during a fresh intro lands on Skip intro (the last of the left group); OK skips; focus on the seek thumb
+        await wait(2500);
+        await sk('skip-e2-seek', 'seek:80000', 1800);
+        s = await poll('skip-e2-chip', (x) => has(x, /chip=skip /), 6000);
+        await press(['DPAD_UP'], 'skip-e2-buttons', 300);
+        const pillUp = await sk('skip-e2-pill');
+        await shot('player-skip-bar');
+        await press(['DPAD_CENTER'], 'skip-e2-pill-ok', 300);
+        s = await sk('skip-e2-pill-skipped');
+        await shot('player-back-pill');
+        check('skip SK-7: ▲ lands on Skip intro, OK skips, focus on the seek thumb, Back to intro in the row', has(pillUp, /focus=Skip intro /) && pos(s) >= 105300 && pos(s) <= 108500 && has(s, /focus=seek /) && has(s, /pill=Back to intro:back /), { pillUp, s });
+        await press(['BACK'], 'skip-e2-controls-hidden', 7000);   // (the way-back chip comes back with its 5 s, then goes)
+        // SK-17: Back on Up next: no count again, the queue stays, the picture holds at the end with the end card
+        await sk('skip-e2-credits', 'seek:1249000', 1500);
+        await poll('skip-e2-upnext', (x) => has(x, /upnext=true /), 8000);
+        await press(['BACK'], 'skip-e2-stay', 300);
+        const stay = await sk('skip-e2-stay-state');
+        await sk('skip-e2-near-end', 'seek:1312000', 1500);
+        s = await poll('skip-e2-end', (x) => has(x, /end=true /), 16000);
+        await shot('player-upnext-end');
+        check('skip SK-17: Back stays (the queue kept, the pause at the end set), then the end card with the picture held', has(stay, /upnext=false .*stay=true .*pauseAtEnd=true/) && +(/of=(\d+)/.exec(stay) || [])[1] === eps.length && has(s, /end=true upTitle=Next episode upKeys=true/) && has(s, /playing=false/), { stay, s });
+        await press(['BACK'], 'skip-end-card-closes', 2000);
+        await until(() => !state()?.watching, 5000);
+        // SK-10: Lost S2 E1 reached by Up next from the season before (played to the end): its recap skips by itself
+        const leps = await epsOf(lost), fin = leps.find((e) => +e.season === 1 && +e.ep === 6);
+        await PL.playVod(fin, { queue: leps, restart: true });
+        await until(() => state()?.watching, 10000);
+        await wait(3500);
+        await sk('skip-lost-near-end', 'seek:1301000', 1500);
+        s = await poll('skip-lost-recap', (x) => has(x, /chip=back .*title=Recap skipped/), 30000);
+        await shot('player-recap-skipped');
+        check('skip SK-10: Lost S2 E1 after the season before, by Up next: the recap skips by itself, Recap skipped', has(s, /chip=back .*title=Recap skipped sub=26 s/) && has(s, /index=1 /) && pos(s) >= 27000 && has(s, /recapSelf=true/), { s });
+      } catch (e) { report('error', `skip: ${(e && e.stack) || e}`); }
+      for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-skip-closed-${k + 1}`, 1500);
+
       // Series detail with episodes
       await tab('series');
       await wait(1500);
