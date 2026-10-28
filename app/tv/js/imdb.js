@@ -94,13 +94,17 @@ async function run(t, info) {
     if (m && ((tmdb && m.moviedb === tmdb) || (info.tvdb && m.tvdb === +info.tvdb))) out = { ...out, level: 'sure', via: tmdb && m.moviedb === tmdb ? 'tmdb' : 'tvdb', meta: m };
   }
   if (out.id && !out.meta) out.meta = await meta(kind, out.id);
+  // (his own answer from Which film is this? came while this was asking: his answer wins, never overwritten)
+  const now = savedMatch(t);
+  if (now?.picked) return { ...now, level: 'sure', meta: now.id ? await meta(kind, now.id) : null };
+  if (now?.none) return { id: '', level: 'unsure', via: 'none', none: true };
   if (out.via !== 'offline' && !(missed && out.level !== 'sure')) save(t, { id: out.id, level: out.level, via: out.via });
   return out;
 }
 // His answer from "Which film is this?" (subtitles 4.5, shared): a pick is Sure for this title from now on; None of
 // these keeps the provider's copy only (no add-on copies, no downloaded subtitles). Picking a Likely add-on copy also
 // counts as his pick (SPEC 5.2).
-export function pickMatch(t, id) { save(t, id ? { id, level: 'sure', via: 'picked', picked: true } : { id: '', level: 'unsure', via: 'none', none: true }); emit('imdb', keyOf(t)); }
+export function pickMatch(t, id) { save(t, id ? { id, level: 'sure', via: 'picked', picked: true } : { id: '', level: 'unsure', via: 'none', none: true }); pending.delete(keyOf(t)); emit('imdb', keyOf(t)); }   // (a lookup still running can't answer for it)
 // The subtitles check's hook: the provider copy's checked length (minutes). A Likely film becomes Sure within 8%, and is
 // dropped when more than 8% off (RANKING.md 4.2). Returns 'sure' | 'drop' | 'keep'.
 export async function noteLength(t, lenMin) {

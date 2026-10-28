@@ -36,7 +36,7 @@ process.on('uncaughtException', (e) => console.log(`error: ${e && e.stack}`));
   const seen = new Set();
   const start = Date.now();
   let lastFront = 0;
-  while (Date.now() - start < 1500000) {   // (25 min: the emulator step has 30)
+  while (Date.now() - start < 2400000) {   // (40 min: the emulator step has 45; the skip checks play real minutes)
     let reports = [];
     try { reports = await (await fetch('http://127.0.0.1:8899/_reports')).json(); } catch {}
     // Until the app's first report: the emulator's home screen can come up over the app at start, and a WebView in the

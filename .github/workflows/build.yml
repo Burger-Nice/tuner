@@ -169,7 +169,7 @@ jobs:
     # Separate from the release so a stuck emulator can never hold up the TV app.
     runs-on: ubuntu-latest
     needs: test-media
-    timeout-minutes: 32
+    timeout-minutes: 47
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
@@ -195,7 +195,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Test on the Android TV emulator
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 45
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34

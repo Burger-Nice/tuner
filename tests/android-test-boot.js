@@ -384,8 +384,10 @@ window.TUNER_TEST = true;
         ST.saveSettings({ skipIntro: 'button' });
         await CA.ensure('series');
         const [sunny, lost] = CA.catalog.series.items;
-        IM.pickMatch(sunny, 'tt0472954');
-        IM.pickMatch(lost, 'tt0411008');
+        // (the match is kept per title, as the title page picks it: the series list's title, not its raw item)
+        const titleOf = (it) => CA.catalog.series.titleById?.get(it.id) || CA.catalog.series.titleById?.get(String(it.id)) || it;
+        IM.pickMatch(titleOf(sunny), 'tt0472954');
+        IM.pickMatch(titleOf(lost), 'tt0411008');
         const epsOf = (t) => AC.episodesOf({ seriesId: t.id, seriesName: t.name, poster: t.poster });
         const bc = ['am', 'broadcast', '-a', 'app.tuner.player.DIAG', '-p', 'app.tuner.player', '--es', 'skip'];
         const sk = async (name, arg = 'state', after = 200) => { window.__skip = null; await step({ keys: [], adb: [...bc, arg], name }, after); await until(() => window.__skip, 3000); return window.__skip?.state || ''; };
