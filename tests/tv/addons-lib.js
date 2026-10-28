@@ -8,6 +8,9 @@ module.exports = async ({ p, shot, key }) => {
   const { check, H } = C;
   const ev = (f, a) => p.evaluate(f, a);
   await C({ p, key }, { addons: true });
+  // (Home's genre rows read Cinemeta's genre pages, and the shelf that has to fail below is one: they're off here)
+  await ev(() => { const acc = JSON.parse(localStorage.getItem('tuner.accounts'))[0]; localStorage.setItem(`tuner.a:${acc.id}:rowsOff`, JSON.stringify({ genre: true })); });
+  await p.reload(); await p.waitForTimeout(3500);
   await ev(() => window.__tunerTest.go('movie')); await p.waitForTimeout(3500);
   const chips = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].map((c) => c.textContent));
   console.log('chips:', chips.join(' | '));
