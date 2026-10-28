@@ -5,19 +5,18 @@
 // at the top holds where you are, the focused title and its facts, and the bubble while a key repeats.
 // The provider's own films and series are never listed here (the owner's decision): a title the provider also has
 // opens the provider's page, where its copy is ranked with the add-ons' (shelves.js titleOf).
-import { esc, ic, dot, setHtml, compact, initials } from '../util.js';
-import { S, on, store, scoped, toggleFav, isFav, markWatched } from '../state.js';
-import { barHidden, current, mayFocus, go } from '../router.js';
+import { esc, ic, dot, setHtml, initials } from '../util.js';
+import { on, store, scoped, toggleFav, isFav, markWatched } from '../state.js';
+import { barHidden, current, go } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, contextMenu, toast, scrollList, radioMenu } from '../ui.js';
 import { anyStreamAddon } from '../imdb.js';
 import * as SH from '../shelves.js';
 import * as TM from '../tmdb.js';
-import * as AD from '../addons.js';
 import * as R from '../rows.js';
 import { videoMask } from '../catchup.js';
 
-const COLS = 6, PITCH = 210, COLW = 144, X0 = 58, TOP0 = 184, TOPF = 156, BEFORE = 3, AFTER = 4;
+const COLS = 6, PITCH = 210, COLW = 144, TOP0 = 184, TOPF = 156, BEFORE = 3, AFTER = 4;
 const ORDERS = [['popular', 'Popular'], ['new', 'New'], ['top', 'Top rated'], ['az', 'Title A–Z']];
 const DECADES = [['2020s', 2020, 2099], ['2010s', 2010, 2019], ['2000s', 2000, 2009], ['1990s', 1990, 1999], ['Older', 0, 1989]];
 const RUNTIMES = { movie: [['short', 'Under 1h 30m', 0, 89], ['mid', '1h 30m to 2h', 90, 120], ['long', 'Over 2 hours', 121, 999]], series: [['short', 'Under 30 min', 0, 29], ['mid', '30 to 50 min', 30, 50], ['long', 'Over 50 min', 51, 999]] };

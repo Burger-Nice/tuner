@@ -5,12 +5,12 @@
 // Where it departs from the SPEC: the profile is worked out on the main thread after the launch (it is a few
 // milliseconds for 2,000 plays, so a worker would cost more than it saves); the grip in Account > Home rows is left out
 // (rows are switched on and off; their order is the engine's).
-import { S, store, scoped, on, emit, settings, favList, continueRows, progressOf, inProgress } from './state.js';
+import { S, store, scoped, on, emit, continueRows } from './state.js';
 import { catalog } from './catalog.js';
 import * as AD from './addons.js';
 import * as TM from './tmdb.js';
 import { savedMatch, anyStreamAddon } from './imdb.js';
-import { nba, myGame } from './games.js';
+import { myGame } from './games.js';
 import { videoMask } from './catchup.js';
 import { fromCinemeta, dkey, canon, plural, Plural, cinemeta, tmdbList, interleave, animeByMeta, firstCountry, notInterested, hiddenKey, GENRES } from './shelves.js';
 
@@ -400,7 +400,7 @@ async function build() {
   const out = { acc, day: today, at: Date.now(), sig: sig(), rows: [], firstBuild, gameDay };
   const unw = unwanted(), hiddenR = hiddenRows();
   if (!anyStreamAddon()) {
-    out.rows = [{ id: 'nba', type: 'game', live: 'nba', kind: 'nba' }, { id: 'channels', type: 'channel', live: 'channels', kind: 'channels' }, { id: 'noaddons', type: 'note', live: 'noaddons', kind: 'note', name: 'Films and series', reason: 'Add a Stremio add-on for films and series' }];
+    out.rows = [{ id: 'yourshows', type: 'wide', live: 'yourshows', kind: 'yourshows', group: 'A' }, { id: 'nba', type: 'game', live: 'nba', kind: 'nba' }, { id: 'channels', type: 'channel', live: 'channels', kind: 'channels' }, { id: 'noaddons', type: 'note', live: 'noaddons', kind: 'note', name: 'Films and series', reason: 'Add a Stremio add-on for films and series' }];
     return finish(out);
   }
   const c = candidates(p, { key, gameDay });

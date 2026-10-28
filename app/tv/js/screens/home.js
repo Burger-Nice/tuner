@@ -8,8 +8,8 @@
 import { esc, ic, setHtml, hm, leftText, sized, crest, teamPalette, initials } from '../util.js';
 import { S, on, store, scoped, settings, favList, continueRows, toggleFav, isFav, markWatched, progressOf, inProgress } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
-import { guideFor, guideNow, onNow, warm } from '../guide.js';
-import { nba, myGame, isMine, mySide, findFeeds, feedsNow, feedsKnown, bestChannel, teamChannel, setTeamChannel, channelCandidates, reveal, liveGames, show, recordFor, heldLive, gameById, ordinal, liveShown, behindReplay, shielded, replayProgress } from '../games.js';
+import { guideNow, onNow, warm } from '../guide.js';
+import { nba, myGame, mySide, findFeeds, feedsKnown, bestChannel, setTeamChannel, channelCandidates, reveal, show, recordFor, heldLive, gameById, ordinal, liveShown, behindReplay, shielded } from '../games.js';
 import { gameCard } from '../cards.js';
 import { playLive, watching } from '../player.js';
 import { push, go, current, setBar, focusTab } from '../router.js';
@@ -18,9 +18,11 @@ import { openOverlay, contextMenu, toast, scrollList, confirmMenu } from '../ui.
 import { resumeItem, openTitle } from '../actions.js';
 import { launchOpen, launchDone } from '../launch.js';
 import { gameMenu } from '../nba/hub.js';
+import { tipsIn } from '../nba/common.js';
 import { morningGame, WINDOW, findReplays, replaysOf, programmeView, heroRow, videoMask, sourceCaption } from '../catchup.js';
 import { heroAct, heroHold, resumeGame, watchFromTipoff, playProgramme } from '../replay.js';
 import { resumeAddonItem } from '../titlecopies.js';
+import { checkCopies } from '../subs.js';
 import { anyStreamAddon } from '../imdb.js';
 import * as R from '../rows.js';
 import * as SH from '../shelves.js';
@@ -131,7 +133,7 @@ function buildLines() {
     if (shortEp) out.push({ kind: 'short', f: shortEp });
     else if (films && lineData.film) out.push({ kind: 'film', it: lineData.film });
     if (out.length < 3) { const ch = lastChannel(); if (ch) out.push({ kind: 'ch', ch }); }
-    if (out.length < 2 && films) out.push({ kind: 'pick' });
+    if (out.length < (films ? 2 : 1) && !g) out.push({ kind: 'pick' });   // (always a line to land on)
   }
   const base = out.slice(0, 3);
   if (g) { if (lead) base.unshift({ kind: 'game', g }); else base.push({ kind: 'game', g }); }
@@ -951,6 +953,8 @@ function draw() {
   if (watching()) { behind = true; return; }
   if (!el || el.hidden) return;
   drawLineup();
+  // Continue watching's copies get their quality checks in the background, 60 s apart (subtitles SPEC 5.3)
+  checkCopies(continueRows().slice(0, 16).map((x) => x.item).filter((it) => it.url && (it.kind === 'movie' || it.kind === 'episode')), 'continue');
   if (!rows.length || mode !== 'rows') { drawStack(); }
   if (mode === 'rows') { mountRows(true); placeRows(); }
 }
@@ -1007,8 +1011,8 @@ export default {
   async enter(root, params, { fresh }) {
     // a new visit (the tab chosen again): the Marquee's first line, and the page worked out since the last one
     if (fresh) { if (mode === 'rows') setMode('mq'); lit = 0; touched = false; if (pendingPage) { page = pendingPage; pendingPage = null; rows = []; } }
-    if (!page) { const p = await R.cachedPage().catch(() => null); if (p && !page) page = p; }
-    draw();
+    draw();   // (the lineup at once: the router focuses its lit line on the next frame)
+    if (!page) { const p = await R.cachedPage().catch(() => null); if (p && !page) { page = p; draw(); } }
     loadLineData().catch(() => {});
     if (R.pageStale()) refreshRows();
     ensure('live').then(() => softRedraw()).catch(() => {});

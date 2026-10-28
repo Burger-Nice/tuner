@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const out = process.argv[2];
 require('fs').mkdirSync(out, { recursive: true });
-const KEY = { DPAD_UP: 'ArrowUp', DPAD_DOWN: 'ArrowDown', DPAD_LEFT: 'ArrowLeft', DPAD_RIGHT: 'ArrowRight', DPAD_CENTER: 'Enter', BACK: 'Escape' };
+const KEY = { DPAD_UP: 'ArrowUp', DPAD_DOWN: 'ArrowDown', DPAD_LEFT: 'ArrowLeft', DPAD_RIGHT: 'ArrowRight', DPAD_CENTER: 'Enter', BACK: 'Escape', CHANNEL_DOWN: 'PageDown', CHANNEL_UP: 'PageUp' };
 (async () => {
   const b = await chromium.launch({ args: ['--disable-web-security'] });
   const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 1 });
