@@ -1,0 +1,137 @@
+/* airglow Home, direction C "Glowline": the night as one line. Built on app/tv/brand/tokens.css + app/tv/ui.css.
+   Canvas 960 x 540 CSS px (rendered 2x). Safe area x 48-912, y 27-513. Animate only transform and opacity.
+   Gradients are two stops (layered where a scrim needs two directions); no filter:blur, no big shadows. */
+
+.screen{background:var(--a-bg-0)}
+.grain{position:absolute;inset:0;background:var(--a-grain);pointer-events:none}
+
+/* ---------- top bar (slim on Home: dimmed until the remote goes up) ---------- */
+.gtop{position:absolute;left:48px;right:48px;top:27px;height:36px;display:flex;align-items:center;z-index:8}
+.gtop .mk{height:24px;width:auto;margin-right:18px}
+.gtop .tab{height:36px;font-size:17px;line-height:36px;padding:0 12px;color:var(--a-text-2)}
+.gtop .tab.sel{color:var(--a-text-1)}
+.gtop .tab.sel::after{left:12px;right:12px}
+.gtop .tab .dot{width:7px;height:7px;border-radius:50%;background:var(--a-pink)}
+.gtop .clock{margin-left:auto;font:500 18px/36px var(--a-font-display);color:var(--a-text-1);letter-spacing:.02em}
+.gtop .avatar{margin-left:14px;width:32px;height:32px;font-size:15px;line-height:32px}
+
+/* ---------- the backdrop: the focused block's own art, full bleed ---------- */
+.bd{position:absolute;inset:0;overflow:hidden}
+.bd img{position:absolute;object-fit:cover}
+.scr-l{position:absolute;inset:0;background:linear-gradient(90deg,rgba(21,19,29,.96) 18%,rgba(21,19,29,0) 66%)}
+.scr-b{position:absolute;inset:0;background:linear-gradient(0deg,#15131D 31%,rgba(21,19,29,0) 64%)}
+.scr-t{position:absolute;left:0;right:0;top:0;height:110px;background:linear-gradient(180deg,rgba(21,19,29,.85),rgba(21,19,29,0))}
+
+/* ---------- hero copy (describes the focused block) ---------- */
+.hero{position:absolute;left:48px;top:84px;width:440px;z-index:4}
+.eyebrow{font:650 14px/18px var(--a-font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--a-pink-text);display:flex;align-items:center;gap:8px}
+.eyebrow .bar{width:18px;height:3px;border-radius:2px;background:var(--a-grad)}
+.tlogo{display:block;margin:10px 0 0 -6px;height:92px;width:auto;max-width:300px;object-fit:contain;object-position:left center}
+.tlogo.chalk{filter:brightness(0) invert(.95)}  /* a dark Cinemeta logo, recoloured to chalk (one cheap filter on a small image; the app can bake it once) */
+.ep{font:700 22px/28px var(--a-font-display);color:var(--a-text-1);margin-top:6px}
+.ep small{font:650 15px/28px var(--a-font-text);color:var(--a-text-3);margin-right:10px;letter-spacing:.02em}
+.meta{display:flex;align-items:center;gap:8px;margin-top:8px;font:600 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.meta .ends{color:var(--a-text-1)}
+.meta .ends b{font-weight:750;color:var(--a-pink-text)}
+.desc{margin-top:10px;font:500 16px/24px var(--a-font-text);color:var(--a-text-2);max-width:420px}
+.keys{display:flex;align-items:center;gap:18px;margin-top:16px;font:600 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.key{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 7px;margin-right:7px;border-radius:6px;border:1.5px solid var(--a-border-strong);font:700 11px/1 var(--a-font-text);letter-spacing:.06em;color:var(--a-text-1);background:rgba(21,19,29,.6)}
+.keys .k1{color:var(--a-text-1)}
+
+/* ---------- the Glowline ---------- */
+.gl-head{position:absolute;left:48px;right:48px;top:348px;display:flex;align-items:baseline;gap:12px;z-index:5;white-space:nowrap}
+.gl-head .t{font:700 15px/18px var(--a-font-display);letter-spacing:.16em;text-transform:uppercase;color:var(--a-text-1)}
+.gl-head .c{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.gl-head .r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.gl-glow{position:absolute;left:0;right:0;top:400px;height:80px;background:linear-gradient(0deg,rgba(213,64,245,.34),rgba(213,64,245,0));z-index:1}
+.gl-glow2{position:absolute;left:0;right:0;top:480px;height:60px;background:linear-gradient(180deg,rgba(249,91,172,.16),rgba(249,91,172,0));z-index:1}
+.gl-glow.fadeR{-webkit-mask:linear-gradient(90deg,#000 70%,transparent)}
+.gl-line{position:absolute;left:48px;right:48px;top:478px;height:2px;border-radius:2px;background:linear-gradient(90deg,#F95BAC,#D540F5);z-index:3}
+.gl-line.fade{background:linear-gradient(90deg,#F95BAC 70%,rgba(213,64,245,0))}
+.gl-now{position:absolute;top:473px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--a-text-1);box-shadow:0 0 0 3px var(--a-pink);z-index:6}
+
+.gl{position:absolute;left:48px;top:376px;height:102px;display:flex;align-items:flex-end;gap:6px;z-index:4}
+.gl-b{position:relative;flex:none;height:84px;border-radius:12px 12px 4px 4px;background:var(--a-surface-1);border:1px solid var(--a-border);overflow:visible}
+.gl-b .art{position:absolute;inset:0;border-radius:11px 11px 3px 3px;overflow:hidden}
+.gl-b .art img{width:100%;height:100%;object-fit:cover;display:block}
+.gl-b .art::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(21,19,29,.88),rgba(21,19,29,0) 62%)}
+.gl-b .lg{position:absolute;left:8px;bottom:7px;max-width:calc(100% - 16px);height:26px;object-fit:contain;object-position:left bottom;z-index:2}
+.gl-b .lg.chalk{filter:brightness(0) invert(.95)}
+.gl-b .badge{position:absolute;left:7px;top:7px;z-index:2;height:19px;padding:0 6px;border-radius:5px;background:rgba(21,19,29,.82);color:var(--a-text-1);font:700 12px/19px var(--a-font-text);letter-spacing:.06em;text-transform:uppercase}
+.gl-b .badge.p{background:var(--a-grad);color:var(--a-ink)}
+.gl-b .pr{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(61,59,69,.9);z-index:3;border-radius:0 0 3px 3px;overflow:hidden}
+.gl-b .pr i{display:block;height:100%;background:var(--a-grad)}
+.gl-b .when{position:absolute;left:0;top:calc(100% + 12px);font:600 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.gl-b .when b{font-weight:750;color:var(--a-pink-text);letter-spacing:.06em;margin-right:6px}
+.gl-b .when.r{left:auto;right:0}
+.gl-b.f{height:102px;transform:none;box-shadow:var(--a-focus-ring);border-color:transparent;z-index:6}
+.gl-b.f .lg{height:30px;bottom:11px}
+.gl-b.dim{opacity:.5}
+.gl-b.add{background:transparent;border:2px dashed var(--a-border-strong);display:grid;place-items:center;color:var(--a-text-2);height:64px}
+.gl-b.add .when{color:var(--a-text-3)}
+.gl-tick{position:absolute;top:474px;width:2px;height:10px;margin-left:-1px;background:var(--a-text-3);z-index:3;border-radius:1px}
+.gl-tick span{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font:700 12px/16px var(--a-font-text);color:var(--a-text-3);letter-spacing:.04em}
+
+/* ---------- game night: the stage ---------- */
+.stage{position:absolute;left:0;right:0;top:0;height:372px;overflow:hidden}
+.tfield{position:absolute;top:0;bottom:0}
+.tfield.l{left:-80px;width:620px;transform:skewX(-12deg);transform-origin:top left}
+.tfield.r{right:-80px;width:620px;transform:skewX(-12deg);transform-origin:top left}
+.tfield .edge{position:absolute;top:0;bottom:0;width:6px}
+.ghost{position:absolute;width:470px;height:470px;opacity:.13}
+.crest{position:absolute;width:132px;height:132px;object-fit:contain}
+.tname{position:absolute;font:italic 800 46px/46px var(--a-font-live);letter-spacing:.01em;color:var(--a-text-1);text-transform:uppercase;white-space:nowrap}
+.tname small{display:block;font:600 14px/18px var(--a-font-text);font-style:normal;letter-spacing:.08em;color:var(--a-text-2);margin-top:2px}
+.plate{position:absolute;transform:skewX(-12deg);background:rgba(21,19,29,.92);border:2px solid rgba(243,239,230,.16);border-radius:6px}
+.plate > div{transform:skewX(12deg)}
+.gn{font:italic 800 22px/24px var(--a-font-live);letter-spacing:.14em;text-transform:uppercase;color:var(--a-text-1)}
+
+/* ---------- game block on the line ---------- */
+.gl-b.game{background:var(--a-bg-1);border:1px solid var(--a-border);height:102px;border-radius:12px 12px 4px 4px}
+.gl-b.game .stripe{position:absolute;left:0;right:0;top:0;height:5px;border-radius:11px 11px 0 0;overflow:hidden;display:flex}
+.gl-b.game .stripe i{flex:1}
+.gl-b.game .el{position:absolute;left:0;top:5px;bottom:0;background:rgba(93,118,169,.20)}
+.gl-b.game .nowl{position:absolute;top:-6px;bottom:-8px;width:2px;margin-left:-1px;background:var(--a-live);z-index:4}
+.gl-b.game .gt{position:absolute;left:14px;top:16px;font:italic 800 21px/24px var(--a-font-live);letter-spacing:.04em;text-transform:uppercase;color:var(--a-text-1);white-space:nowrap}
+.stop{position:absolute;bottom:12px;z-index:5}
+.btn2.sm.dk{background:rgba(21,19,29,.7)}
+.btn.sm.f, .btn2.sm.f{box-shadow:var(--a-focus-ring);transform:scale(1.05)}
+
+/* ---------- browse (moving down) ---------- */
+.mini{position:absolute;left:48px;right:48px;top:27px;height:40px;display:flex;align-items:center;gap:14px;z-index:8;white-space:nowrap}
+.mini .t{font:700 14px/18px var(--a-font-display);letter-spacing:.16em;text-transform:uppercase;color:var(--a-text-1)}
+.mini .track{position:relative;flex:1;height:40px}
+.mini .track .ln{position:absolute;left:0;right:0;top:30px;height:2px;border-radius:2px;background:linear-gradient(90deg,#F95BAC,#D540F5)}
+.mini .seg{position:absolute;top:4px;height:24px;border-radius:5px;overflow:hidden;border:1px solid var(--a-border)}
+.mini .seg img{width:100%;height:100%;object-fit:cover;display:block}
+.mini .seg.cur{box-shadow:0 0 0 2px var(--a-pink)}
+.mini .r{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);display:flex;align-items:center;gap:8px}
+.rowt{position:absolute;left:48px;display:flex;align-items:baseline;gap:12px;white-space:nowrap;z-index:4}
+.rowt .t{font:700 20px/24px var(--a-font-display);color:var(--a-text-1)}
+.rowt .c{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.rowt.sm .t{font-size:17px;line-height:22px;color:var(--a-text-2)}
+.shelf{position:absolute;left:48px;display:flex;gap:12px;align-items:flex-start;z-index:4}
+.pst{flex:none;border-radius:var(--a-radius-poster);overflow:hidden;background:var(--a-surface-1);border:1px solid var(--a-border);position:relative}
+.pst img{width:100%;height:100%;object-fit:cover;display:block}
+.pst .tg{position:absolute;right:6px;top:6px}
+.unf{flex:none;position:relative;border-radius:var(--a-radius-poster);box-shadow:var(--a-focus-ring);z-index:6;background:var(--a-bg-1)}
+.unf .art{position:absolute;inset:0;border-radius:var(--a-radius-poster);overflow:hidden}
+.unf .art img{width:100%;height:100%;object-fit:cover}
+.unf .art::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(21,19,29,.94) 8%,rgba(21,19,29,0) 70%)}
+.unf .in{position:absolute;left:16px;right:16px;bottom:14px;z-index:2}
+.unf .in img.lg{height:50px;width:auto;max-width:230px;object-fit:contain;object-position:left bottom;display:block}
+.unf .in .m{display:flex;align-items:center;gap:7px;margin-top:8px;font:600 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.unf .fit{position:absolute;left:0;right:0;top:calc(100% + 10px);display:flex;align-items:center;gap:10px;font:600 14px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.unf .fit .mline{display:inline-block;width:46px;height:2px;border-radius:2px;background:linear-gradient(90deg,#F95BAC,#D540F5);position:relative}
+.unf .fit .mline::after{content:"";position:absolute;right:-3px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--a-orchid)}
+.unf .fit b{color:var(--a-pink-text);font-weight:750}
+
+/* game night: the line takes his team's colours (Beale Street blue to gold), the haze goes blue */
+.gn-mode .gl-line{background:linear-gradient(90deg,#5D76A9 60%,#F5B112)}
+.gn-mode .gl-glow{background:linear-gradient(0deg,rgba(93,118,169,.42),rgba(93,118,169,0))}
+.gn-mode .gl-glow2{background:linear-gradient(180deg,rgba(93,118,169,.20),rgba(93,118,169,0))}
+.gl-now.live{background:var(--a-live);box-shadow:0 0 0 3px var(--a-bg-0)}
+.gl-gap{flex:none;height:8px;margin-bottom:-3px;background:var(--a-bg-0);border-bottom:2px dashed var(--a-text-4);position:relative;z-index:5}
+.gl-gap span{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font:700 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.mini-crests{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.mini-crests img{width:34px;height:34px;object-fit:contain}

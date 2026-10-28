@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Glowline · game night, score hidden</title>
+<meta name="tl" content='{"now":"2026-10-27T01:52","screen":"game-live-hidden","game":"MEM at UTA, tip-off 01:00","started":false,"focus":"line:game:live","shield":"my team","unseen":["MEM at UTA"]}'>
+<link rel="stylesheet" href="../../../../app/tv/brand/fonts.css">
+<link rel="stylesheet" href="../../../../app/tv/brand/tokens.css">
+<link rel="stylesheet" href="../../../../app/tv/ui.css">
+<link rel="stylesheet" href="glowline.css">
+<style>
+:root{--a-grain:url("../../../../app/tv/brand/sprites/grain.png")}
+.stage{background:#4E008E}
+.sfade{position:absolute;left:0;right:0;top:0;height:372px;background:linear-gradient(180deg,rgba(21,19,29,0) 52%,#15131D 98%)}
+.topshade{position:absolute;left:0;right:0;top:0;height:90px;background:linear-gradient(180deg,rgba(21,19,29,.55),rgba(21,19,29,0))}
+.gline{position:absolute;left:0;right:0;top:308px;text-align:center;font:600 15px/20px var(--a-font-text);color:var(--a-text-2);z-index:4;white-space:nowrap}
+.gline .keys{justify-content:center;margin-top:10px}
+</style>
+</head><body>
+<div class="screen gn-mode">
+
+  <!-- the stage: his team's field on the left, the opponent's on the right, the brand's 12° live angle between them -->
+  <div class="stage">
+    <img class="ghost" src="img/team_utah_dark.png" style="right:-90px;top:-60px;opacity:.07">
+    <div class="tfield l" style="left:-100px;width:640px;background:#12173F">
+      <div class="edge" style="right:0;top:0;bottom:0;width:6px;position:absolute;background:#5D76A9"></div>
+      <img class="ghost" src="img/team_mem.png" style="left:10px;top:-60px;transform:skewX(12deg)">
+    </div>
+    <div class="edge" style="position:absolute;top:0;height:372px;left:540px;width:6px;background:#79A3DC;transform:skewX(-12deg);transform-origin:top left"></div>
+    <div class="grain"></div>
+    <div class="sfade"></div>
+    <div class="topshade"></div>
+  </div>
+
+  <div class="gtop">
+    <img class="mk" src="../../../../app/tv/brand/assets/mark-small.svg" alt="">
+    <div class="tab srch"><svg class="ic sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div>
+    <div class="tab sel">Home</div><div class="tab">Live</div><div class="tab">NBA</div><div class="tab">Movies</div><div class="tab">Series</div><div class="tab">Saved</div>
+    <div class="clock">01:52</div><div class="avatar">B</div>
+  </div>
+
+  <div class="gn abs" style="left:0;right:0;top:82px;text-align:center;z-index:4">Game night</div>
+  <img class="crest" src="img/team_mem.png" style="left:170px;top:100px;width:120px;height:120px;z-index:4">
+  <img class="crest" src="img/team_utah_dark.png" style="left:670px;top:100px;width:120px;height:120px;z-index:4">
+  <div class="tname" style="left:110px;width:240px;top:228px;text-align:center;z-index:4">Grizzlies<small>Memphis · away</small></div>
+  <div class="tname" style="left:606px;width:240px;top:228px;text-align:center;z-index:4">Jazz<small>Utah · home</small></div>
+
+  <div class="plate" style="left:380px;top:134px;width:200px;height:84px;z-index:4">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:4px">
+      <div style="display:flex;align-items:center;gap:10px;font:italic 800 28px/30px var(--a-font-live);letter-spacing:.04em;color:var(--a-text-1)">
+        <svg class="ic" viewBox="0 0 24 24" style="width:26px;height:26px"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2.5 12 2.5 12S6 19 12 19a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>SCORE HIDDEN</div>
+      <div style="font:600 14px/18px var(--a-font-text);color:var(--a-text-2)">Shield on · My team</div>
+    </div>
+  </div>
+
+  <div class="gline">Delta Center, Salt Lake City<span class="dot-sep"></span>NBA League Pass 4 · 1080p50<span class="dot-sep"></span>you haven’t started it
+  </div>
+
+  <!-- the Glowline on game night: earlier tonight, the wait folded, the game as a span with two ways in -->
+  <div class="gl-glow fadeR"></div><div class="gl-glow2"></div>
+  <div class="gl-head">
+    <span class="t">Tonight</span><span class="c">Tue 27 Oct · game night</span>
+    <span class="r c"><span class="key">◀ ▶</span>two ways in <span class="dot-sep"></span><span class="key">HOLD OK</span>Reveal score · Game page</span>
+  </div>
+  <div class="gl-line fade"></div>
+
+  <div class="gl">
+    <div class="gl-b dim" style="width:96px;height:64px">
+      <div class="art"><img src="img/ep_tt11280740_2_3.jpg"></div>
+      <span class="badge">✓ 2</span>
+      <div class="when">21:00</div>
+    </div>
+    <div class="gl-gap" style="width:44px"><span>≈</span></div>
+    <div class="gl-b game" style="width:520px">
+      <div class="stripe"><i style="background:#5D76A9"></i><i style="background:#4E008E"></i></div>
+      <div class="el" style="width:192px"></div>
+      <div class="nowl" style="left:192px"></div>
+      <div class="abs t-cap" style="left:14px;top:16px;color:var(--a-text-2)">52 min since tip-off</div>
+      <span class="a-live abs" style="left:204px;top:16px">Live</span>
+      <div class="gt" style="left:auto;right:14px">Grizzlies at Jazz</div>
+      <div class="abs t-cap" style="right:14px;bottom:20px;color:var(--a-text-2)">ends ~03:20</div>
+      <div class="stop" style="left:12px"><span class="btn2 sm dk"><svg class="ic sm" viewBox="0 0 24 24"><path d="M19 19L9 12l10-7z"/><path d="M5 5v14"/></svg>From tip-off</span></div>
+      <div class="stop" style="left:206px"><span class="btn sm f"><svg class="ic sm fill" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>Watch live</span></div>
+      <div class="when"><b style="color:var(--a-text-2)">TIP-OFF</b>01:00</div>
+      <div class="when" style="left:192px;transform:translateX(-50%)"><b style="color:var(--a-live-text);margin-right:4px">NOW</b>01:52</div>
+    </div>
+    <div class="gl-b" style="width:120px;height:64px;background:var(--a-surface-1)">
+      <div class="mini-crests"><img src="img/team_pho.png">at<img src="img/team_lal.png"></div>
+      <div class="when">03:30</div>
+    </div>
+  </div>
+  <div class="gl-now live" style="left:392px"></div>
+</div>
+</body></html>
