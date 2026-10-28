@@ -455,12 +455,13 @@ final class Handover {
 
     // ---------- Up next keeps the source (SPEC 8.4) ----------
 
-    /** 2 minutes before the end of an add-on episode: the app answers with queue-next. */
+    /** Halfway through an add-on episode (or 2 minutes before its end, a short one): the app answers with queue-next,
+     * so the next one is there when the credits start (Up next at the credits, skip SPEC 5.1). */
     void tick(long pos, long dur) {
         decide();
         PlayerActivity.Entry e = a.entryNow();
         if (e == null || nextAsked || !e.addon() || !e.id.startsWith("episode:") || dur <= 0 || notReady || a.hasNext()) return;
-        if (dur - pos > 120000 || dur - pos <= 0) return;
+        if ((pos < dur / 2 && dur - pos > 120000) || dur - pos <= 0) return;
         nextAsked = true;
         JSObject ev = a.event("need");
         ev.put("what", "next");

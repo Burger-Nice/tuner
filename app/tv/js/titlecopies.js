@@ -200,6 +200,13 @@ function mergeEpisodes(seasons, vids, match) {
   return rows;
 }
 
+// A series' episodes from its Cinemeta entry alone, in order (Specials last): for a play that didn't start on its page.
+async function seriesRows(imdb) {
+  const m = await AD.meta('series', imdb);
+  const rows = mergeEpisodes([], m?.videos || [], { id: imdb, level: 'sure' });
+  return rows.sort((a, b) => (+a.season === 0) - (+b.season === 0) || +a.season - +b.season || +a.ep - +b.ep);
+}
+
 // ---------- playing an add-on copy (design/ui-v1/addons/PORT-NATIVE.md) ----------
 // The item the player and progress see: the title's IMDb key (progress by title, SPEC 8.3) and the copy's identity;
 // its link and headers are non-enumerable, so saving it (Continue watching) never writes them.
@@ -257,10 +264,21 @@ export async function resumeAddonItem(it, { restart } = {}) {
   const t = { kind: cp.kind || 'movie', key: cp.tkey || it.id, id: cp.tid || it.id, name: cp.title || it._title || it.name, poster: it.poster, year: it.year, versions: [] };
   const tc = { match: { id: it.kind === 'episode' ? it.imdbSeries : it.id, level: 'sure' }, meta: cp.runtime ? { runtime: cp.runtime / 60 } : null, episodeCopies: () => all, copies: () => all };   // (its runtime: the placeholder rule)
   const row = it.kind === 'episode' ? { vid: { id: it.id }, season: it.season, ep: it.ep, name: it.name } : null;
+  if (row) {
+    // Up next from Continue watching: the next episode's copies, asked the same way (SPEC 8.4)
+    const epQ = new Map();
+    tc.askEpisode = (r) => { if (!r?.vid) return null; if (!epQ.has(r.vid.id)) epQ.set(r.vid.id, AD.askStreams('series', r.vid.id, { match: 'sure' })); return epQ.get(r.vid.id); };
+    tc.episodeCopies = (r) => { const q = r?.vid ? epQ.get(r.vid.id) : null; return q ? rank(AD.copiesOf(q).map((c) => Object.assign(c, { match: 'sure', notReady: c.claim.notReady, providerLenSec: cp.runtime || 0 })), { langs: prefLangs() }) : all; };
+  }
   const item = addonItem(t, same, tc, row);
   item._entry.copies = identities(all.filter((c) => c !== same));
   if (same.key !== cp.key) toast(`That copy has gone · playing ${copyLine(same)} · ${same.source}`, 4000);
   lastPlay = { tc, list: all, t, row, item, playing: same.key };
+  // the series' episodes (Cinemeta's), so Up next knows what comes after this one
+  if (row && it.imdbSeries) seriesRows(it.imdbSeries).then((rows) => {
+    const r = rows.find((x) => +x.season === +it.season && +x.ep === +it.ep);
+    if (r && lastPlay?.item === item) lastPlay = { ...lastPlay, row: r, rows };
+  }).catch(() => {});
   // another copy: 10 s earlier, so nothing is missed where the cuts differ (8.3)
   const p = progressOf(item);
   playVod(item, { restart, entry: same.key !== cp.key && !restart && inProgress(p) ? { ...item._entry, startAt: Math.max(0, p.t - 10) } : undefined });
@@ -289,7 +307,7 @@ native?.player.onEvent((e) => {
     emit('copies');
   } else if (e.type === 'need' && e.what === 'next' && lastPlay.row && lastPlay.rows) {
     const rows = lastPlay.rows, i = rows.findIndex((r) => r === lastPlay.row || (r.vid && lastPlay.row.vid && r.vid.id === lastPlay.row.vid.id));
-    const next = rows[i + 1];
+    const next = i < 0 ? null : rows.slice(i + 1).find((r) => !r.soon);   // (not one that isn't out yet)
     if (!next) return;
     const tc = lastPlay.tc;
     const q = tc.askEpisode?.(next);
