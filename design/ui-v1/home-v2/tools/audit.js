@@ -41,7 +41,9 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const met2 = document.querySelectorAll('.rail:not(.peek) .wc .tx span:not(.dot-sep)')[1]; if (met2) met2.textContent = 'S1 · E3 · 21 min left of a very long episode name';  // NOTRUNC
       const fa = document.querySelector('.hv-fa'); const lp = document.querySelector('.hv-status .a-live'); if (fa && lp) { const cl = lp.cloneNode(true); cl.style.cssText = 'position:absolute;left:200px;top:150px;z-index:40'; s.appendChild(cl); }  // LIVEBG
       const chc = document.querySelector('.wc.chc'); if (chc) chc.insertAdjacentHTML('afterbegin', '<div class="art"><img src="x.png" alt=""></div>');                               // DATA
+      const pl = document.querySelector('.hv-bb:not(.hv-hidden) .hv-plot'); if (pl) { pl.style.setProperty('-webkit-line-clamp', '8'); pl.style.maxHeight = 'none'; pl.textContent = (pl.textContent + ' ').repeat(8); }                 // COVERED
       const hbb = document.querySelector('.hv-btns'); if (hbb) hbb.style.top = (parseFloat(getComputedStyle(hbb).top) + 12) + 'px';                                                // HERO
+      const asf = document.querySelector('.hv-bb:not(.hv-hidden) .hv-ctx .asof'); if (asf) { asf.style.right = 'auto'; asf.style.left = '380px'; asf.style.zIndex = 50; }                                   // SEAM
       const gcs = document.querySelectorAll('.hv-row[data-rail="nba"] .gc:not(.next)'); if (gcs.length > 1) gcs[0].parentElement.insertBefore(gcs[gcs.length - 1], gcs[0]);        // CONSIST (row order)
     });
     const r = await p.evaluate(() => {
@@ -51,7 +53,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
       const NOFOCUS = !!document.querySelector('meta[name="nofocus"],meta[name="storyboard"]');
       const all = document.querySelectorAll('.screen *').length, art = document.querySelectorAll('.art-svg, .art-svg *').length;
       const small = [], banned = [];
-      const issues = { overlap: [], clip: [], safe: [], contrast: [], home: [] };
+      const issues = { overlap: [], clip: [], safe: [], contrast: [], home: [] }; const MODAL_SEL = '.menu,.sheet,.ctxmenu';
       const short = (e) => (e.className && e.className.baseVal === undefined ? '.' + String(e.className).trim().split(/\s+/).slice(0, 2).join('.') : e.tagName.toLowerCase());
       const vis = (e) => { for (let a = e; a && a !== document.body; a = a.parentElement) { const c = getComputedStyle(a); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return false; } return true; };
       // ---- text boxes: one Range rect per text-bearing element (direct text nodes only)
@@ -75,6 +77,9 @@ const { chromium } = require('playwright'); const path = require('path'); const 
         // text clipped away by the screen (a card that slid out) or under a menu is not on screen
         const hit = (x, y) => { const h = document.elementFromPoint(Math.min(959, Math.max(0, x)), Math.min(539, Math.max(0, y))); return !h || e.contains(h) || h.contains(e) && !h.matches('.scrim,.sheet,.menu,.ctxmenu'); };
         const cy = (y0 + y1) / 2, w = x1 - x0;
+        // v1.2 COVERED: any part of the text under a button, card or plate (not a scrim, cover, dim, menu or the screen edge) is a defect, not "off screen"
+        for (const px of [x0 + 2, x0 + w / 2, x1 - 2]) { if (px < 0 || px >= 960 || cy < 0 || cy >= 540) continue; const hc = document.elementFromPoint(px, cy);
+          const solid = hc && hc.closest('.btn,.btn2,.wc,.pc,.gc,.endcard,.hv-sp,.hv-clk,.hv-side,.t-cap'); if (solid && !solid.contains(e) && !e.closest(MODAL_SEL) && !solid.closest(MODAL_SEL)) { issues.overlap.push(`COVERED: "${txt.slice(0, 26)}" is under ${short(solid)}`); break; } }
         if (!(hit(x0 + 2, cy) || hit(x0 + w / 2, cy) || hit(x1 - 2, cy))) continue;
         texts.push({ e, cs, x0, y0, x1, y1, txt: txt.slice(0, 22), fs });
       }
@@ -285,6 +290,8 @@ const { chromium } = require('playwright'); const path = require('path'); const 
           let diff = (th * 60 + tm) - (nh * 60 + nm); if (diff < -60) diff += 1440; const mm = /In (\d+)h (\d+)m/.exec(st) ? +RegExp.$1 * 60 + +RegExp.$2 : /In (\d+) min/.exec(st) ? +RegExp.$1 : /Tip-off/.test(st) ? 0 : null;
           if (mm != null && Math.abs(mm - diff) > 1) issues.home.push(`CONSIST: "${st}" for a ${tip.textContent} tip-off at ${tl.now}`); }
       }
+      // ---- SEAM (v1.2): no text in the band crosses the 12° split (the fan line stays on the away field, the copy's label on the home field)
+      { const sp = document.querySelector('.hv-bb:not(.hv-hidden) .hv-band .hv-split'); if (sp) { const q = sp.getBoundingClientRect(); for (const t of texts) { if (!t.e.closest('.hv-bb') || t.e.closest('.sb-shot') || t.y1 < 116 || t.y0 > 222) continue; if (t.x1 > q.left - 6 && t.x0 < q.right + 6) issues.home.push(`SEAM: "${t.txt}" crosses the split`); } } }
       // ---- DATA (review 4): a channel card never carries art
       for (const c of document.querySelectorAll('.wc.chc')) if (c.querySelector('.art-svg,.art img')) issues.home.push('DATA: a channel card with art (live TV has none)');
       const livePills = [...document.querySelectorAll('.a-live:not(.compact)')].filter((e) => vis(e) && !e.closest('.sb-shot') && !e.closest('.rail')).map((e) => { const q = e.getBoundingClientRect(); return [q.left, q.top, q.right, q.bottom]; });

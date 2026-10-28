@@ -17,6 +17,74 @@
   "safe": -5.3
  },
  {
+  "f": "home-live.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   241.6,
+   220.4,
+   298.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-behind.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   241.6,
+   199.3,
+   298.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-pre.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   241.6,
+   275.1,
+   298.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-pre-choose.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   241.7,
+   264.1,
+   298.3
+  ],
+  "safe": -5.2
+ },
+ {
   "f": "home-home-rockets.html",
   "el": ".btn.f",
   "inset": false,
@@ -32,5 +100,311 @@
    298.4
   ],
   "safe": -5.3
+ },
+ {
+  "f": "home-home-nuggets.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   241.6,
+   220.4,
+   298.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-morning.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   241.6,
+   290.8,
+   298.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-backlog.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   241.6,
+   199.3,
+   298.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-final-seen.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   241.7,
+   213.8,
+   298.3
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "home-evening.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   199.3,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-new-episode.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   171.2,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-new-season.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   223.6,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-upnext.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   171.2,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-browse.html",
+  "el": ".wc.dr",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   114,
+   261.1,
+   241
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "home-late.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   199.3,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-scrolled.html",
+  "el": ".box.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   114.1,
+   183.4,
+   319.9
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "home-channels.html",
+  "el": ".wc.chc",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.8,
+   388,
+   261.1,
+   515
+  ],
+  "safe": -5.2
+ },
+ {
+  "f": "home-card-menu.html",
+  "el": ".lr.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   274,
+   216,
+   502,
+   274
+  ],
+  "safe": 189
+ },
+ {
+  "f": "home-offline.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   199.3,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-discover.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   193.3,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-first.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   237.6,
+   193.3,
+   294.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-m3u.html",
+  "el": ".btn.f",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   42.7,
+   241.6,
+   230,
+   298.4
+  ],
+  "safe": -5.3
+ },
+ {
+  "f": "home-rows-setting.html",
+  "el": ".arow.f-ring",
+  "inset": false,
+  "top": 100,
+  "bottom": 100,
+  "left": 100,
+  "right": 100,
+  "min": 100,
+  "ring": [
+   267,
+   395,
+   917,
+   461
+  ],
+  "safe": -5
  }
 ]
