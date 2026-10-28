@@ -421,6 +421,8 @@ window.TUNER_TEST = true;
         await PL.playVod(s1[0], { queue: eps, restart: true });
         await until(() => state()?.watching, 10000);
         await wait(3500);
+        await resume('skip-sunny-playing');   // (playing, the controls gone, before the first check)
+        await hidden('skip-sunny-controls');
         // SK-1: from 1:40 with no key, the Skip intro chip at 1:44
         await sk('skip-sunny-e1-seek', 'seek:100000', 1500);
         let s = await poll('skip-chip', (x) => has(x, /chip=skip /), 9000);
