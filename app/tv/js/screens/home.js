@@ -555,7 +555,7 @@ function chCard(ch, i) {
   const pg = pr ? Math.max(0, Math.min(100, ((Date.now() - pr.start) / (pr.end - pr.start)) * 100)) : 0;
   const tc = '#3D3B45';
   return `<div class="hf-w chn fx" tabindex="-1" data-i="${i}" data-key="ch:${esc(ch.id)}" data-hold style="--tc:${tc}"><span class="tile">${ch.logo ? `<img src="${esc(ch.logo)}" alt="" data-ini="${esc(initials(ch.name))}">` : esc(initials(ch.name))}</span><span class="n">${esc(ch.num)}</span>
-    <div class="ln">${esc(pv?.title || chShort(ch.name))}</div><div class="u">${pr ? `until ${hm(pr.end)}` : pv ? esc(chShort(ch.name)) : 'Channel'}</div>${pr ? `<div class="pb"><i style="width:${pg}%"></i></div>` : ''}</div>`;
+    <div class="ln">${esc(pv?.title || chShort(ch.name))}</div><div class="u">${pr ? `until ${hm(pr.end)}` : pv ? esc(chShort(ch.name)) : 'No guide information'}</div>${pr ? `<div class="pb"><i style="width:${pg}%"></i></div>` : ''}</div>`;
 }
 // the hub's game card; a hidden game that is on says so and nothing more (no quarter, no clock: SPEC 8)
 function homeGameCard(g, i) {
