@@ -69,6 +69,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 - Commit as `git -c user.name="Tuner" -c user.email="birgirsveinn@gmail.com"`; no AI model names in commits or code.
 - Never commit the Android signing key or its password (only in the `TUNER_KEY_PASSWORD` secret; never ask for it).
   Don't make the repo private.
+- Always research first (current sources, patterns proven at scale, linked in the spec's Research section); prefer
+  what's been tested and done before over untested inventions, and say where a design departs and why.
 - Design and brand work: a brand/UX agent designs, an independent reviewer scores it (out of 10), and it goes back
   below 7.5 (never tell the reviewer the bar). Brand and design history: `design/` (brand-v5, ui-v1/UI-SPEC.md, sound-v1).
 - Pick the model for the job (the owner wants quality): big design work on the most capable model (Fable 5.1);
