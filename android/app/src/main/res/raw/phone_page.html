@@ -32,17 +32,17 @@ button:disabled{opacity:.5}
 </section>
 
 <section id="send" hidden>
-  <h1>Send to your TV</h1>
-  <p>Paste an add-on's link. It usually ends in manifest.json.</p>
+  <h1 id="sh">Send to your TV</h1>
+  <p id="sp">Paste an add-on's link. It usually ends in manifest.json.</p>
   <input id="u" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…/manifest.json" aria-label="The add-on's link">
   <div class="err" id="ue"></div>
   <button id="ub">Send to the TV</button>
-  <p class="pn">Works only on your home network. The TV asks before it adds anything.</p>
+  <p class="pn" id="sendnote">Works only on your home network. The TV asks before it adds anything.</p>
 </section>
 
 <section id="sent" hidden>
   <h1>Sent</h1>
-  <p>Look at your TV. It asks before adding it.</p>
+  <p id="tp">Look at your TV. It asks before adding it.</p>
   <button class="two" id="again">Send another</button>
   <p class="pn">This page stops working when you close the screen on the TV. To use it again, open Add an add-on.</p>
 </section>
@@ -50,7 +50,16 @@ button:disabled{opacity:.5}
 <script>
 (function () {
   var token = '__TOKEN__';
+  var kind = '__KIND__';   // 'link' (an add-on) or 'tmdb' (the TMDB key)
   var $ = function (id) { return document.getElementById(id); };
+  if (kind === 'tmdb') {
+    $('sh').textContent = 'Send your TMDB key';
+    $('sp').innerHTML = 'Paste your <b>API Read Access Token</b>. It is on themoviedb.org under Settings, API. It stays on your TV.';
+    $('u').type = 'text'; $('u').placeholder = 'eyJhbGciOiJIUzI1NiJ9…'; $('u').setAttribute('aria-label', 'Your TMDB key'); $('u').setAttribute('inputmode', 'text');
+    $('ub').textContent = 'Send to the TV';
+    $('tp').textContent = 'Look at your TV. It checks the key with TMDB.';
+    $('sendnote').textContent = 'Works only on your home network. The key goes only to your TV.';
+  }
   function show(id) { ['code', 'send', 'sent'].forEach(function (x) { $(x).hidden = x !== id; }); var f = $(id).querySelector('input'); if (f) f.focus(); }
   function post(path, body) {
     return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' })
@@ -71,10 +80,10 @@ button:disabled{opacity:.5}
   $('c').onkeydown = function (e) { if (e.key === 'Enter') $('cb').onclick(); };
   $('ub').onclick = function () {
     var v = $('u').value.trim();
-    if (!v) { $('ue').textContent = 'Paste the link first.'; return; }
+    if (!v) { $('ue').textContent = kind === 'tmdb' ? 'Paste the key first.' : 'Paste the link first.'; return; }
     if (v.length >= 2048) { $('ue').textContent = 'That’s too long to be an add-on link.'; return; }
     $('ub').disabled = true;
-    post('/' + token + '/send', { url: v }).then(function (j) {
+    post('/' + token + '/send', kind === 'tmdb' ? { key: v } : { url: v }).then(function (j) {
       $('ub').disabled = false;
       if (j.ok) { $('u').value = ''; $('ue').textContent = ''; show('sent'); return; }
       $('ue').textContent = j.error || 'That didn’t reach the TV.';

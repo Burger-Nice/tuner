@@ -131,6 +131,8 @@ public class TunerPlayerPlugin extends Plugin {
         // page, the safe launcher for another app's link, and the TV's own region for countryWhitelist
         r.put("addons", true);
         r.put("phonePage", true);
+        // the phone page also takes the owner's TMDB key (home-final SPEC 6a): start it with kind "tmdb"
+        r.put("phoneKey", true);
         r.put("openApp", true);
         String region = java.util.Locale.getDefault().getCountry();
         if (region != null && region.matches("[A-Za-z]{2,3}")) r.put("region", region);
@@ -415,12 +417,12 @@ public class TunerPlayerPlugin extends Plugin {
     /** Starts the page on the TV's home-network address (or swaps its code): { address: "192.168.1.23:8790" }. */
     @PluginMethod
     public void startPhonePage(PluginCall call) {
-        String token = call.getString("token", ""), code = call.getString("code", "");
+        String token = call.getString("token", ""), code = call.getString("code", ""), kind = call.getString("kind", "link");
         Integer port = call.getInt("port", 8790);
         Context ctx = getContext();
         new Thread(() -> {
             try {
-                String address = PhonePage.start(ctx, token, code, port == null ? 8790 : port, (e) -> notifyListeners("phone", e));
+                String address = PhonePage.start(ctx, token, code, port == null ? 8790 : port, kind, (e) -> notifyListeners("phone", e));
                 JSObject r = new JSObject();
                 r.put("address", address);
                 call.resolve(r);

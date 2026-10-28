@@ -54,6 +54,8 @@ final class PhonePage {
     // a whole request gets 10 s: a client sending a byte now and then can't hold a thread
     private final ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     private volatile String token, code;
+    // what the page asks for: "link" (an add-on's manifest link) or "tmdb" (the owner's TMDB key, home-final SPEC 6a)
+    private volatile String kind = "link";
     private volatile int wrong;
     private volatile boolean locked, closed;
     private volatile long until;
@@ -67,12 +69,15 @@ final class PhonePage {
     }
 
     /** Starts it, or (running already) swaps the code and token and gives it 10 more minutes. Returns "ip:port". */
-    static synchronized String start(Context ctx, String token, String code, int port, Consumer<JSObject> emit) throws IOException {
+    static synchronized String start(Context ctx, String token, String code, int port, Consumer<JSObject> emit) throws IOException { return start(ctx, token, code, port, "link", emit); }
+    static synchronized String start(Context ctx, String token, String code, int port, String kind, Consumer<JSObject> emit) throws IOException {
         if (token == null || !token.matches("[A-Za-z0-9]{8,64}")) throw new IOException("bad token");
         if (code == null || !code.matches("\\d{6}")) throw new IOException("bad code");
+        String k = "tmdb".equals(kind) ? "tmdb" : "link";
         if (running != null && !running.closed) {
             running.token = token;
             running.code = code;
+            running.kind = k;
             running.wrong = 0;
             running.locked = false;
             running.until = SystemClock.elapsedRealtime() + LIFE_MS;
@@ -96,6 +101,7 @@ final class PhonePage {
         PhonePage pp = new PhonePage(ss, ip.getHostAddress() + ":" + ss.getLocalPort(), html, emit);
         pp.token = token;
         pp.code = code;
+        pp.kind = k;
         pp.until = SystemClock.elapsedRealtime() + LIFE_MS;
         running = pp;
         Thread t = new Thread(pp::serve, "airglow-phone-page");
@@ -212,7 +218,7 @@ final class PhonePage {
             if ("GET".equals(r.method) && ("/".equals(r.path) || ("/" + tok).equals(r.path))) {
                 boolean withToken = !"/".equals(r.path) && same(r.path.substring(1), tok);
                 emit("visit", null);
-                String html = page.replace("__TOKEN__", withToken ? tok : "");
+                String html = page.replace("__TOKEN__", withToken ? tok : "").replace("__KIND__", kind);
                 send(out, 200, "text/html; charset=utf-8", html.getBytes(StandardCharsets.UTF_8));
                 return;
             }
@@ -236,7 +242,15 @@ final class PhonePage {
             }
             if ("POST".equals(r.method) && r.path.startsWith("/") && r.path.endsWith("/send") && same(r.path.substring(1, r.path.length() - 5), tok)) {
                 String url = "";
-                try { url = new JSONObject(new String(r.body, StandardCharsets.UTF_8)).optString("url", ""); } catch (Exception ignored) {}
+                JSONObject body = null;
+                try { body = new JSONObject(new String(r.body, StandardCharsets.UTF_8)); url = body.optString("url", ""); } catch (Exception ignored) {}
+                if ("tmdb".equals(kind)) {
+                    String key = tmdbKey(body == null ? "" : body.optString("key", url));
+                    if (key == null) { json(out, 400, "{\"error\":\"That isn't a TMDB key. Copy the API Read Access Token from themoviedb.org.\"}"); return; }
+                    emitKey(key);
+                    json(out, 200, "{\"ok\":true,\"text\":\"Sent\"}");
+                    return;
+                }
                 String ok = manifestLink(url);
                 if (ok == null) { json(out, 400, "{\"error\":\"That isn't an add-on's link. It usually ends in manifest.json.\"}"); return; }
                 emit("sent", ok);
@@ -257,6 +271,12 @@ final class PhonePage {
         if (!u.matches("(?i)https?://[^\\s/?#@]+(/[^\\s?#]*)?/manifest\\.json")) return null;
         return u;
     }
+    /** A TMDB key as pasted: the API Read Access Token (a long JWT) or the 32-character API key; else null. */
+    static String tmdbKey(String v) {
+        if (v == null) return null;
+        String k = v.trim().replaceFirst("(?i)^bearer\\s+", "").replaceAll("^[\"']|[\"']$", "");
+        return k.matches("[A-Za-z0-9._-]{32,1024}") ? k : null;
+    }
     /** Compares in constant time (the code and token). */
     static boolean same(String a, String b) {
         if (a == null || b == null) return false;
@@ -268,6 +288,13 @@ final class PhonePage {
         JSObject e = new JSObject();
         e.put("type", type);
         if (url != null) e.put("url", url);
+        try { emit.accept(e); } catch (Exception ignored) {}
+    }
+    private void emitKey(String key) {
+        if (emit == null || closed) return;
+        JSObject e = new JSObject();
+        e.put("type", "key");
+        e.put("key", key);
         try { emit.accept(e); } catch (Exception ignored) {}
     }
     private static void json(OutputStream out, int code, String body) throws IOException { send(out, code, "application/json; charset=utf-8", body.getBytes(StandardCharsets.UTF_8)); }
