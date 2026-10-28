@@ -14,6 +14,7 @@ import { titleSubs } from '../titlesubs.js';
 import { keyOf } from '../util.js';
 import * as AD from '../addons.js';
 import { SPIN } from './addons.js';
+import { savedMatch } from '../imdb.js';
 
 let el, t = null, ver = null, info = null, season = null, epFocus = null, my = 0;
 // tc: this title's copies from every source (titlecopies.js; design/ui-v1/addons/SPEC.md 5). Inert with no stream add-on.
@@ -56,11 +57,24 @@ function epLen(d) {
   if (!min) return String(d || '');
   return min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `${min} min`;
 }
+// An episode's progress under either name: the provider's episode, or an add-on copy's (played under its Cinemeta id,
+// tt…:season:episode), whichever was watched last; so a copy from an add-on counts on the provider's episode too.
+function epProgress(e) {
+  let best = progressOf(e);
+  const imdb = tc?.match?.id || savedMatch(t)?.id || '';
+  const ids = [rowOf.get(e)?.vid?.id, imdb && e.season != null && e.ep != null ? `${imdb}:${+e.season}:${+e.ep}` : ''];
+  for (const id of new Set(ids)) {
+    if (!id || id === e.id) continue;
+    const p = progressOf({ kind: 'episode', id });
+    if (p && (!best || p.at > best.at)) best = p;
+  }
+  return best;
+}
 function seriesResume() {
   const eps = episodes();
   if (!eps.length) return null;
   let latest = null;
-  for (const e of eps) { const p = progressOf(e); if (p && (!latest || p.at > latest.p.at)) latest = { e, p }; }
+  for (const e of eps) { const p = epProgress(e); if (p && (!latest || p.at > latest.p.at)) latest = { e, p }; }
   const first = eps.find((e) => +e.season > 0 && !notOut(e)) || eps[0];
   if (!latest) return { ep: first, label: `Play S${first.season} · E${first.ep}` };
   if (inProgress(latest.p)) return { ep: latest.e, label: `Resume S${latest.e.season} · E${latest.e.ep}`, p: latest.p };
@@ -153,7 +167,7 @@ function draw() {
     const s = all.find((x) => x.n === season);
     const fe = epFocus && s.eps.includes(epFocus) ? epFocus : r?.ep && s.eps.includes(r.ep) ? r.ep : s.eps[0];
     const eps = s.eps.map((e, i) => {
-      const ep = progressOf(e), done = ep && (ep.done || ep.t >= ep.d * 0.94), part = inProgress(ep);
+      const ep = epProgress(e), done = ep && (ep.done || ep.t >= ep.d * 0.94), part = inProgress(ep);
       const only = e._row ? `<span class="ad-only">${PUZZLE}Add-on</span>` : '';
       const len = notOut(e) ? `Out ${new Date(e._row.soon).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}` : part ? leftText(ep.d - ep.t) : epLen(e.duration);
       return `<div class="ep fx${done ? ' done' : ''}${notOut(e) ? ' soon' : ''}" tabindex="-1" data-ep="${i}" data-key="ep:${esc(e.season)}:${esc(e.ep)}:${esc(e.id)}"><div class="th"><div class="art">${img(e.still || t.poster)}</div><span class="num">${e.ep}</span>${only}${done ? `<span class="chk">${ic('check')}</span>` : ''}${part ? `<div class="prog flush"><i style="width:${Math.min(100, (ep.t / ep.d) * 100)}%"></i></div>` : ''}</div><div class="eb"><b>${esc(epName(e) || `Episode ${e.ep}`)}</b><span>${esc(len)}</span></div></div>`;
