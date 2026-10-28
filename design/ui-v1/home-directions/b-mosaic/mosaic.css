@@ -1,0 +1,106 @@
+/* airglow Home direction B: Mosaic. A wall of artwork, 12 px gutters, tiles sized by how much they matter tonight.
+   Canvas 960 x 540, safe x 48-912, y 27-513. Only transform and opacity animate. */
+html, body { margin: 0; width: 960px; height: 540px; overflow: hidden; background: var(--a-bg-0); color: var(--a-text-1); font-family: var(--a-font-text); -webkit-font-smoothing: antialiased; }
+.screen { position: relative; width: 960px; height: 540px; overflow: hidden; background: var(--a-bg-0); }
+.screen > * { position: absolute; }
+
+/* the ground takes the focused tile's colour: flat, deep, two stops, grain over it */
+.amb { inset: 0; background: radial-gradient(120% 90% at var(--ax, 24%) var(--ay, 36%), var(--amb) 0, rgba(21,19,29,0) 70%); opacity: .74; }
+.grain { inset: 0; background: url("../../../../app/tv/brand/sprites/grain.png"); opacity: .55; pointer-events: none; }
+
+/* top bar: the mark, the tabs, the clock */
+.topbar { left: 48px; right: 48px; top: 32px; height: 40px; display: flex; align-items: center; gap: 28px; }
+.topbar .mk { height: 28px; width: auto; display: block; }
+.topbar .tabs { display: flex; gap: 26px; align-items: center; font: 500 17px/20px var(--a-font-display); color: var(--a-text-3); }
+.topbar .tab { position: relative; padding: 4px 0; }
+.topbar .tab.sel { color: var(--a-text-1); font-weight: 700; }
+.topbar .tab.sel::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; border-radius: 2px; background: var(--a-grad); }
+.topbar .tab .ic { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.topbar .tb-r { margin-left: auto; display: flex; align-items: center; gap: 14px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); font-variant-numeric: tabular-nums; }
+.topbar .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--a-grad); display: grid; place-items: center; }
+.topbar .avatar svg { width: 18px; height: 18px; fill: none; stroke: var(--a-ink); stroke-width: 2.2; stroke-linecap: round; }
+.live { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 9px; border: 2px solid var(--a-live); border-radius: 999px; color: var(--a-live-text); background: var(--a-live-soft); font: 700 11px/1 var(--a-font-text); letter-spacing: .12em; text-transform: uppercase; }
+.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--a-live); }
+.eyeoff { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
+
+/* the wall */
+.wall { left: 48px; top: 84px; width: 1000px; }
+.band { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.tile { position: relative; border-radius: 16px; overflow: hidden; background: var(--a-surface-1); flex: none; box-shadow: 0 0 0 1px rgba(60,52,82,.6); }
+.tile.w6 { width: 426px; height: 228px; }
+.tile.w3 { width: 207px; height: 228px; }
+.tile.p { width: 124px; height: 186px; border-radius: var(--a-radius-poster); }
+.tile.ch { width: 184px; height: 87px; }
+.tile.door { width: 207px; height: 150px; }
+.tile .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--pos, 50% 30%); display: block; }
+.tile .veil { position: absolute; inset: 0; background: rgba(21,19,29,.30); }
+.tile.on { box-shadow: var(--a-focus-ring); transform: scale(1.03); z-index: 3; }
+.tile.door.on { transform: scale(1.02); }
+.tile.on .veil { display: none; }
+.tile .lab { position: absolute; left: 10px; top: 10px; display: inline-flex; align-items: center; gap: 8px; height: 22px; padding: 0 9px; border-radius: 7px; background: rgba(21,19,29,.78); font: 650 12px/1 var(--a-font-text); letter-spacing: .1em; text-transform: uppercase; color: var(--a-text-2); white-space: nowrap; }
+.tile.on .lab { color: var(--a-pink-text); }
+.tile .lab.r { left: auto; right: 10px; }
+.tile .sy { position: absolute; left: 0; right: 0; bottom: 0; height: 60%; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.86)); }
+.tile .lg { position: absolute; left: 14px; bottom: 44px; height: 38px; max-width: 60%; width: auto; object-fit: contain; object-position: left bottom; }
+.tile.w3 .lg { bottom: 40px; height: 30px; max-width: 70%; }
+.tile.w3 .cap { font-size: 14px; }
+.tile .cap { position: absolute; left: 14px; right: 12px; bottom: 14px; font: 600 15px/18px var(--a-font-text); color: var(--a-text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.tile .cap .d { color: var(--a-text-3); font-weight: 500; }
+.tile .cap .dot { color: var(--a-text-4); }
+.tile .prog { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(61,59,69,.9); }
+.tile .prog i { display: block; height: 100%; width: var(--p); background: var(--a-grad); }
+.badge { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; border: 1.5px solid var(--a-border-strong); font: 700 11px/1 var(--a-font-text); letter-spacing: .06em; color: var(--a-text-2); text-transform: uppercase; }
+.tile.p .end { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 9px 8px; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.9)); font: 600 13px/16px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tile.p .q { position: absolute; left: 8px; top: 8px; display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; background: rgba(21,19,29,.82); font: 700 11px/1 var(--a-font-text); letter-spacing: .06em; color: var(--a-text-1); }
+.tile.p .lab { left: 8px; top: 8px; }
+.tile.p .lab + .q { top: 38px; }
+
+/* the still-and-logo tile (a new episode) */
+.tile.ep .art { height: 116px; }
+.tile.ep .lg { position: absolute; left: 14px; top: 126px; bottom: auto; height: 28px; }
+.tile.ep .cap { bottom: 34px; }
+.tile.ep .cap2 { position: absolute; left: 14px; right: 12px; bottom: 14px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the channel tile: wordmark and what is on */
+.tile.ch { display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; background: var(--a-surface-1); }
+.tile.ch .wm { font: 700 19px/1 var(--a-font-display); color: var(--a-text-1); letter-spacing: -.01em; flex: none; min-width: 46px; }
+.tile.ch .wm.serif { font: 800 19px/1 var(--a-font-live); font-style: italic; letter-spacing: .02em; }
+.tile.ch .now { min-width: 0; }
+.tile.ch .now b { display: block; font: 600 14px/17px var(--a-font-text); color: var(--a-text-1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tile.ch .now span { display: block; font: 500 13px/16px var(--a-font-text); color: var(--a-text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tile.ch .lab { top: auto; bottom: -1px; left: auto; right: 10px; height: 18px; font-size: 11px; border-radius: 6px 6px 0 0; }
+
+/* the game tile: two fields, the one 12° split, the crests in their discs, the clock on the gradient */
+.tile.game { background: var(--away); }
+.tile.game .home { position: absolute; top: 0; bottom: 0; left: 50%; right: -120px; background: var(--home); transform: skewX(-12deg); transform-origin: top; }
+.tile.game .edge { position: absolute; top: 0; bottom: 0; left: 50%; width: 8px; transform: skewX(-12deg); transform-origin: top; }
+.tile.game .edge i { position: absolute; top: 0; bottom: 0; width: 4px; }
+.tile.game .edge i:first-child { left: 0; background: var(--away-a); }
+.tile.game .edge i:last-child { right: 0; background: var(--home-a); }
+.tile.game .strip { position: absolute; left: 0; right: 0; top: 0; height: 40px; background: rgba(21,19,29,.86); display: flex; align-items: center; gap: 10px; padding: 0 12px; font: 650 12px/1 var(--a-font-text); letter-spacing: .1em; text-transform: uppercase; color: var(--a-pink-text); }
+.tile.game .strip .r { margin-left: auto; color: var(--a-text-3); letter-spacing: .04em; text-transform: none; font: 500 14px/18px var(--a-font-text); display: flex; align-items: center; gap: 6px; }
+.crest { position: absolute; width: var(--s, 96px); height: var(--s, 96px); border-radius: 50%; background: rgba(45,43,53,.86); display: grid; place-items: center; }
+.crest img { width: 72%; height: 72%; object-fit: contain; display: block; }
+.crest .n { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 8px; white-space: nowrap; text-align: center; }
+.crest .n b { display: block; font: 700 16px/20px var(--a-font-display); color: var(--a-text-1); }
+.crest .n span { display: block; font: 500 13px/16px var(--a-font-text); color: var(--a-text-2); }
+.clock { position: absolute; display: inline-flex; align-items: center; height: 44px; padding: 0 16px; transform: skewX(-12deg); background: var(--a-grad); border-radius: 5px; }
+.clock > * { transform: skewX(12deg); }
+.clock .q { font: italic 800 26px/1 var(--a-font-live); color: var(--a-ink); font-variant-numeric: tabular-nums; }
+.clock .c { font: 650 11px/1 var(--a-font-text); color: var(--a-ink); letter-spacing: .1em; text-transform: uppercase; margin-left: 12px; opacity: .85; }
+.plate { position: absolute; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; transform: skewX(-12deg); background: rgba(30,27,40,.94); border-radius: 5px; font: 600 14px/18px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; }
+.plate > * { transform: skewX(12deg); }
+.tile.game.on { box-shadow: var(--a-focus-ring); }
+.tile.game .foot { position: absolute; left: 14px; right: 12px; bottom: 10px; font: 600 14px/18px var(--a-font-text); color: var(--a-text-1); white-space: nowrap; display: flex; gap: 8px; align-items: center; }
+.tile.game .foot .d { color: var(--a-text-2); font-weight: 500; }
+
+/* doors into the library: four posters and a count */
+.tile.door .mosaic { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 2px; }
+.tile.door .mosaic img { width: 100%; height: 100%; min-height: 0; object-fit: cover; object-position: 50% 20%; display: block; }
+.tile.door .cap { bottom: 10px; font: 700 18px/22px var(--a-font-display); display: block; }
+.tile.door .cap .d { display: block; font: 500 14px/18px var(--a-font-text); }
+
+/* the hint under the wall is the focused tile's own last line; the keys are drawn as caps */
+.k { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; border: 1.5px solid var(--a-border-strong); border-radius: 5px; font: 700 10px/1 var(--a-font-text); color: var(--a-text-2); letter-spacing: .04em; margin-right: 5px; }
+.hintbar { left: 48px; bottom: 0; height: 0; }
