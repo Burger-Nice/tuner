@@ -10,7 +10,7 @@ import { resume } from './session.js';
 import { startNba, myGame, nba, liveShown } from './games.js';
 import { watching } from './player.js';
 import { busy, ensure } from './catalog.js';
-import home from './screens/home.js';
+import home, { gameLit } from './screens/home.js';
 import live from './screens/live.js';
 import lib from './screens/lib.js';
 import detail from './screens/detail.js';
@@ -133,7 +133,7 @@ window.addEventListener('popstate', () => {});
 busy.showing = (k) => { const c = current(); return c === k || (k !== 'live' && c === 'detail'); };
 // No big catalog refresh while your team is playing (seconds of work and a lot of memory, mid-game).
 busy.gameOn = () => !nba.stale && myGame()?.state === 'in';
-on('nba', () => setBar({ live: liveShown(myGame()) }));   // (behind in its replay: on the clock, catch-up 7.2)
+on('nba', () => setBar({ live: liveShown(myGame()) && !gameLit() }));   // (not while Home's lit line is the game: home-final SPEC 8)   // (behind in its replay: on the clock, catch-up 7.2)
 let offlineT = 0;   // the Offline bar's retry
 on('session', () => {
   // a new session starts online: an Offline bar from the last one (or from before signing out) goes

@@ -1,0 +1,214 @@
+/* airglow Home (design/ui-v1/home-final/SPEC.md; the mocks' home-final.css, scoped under .hf). Canvas 960 x 540, safe
+   x 48-912, y 27-513. Only transform and opacity animate; no filter, no blur; the only shadows are the ring and the
+   1 px border. */
+.hf{position:absolute;inset:0;overflow:hidden;background:var(--a-bg-0)}
+.hf .dot{color:var(--a-text-3);margin:0 2px}
+.hf .k{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1.5px solid var(--a-border-strong);border-radius:6px;font:700 11px/1 var(--a-font-text);color:var(--a-text-2);margin-right:6px;letter-spacing:.04em}
+.hf .k svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.hf .hint{display:flex;gap:18px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap;align-items:center}
+.hf .hint>span{display:inline-flex;align-items:center;white-space:nowrap}
+.hf .hint b{font-weight:700;color:var(--a-text-2)}
+.hf-pill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 14px 0 12px;border-radius:999px;background:var(--a-grad);color:var(--a-ink);font:700 15px/1 var(--a-font-display);white-space:nowrap}
+.hf-pill.noicon{padding-left:14px}
+.hf-pill svg{width:12px;height:12px;fill:currentColor}
+.hf .count{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--a-surface-2);color:var(--a-text-1);font:650 12px/1 var(--a-font-text);margin-left:8px;letter-spacing:.02em}
+.hf .hf-hid{display:inline-flex;align-items:center;gap:6px}
+.hf .hf-hid .ic{width:14px;height:14px}
+
+/* ---- the picture: two layers cross-faded, the normalised cap, the scrims, the grain, the glow ---- */
+.hf-pic,.hf-pic>*{position:absolute;inset:0}
+.hf-bd{opacity:0;transition:opacity 200ms var(--a-ease)}
+.hf-bd.vis{opacity:1}
+.hf-bd img{width:960px;height:540px;object-fit:cover;object-position:var(--pos,70% 40%);display:block}
+.hf-bd img:not([src]){display:none}
+.hf-cap{background:rgba(21,19,29,var(--capa,.42))}
+.hf-sx{background:linear-gradient(90deg,var(--a-bg-0) 0,rgba(21,19,29,.97) 24%,rgba(21,19,29,.82) 42%,rgba(21,19,29,.28) 62%,rgba(21,19,29,0) 80%)}
+.hf-sy{top:auto!important;height:220px;background:linear-gradient(180deg,rgba(21,19,29,0),rgba(21,19,29,.8))}
+.hf-st{bottom:auto!important;height:120px;background:linear-gradient(180deg,rgba(21,19,29,.72),rgba(21,19,29,0))}
+.hf-grain{background:url("brand/sprites/grain.png");opacity:.5;pointer-events:none}
+.hf-amb{background:radial-gradient(70% 60% at 22% 40%,var(--amb,transparent) 0,rgba(21,19,29,0) 70%);opacity:.55}
+.hf-sr{background:linear-gradient(90deg,rgba(21,19,29,0) 60%,rgba(21,19,29,.55) 74%,rgba(21,19,29,.88) 100%);opacity:0;transition:opacity 200ms var(--a-ease)}
+.hf-sb{top:auto!important;height:320px;background:linear-gradient(180deg,rgba(21,19,29,0),rgba(21,19,29,.86) 40%,rgba(21,19,29,.97));opacity:0;transition:opacity 200ms var(--a-ease)}
+.hf[data-mode="rows"] .hf-sr,.hf[data-mode="rows"] .hf-sb{opacity:1}
+.hf[data-mode="rows"] .hf-amb{opacity:0}
+/* game night: the two fields (flat CSS, a skewed box for the split), the crests, the score group */
+.hf-field,.hf-flat{opacity:0;transition:opacity 200ms var(--a-ease)}
+.hf-field.vis,.hf-flat.vis{opacity:1}
+.hf-field>*{position:absolute}
+.hf-field .away{inset:0;background:var(--c)}
+.hf-field .home{top:0;bottom:0;left:83%;right:-200px;background:var(--c);transform:skewX(-12deg);transform-origin:top}
+.hf-field .edge{top:0;bottom:0;left:83%;width:10px;transform:skewX(-12deg);transform-origin:top}
+.hf-field .edge i{position:absolute;top:0;bottom:0;width:5px}
+.hf-field .edge i:first-child{left:0}.hf-field .edge i:last-child{right:0}
+.hf-field .shade{inset:0;background:linear-gradient(90deg,var(--a-bg-0) 0,rgba(21,19,29,.94) 30%,rgba(21,19,29,.55) 46%,rgba(21,19,29,0) 60%)}
+.hf-field .shade2{left:0;right:0;bottom:0;height:180px;background:linear-gradient(180deg,rgba(21,19,29,0),rgba(21,19,29,.55))}
+.hf[data-mode="rows"] .hf-field .shade{background:linear-gradient(90deg,var(--a-bg-0) 0,rgba(21,19,29,.94) 50%,rgba(21,19,29,.7) 70%,rgba(21,19,29,.4))}
+.hf-crest{top:118px;width:150px}
+.hf-crest .disc{display:grid;place-items:center;width:150px;height:150px;border-radius:50%;background:rgba(45,43,53,.84)}
+.hf-crest .disc .team{width:108px;height:108px;background:none}
+.hf-crest .disc .team img{width:100%;height:100%}
+.hf-crest .n{margin-top:14px;text-align:center;white-space:nowrap;width:150px;margin-left:0}
+.hf-crest .n b{display:block;font:700 24px/28px var(--a-font-display);color:var(--a-text-1)}
+.hf-crest .n span{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);margin-top:2px}
+.hf-score{left:582px;top:392px;display:flex;align-items:center;gap:10px}
+.hf-score .chip{display:inline-flex;align-items:center;height:56px;padding:0 22px;transform:skewX(-12deg);background:var(--a-grad);border-radius:6px;border:0}
+.hf-score .chip>b{transform:skewX(12deg);font:italic 800 34px/1 var(--a-font-live);color:var(--a-ink);letter-spacing:.01em;white-space:nowrap}
+.hf-score .plate{display:inline-flex;align-items:center;height:56px;padding:0 20px;transform:skewX(-12deg);background:rgba(30,27,40,.94);border-radius:6px;max-width:190px}
+.hf-score .plate .s{transform:skewX(12deg);font:600 15px/18px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;display:flex;align-items:center;gap:8px}
+.hf-score .plate .ic{width:16px;height:16px}
+.hf[data-mode="rows"] .hf-crest,.hf[data-mode="rows"] .hf-score{display:none}
+/* no picture: a channel's logo on a flat field; a title without a backdrop: its poster upright on its glow */
+.hf-flat{background:var(--flat,var(--a-bg-1))}
+.hf-flat .wm{position:absolute;left:560px;top:120px;font:700 96px/1 var(--a-font-display);color:var(--a-text-1);letter-spacing:-.02em}
+.hf-flat .wm img{height:120px;width:auto;max-width:320px;object-fit:contain;display:block}
+.hf-flat .glow{position:absolute;inset:0;background:radial-gradient(250px 190px at 697px 165px,var(--g,rgba(61,59,69,.9)) 0,rgba(21,19,29,0) 100%);opacity:.5}
+.hf-flat .pst{position:absolute;left:640px;top:80px;width:114px;height:171px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--a-border)}
+.hf-flat .pst img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---- the two halves ---- */
+.hf-mq,.hf-rw{position:absolute;inset:0;transition:opacity 200ms var(--a-ease),transform 200ms var(--a-ease),visibility 0s}
+.hf[data-mode="mq"] .hf-rw{opacity:0;transform:translateY(60px);visibility:hidden;transition:opacity 200ms var(--a-ease),transform 200ms var(--a-ease),visibility 0s 200ms}
+.hf[data-mode="rows"] .hf-mq{opacity:0;transform:translateY(-60px);visibility:hidden;transition:opacity 200ms var(--a-ease),transform 200ms var(--a-ease),visibility 0s 200ms}
+html.rep .hf-mq,html.rep .hf-rw,html.rep .hf-stack,html.rep .hf-track,html.rep .hf-e{transition:none!important}
+
+/* ---- the lineup: 42 px slots; the lit line is its card, 192 px, opened in place ---- */
+.hf-lineup{position:absolute;left:56px;top:0;width:470px;height:0}
+.hf-e{position:absolute;left:0;top:0;width:470px;height:42px;box-sizing:border-box;padding:2px 16px;border-radius:10px;opacity:.66;display:flex;align-items:center;transition:transform 200ms var(--a-ease);outline:none}
+.hf-e .t{font:700 30px/34px var(--a-font-display);color:var(--a-text-1);white-space:nowrap;letter-spacing:-.01em;display:flex;align-items:baseline;overflow:hidden;max-width:438px}
+.hf-e .t .nm{flex:none}
+.hf-e .t small{font:500 16px/20px var(--a-font-text);color:var(--a-text-2);margin-left:12px;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;white-space:nowrap}
+.hf-e .cd{display:none}
+.hf-e.on{opacity:1;display:block;height:192px;padding:10px 18px;border-radius:18px;overflow:hidden;background:linear-gradient(90deg,color-mix(in srgb,var(--amb,#2D2B35) 45%,rgba(21,19,29,.5)),rgba(21,19,29,.22))}
+.hf-e.on:focus{box-shadow:var(--a-focus-ring)}
+.hf-e.on .t{display:none}
+.hf-e.on .cd{display:block;animation:hf-in 120ms var(--a-ease) both}
+@keyframes hf-in{from{opacity:.4}to{opacity:1}}
+.hf-e .ey{font:650 14px/16px var(--a-font-text);letter-spacing:.12em;text-transform:uppercase;color:var(--a-pink-text);display:flex;align-items:center;gap:10px;white-space:nowrap;height:16px}
+.hf-e .ey .a-live{letter-spacing:.08em}
+.hf-e .hf-lg{display:block;height:56px;max-width:340px;width:auto;object-fit:contain;object-position:left center;margin:6px 0 4px}
+.hf-e span.hf-lg{position:relative;overflow:hidden;margin:6px 0 4px}
+.hf-e .big{font:700 34px/40px var(--a-font-display);color:var(--a-text-1);margin:6px 0 6px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:434px}
+.hf-e .big.long{font-size:30px}
+.hf-e .meta{display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;max-width:434px}
+.hf-e .line{font:500 15px/20px var(--a-font-text);color:var(--a-text-2);margin-top:2px;max-width:434px;white-space:nowrap;overflow:hidden}
+.hf-e .bar{width:280px;height:4px;border-radius:2px;background:var(--a-surface-2);margin-top:8px;overflow:hidden}
+.hf-e .bar i{display:block;height:100%;background:var(--a-grad);border-radius:2px}
+.hf-e .off{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-top:4px}
+.hf-e.on .hint{position:absolute;left:18px;bottom:10px}
+/* the game's line: the Sharp plate (12°); the plate and its ring are skewed, the words are not */
+.hf-e.on.sharp{background:none;border-radius:6px;overflow:visible}
+.hf-e.on.sharp::before{content:"";position:absolute;inset:0;border-radius:6px;transform:skewX(-12deg);transform-origin:bottom left;background:linear-gradient(90deg,rgba(30,27,40,.96),rgba(21,19,29,.78))}
+.hf-e.on.sharp:focus{box-shadow:none}
+.hf-e.on.sharp:focus::before{box-shadow:var(--a-focus-ring)}
+.hf-e.on.sharp .cd{position:absolute;left:18px;right:18px;top:10px;bottom:10px;transform:skewX(-12deg);transform-origin:bottom left}
+.hf-e.on.sharp .cd>*{transform:skewX(12deg);transform-origin:left center}
+.hf-e.on.sharp .hint{left:0;bottom:0}
+.hf-e.on.sharp .big{font-size:30px}
+/* the peek: the first row's title, its reason, P− and the tops of its cards */
+.hf-peek{position:absolute;left:56px;top:462px;width:856px;opacity:.85}
+.hf-peek .rt,.hf-row .rt{display:flex;align-items:baseline;gap:10px;white-space:nowrap}
+.hf-peek .rt{font:700 18px/22px var(--a-font-display);color:var(--a-text-2)}
+.hf-peek .rt span{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.hf-peek .rt .pk{margin-left:auto;display:inline-flex;align-items:center}
+.hf-peek .cards{display:flex;gap:24px;margin-top:6px}
+.hf-peek .cards span{flex:none;height:60px;border-radius:12px 12px 0 0;overflow:hidden;background:var(--a-surface-1);box-shadow:0 0 0 1px var(--a-border)}
+.hf-peek .pp{width:124px}.hf-peek .pw{width:198px}.hf-peek .pg{width:272px}
+.hf-peek .pp img{width:124px;height:186px;object-fit:cover;object-position:top;display:block}
+.hf-note{position:absolute;left:72px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap}
+
+/* ---- the rows: the column, the index, the stack ---- */
+.hf-col{position:absolute;left:60px;top:92px;width:540px}
+.hf-col .hf-lg{display:block;height:48px;max-width:320px;width:auto;object-fit:contain;object-position:left center;margin:6px 0 6px}
+.hf-col span.hf-lg{position:relative;overflow:hidden}
+.hf-col .title{font:700 30px/36px var(--a-font-display);color:var(--a-text-1);margin:6px 0 6px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hf-col .meta{display:flex;align-items:center;gap:6px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden}
+.hf-col .line{margin-top:4px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);max-width:500px;white-space:nowrap;overflow:hidden}
+.hf-col .hint{margin-top:8px}
+.hf-index{position:absolute;right:48px;top:92px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;font:600 14px/18px var(--a-font-text);color:var(--a-text-2);text-align:right;white-space:nowrap}
+.hf-index .cur{color:var(--a-text-1);font-weight:700}
+.hf-index .cur::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--a-pink);margin-right:8px;vertical-align:2px}
+.hf-index .dim{color:var(--a-text-3);font-weight:500}
+.hf-stack{position:absolute;left:0;top:0;width:960px;transition:transform 200ms var(--a-ease)}
+.hf-row{position:absolute;left:0;width:960px;height:0;transition:opacity 200ms var(--a-ease);clip-path:inset(-60px -60px -400px 44px)}
+.hf-row.up{opacity:0}
+.hf-row.nx{opacity:.78}
+.hf-row .rt{position:absolute;left:60px;top:0;font:700 20px/24px var(--a-font-display);color:var(--a-text-1)}
+.hf-row .rt span{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.hf-row .rt .new{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:5px;background:var(--a-pink-soft);color:var(--a-pink-text);font:700 11px/1 var(--a-font-text);letter-spacing:.08em;text-transform:uppercase;align-self:center}
+.hf-row.nx .rt,.hf-row.far .rt{font-size:18px;line-height:22px;color:var(--a-text-2)}
+.hf-row.nx .rt .new{display:none}
+.hf-track{position:absolute;left:60px;top:46px;display:flex;gap:24px;align-items:flex-start;transition:transform 200ms var(--a-ease)}
+.hf-row.game .hf-track{top:40px}
+.hf-end{position:absolute;left:60px;display:flex;align-items:center;gap:10px;font:500 14px/18px var(--a-font-text);color:var(--a-text-3);white-space:nowrap;opacity:0;transition:opacity 200ms}
+.hf-end .k{margin-left:6px}
+.hf-end.nx{opacity:1}
+/* posters: 124 x 186, nothing printed on the art */
+.hf-p{position:relative;width:124px;height:186px;border-radius:var(--a-radius-poster);overflow:hidden;background:var(--a-surface-1);flex:none;box-shadow:0 0 0 1px var(--a-border);transition:transform 200ms var(--a-ease)}
+.hf-p img{width:100%;height:100%;object-fit:cover;display:block}
+.hf-p img:not([src]){visibility:hidden}
+.hf-p.fx:focus{box-shadow:var(--a-focus-ring);transform:translateY(-8px) scale(1.05);z-index:3}
+.hf-p.txt{display:flex;align-items:flex-end;padding:10px;box-sizing:border-box}
+.hf-p.txt b{font:700 15px/18px var(--a-font-display);color:var(--a-text-1)}
+.hf-p.txt small{position:absolute;left:10px;top:10px;font:600 14px/16px var(--a-font-text);color:var(--a-text-3)}
+.hf-p.all{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--a-bg-1)}
+.hf-p.all span{width:44px;height:44px;border-radius:50%;background:var(--a-surface-2);display:grid;place-items:center}
+.hf-p.all b{font:700 16px/20px var(--a-font-display);color:var(--a-text-1)}
+.hf-p.noart{background:var(--a-surface-1)}
+/* wide cards: 198 x 111 */
+.hf-w{position:relative;width:198px;height:111px;border-radius:16px;overflow:hidden;background:var(--a-surface-1);flex:none;box-shadow:0 0 0 1px var(--a-border);transition:transform 200ms var(--a-ease)}
+.hf-w>img{width:100%;height:100%;object-fit:cover;display:block}
+.hf-w>img:not([src]){visibility:hidden}
+.hf-w .sy{position:absolute;left:0;right:0;bottom:0;height:64%;background:linear-gradient(180deg,rgba(21,19,29,0),rgba(21,19,29,.9))}
+.hf-w .tm{position:absolute;inset:0}
+.hf-w .lg{position:absolute;left:12px;bottom:34px;height:22px;max-width:120px;width:auto;object-fit:contain;object-position:left bottom}
+.hf-w .nm{position:absolute;left:12px;right:12px;bottom:32px;font:700 16px/20px var(--a-font-display);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hf-w .ln{position:absolute;left:12px;right:24px;bottom:10px;font:600 14px/17px var(--a-font-text);color:var(--a-text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.hf-w .ln span{color:var(--a-text-3);font-weight:500}
+.hf-w .pb{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(61,59,69,.9)}
+.hf-w .pb i{display:block;height:100%;background:var(--a-grad)}
+.hf-w.fx:focus{box-shadow:var(--a-focus-ring);transform:translateY(-6px) scale(1.05);z-index:3}
+.hf-w.chn{background:linear-gradient(160deg,color-mix(in srgb,var(--tc) 38%,var(--a-surface-1)),var(--a-surface-1) 74%)}
+.hf-w.chn .tile{position:absolute;left:12px;top:12px;min-width:44px;height:30px;padding:0 6px;box-sizing:border-box;border-radius:8px;display:grid;place-items:center;background:var(--a-surface-3);color:var(--a-text-1);font:700 14px/1 var(--a-font-display);overflow:hidden}
+.hf-w.chn .tile img{height:24px;max-width:64px;object-fit:contain;display:block}
+.hf-w.chn .n{position:absolute;right:12px;top:16px;font:600 14px/18px var(--a-font-text);color:var(--a-text-2);font-variant-numeric:tabular-nums}
+.hf-w.chn .ln{left:12px;right:12px;bottom:36px;font:650 15px/18px var(--a-font-text)}
+.hf-w.chn .u{position:absolute;left:12px;bottom:14px;font:500 14px/16px var(--a-font-text);color:var(--a-text-2);font-variant-numeric:tabular-nums}
+.hf-w.door{display:flex;flex-direction:column;justify-content:flex-end;padding:14px 16px;box-sizing:border-box;background:linear-gradient(160deg,var(--a-surface-2),var(--a-surface-1) 70%)}
+.hf-w.door b{font:700 18px/22px var(--a-font-display);color:var(--a-text-1)}
+.hf-w.door span{font:500 14px/18px var(--a-font-text);color:var(--a-text-3);margin-top:2px}
+.hf-w.note{width:420px;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 20px 0 64px;box-sizing:border-box;background:var(--a-bg-1)}
+.hf-w.note .ic{position:absolute;left:20px;top:38px;width:28px;height:28px}
+.hf-w.note b{font:700 17px/22px var(--a-font-display);color:var(--a-text-1)}
+.hf-w.note span{font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+/* game cards are the hub's; in the rows the lift is 6 px, 1.04 */
+.hf .gc{flex:none}
+.hf .gc.fx:focus{transform:translateY(-6px) scale(1.04)}
+.hf-row.nx .gc>*{visibility:hidden}
+/* a card that starts past x 912 shows its art and no text */
+.hf-track>.pk .ln,.hf-track>.pk .lg,.hf-track>.pk .nm,.hf-track>.pk .n,.hf-track>.pk .u,.hf-track>.pk .tile,.hf-track>.pk b,.hf-track>.pk small,.hf-track>.gc.pk>*{visibility:hidden}
+/* the genre picker (cold start) */
+.hf-picks .chips{display:flex;flex-wrap:wrap;gap:10px;padding:4px 2px 12px}
+
+/* ---- the library (Movies / Series, SPEC 3 and 7): 6 x 124 with 20 px gutters at x 58; scrolled, a solid band ---- */
+.lb-grid{position:absolute;left:58px;top:0;width:844px;height:210px;transition:transform 320ms var(--a-ease)}
+html.rep .lb-grid{transition:none}
+.lb-p{position:absolute;width:124px;height:186px;border-radius:var(--a-radius-poster);overflow:hidden;background:var(--a-surface-1);box-shadow:0 0 0 1px var(--a-border);transition:transform 200ms var(--a-ease)}
+.lb-p img{width:100%;height:100%;object-fit:cover;display:block}
+.lb-p.fx:focus{box-shadow:var(--a-focus-ring);transform:scale(1.05);z-index:3}
+.lb-p.txt{display:flex;align-items:flex-end;padding:10px;box-sizing:border-box}
+.lb-p.txt b{font:700 15px/18px var(--a-font-display);color:var(--a-text-1)}
+.lb-p.txt small{position:absolute;left:10px;top:10px;font:600 14px/16px var(--a-font-text);color:var(--a-text-3)}
+.lb-more.card{position:absolute;left:0;width:844px;height:64px;box-sizing:border-box;display:flex;align-items:center;gap:14px;padding:0 20px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2)}
+.lb-band{position:absolute;left:0;right:0;top:0;height:132px;padding:27px 48px 0;box-sizing:border-box;z-index:5;background:var(--a-bg-0)}
+.lb-band::after{content:"";position:absolute;left:0;right:0;top:132px;height:8px;background:linear-gradient(180deg,var(--a-bg-0),rgba(21,19,29,0))}
+.lb-txt{white-space:nowrap}
+.lb-txt .cx{display:block;font:500 14px/18px var(--a-font-text);color:var(--a-text-3)}
+.lb-txt .ft{display:block;margin-top:8px;font:700 24px/28px var(--a-font-display);color:var(--a-text-1);letter-spacing:-.01em;max-width:620px;overflow:hidden;text-overflow:ellipsis}
+.lb-txt .fm{display:block;margin-top:2px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);font-variant-numeric:tabular-nums}
+.lb-bubble{position:absolute;right:48px;top:27px;display:inline-flex;align-items:baseline;gap:8px;height:40px;padding:0 14px;border-radius:16px;background:var(--a-bg-1);box-shadow:0 0 0 1px var(--a-border)}
+.lb-bubble b{font:700 24px/40px var(--a-font-display);color:var(--a-text-1)}
+.lb-bubble span{font:500 14px/40px var(--a-font-text);color:var(--a-text-3);white-space:nowrap}
+
+/* Account > About: TMDB's own logo (from its attribution page), smaller than airglow's mark */
+.tmdb-credit{gap:14px}
+.tmdb-mark{display:block;width:92px;height:12px;flex:none;background:url("credits/tmdb.svg") left center/contain no-repeat;margin-right:14px}
