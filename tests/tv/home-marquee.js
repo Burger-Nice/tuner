@@ -35,6 +35,7 @@ module.exports = async (ctx) => {
   const at900 = await pic();
   g = await geo();
   check('Down: Severance lit at y 138, the game stays at 92', g[1].on && g[1].y === 138 && g[0].y === 92, g.map((x) => x.y).join(' '));
+  check('Continue watching: the full picture behind, no poster box', !(await ev(() => document.querySelector('[data-screen="home"] .hf-flat.vis .pst'))), at900);
   check('the picture waits for the 600 ms rest', before === 'field' && at200 === 'field' && /severance-bg/.test(at900), `${before} → ${at200} → ${at900}`);
   const card = await ev(() => document.querySelector('[data-screen="home"] .hf-e.on .cd').innerText.replace(/\s+/g, ' '));
   check('the card: CONTINUE WATCHING, the episode, Ends, Resume, → Episodes, Hold', /CONTINUE WATCHING/i.test(card) && /S2 · E3 · Who Is Alive\? · 21 min left · Ends 21:\d\d/.test(card) && /Resume/.test(card) && /Episodes/.test(card) && /Start over, Details/.test(card), card);
@@ -48,6 +49,19 @@ module.exports = async (ctx) => {
   const menu = await ev(() => [...document.querySelectorAll('.ctxmenu .lr')].map((r) => r.textContent).join(' | '));
   check('Hold: Start over · Details · Mark watched · Remove from Home', /Start over \| Details \| Mark watched \| Remove from Home/.test(menu), menu);
   await key('Escape', 1, 500);
+  // Down and Up move the same way: the card opens in the slot it lands in, the ring never travels down and back
+  const travel = (k) => ev(async (k) => {
+    const top = () => Math.round(document.querySelector('[data-screen="home"] .hf-e.on')?.getBoundingClientRect().top || -1);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); document.dispatchEvent(new KeyboardEvent('keyup', { key: k, bubbles: true }));
+    const out = [];
+    for (let i = 0; i < 8; i++) { await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 20))); out.push(top()); }
+    return out;
+  }, k);
+  const tDown = await travel('ArrowDown'); await p.waitForTimeout(300);
+  const tUp = await travel('ArrowUp'); await p.waitForTimeout(300);
+  check('Down: the lit card opens in place (no travel)', tDown.every((y) => y === tDown[tDown.length - 1]), tDown.join(' '));
+  check('Up: the lit card opens in place (no travel)', tUp.every((y) => y === tUp[tUp.length - 1]), tUp.join(' '));
+  check('Down then Up: Severance lit again', (await HC.focusKey(p)) === 'line:cont', await HC.focusKey(p));
   // Right: the series' page (its episodes); Back comes back to the lit line
   await key('ArrowRight', 1, 2500);
   check('Right on Continue opens Severance\'s page', await ev(() => window.__tunerTest.state().screen === 'detail' && /Severance/.test(document.querySelector('[data-screen="detail"]').innerText)));
@@ -69,4 +83,17 @@ module.exports = async (ctx) => {
   check('Down from the last line: row 1, Comedy for you', /^t:/.test(await HC.focusKey(p)) && /Comedy for you/.test(await HC.index(p)), await HC.focusKey(p));
   await key('ArrowUp', 1, 900);
   check('Up from row 1: the line he left lit (the film)', (await HC.focusKey(p)) === 'line:film', await HC.focusKey(p));
+  // Continue watching on a title with no backdrop anywhere (one no catalog knows): a glow of its poster's colour, never a box
+  const hs = { imdb: 'tt9999991', name: 'Heartstone Bay', year: 2016 };
+  await ev(({ hs, H }) => {
+    const acc = JSON.parse(localStorage.getItem('tuner.accounts'))[0], k = `tuner.a:${acc.id}:progress`, pr = JSON.parse(localStorage.getItem(k) || '{}');
+    pr[`movie:${hs.imdb}`] = { t: 1200, d: 7740, at: Date.now(), item: { kind: 'movie', id: hs.imdb, name: hs.name, _title: hs.name, poster: `${H}/tmdb-img/original/p1.jpg`, year: String(hs.year), copy: { source: 'Northlight', key: 'cp:x:hs', kind: 'movie', tkey: hs.imdb, tid: hs.imdb, title: hs.name, runtime: 7740 } } };
+    localStorage.setItem(k, JSON.stringify(pr));
+  }, { hs: { imdb: hs.imdb, name: hs.name, year: hs.year }, H: HC.H });
+  await p.reload(); await p.waitForTimeout(4000); await ev(() => window.__tunerTest.go('home')); await HC.waitRows(p, 5); await p.waitForTimeout(1000);
+  await ev(() => document.querySelector('[data-screen="home"] .hf-e[data-key="line:cont"]')?.focus());
+  await key('ArrowDown', 1, 300); await key('ArrowUp', 1, 2500);
+  const nb = await ev(() => ({ lit: document.querySelector('[data-screen="home"] .hf-e.on .cd')?.innerText.replace(/\s+/g, ' ').slice(0, 40), box: !!document.querySelector('[data-screen="home"] .hf-flat.vis .pst'), glow: !!document.querySelector('[data-screen="home"] .hf-flat.vis .glow.wide'), img: !!document.querySelector('[data-screen="home"] .hf-bd.vis img[src]') && !document.querySelector('[data-screen="home"] .hf-flat.vis') }));
+  check('no backdrop: lit on a glow of its colour, no poster box', /Heartstone Bay/.test(nb.lit) && !nb.box && nb.glow, JSON.stringify(nb));
+  await shot('marquee-no-backdrop');
 };

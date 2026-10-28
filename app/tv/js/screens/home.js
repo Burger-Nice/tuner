@@ -131,7 +131,7 @@ function backdropFor(kind, imdb, name, year, tmdb) {
       if (h) url = (await AD.meta(kind, h.id).catch(() => null))?.background || '';
     }
     backs.set(k, url);
-    if (url) { clearTimeout(metaT); metaT = setTimeout(softRedraw, 120); }
+    clearTimeout(metaT); metaT = setTimeout(softRedraw, 120);
   })().catch(() => backs.set(k, '')));
   return null;
 }
@@ -477,7 +477,7 @@ function rowItems(r) {
   if (r.live === 'nba') return nba.today.slice(0, 15);
   if (r.live === 'saved') {
     const started = (it) => { const p = progressOf({ kind: 'movie', id: it.imdb }); return p && (p.done || inProgress(p)); };
-    return [...SH.savedItems('movie'), ...SH.savedItems('series')].filter((it) => !started(it));
+    return [...SH.savedItems('movie'), ...SH.savedItems('series')].filter((it) => it.poster && !started(it));
   }
   if (r.live === 'library') return doors();
   if (r.live === 'channels') {

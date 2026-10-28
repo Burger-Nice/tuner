@@ -127,6 +127,8 @@ for (let i = 0; i < 288; i++) {
   const series = i % 3 === 0, year = [2026, 2026, 1994, 1997, 2003, 2007, 2015, 2019][i % 8];
   RAW.push([`fill${i}`, series ? 's' : 'm', `${FW[i % 12]} ${FN[Math.floor(i / 12) % 8]}${i >= 96 ? ` ${['II', 'III'][Math.floor(i / 96) - 1]}` : ''}`, year, FG[i % 8], 'en', 'United States', 6.6 + (i % 14) / 10, [180, 400, 900, 1400, 2600, 5200][i % 6], 8 + (i % 20), series ? 45 : [88, 95, 112, 124, 98, 135][i % 6], `A made-up ${series ? 'series' : 'film'} for the tests.`]);
 }
+// (TMDB's overviews run to a few sentences: the rows' column shows three lines of it)
+const MORE = ['What starts as a small favour turns into the longest week of their lives, and nobody comes out of it quite the same as they went in, least of all the one who asked.', 'Old friends, new enemies and one very bad decision lead to a night that will be talked about for years, if anyone survives it to tell the story.', 'Based on a story that nobody believed at the time, it follows the people who were there from the first warning to the very last day.'];
 const imdbOf = (i) => `tt95${String(i).padStart(5, '0')}`;
 const TITLES = RAW.map(([slug, t, name, year, genres, lang, country, rating, votes, pop, runtime, overview, anime], i) => ({
   i, slug, type: t === 's' ? 'series' : 'movie', name, year, genres, lang, country, rating, votes, pop, runtime, overview, anime: !!anime,
@@ -141,7 +143,7 @@ const genreIds = (x) => [...new Set(x.genres.map((g) => (x.type === 'series' ? T
 const date = (x) => `${x.year}-0${1 + (x.i % 9)}-1${x.i % 9}`;
 const result = (x) => ({
   id: x.tmdb, [x.type === 'series' ? 'name' : 'title']: x.name, [x.type === 'series' ? 'original_name' : 'original_title']: x.name,
-  [x.type === 'series' ? 'first_air_date' : 'release_date']: date(x), genre_ids: genreIds(x), original_language: x.lang, overview: x.overview,
+  [x.type === 'series' ? 'first_air_date' : 'release_date']: date(x), genre_ids: genreIds(x), original_language: x.lang, overview: `${x.overview} ${MORE[x.i % 3]}`,
   poster_path: poster(x), backdrop_path: backdrop(x), vote_average: x.rating, vote_count: x.votes, popularity: x.pop,
 });
 // Because you watched Always Sunny: the research's verified list first (SPEC 6)

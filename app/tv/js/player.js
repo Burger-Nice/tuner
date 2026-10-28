@@ -272,7 +272,7 @@ async function playVod0(item, { queue, restart, entry } = {}) {
   const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
   const entries = list.map((it, i) => vodEntry(it, i === 0 && restart, i === 0 ? entry : undefined));
   setWatching(null, null);   // a film or an episode: no game on screen (its final buzzer isn't yours to see)
-  if (!native) { if (window.TUNER_TEST) window.__lastVod = entries; toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
+  if (!native) { if (window.TUNER_TEST) { window.__lastVod = entries; window.__vodCount = (window.__vodCount || 0) + 1; } toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
   cancelChecks();
   const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua, ...playerSettings(subState(subsKey(item))?.copy?.dub) }).catch((e) => ({ ok: false, error: e?.message }));
   if (!r?.ok) { toast(r?.error || 'This video would not play.', 4000); return; }

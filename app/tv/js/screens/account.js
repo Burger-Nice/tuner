@@ -17,6 +17,13 @@ import { forgetReplays, keptWords, NOT_KEPT } from '../catchup.js';
 import { addonsPane, addonsAct, addonsHold, addonsEnter, addonsEntry, tmdbKeyScreen, tmdbTypeKey, phoneKeyReady } from './addons.js';
 import * as TMDB from '../tmdb.js';
 import * as R from '../rows.js';
+// How TMDB is doing on this TV, in words he can read out to us: working (and how many Home rows it made) or what failed
+function tmdbLine() {
+  const st = TMDB.status, pg = R.pageNow()?.src;
+  if (st.fail && st.lastAt > st.okAt) return `TMDB: not working right now · ${st.last}`;
+  if (pg?.key) return `TMDB: working · ${pg.tmdb} of ${pg.rows} Home rows from TMDB${pg.addon ? ` · ${pg.addon} from your add-ons` : ''}`;
+  return st.ok ? 'TMDB: working' : 'TMDB: set · Home asks it on its next visit';
+}
 
 const GROUPS = [['provider', 'Provider'], ['addons', 'Add-ons'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
@@ -44,7 +51,7 @@ function body() {
       ${row('add', 'Add account', ic('plus', 'sm'))}
       ${row('guidecheck', 'Check the guide', more(short(lastCh()?.name || 'No channel yet', 28)), 'What your provider sends for the last channel you watched')}
       ${row('conncheck', 'Check the connection', more('Run'), 'Tests your Wi-Fi, internet and provider, and how fast a channel arrives')}
-      ${row('tmdb', 'TMDB key', more(TMDB.keyLabel()), TMDB.tmdbKey() && !TMDB.hasKey() ? 'TMDB refused this key · set it again' : 'Your own free key: better rows on Home and in Movies and Series')}
+      ${row('tmdb', 'TMDB key', more(TMDB.keyLabel()), TMDB.tmdbKey() && !TMDB.hasKey() ? 'TMDB refused this key · set it again' : TMDB.tmdbKey() ? tmdbLine() : 'Your own free key: better rows on Home and in Movies and Series')}
       ${row('refresh', 'Refresh channels and guide', esc(catalog.live?._at ? `Updated ${new Date(catalog.live._at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''))}
       ${row('signout', 'Sign out', ic('chevR', 'sm'))}`;
   }
