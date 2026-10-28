@@ -245,7 +245,15 @@ function playCopy(t, c, tc, opts = {}) {
   return true;
 }
 // Continue watching / Resume for an add-on copy: ask again, then the same identity, or the best (SPEC 8.3)
-export async function resumeAddonItem(it, { restart } = {}) {
+// (asked once per title at a time: a second press while the add-ons answer is the same press)
+let asking = '';
+export async function resumeAddonItem(it, opts = {}) {
+  const id = `${it?.kind}:${it?.id}`;
+  if (asking === id) return;
+  asking = id;
+  try { return await resumeAddonItem0(it, opts); } finally { if (asking === id) asking = ''; }
+}
+async function resumeAddonItem0(it, { restart } = {}) {
   const cp = it.copy;
   const q = AD.askStreams(it.kind === 'episode' ? 'series' : 'movie', it.id, { match: 'sure' });
   toast(cp.key ? 'Asking your add-ons for this copy…' : 'Asking your add-ons for the best copy…');

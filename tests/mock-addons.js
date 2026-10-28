@@ -69,6 +69,11 @@ const cinemeta = (host) => ({
 const ADDONS = {
   northlight: { id: 'org.northlight.debrid', version: '2.4.1', name: 'Northlight', description: 'Your debrid service\'s copies of films and series', resources: ['stream'], types: ['movie', 'series'], idPrefixes: ['tt'], catalogs: [], behaviorHints: { configurable: true } },
   kestrel: { id: 'org.kestrel', version: '1.0.0', name: 'Kestrel', description: 'Copies of films', resources: [{ name: 'stream', types: ['movie'], idPrefixes: ['tt'] }], types: ['movie'], catalogs: [] },
+  // a catalog add-on like the owner's (Home's curation, home-rows): two Netflix lists, a racing and a basketball
+  // catalog, live events, a "Popular" that is Cinemeta's again, a watchlist, a list with posterless and non-IMDb entries
+  shelfie: { id: 'org.shelfie.catalogs', version: '1.0.0', name: 'Shelfie', description: 'Catalogs', resources: ['catalog'], types: ['movie', 'series'], idPrefixes: ['tt'],
+    catalogs: [{ type: 'movie', id: 'nfx', name: 'Netflix' }, { type: 'series', id: 'nfx', name: 'Netflix' }, { type: 'movie', id: 'f1', name: 'Formula racing' }, { type: 'series', id: 'nba', name: 'Basketball' },
+      { type: 'movie', id: 'pop', name: 'Popular' }, { type: 'movie', id: 'trb', name: 'TRB watchlist' }, { type: 'movie', id: 'events', name: 'Live events' }, { type: 'movie', id: 'odd', name: 'Mixed bag' }] },
   pdm: { id: 'org.publicdomainmovies', version: '1.2.0', name: 'Public Domain Movies', description: 'Films in the public domain', resources: ['catalog', 'stream'], types: ['movie'], idPrefixes: ['tt'], catalogs: [{ type: 'movie', id: 'pdm' }], behaviorHints: { p2p: true } },
   watchhub: { id: 'org.stremio.watchhub', version: '1.3.0', name: 'WatchHub', description: 'Where else to watch it', resources: ['stream'], types: ['movie', 'series'], idPrefixes: ['tt'], catalogs: [] },
   aftercredits: { id: 'org.aftercredits', version: '0.3.0', name: 'AfterCredits', description: 'Is there a scene after the credits?', resources: ['stream'], types: ['movie'], idPrefixes: ['tt'], catalogs: [] },
@@ -117,6 +122,17 @@ function streams(k, type, id, host) {
   ];
   if (k === 'aftercredits') return [{ name: 'AfterCredits', title: 'No Stingers Found', externalUrl: 'https://aftercredits.example/x' }, { name: 'Watch Next', externalUrl: 'stremio:///detail/movie/tt9000010' }];
   return [];
+}
+function shelfie(type, id, host) {
+  const T = (f) => tmdb.TITLES.filter((x) => x.type === type && f(x)).map((x) => { const m = tmdb.cinemetaMeta(x.imdb, host); delete m.videos; return m; });
+  if (id === 'nfx') return T((x) => x.i % 4 === 0).slice(0, 30);
+  if (id === 'pop') return catalogPage(type, 'top', {}, host).slice(0, 30);
+  if (id === 'trb') return T((x) => /^(superbad|lebowski|inbruges|heat|departed|goodfellas|dune2|f1|hotfuzz)$/.test(x.slug));
+  const ev = (n) => Array.from({ length: 12 }, (_, i) => ({ id: `${id}:${i}`, type, name: `${n} ${i + 1}`, poster: '' }));
+  if (id === 'f1') return ev('Grand Prix');
+  if (id === 'nba') return ev('Lakers at Celtics');
+  if (id === 'events') return ev('Event');
+  return T((x) => x.i % 5 === 1).slice(0, 12).map((m, i) => (i % 2 ? { ...m, poster: '' } : m));
 }
 function catalogPage(type, id, extra, host) {
   if (id === 'pdm') return MOVIES.filter((m) => m.id === 'tt0063350').map((m) => metaOf(m, 'movie', host));
@@ -210,7 +226,7 @@ module.exports = function addons(req, res, u) {
   let m;
   if ((m = /^\/addon-media\/[^/]+\/([\w.-]+)$/.exec(p))) { sendMedia(req, res, m[1] === 'short.mp4' ? 'short.mp4' : 'movie.mp4'); return true; }
   if (p === '/addon/archivio/manifest.json') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<!doctype html><title>Archivio docs</title><p>This add-on moved.</p>'); return true; }
-  if ((m = /^\/addon\/(cinemeta|northlight|kestrel|pdm|watchhub|aftercredits|opensubtitles|setmeup|legendas|jump)(?:\/(eyJ[\w-]+))?\/(.*)$/.exec(p))) {
+  if ((m = /^\/addon\/(cinemeta|northlight|kestrel|shelfie|pdm|watchhub|aftercredits|opensubtitles|setmeup|legendas|jump)(?:\/(eyJ[\w-]+))?\/(.*)$/.exec(p))) {
     const [, k, , rest] = m;
     if (k === 'northlight' && !p.startsWith(`/addon/northlight/${KEY}/`)) { J(res, { err: 'not configured' }, 404); return true; }
     if (rest === 'manifest.json') { J(res, k === 'cinemeta' ? cinemeta(host) : ADDONS[k]); return true; }
@@ -223,7 +239,7 @@ module.exports = function addons(req, res, u) {
     if (resource === 'catalog') {
       if (st.fail === 'catalog' && k === 'cinemeta' && !extra.search) { req.socket.destroy(); return true; }
       if (st.fail === 'page2' && k === 'cinemeta' && +extra.skip > 0) { J(res, { err: 'down' }, 503); return true; }
-      J(res, { metas: catalogPage(type, id, extra, host) }); return true;
+      J(res, { metas: k === 'shelfie' ? shelfie(type, id, host) : catalogPage(type, id, extra, host) }); return true;
     }
     if (resource === 'meta') {
       const mm = [...MOVIES, ...SERIES].find((x) => x.id === id);

@@ -62,7 +62,7 @@ export async function cinemeta(kind, cat, { genre, skip = 0 } = {}) {
 // TMDB's discover with a row's rules: a votes floor, the family exclusion for a grown-up genre (unless he watches
 // enough animation and family films), the row's own exclusions. g: the app's genre name or 'Anime'; and: a second
 // genre (a blend). -> { items, total, pages }
-export async function tmdbList(kind, { g, and, sort = 'popularity.desc', minVotes, minRating, lang, page = 1, family = false, since, until } = {}) {
+export async function tmdbList(kind, { g, and, sort = 'popularity.desc', minVotes, maxVotes, minRating, lang, page = 1, family = false, since, until, provider, runtime, noKids } = {}) {
   const p = { sort_by: sort };
   const ids = [], without = new Set();
   const anime = g === 'Anime' || and === 'Anime';
@@ -75,11 +75,15 @@ export async function tmdbList(kind, { g, and, sort = 'popularity.desc', minVote
   if (anime) { p.with_keywords = TM.ANIME_KW; p.with_original_language = 'ja'; ids.push(16); }
   if (ids.length) p.with_genres = [...new Set(ids)].join(',');
   if (!anime && !family && g && !['Animation', 'Family'].includes(g) && and !== 'Animation' && and !== 'Family') { without.add(16); without.add(10751); }
+  if (noKids) { without.add(10751); if (kind === 'series') without.add(10762); }   // (a general row without family films and kids' shows)
   for (const id of ids) without.delete(id);
   if (without.size) p.without_genres = [...without].join(',');
   if (lang) p.with_original_language = lang;
   if (minVotes) p['vote_count.gte'] = minVotes;
   if (minRating) p['vote_average.gte'] = minRating;
+  if (maxVotes) p['vote_count.lte'] = maxVotes;
+  if (provider) { p.with_watch_providers = provider; p.watch_region = 'US'; p.with_watch_monetization_types = 'flatrate'; }
+  if (runtime) { p['with_runtime.gte'] = runtime[0]; p['with_runtime.lte'] = runtime[1]; }
   if (since) p[kind === 'series' ? 'first_air_date.gte' : 'primary_release_date.gte'] = since;
   if (until) p[kind === 'series' ? 'first_air_date.lte' : 'primary_release_date.lte'] = until;
   if (lang === 'is') p.language = 'is-IS';
@@ -113,7 +117,7 @@ export function shelves(kind) {
     { key: 'new', kind, label: 'New', src: 'new' },
     ...(key ? [{ key: 'top', kind, label: 'Top rated', src: 'top' }] : []),
     { key: 'anime', kind, label: 'Anime', src: 'anime' },
-    ...(key ? [{ key: 'iceland', kind, label: 'Á íslensku', src: 'iceland' }] : []),
+    ...(key ? [{ key: 'iceland', kind, label: 'In Icelandic', src: 'iceland' }] : []),
   ];
   for (const x of AD.chipCatalogs(kind)) if (!AD.isCinemeta(x.a)) out.push({ key: x.key, kind, label: x.name, by: x.by, src: 'addon', a: x.a, c: x.c });
   out.push({ key: 'saved', kind, label: 'Saved', src: 'saved' }, { key: 'history', kind, label: 'History', src: 'history' });

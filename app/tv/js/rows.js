@@ -14,7 +14,7 @@ import { myGame } from './games.js';
 import { videoMask } from './catchup.js';
 import { fromCinemeta, dkey, canon, plural, Plural, cinemeta, tmdbList, interleave, animeByMeta, firstCountry, notInterested, hiddenKey, GENRES } from './shelves.js';
 
-const H = 3600e3, DAY = 864e5;
+const H = 3600e3, DAY = 864e5, MAX_ROWS = 20;
 // The day turns at 04:00 (the profile and the page are worked out once a day)
 export const dayNo = (t = Date.now()) => Math.floor((t - new Date(t).getTimezoneOffset() * 60e3 - 4 * H) / DAY);
 const hash = (s) => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
@@ -241,7 +241,7 @@ export function resetRows() { store.set(k('hiddenRows'), {}); store.set(hiddenKe
 // Account > Home rows: a kind of row switched off
 export const rowsOff = () => (S.acc ? store.get(k('rowsOff'), {}) : {});
 export function setRowOn(kind, on) { const m = rowsOff(); if (on) delete m[kind]; else m[kind] = true; store.set(k('rowsOff'), m); page = null; emit('rows-stale'); }
-export const ROW_KINDS = [['yourshows', 'Your shows'], ['nba', 'Tonight in the NBA'], ['genre', 'Your genres'], ['blend', 'Blends of two of your genres'], ['because', 'Because you watched'], ['different', 'Something different'], ['popular', 'Popular films and series'], ['new', 'New this year'], ['top', 'Top rated'], ['anime', 'Anime'], ['iceland', 'Á íslensku'], ['addon', 'Your add-ons\' catalogs'], ['saved', 'Saved'], ['library', 'Browse your library'], ['channels', 'Channels']];
+export const ROW_KINDS = [['yourshows', 'Your shows'], ['nba', 'Tonight in the NBA'], ['genre', 'Your genres'], ['blend', 'Blends of two of your genres'], ['because', 'Because you watched'], ['different', 'Something different'], ['popular', 'Popular films and series'], ['trending', 'Trending this week'], ['services', 'New on the streaming services'], ['new', 'New this year'], ['top', 'Top rated'], ['gems', 'Hidden gems'], ['decades', 'A decade you like'], ['short', 'Films under 100 minutes'], ['family', 'Family night'], ['anime', 'Anime'], ['iceland', 'In Icelandic'], ['addon', 'Your add-ons\' catalogs'], ['saved', 'Saved'], ['library', 'Browse your library'], ['channels', 'Channels']];
 
 // ---------- the candidates (SPEC 6: Row candidates) ----------
 const BLENDS = { 'Anime+Comedy': 'Anime comedy', 'Action+Anime': 'Action anime', 'Crime+Drama': 'Crime dramas', 'Crime+Thriller': 'Crime thrillers', 'Sci-Fi+Thriller': 'Sci-fi thrillers', 'Comedy+Romance': 'Rom-coms', 'Comedy+Horror': 'Horror comedies', 'Comedy+Drama': 'Comedy dramas', 'Documentary+Sport': 'Sports documentaries', 'Mystery+Thriller': 'Mystery thrillers', 'Action+Comedy': 'Action comedies', 'Adventure+Fantasy': 'Fantasy adventures', 'Drama+History': 'Period dramas' };
@@ -295,6 +295,30 @@ async function recommended(seeds, share) {
   return { items: ranked.slice(0, 30), seed: x };
 }
 
+// ---------- the add-ons' catalogs: which make a row, and under what name ----------
+// Only lists made for browsing films and series make a row (an allow-list): his own Stremio lists, a streaming
+// service's list, and popular / new / top / a genre. Sports, racing, live events, channels and odd add-on lists never do.
+const DENY = /sport|\bf1\b|formula|racing|motor|\bnba\b|\bnfl\b|\bnhl\b|\bmlb\b|\bufc\b|\bmma\b|\bwwe\b|soccer|football|basket|boxing|tennis|golf|cricket|rugby|hockey|\blive\b|\bevents?\b|channels?\b|\biptv\b|tv guide|radio|youtube|podcast|\bxxx\b|adult|porn|18\+|hentai|torrent|\brss\b|calendar|upcoming|coming soon|trailers?|\bcams?\b|\btest\b|debug|\bother\b/i;
+const PERSONAL = /watch ?list|library|\bmy\b|history|watched|favou?rites?|collection|continue|trakt|\bliked?\b|for you|\blists?\b/i;
+const BROWSE = /popular|trending|\btop\b|\bnew\b|latest|recent|featured|\bbest\b|rated|imdb|release|\bhot\b|discover|classic|award|oscar|acclaim|\bgems?\b|binge|must[- ]watch|blockbuster|\bcult\b/i;
+const GENERIC = /^(movies?|films?|series|shows?|tv( shows| series)?|catalog(ue)?)$/i;
+const withType = (name, type) => (/film|movie|series|show|\btv\b/i.test(name) ? name : `${name} ${type === 'series' ? 'series' : 'films'}`);
+const allGenres = new Set([...GENRES.movie, ...GENRES.series, 'Anime', 'Sci-Fi', 'Science Fiction']);
+export function classifyCatalog(x) {
+  const name = String(x.name || '').replace(/\s+/g, ' ').trim(), text = `${name} ${x.c?.id || ''}`, who = `${x.by || ''} ${x.a?.manifest?.name || ''} ${x.a?.manifest?.id || ''}`;
+  if (!name || DENY.test(text) || DENY.test(who)) return null;
+  if (PERSONAL.test(name)) {
+    const wl = /watch ?list/i.test(name);
+    return wl ? { key: 'p:watchlist', kind: 'personal', name: 'Your Stremio watchlist', reason: 'What you saved in Stremio' } : { key: 'p:stremio', kind: 'personal', name: 'From your Stremio', reason: 'Your Stremio library' };
+  }
+  const sv = TM.serviceOf(text) || (GENERIC.test(name) ? TM.serviceOf(who) : null);
+  if (sv) return { key: `s:${sv.key}`, kind: 'service', svc: sv.key, name: `On ${sv.name}`, reason: `Films and series on ${sv.name}` };
+  const genre = canon(name.replace(/\s+(films?|movies?|series|shows?)$/i, ''));
+  if (BROWSE.test(name) || allGenres.has(genre)) return { key: `b:${name.toLowerCase()}:${x.c?.type}`, kind: 'browse', name: withType(name, x.c?.type), reason: x.by ? `From ${x.by}` : 'From your add-ons' };
+  return null;
+}
+const normName = (n) => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\bthe\b/g, '').replace(/[^a-z0-9]+/g, '');
+
 // The candidate rows for this profile, in the SPEC's slots. Each: { id, kind, group: 'P'|'B'|'D'|'A' (anchor),
 // type: 'poster'|'wide'|'game'|'channel'|'door'|'note', name, reason, get() -> items, see (the library shelf), drop }
 function candidates(p, { key, gameDay }) {
@@ -338,9 +362,26 @@ function candidates(p, { key, gameDay }) {
     }
     if (p.seeds.length && !off.because) {
       const seed = p.seeds[0];
+      let recP = null;
+      const recs = () => (recP ||= recommended(p.seeds, share));
+      // two more, each from one title he finished (the ones that are not the first row's X)
+      for (const n of [1, 2]) {
+        if (p.seeds.length <= n) break;
+        P.push({ id: `because${n + 1}`, group: 'P', kind: 'because', slot: n, type: 'poster', name: `Because you watched ${shortName(p.seeds[n].name)}`, reason: 'Same kind of thing', see: null,
+          get: async (row) => {
+            const x = key ? (await recs().catch(() => null))?.seed : seed;
+            const t = p.seeds.filter((y) => y.imdb !== x?.imdb)[n - 1];
+            if (!t) return [];
+            row.name = `Because you watched ${shortName(t.name)}`;
+            row.reason = `Same kind of thing · ${(t.genres || []).filter((g) => g !== 'Anime').slice(0, 2).join(' · ') || 'Anime'}`;
+            if (!key) return cinemetaBecause(t, share);
+            const id = t.meta?.moviedb || (await TM.findByImdb(t.imdb).catch(() => null))?.tmdb;
+            return id ? TM.recommendations(t.type, id).catch(() => []) : [];
+          } });
+      }
       P.push({ id: 'because', group: 'P', kind: 'because', type: 'poster', name: `Because you watched ${shortName(seed.name)}`, reason: `Same kind of thing · ${(seed.genres || []).filter((g) => g !== 'Anime').slice(0, 2).join(' · ') || 'Anime'}`, see: null,
         get: async (row) => {
-          if (key) { const r = await recommended(p.seeds, share); if (r.seed && r.seed !== seed) { row.name = `Because you watched ${shortName(r.seed.name)}`; row.reason = `Same kind of thing · ${(r.seed.genres || []).filter((g) => g !== 'Anime').slice(0, 2).join(' · ')}`; } return r.items; }
+          if (key) { const r = await recs(); if (r.seed && r.seed !== seed) { row.name = `Because you watched ${shortName(r.seed.name)}`; row.reason = `Same kind of thing · ${(r.seed.genres || []).filter((g) => g !== 'Anime').slice(0, 2).join(' · ')}`; } return r.items; }
           return cinemetaBecause(seed, share);
         } });
     }
@@ -352,22 +393,80 @@ function candidates(p, { key, gameDay }) {
     if (g) out.push({ id: 'different', group: 'S', kind: 'different', genre: g, type: 'poster', name: 'Something different', reason: `${Plural(g)} · a kind you rarely watch, rated 7.5 and up`, see: { kind: 'movie', shelf: `g:${g}` },
       get: () => mixed({ g, minVotes: 300, minRating: 7.5, family: true }, share) });
   }
-  // discovery
-  const filmsFirst = share >= 0.5;
-  const pop = (kind) => ({ id: `popular:${kind}`, group: 'D', kind: 'popular', type: 'poster', name: kind === 'movie' ? 'Popular films' : 'Popular series', reason: 'Popular now', see: { kind, shelf: 'popular' }, small: kind === 'movie' ? !filmsFirst : filmsFirst, get: () => cinemeta(kind, 'top').then((l) => l) });
-  if (!off.popular) D.push(...(filmsFirst ? [pop('movie'), pop('series')] : [pop('series'), pop('movie')]));
-  if (!off.new) D.push({ id: 'new', group: 'D', kind: 'new', type: 'poster', name: 'New this year', reason: 'Released this year', see: { kind: filmsFirst ? 'movie' : 'series', shelf: 'new' }, get: () => cinemetaMixed('year', { share }) });
+  // ---------- discovery (home-final SPEC 6: Discovery slots; widened on the owner's first-day report) ----------
+  // With his TMDB key the page is mostly TMDB's lists (trending, the services, top rated, hidden gems, his decade,
+  // genres, short films); the add-ons' own catalogs are curated extras (section below), never the body of the page.
+  const filmsFirst = share >= 0.5, fam = p.familyShare >= 0.05, now = new Date(), today = now.toISOString().slice(0, 10);
+  const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().slice(0, 10);
+  const two = (kind, o) => Promise.all([1, 2].map((page) => tmdbList(kind, { ...o, page }).catch(() => ({ items: [] })))).then((r) => r.flatMap((x) => x.items));
+  const d = (ord, row) => D.push({ group: 'D', type: 'poster', ord, ...row });
+  const pop = (kind) => ({ id: `popular:${kind}`, kind: 'popular', name: kind === 'movie' ? 'Popular films' : 'Popular series', reason: 'Popular now', see: { kind, shelf: 'popular' }, small: kind === 'movie' ? !filmsFirst : filmsFirst, get: () => cinemeta(kind, 'top').then((l) => l) });
+  if (!off.popular) { d(2, pop(filmsFirst ? 'movie' : 'series')); d(6, pop(filmsFirst ? 'series' : 'movie')); }
+  if (key && !off.trending) d(1, { id: 'trending', kind: 'trending', name: 'Trending this week', reason: 'What people are watching this week', see: null,
+    get: async () => (await Promise.all([1, 2].map((pg) => TM.trending('all', pg).catch(() => [])))).flat().filter((it) => fam || !(it.genres || []).includes('Family')) });
+  if (!off.new) d(9, { id: 'new', kind: 'new', name: 'New this year', reason: 'Released this year', see: { kind: filmsFirst ? 'movie' : 'series', shelf: 'new' }, get: () => cinemetaMixed('year', { share }) });
+  // the streaming services: the ones his add-ons have lists for first, then the big ones; each once
+  const cats = [...AD.chipCatalogs('movie'), ...AD.chipCatalogs('series')].filter((x) => !AD.isCinemeta(x.a));
+  if (key && !off.services) {
+    const mine = [];
+    for (const x of cats) { const sv = TM.serviceOf(`${x.name} ${x.c.id}`); if (sv && !mine.includes(sv)) mine.push(sv); }
+    const list = [...mine, ...['netflix', 'disney', 'max', 'apple', 'prime'].map((x) => TM.SERVICES.find((y) => y.key === x)).filter((y) => !mine.includes(y))].slice(0, 3);
+    list.forEach((sv, i) => d([4, 8, 13][i], { id: `service:${sv.key}`, svc: sv.key, kind: 'service', drop: i >= 2 ? 1 : 0, name: `New on ${sv.name}`, reason: `Popular on ${sv.name} from the last year`, see: null,
+      get: () => mixed({ provider: sv.id, since: yearAgo, until: today, minVotes: 20, noKids: !fam }, share) }));
+  }
   if (key && !off.top) {
-    D.push({ id: 'top', group: 'D', kind: 'top', type: 'poster', name: 'Top rated', reason: 'Rated 8.0 and up', see: { kind: filmsFirst ? 'movie' : 'series', shelf: 'top' }, get: () => mixed({ sort: 'vote_average.desc', minVotes: { movie: 300, series: 150 }, minRating: 8, family: true }, share) });
+    d(7, { id: 'top:movie', kind: 'top', name: 'Top rated films', reason: 'Rated 8.0 and up', see: { kind: 'movie', shelf: 'top' }, get: () => two('movie', { sort: 'vote_average.desc', minVotes: 1000, minRating: 8, family: true }) });
+    d(10, { id: 'top:series', kind: 'top', name: 'Top rated series', reason: 'Rated 8.0 and up', see: { kind: 'series', shelf: 'top' }, get: () => two('series', { sort: 'vote_average.desc', minVotes: 300, minRating: 8, family: true, noKids: !fam }) });
     const tg = genres.find(([g]) => g !== 'Anime')?.[0];
-    if (tg && personal) D.push({ id: `topg:${tg}`, group: 'D', kind: 'top', drop: 2, type: 'poster', name: `Top rated ${plural(tg)}`, reason: 'Rated 7.5 and up', see: { kind: filmsFirst ? 'movie' : 'series', shelf: `g:${tg}` }, get: () => mixed({ g: tg, sort: 'vote_average.desc', minVotes: { movie: 300, series: 150 }, minRating: 7.5, family: p.familyShare >= 0.05 }, share) });
+    if (tg && personal) d(19, { id: `topg:${tg}`, kind: 'top', drop: 2, name: `Top rated ${plural(tg)}`, reason: 'Rated 7.5 and up', see: { kind: filmsFirst ? 'movie' : 'series', shelf: `g:${tg}` }, get: () => mixed({ g: tg, sort: 'vote_average.desc', minVotes: { movie: 300, series: 150 }, minRating: 7.5, family: fam }, share) });
   }
-  if (!off.anime && !(personal && p.share.Anime >= 0.12) && (p.share.Anime || 0) > 0) D.push({ id: 'anime', group: 'D', kind: 'anime', type: 'poster', name: 'Anime', reason: because(p.heavy.Anime || []), see: { kind: 'series', shelf: 'anime' }, get: () => (key ? mixed({ g: 'Anime', minVotes: { movie: 150, series: 50 }, kindOpts: { series: { sort: 'vote_average.desc' } } }, share) : cinemetaMixed('top', { genre: 'Animation', share, pages: 3 }).then((l) => l.filter(animeByMeta))) });
+  if (key && !off.gems) d(11, { id: 'gems', kind: 'gems', name: 'Hidden gems', reason: 'Rated 7.5 and up, and not many have found them yet', see: null,
+    get: () => mixed({ minRating: 7.5, minVotes: 150, maxVotes: 1500, noKids: !fam }, share) });
+  // his decade (the one most of his older titles come from), else the 90s or the 2000s by the day
+  if (key && !off.decades) {
+    const dw = {};
+    for (const t of p.titles) { const y = +t.meta?.year || +t.year || 0; if (y && y < now.getFullYear() - 8) dw[Math.floor(y / 10) * 10] = (dw[Math.floor(y / 10) * 10] || 0) + t.w; }
+    const top = Object.entries(dw).sort((a, b) => b[1] - a[1])[0];
+    const mineD = top && p.W && top[1] / p.W >= 0.1 ? +top[0] : 0;
+    const dec = mineD || seeded([1990, 2000], hash(`d${dayNo()}`))[0];
+    const lbl = dec >= 2000 ? `${dec}s` : `${String(dec).slice(2)}s`;
+    d(12, { id: `decade:${dec}`, kind: 'decade', name: `From the ${lbl}`, reason: mineD ? `You watch a lot from the ${lbl} · rated 7 and up` : `The best liked of the ${lbl}`, see: null,
+      get: () => mixed({ since: `${dec}-01-01`, until: `${dec + 9}-12-31`, minVotes: { movie: 1000, series: 200 }, minRating: 7, noKids: !fam }, share) });
+  }
+  // genres to browse when his own rows are few (a first evening, a short history): the day's pick of well-liked kinds
+  if (!off.genre) {
+    const mineG = new Set(P.filter((r) => r.kind === 'genre').map((r) => r.genre));
+    const want = Math.max(0, 3 - mineG.size);
+    seeded(['Thriller', 'Sci-Fi', 'Action', 'Comedy', 'Crime', 'Drama', 'Mystery', 'Adventure'], hash(`g${dayNo()}`)).filter((g) => !mineG.has(g)).slice(0, want).forEach((g, i) => d([3, 5, 14][i], {
+      id: `dgenre:${g}`, kind: 'dgenre', genre: g, name: `Popular ${plural(g)}`, reason: `Well liked ${plural(g)}, films and series`, see: { kind: filmsFirst ? 'movie' : 'series', shelf: `g:${g}` },
+      get: async () => (key ? mixed({ g, minVotes: 300, minRating: 6.8, family: fam }, share)
+        : (await cinemetaMixed('top', { genre: g, share, pages: 2 })).filter((it) => fam || !it.genres.some((x) => x === 'Animation' || x === 'Family')).filter((it) => !it.rating || it.rating >= 6.5)) }));
+  }
+  if (key && !off.short) d(15, { id: 'short', kind: 'short', name: 'Films under 100 minutes', reason: 'Rated 7 and up · done before it gets late', see: null,
+    get: () => two('movie', { runtime: [70, 100], minRating: 7, minVotes: 500, noKids: !fam }) });
+  if (key && fam && !off.family) d(16, { id: 'family', kind: 'family', name: 'Family night', reason: 'Films and series for everyone on the sofa', see: { kind: 'movie', shelf: 'g:Family' },
+    get: () => mixed({ g: 'Family', minVotes: 200, minRating: 6.8, family: true }, share) });
+  if (!off.anime && !(personal && p.share.Anime >= 0.12) && (p.share.Anime || 0) > 0) d(17, { id: 'anime', kind: 'anime', name: 'Anime', reason: because(p.heavy.Anime || []), see: { kind: 'series', shelf: 'anime' }, get: () => (key ? mixed({ g: 'Anime', minVotes: { movie: 150, series: 50 }, kindOpts: { series: { sort: 'vote_average.desc' } } }, share) : cinemetaMixed('top', { genre: 'Animation', share, pages: 3 }).then((l) => l.filter(animeByMeta))) });
+  if (!off.iceland && key) d(18, { id: 'iceland', kind: 'iceland', name: 'In Icelandic', reason: 'Icelandic films and series', see: { kind: filmsFirst ? 'movie' : 'series', shelf: 'iceland' }, get: () => mixed({ lang: 'is', minVotes: 10, family: true }, share) });
+  // the add-ons' own catalogs, curated: his Stremio lists, a streaming service's list (once per service), and lists made
+  // for browsing (popular, new, top, a genre); sports, live events, channels and odd lists never make a row
   if (!off.addon) {
-    const cats = [...AD.chipCatalogs('movie'), ...AD.chipCatalogs('series')].filter((x) => !AD.isCinemeta(x.a));
-    cats.forEach((x, i) => D.push({ id: `addon:${x.key}`, group: 'D', kind: 'addon', drop: i ? 1 : 0, type: 'poster', name: x.name, reason: `From ${x.by}`, see: { kind: x.c.type, shelf: x.key }, get: () => AD.catalogPage(x.a, x.c, {}).then((v) => v.map((m) => fromCinemeta(m, x.c.type))) }));
+    const groups = new Map();
+    for (const x of cats) {
+      const c = classifyCatalog(x);
+      if (!c) continue;
+      const g = groups.get(c.key) || { ...c, cats: [] };
+      g.cats.push(x); groups.set(c.key, g);
+    }
+    [...groups.values()].sort((a, b) => (b.kind === 'personal') - (a.kind === 'personal')).forEach((g) => d(g.kind === 'personal' ? 20 : 21, {
+      id: `addon:${g.key}`, kind: 'addon', akind: g.kind, svc: g.svc, personal: g.kind === 'personal', drop: g.kind === 'personal' ? 0 : 1, name: g.name, reason: g.reason,
+      see: { kind: g.cats[0].c.type, shelf: g.cats[0].key },
+      get: async () => {
+        const lists = await Promise.all(g.cats.map((x) => AD.catalogPage(x.a, x.c, {}).then((v) => v.map((m) => fromCinemeta(m, x.c.type))).catch(() => [])));
+        return lists.length > 1 ? interleave(lists[0], lists.slice(1).flat(), 0.5) : lists[0] || [];
+      } }));
   }
-  if (!off.iceland && key) D.push({ id: 'iceland', group: 'D', kind: 'iceland', type: 'poster', name: 'Á íslensku', reason: 'Icelandic films and series', see: { kind: filmsFirst ? 'movie' : 'series', shelf: 'iceland' }, get: () => mixed({ lang: 'is', minVotes: 10, family: true }, share) });
+  D.sort((a, b) => a.ord - b.ord);
   return { P, B, D, S: out, gameDay };
 }
 
@@ -412,7 +511,9 @@ async function build() {
       if (S.acc?.id !== acc) return;
       // a row he scrolled to the end of yesterday starts further on today
       if (st[r.id]?.end === today - 1 && r.items.length > 12) r.items = [...r.items.slice(8), ...r.items.slice(0, 8)];
-      r.items = (r.items || []).filter((it) => it && it.name && !unw.has(it.imdb) && !unw.has(dkey(it)) && !p.seen.has(it.imdb) && !p.seenKeys.has(dkey(it)) && !videoMask({ kind: 'movie', id: it.id, name: it.name }) && !(it.year > new Date().getFullYear()));
+      // a title without a poster never makes a row (it read as broken from the sofa); an add-on's entry without an IMDb
+      // id is not a film or a series (an event, a race, a channel); his own Stremio lists keep what he has seen
+      r.items = (r.items || []).filter((it) => it && it.name && it.poster && (r.kind !== 'addon' || /^tt\d+$/.test(it.imdb || it.id)) && !unw.has(it.imdb) && !unw.has(dkey(it)) && (r.personal || (!p.seen.has(it.imdb) && !p.seenKeys.has(dkey(it)))) && !videoMask({ kind: 'movie', id: it.id, name: it.name }) && !(it.year > new Date().getFullYear()));
       if (r.group === 'P' || r.group === 'B') r.items = [...seeded(r.items.slice(0, 20), hash(`${today}:${r.id}`)), ...r.items.slice(20)];
     }));
     if (S.acc?.id !== acc) return null;
@@ -435,18 +536,30 @@ async function build() {
   const placed = new Set(), kept = new Map(), dropped = [];
   // (in priority: each genre's own row, the blends, Because you watched, the genres' further rows, Something
   // different, then discovery)
-  const rank = (r) => (r.kind === 'genre' && r.slot === 0 ? 0 : r.group === 'B' ? 1 : r.kind === 'because' ? 2 : r.group === 'P' ? 3 : r.group === 'S' ? 4 : 5);
+  // (the add-ons' catalogs come last: with a key TMDB's lists are the page, the add-ons' lists the extras)
+  const rank = (r) => (r.kind === 'genre' && r.slot === 0 ? 0 : r.group === 'B' ? 1 : r.kind === 'because' && !r.slot ? 2 : r.group === 'P' ? 3 : r.group === 'S' ? 4 : r.kind === 'addon' && !r.personal ? 6 : 5);
   const prio = [...Pc, ...c.S, ...c.D].map((r, i) => [r, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([r]) => r);
   // the 30 % test is for a row that is a variant of one placed (a genre's second and third rows, Top rated in a genre):
   // other rows only lose their duplicates
   const variant = (r) => (r.kind === 'genre' && r.slot > 0) || r.id.startsWith('topg:');
+  // every other row (but the personal genres' first rows, Because you watched and his own lists) is skipped when most of
+  // its first 20 are titles already placed: an add-on's "Popular" is Cinemeta's Popular again
+  const repeatable = (r) => (r.kind === 'genre' && r.slot === 0) || r.group === 'B' || r.personal || r.kind === 'because';
+  const names = new Set(), svcs = new Set();
+  let addonsKept = 0;
+  const addonCap = key ? 2 : 4;
   const hasGenreRow = (g) => [...kept.values()].some((r) => r.kind === 'genre' && r.genre === g && r.slot === 0);
   const taken = (it) => placed.has(it.imdb || dkey(it)) || placed.has(dkey(it));
   for (const r of prio) {
     if (hiddenR[r.id]) continue;
     const top = r.items.slice(0, 20), over = top.filter(taken).length;
     if (variant(r) && top.length && over / top.length > 0.3) { dropped.push([r.id, 'overlap', over, top.length]); continue; }
-    let items = r.items.filter((it) => !taken(it));
+    if (!repeatable(r) && top.length && over / top.length > 0.6) { dropped.push([r.id, 'overlap', over, top.length]); continue; }
+    if (r.svc && svcs.has(r.svc)) { dropped.push([r.id, 'service']); continue; }
+    if (names.has(normName(r.name))) { dropped.push([r.id, 'name']); continue; }
+    if (r.kind === 'addon' && !r.personal && addonsKept >= addonCap) { dropped.push([r.id, 'addons']); continue; }
+    // (his own Stremio lists are shown whole: they are his, not suggestions, so they neither lose nor take titles)
+    let items = r.personal ? r.items : r.items.filter((it) => !taken(it));
     if (items.length < 6 && r.group === 'B' && r.fallback && !hasGenreRow(r.fallback.genre)) {
       const pool = (all.find((x) => x.id === `genre:${r.fallback.genre}`)?.items) || [];
       const fb = pool.filter((it) => !taken(it));
@@ -454,7 +567,8 @@ async function build() {
     }
     if (items.length < 6) { dropped.push([r.id, 'few', items.length, r.items.length]); continue; }
     items = items.slice(0, rank(r) < 5 ? 20 : 30);   // (a personal row keeps 20, so the next personal row has titles too)
-    for (const it of items) { placed.add(it.imdb || dkey(it)); placed.add(dkey(it)); }
+    if (!r.personal) for (const it of items) { placed.add(it.imdb || dkey(it)); placed.add(dkey(it)); }
+    names.add(normName(r.name)); if (r.svc) svcs.add(r.svc); if (r.kind === 'addon' && !r.personal) addonsKept++;
     kept.set(r, { ...r, items });
   }
   const keep = (l) => l.filter((r) => kept.has(r)).map((r) => kept.get(r));
@@ -476,10 +590,11 @@ async function build() {
   if (!off.library) seq.push({ id: 'library', type: 'door', live: 'library', kind: 'library', group: 'A' });
   if (!off.channels) seq.push({ id: 'channels', type: 'channel', live: 'channels', kind: 'channels', group: 'A' });
   const rows = seq.filter((r) => !hiddenR[r.id]);
-  // 16 rows at most: dropped in the SPEC's order (the add-ons' catalogs beyond the first, Top rated in a genre, the
-  // third personal row of a genre, New this year, the smaller Popular, a second blend)
-  const dropOrder = [(r) => r.kind === 'addon' && r.drop, (r) => r.id.startsWith('topg:'), (r) => r.slot === 2, (r) => r.id === 'new', (r) => r.kind === 'popular' && r.small, (r, list) => r.group === 'B' && list.filter((x) => x.group === 'B').indexOf(r) > 0, (r) => r.slot === 1];
-  for (const f of dropOrder) { while (rows.length > 16) { const i = rows.findIndex((r) => f(r, rows)); if (i < 0) break; rows.splice(i, 1); } }
+  // MAX_ROWS at most (20: the owner asked for more rows than the SPEC's 16), dropped in this order: the add-ons' lists
+  // (not his own), a third service, Top rated in a genre, the third personal row of a genre, short films, the third
+  // Because you watched, New this year, the smaller Popular, a second blend, a genre's second row
+  const dropOrder = [(r) => r.kind === 'addon' && r.drop, (r) => r.kind === 'service' && r.drop, (r) => r.id.startsWith('topg:'), (r) => r.kind === 'genre' && r.slot === 2, (r) => r.id === 'short', (r) => r.kind === 'because' && r.slot === 2, (r) => r.id === 'new', (r) => r.kind === 'popular' && r.small, (r, list) => r.group === 'B' && list.filter((x) => x.group === 'B').indexOf(r) > 0, (r) => r.kind === 'genre' && r.slot === 1, (r) => r.id === 'gems' || r.kind === 'decade'];
+  for (const f of dropOrder) { while (rows.length > MAX_ROWS) { const i = rows.findIndex((r) => f(r, rows)); if (i < 0) break; rows.splice(i, 1); } }
   // a row he hasn't entered in 14 days drops a slot a week and leaves after 28 days (it stays in Movies / Series)
   const now = Date.now();
   for (let i = rows.length - 1; i >= 1; i--) {
@@ -492,10 +607,12 @@ async function build() {
     rows.splice(j, 0, rows.splice(i, 1)[0]);
   }
   out.dropped = dropped;   // (what the page left out and why: the tests and Why this row read it)
+  // what the rows came from (Account > Provider shows it, so a TV that can't reach TMDB says so)
+  out.src = { rows: rows.filter((r) => !r.live).length, tmdb: rows.filter((r) => !r.live && r.items?.some((it) => it.src === 'tmdb')).length, addon: rows.filter((r) => r.kind === 'addon').length, key, tmdbErr: TM.status.fail ? TM.status.last : '' };
   out.rows = rows.map((r) => ({ id: r.id, kind: r.kind, type: r.type, live: r.live, name: r.name, reason: r.reason, genre: r.genre, other: r.other, see: r.see, group: r.group, items: r.items?.map(slim) }));
   return finish(out);
 }
-const slim = (it) => ({ kind: it.kind, id: it.id, imdb: it.imdb, tmdb: it.tmdb, name: it.name, year: it.year, poster: it.poster, background: it.background, logo: it.logo, genres: it.genres, rating: it.rating, overview: String(it.overview || '').slice(0, 240), country: it.country, lang: it.lang, runtime: it.runtime, anime: it.anime });
+const slim = (it) => ({ kind: it.kind, id: it.id, imdb: it.imdb, tmdb: it.tmdb, name: it.name, year: it.year, poster: it.poster, background: it.background, logo: it.logo, genres: it.genres, rating: it.rating, overview: String(it.overview || '').slice(0, 420), country: it.country, lang: it.lang, runtime: it.runtime, anime: it.anime });
 function finish(out) {
   const st = stats();
   for (const r of out.rows) {

@@ -258,7 +258,17 @@ export function queueAfter(item, more) {
 }
 // entry: the first item's extra fields for this play only (a ranked provider copy's identity and next copies), so the
 // catalog's own version object never carries them into a later play
-export async function playVod(item, { queue, restart, entry } = {}) {
+// One press plays once: a second start of the same video while the first is starting (or within 3 s of it) is dropped,
+// so repeated keys or a double answer can't queue plays that Back would then have to close one by one.
+let starting = null;
+export async function playVod(item, opts = {}) {
+  const id = `${item?.kind}:${item?.id}`;
+  if (starting && (starting.busy || (native && starting.id === id && Date.now() - starting.at < 3000))) return;
+  const me = { id, at: Date.now(), busy: true };
+  starting = me;
+  try { await playVod0(item, opts); } finally { me.busy = false; me.at = Date.now(); }
+}
+async function playVod0(item, { queue, restart, entry } = {}) {
   const list = queue ? queue.slice(Math.max(0, queue.findIndex((e) => e.id === item.id))) : [item];
   const entries = list.map((it, i) => vodEntry(it, i === 0 && restart, i === 0 ? entry : undefined));
   setWatching(null, null);   // a film or an episode: no game on screen (its final buzzer isn't yours to see)
@@ -599,6 +609,7 @@ native?.player.onEvent((e) => {
     else if (e.error && c.kind === 'live') toast(`That channel would not play. ${e.error}`, 6000);   // (a replay's own failure: replay.js)
     // The game you were watching stays at its synced delay on every screen until you tune something else,
     // so leaving the player never shows a score your stream hadn't reached.
+    if (starting && !starting.busy && Date.now() - starting.at > 1500) starting = null;   // (a play he chose again after watching)
     emit('player-closed', c);
     if (c.gotoAfter) setTimeout(() => go(c.gotoAfter), 300);
   }

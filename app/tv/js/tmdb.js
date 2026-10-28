@@ -34,6 +34,9 @@ const mem = new Map();
 const remember = (k, v) => { mem.delete(k); mem.set(k, v); while (mem.size > 250) mem.delete(mem.keys().next().value); };
 let backoffUntil = 0;
 const qs = (p) => Object.entries(p || {}).filter(([, v]) => v !== undefined && v !== null && v !== '').sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+// How TMDB has been answering on this TV (Account > Provider shows it: the owner can tell us what his TV sees)
+export const status = { ok: 0, fail: 0, last: '', lastAt: 0, okAt: 0 };
+const failed = (e) => { status.fail++; status.last = e.message; status.lastAt = Date.now(); return e; };
 export class TmdbError extends Error { constructor(kind) { super(kind === 'nokey' ? 'No TMDB key' : kind === 'auth' ? 'TMDB refused the key' : kind === 'busy' ? 'TMDB asked us to slow down' : 'TMDB did not answer'); this.kind = kind; } }
 
 // One GET. ttl: how long its answer is good (ms). A stale copy is used when TMDB is busy or unreachable.
@@ -54,15 +57,16 @@ export async function get(path, params = {}, { ttl = 12 * 3600e3 } = {}) {
   await slot();
   try {
     let r;
-    try { r = await raw(path, params, k); } catch { if (hit) return hit.v; throw new TmdbError('down'); }
+    try { r = await raw(path, params, k); } catch { if (hit) return hit.v; throw failed(new TmdbError('down')); }
     if (r.status === 429) {
       backoffUntil = Date.now() + (+r.headers.get('retry-after') || 2) * 1000;
       if (hit) return hit.v;
-      throw new TmdbError('busy');
+      throw failed(new TmdbError('busy'));
     }
-    if (r.status === 401) { store.set('tmdbBad', true); emit('tmdb', 'key'); throw new TmdbError('auth'); }
-    if (!r.ok) { if (hit) return hit.v; throw new TmdbError('down'); }
+    if (r.status === 401) { store.set('tmdbBad', true); emit('tmdb', 'key'); throw failed(new TmdbError('auth')); }
+    if (!r.ok) { if (hit) return hit.v; throw failed(new TmdbError('down')); }
     const v = await r.json();
+    status.ok++; status.okAt = Date.now();
     const rec = { at: Date.now(), v };
     remember(ck, rec);
     window.Core.cache.set(ck, rec);
@@ -126,6 +130,27 @@ export async function discover(kind, params, page = 1) {
   const d = await get(`/discover/${type}`, { include_adult: false, language: 'en-US', ...params, page }, { ttl: 12 * 3600e3 });
   return { items: (d?.results || []).map((r) => item(r, kind)), total: +d?.total_results || 0, pages: +d?.total_pages || 0 };
 }
+// /trending/{all,movie,tv}/week: what is watched most this week (films and series, people left out)
+export async function trending(kind = 'all', page = 1) {
+  const type = kind === 'series' ? 'tv' : kind === 'movie' ? 'movie' : 'all';
+  const d = await get(`/trending/${type}/week`, { language: 'en-US', page }, { ttl: 12 * 3600e3 });
+  return (d?.results || []).filter((r) => type !== 'all' || r.media_type === 'movie' || r.media_type === 'tv').map((r) => item(r, type === 'all' ? r.media_type : kind));
+}
+// Streaming services (TMDB's watch providers, JustWatch's data; the US lists, the fullest): name -> TMDB provider id
+export const SERVICES = [
+  { key: 'netflix', name: 'Netflix', id: 8, re: /netflix/i },
+  { key: 'disney', name: 'Disney+', id: 337, re: /disney/i },
+  { key: 'max', name: 'Max', id: 1899, re: /\bhbo\b|\bmax\b/i },
+  { key: 'apple', name: 'Apple TV+', id: 350, re: /apple/i },
+  { key: 'prime', name: 'Prime Video', id: 9, re: /prime|amazon/i },
+  { key: 'hulu', name: 'Hulu', id: 15, re: /hulu/i },
+  { key: 'paramount', name: 'Paramount+', id: 531, re: /paramount/i },
+  { key: 'peacock', name: 'Peacock', id: 386, re: /peacock/i },
+  { key: 'crunchyroll', name: 'Crunchyroll', id: 283, re: /crunchyroll/i },
+  { key: 'skyshowtime', name: 'SkyShowtime', id: 1773, re: /skyshowtime/i },
+  { key: 'viaplay', name: 'Viaplay', id: 76, re: /viaplay/i },
+];
+export const serviceOf = (text) => SERVICES.find((x) => x.re.test(String(text || ''))) || null;
 export async function recommendations(kind, tmdbId) {
   const type = kind === 'series' ? 'tv' : 'movie';
   const d = await get(`/${type}/${tmdbId}/recommendations`, { language: 'en-US', page: 1 }, { ttl: 24 * 3600e3 });
@@ -141,7 +166,7 @@ export async function details(kind, tmdbId) {
   const logo = (d.images?.logos || []).find((l) => l.iso_639_1 === 'en') || (d.images?.logos || [])[0];
   const out = {
     imdb: d.external_ids?.imdb_id || d.imdb_id || '', kws, lang: d.original_language || '', runtime: +d.runtime || +(d.episode_run_time || [])[0] || 0,
-    logo: logo ? img(logo.file_path, 500) : '', genres: genreNames(kind, (d.genres || []).map((g) => g.id)), overview: d.overview || '',
+    logo: logo ? img(logo.file_path, 500) : '', backdrop: img(d.backdrop_path, 1280), poster: img(d.poster_path, 342), genres: genreNames(kind, (d.genres || []).map((g) => g.id)), overview: d.overview || '',
     country: (d.production_countries || []).map((c) => c.name).concat(d.origin_country || []).filter(Boolean), anime: kws.includes(ANIME_KW) && d.original_language === 'ja',
   };
   if (out.imdb) { imdbMem.set(`${kind === 'series' ? 'series' : 'movie'}:${tmdbId}`, out.imdb); rememberImdb(kind, tmdbId, out.imdb); }

@@ -1,5 +1,5 @@
 // Movies and Series: the add-on library (design/ui-v1/home-final/SPEC.md 7). One long scroll per shelf: Popular and New
-// (Cinemeta's catalogs, paged 50 at a time), Top rated, the genres, Anime and Á íslensku (TMDB's lists, paged 20; Cinemeta's
+// (Cinemeta's catalogs, paged 50 at a time), Top rated, the genres, Anime and In Icelandic (TMDB's lists, paged 20; Cinemeta's
 // genre catalogs re-filtered when there is no TMDB key), the other add-ons' catalogs, Saved and History. The grid is
 // six posters a row (124 px, 20 px gutters from x 58, so every ring stays inside the safe area); scrolled, a solid band
 // at the top holds where you are, the focused title and its facts, and the bubble while a key repeats.

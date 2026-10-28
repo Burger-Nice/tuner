@@ -4,7 +4,8 @@
 // KonoSuba), crime dramas (Breaking Bad, Narcos), three finished comedies; Severance S2 E3 part-watched (Continue
 // watching) and Slow Horses up to S6 E3 (3 new episodes).
 // opts: { at (ISO), key: false (no TMDB key), history: false (a first evening), addons: false (no add-ons),
-//         shield, team, plays: [[slug, episodes]] (instead of the owner's), progress: false }
+//         shield, team, plays: [[slug, episodes]] (instead of the owner's), progress: false,
+//         junk: true (the Shelfie catalog add-on, like the owner's: two Netflix lists, racing, basketball, a watchlist…) }
 const C = require('./addons-common.js');
 const T = require('../mock-tmdb.js');
 const H = C.H;
@@ -22,9 +23,15 @@ module.exports = async (ctx, opts = {}) => {
     return Array.from({ length: n }, (_, e) => ({ imdb: x.imdb, type: x.type, name: x.name, year: x.year, season: x.type === 'series' ? ({ slowhorses: 6, sunny: 18 }[slug] || 1) : 0, episode: x.type === 'series' ? e + 1 : 0, from: 0, to: x.runtime * 60, completion: 1, at: now - (k * 2 + (n - e)) * 3600e3 * 7, source: 'test' }));
   });
   const sev = T.bySlug('severance');
-  await ev(async ({ H, key, plays, sev, progress, shield, team, at }) => {
+  await ev(async ({ H, key, plays, sev, progress, shield, team, at, junk }) => {
     const acc = JSON.parse(localStorage.getItem('tuner.accounts') || '[]')[0];
     const pre = `a:${acc.id}:`;
+    if (junk) {
+      const m = await fetch(`${H}/addon/shelfie/manifest.json`).then((r) => r.json());
+      const list = JSON.parse(localStorage.getItem(`tuner.${pre}addons`) || '[]').filter((a) => a.key !== 'adshelfie');
+      list.push({ key: 'adshelfie', url: `${H}/addon/shelfie/manifest.json`, manifest: m, at: Date.now(), on: true, catalogs: Object.fromEntries(m.catalogs.map((c) => [`${c.type}:${c.id}`, true])), from: 'stremio', kind: {}, health: {} });
+      localStorage.setItem(`tuner.${pre}addons`, JSON.stringify(list));
+    }
     localStorage.setItem('tuner.tmdbBase', JSON.stringify(`${H}/tmdb/3`));
     localStorage.setItem('tuner.tmdbImg', JSON.stringify(`${H}/tmdb-img`));
     if (key) localStorage.setItem('tuner.tmdbKey', JSON.stringify('test-tmdb-token')); else localStorage.removeItem('tuner.tmdbKey');
@@ -49,7 +56,7 @@ module.exports = async (ctx, opts = {}) => {
     const s = JSON.parse(localStorage.getItem('tuner.settings') || '{}');
     s.shield = shield || 'mine'; s.nbaTeam = team || 'MEM';
     localStorage.setItem('tuner.settings', JSON.stringify(s));
-  }, { H, key: opts.key !== false, plays, sev: { imdb: sev.imdb }, progress: opts.progress !== false && opts.history !== false, shield: opts.shield, team: opts.team, at });
+  }, { H, key: opts.key !== false, plays, sev: { imdb: sev.imdb }, progress: opts.progress !== false && opts.history !== false, shield: opts.shield, team: opts.team, at, junk: !!opts.junk });
   await p.reload(); await p.waitForTimeout(4500);
 };
 module.exports.id = id;

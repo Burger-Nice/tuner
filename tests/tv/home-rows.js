@@ -21,7 +21,7 @@ module.exports = async (ctx) => {
   check('P−: row 1 is Comedy for you', /^t:/.test(await HC.focusKey(p)) && shown[0] === 'Comedy for you', shown[0]);
   const rt0 = await ev(() => document.querySelector('[data-screen="home"] .hf-row.cur .rt').innerText.replace(/\s+/g, ' '));
   check('its reason names the shows he watches', /Comedy for you Because you watch .+(, .+ and \d+ more| and .+)$/.test(rt0), rt0);
-  check('12 to 16 rows', shown.length >= 12 && shown.length <= 16, shown.length);
+  check('12 to 20 rows', shown.length >= 12 && shown.length <= 20, shown.length);
   check('every row has a reason line', await ev(() => [...document.querySelectorAll('[data-screen="home"] .hf-row .rt')].every((r) => r.querySelector('span:last-child')?.textContent.trim())));
   const all = page.rows.flatMap((r) => r.items);
   check('a title in one row only', all.length === new Set(all).size, `${all.length} titles`);

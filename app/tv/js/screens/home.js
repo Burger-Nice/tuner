@@ -42,6 +42,10 @@ let el, mq, rw, pic, mode = 'mq', lines = [], lit = 0, leftLine = 0, cards = [];
 let rows = [], fi = 0, mem = {}, mounted = {}, page = null, colT = 0, picT = 0, picKey = '', wantKey = '';
 let lineData = { day: -1, film: null, cold: null, shows: [], hist: null };
 let behind = false, drawnOnce = false, touched = false;   // touched: he has pressed a key on Home since it opened
+// Focus that Home moves itself is not "focus from elsewhere": the tvfocus handler leaves it alone (a remount's restore
+// of the old card used to set the remembered card back, so a Right was lost every time the row mounted more cards)
+let own = 0;
+const focusOwn = (n) => { if (!n) return false; own++; try { return focus(n); } finally { own--; } };
 
 // ---------- small helpers ----------
 const ctx2d = document.createElement('canvas').getContext('2d');
@@ -56,6 +60,22 @@ function fitWords(text, px, font = PLOT_F) {
   for (const x of w) { const t = out ? `${out} ${x}` : x; if (width(`${t}…`, font) > px) break; out = t; }
   return out ? `${out.replace(/[,;:.–-]+$/, '')}…` : '';
 }
+// The column's plot: three lines of 500 px (SPEC 3 had one; he wants to read it without opening the title), cut at a
+// word with an ellipsis on the last line. Each line is its own block, so the browser's wrap can't add a fourth.
+const COL_F = '500 14px "Inter Variable", Inter, sans-serif';
+function plotLines(text, px = 500, n = 3, font = COL_F) {
+  const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  const out = [];
+  let i = 0;
+  while (i < words.length && out.length < n) {
+    let line = '';
+    while (i < words.length) { const t = line ? `${line} ${words[i]}` : words[i]; if (line && width(t, font) > px) break; line = t; i++; }
+    out.push(line);
+  }
+  if (i < words.length && out.length) out[out.length - 1] = fitWords(`${out[out.length - 1]} ${words.slice(i).join(' ')}`, px, font);
+  return out;
+}
+const plotHtml = (text) => { const l = plotLines(text); return l.length ? `<div class="plot">${l.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''; };
 const D = '<span class="dot">·</span>';
 const facts = (list) => list.filter(Boolean).map((x) => (typeof x === 'string' ? `<span>${esc(x)}</span>` : x.html)).join(D);
 const K = { right: '<span class="k"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>', ok: '<span class="k">OK</span>', hold: '<span class="k">Hold</span>', pm: '<span class="k">P−</span>', pp: '<span class="k">P+</span>' };
@@ -86,6 +106,47 @@ function metaOf(type, imdb) {
   if (metas.has(k)) return metas.get(k) instanceof Promise ? null : metas.get(k);
   metas.set(k, AD.meta(type, imdb).then((m) => { metas.set(k, m || false); clearTimeout(metaT); metaT = setTimeout(softRedraw, 120); return m; }, () => metas.set(k, false)));
   return null;
+}
+// A backdrop for a title Cinemeta has none for (or that has no IMDb id: a provider copy): TMDB's (with the key), else
+// Cinemeta's meta found by name. '' when there is none; null while it is being looked for (the picture waits).
+const backs = new Map();
+function backdropFor(kind, imdb, name, year, tmdb) {
+  const k = `${kind}:${imdb || `${name}|${year || ''}`}`;
+  const v = backs.get(k);
+  if (typeof v === 'string') return v;
+  if (v) return null;
+  backs.set(k, (async () => {
+    let url = '';
+    if (TM.hasKey()) {
+      try {
+        let id = tmdb, type = kind;
+        if (!id && imdb) { const f = await TM.findByImdb(imdb); id = f?.tmdb; type = f?.kind || kind; }
+        if (id) url = (await TM.details(type, id))?.backdrop || '';
+      } catch { /* (the next source) */ }
+    }
+    if (!url && !imdb && name) {
+      const n = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const hits = await AD.cinemetaSearch(kind, name).catch(() => null);
+      const h = (hits || []).find((x) => n(x.name) === n(name) && (!year || !x.year || Math.abs(x.year - year) <= 1));
+      if (h) url = (await AD.meta(kind, h.id).catch(() => null))?.background || '';
+    }
+    backs.set(k, url);
+    if (url) { clearTimeout(metaT); metaT = setTimeout(softRedraw, 120); }
+  })().catch(() => backs.set(k, '')));
+  return null;
+}
+// The picture for something he is in the middle of (or a new episode): its backdrop (a scene), else the episode he is
+// on, else a glow of its poster's colour. Never the poster itself as a box: on the Marquee it read as a stray card.
+// null: still looking (the picture stays as it is).
+function contPicture({ kind, imdb, name, year, tmdb, still, poster, meta }) {
+  const asked = imdb ? metas.get(`${kind}:${imdb}`) : false;
+  if (meta?.background) return { kind: 'img', url: bgUrl(meta.background), key: `m:${imdb}` };
+  if (asked instanceof Promise) return null;
+  const bd = backdropFor(kind, imdb, name, +year || 0, tmdb);
+  if (bd) return { kind: 'img', url: bgUrl(bd), key: `b:${bd}` };
+  if (bd === null) return null;
+  if (still) return { kind: 'img', url: sized(still, 1280), key: `s:${still}` };
+  return poster ? { kind: 'glow', url: poster, key: `gl:${poster}` } : { kind: 'flat', key: 'flat' };
 }
 const imdbOfItem = (it) => (it.kind === 'episode' ? it.imdbSeries || (/^tt/.test(it.id) ? String(it.id).split(':')[0] : '') : /^tt\d+$/.test(it.id) ? it.id : '');
 
@@ -163,7 +224,7 @@ function lineView(l) {
     v.meta = [...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || it.name] : [it.year ? String(it.year) : '']), left, `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`].filter(Boolean);
     v.line = ep ? vid?.overview || m?.description || '' : m?.description || '';
     v.bar = pct(p); v.verb = 'Resume'; v.play = true; v.right = ep ? 'Episodes' : 'Details'; v.hold = 'Start over, Details';
-    v.picture = m?.background ? { kind: 'img', url: bgUrl(m.background), key: `m:${imdb}` } : it.poster || it.still ? { kind: 'poster', url: it.poster || it.still, key: `p:${it.id}` } : { kind: 'flat' };
+    v.picture = contPicture({ kind: ep ? 'series' : 'movie', imdb, name: v.name, year: it.year, tmdb: it.tmdb, still: ep && p.t > 30 ? it.still : '', poster: it.poster, meta: m });
     return v;
   }
   if (l.kind === 'new' || l.kind === 'short') {
@@ -174,7 +235,7 @@ function lineView(l) {
     v.meta = [`S${n.season} · E${n.episode}`, n.name, m?.runtime ? `${m.runtime} min` : '', m?.runtime ? `Ends ${endsAt(m.runtime)}` : ''].filter(Boolean);
     v.line = n.overview || m?.description || '';
     v.verb = 'Play'; v.play = true; v.right = 'Episodes'; v.hold = 'Details';
-    v.picture = m?.background ? { kind: 'img', url: bgUrl(m.background), key: `m:${f.imdb}` } : { kind: 'flat' };
+    v.picture = contPicture({ kind: 'series', imdb: f.imdb, name: f.name, year: m?.year, poster: m?.poster, meta: m });
     return v;
   }
   if (l.kind === 'film') {
@@ -366,7 +427,12 @@ function applyPicture(spec) {
   }
   // flat: a channel's logo on its colour; a title without a backdrop: its poster upright on a glow of its colour
   pic.style.setProperty('--capa', '0'); pic.style.setProperty('--amb', 'transparent');
-  if (spec.kind === 'poster') {
+  if (spec.kind === 'glow') {
+    // no backdrop anywhere: the screen takes the poster's colour as a glow, and nothing is drawn as a card
+    flat.style.setProperty('--flat', 'var(--a-bg-0)');
+    flat.innerHTML = '<div class="glow wide"></div>';
+    analyse(spec.url).then((a) => { if (picKey === key) { flat.querySelector('.glow')?.style.setProperty('--g', glowOf(a, 0.9)); pic.style.setProperty('--amb', a ? glowOf(a, 1) : 'transparent'); } });
+  } else if (spec.kind === 'poster') {
     flat.style.setProperty('--flat', 'var(--a-bg-0)');
     flat.innerHTML = `<div class="glow"></div><span class="pst"><img src="${esc(posterUrl(spec.url))}" alt=""></span>`;
     analyse(spec.url).then((a) => { if (picKey === key) flat.querySelector('.glow')?.style.setProperty('--g', glowOf(a, 0.9)); });
@@ -432,7 +498,7 @@ function doors() {
     { label: 'Popular films', kind: 'movie', shelf: 'popular' }, { label: 'Popular series', kind: 'series', shelf: 'popular' },
     ...(key ? [{ label: 'Top rated films', kind: 'movie', shelf: 'top' }] : []),
     ...gs.map((g) => ({ label: SH.Plural(g), kind: 'movie', shelf: `g:${g}` })),
-    { label: 'Anime', kind: 'series', shelf: 'anime' }, ...(key ? [{ label: 'Á íslensku', kind: 'movie', shelf: 'iceland' }] : []),
+    { label: 'Anime', kind: 'series', shelf: 'anime' }, ...(key ? [{ label: 'In Icelandic', kind: 'movie', shelf: 'iceland' }] : []),
     { label: 'New this year', kind: 'movie', shelf: 'new' },
   ];
 }
@@ -474,7 +540,8 @@ function wideCard(x, i, near) {
       return `<div class="hf-w fx rp" tabindex="-1" data-i="${i}" data-key="p:${esc(it.kind)}:${esc(it.id)}" data-hold>${g ? `<div class="tm" style="background:linear-gradient(120deg,${teamPalette(g.away).p} 0 48%,${teamPalette(g.home).p} 52% 100%)"></div>` : ''}<div class="sy"></div><b class="nm">${esc(mk ? mk.title : g ? `${short(g.away.name)} at ${short(g.home.name)}` : it.title || it.name)}</b><div class="ln">${esc(it.pos?.chapter ? `Stopped in ${it.pos.chapter}` : 'Replay')}</div><div class="pb"><i style="width:${pct(p)}%"></i></div></div>`;
     }
     const ep = it.kind === 'episode', m = metaOf(ep ? 'series' : 'movie', imdbOfItem(it));
-    const art = (ep && p.t > 30 ? it.still : '') || m?.background || it.poster;   // (an episode not started: the show's backdrop)
+    const loading = metas.get(`${ep ? 'series' : 'movie'}:${imdbOfItem(it)}`) instanceof Promise;
+    const art = (ep && p.t > 30 ? it.still : '') || m?.background || (loading ? '' : backdropFor(ep ? 'series' : 'movie', imdbOfItem(it), ep ? it.seriesName || it._title : it._title || it.name, +it.year || 0, it.tmdb)) || it.poster;   // (an episode not started: the show's backdrop)
     const title = ep ? it.seriesName || m?.name || '' : it._title || it.name;
     return `<div class="hf-w fx" tabindex="-1" data-i="${i}" data-key="p:${esc(it.kind)}:${esc(it.id)}" data-hold>${art ? `<img ${near ? 'src' : 'data-src'}="${esc(sized(String(art).replace('/background/medium/', '/background/small/'), 500))}" alt="">` : ''}<div class="sy"></div>
       ${m?.logo ? `<img class="lg" src="${esc(m.logo)}" alt="">` : `<b class="nm">${esc(title)}</b>`}<div class="ln">${ep ? `S${it.season} · E${it.ep}` : 'Film'}<span> · ${esc(leftText(p.d - p.t))}</span></div><div class="pb"><i style="width:${pct(p)}%"></i></div></div>`;
@@ -488,7 +555,7 @@ function chCard(ch, i) {
   const pg = pr ? Math.max(0, Math.min(100, ((Date.now() - pr.start) / (pr.end - pr.start)) * 100)) : 0;
   const tc = '#3D3B45';
   return `<div class="hf-w chn fx" tabindex="-1" data-i="${i}" data-key="ch:${esc(ch.id)}" data-hold style="--tc:${tc}"><span class="tile">${ch.logo ? `<img src="${esc(ch.logo)}" alt="" data-ini="${esc(initials(ch.name))}">` : esc(initials(ch.name))}</span><span class="n">${esc(ch.num)}</span>
-    <div class="ln">${esc(pv?.title || ch.name)}</div><div class="u">${pr ? `until ${hm(pr.end)}` : esc(ch.name)}</div>${pr ? `<div class="pb"><i style="width:${pg}%"></i></div>` : ''}</div>`;
+    <div class="ln">${esc(pv?.title || chShort(ch.name))}</div><div class="u">${pr ? `until ${hm(pr.end)}` : pv ? esc(chShort(ch.name)) : 'Channel'}</div>${pr ? `<div class="pb"><i style="width:${pg}%"></i></div>` : ''}</div>`;
 }
 // the hub's game card; a hidden game that is on says so and nothing more (no quarter, no clock: SPEC 8)
 function homeGameCard(g, i) {
@@ -522,6 +589,7 @@ function drawStack() {
 }
 // Mount the rows near the focus (8 cards, more as Right reaches the sixth); rows further than 3 away are text only
 function mountRows(force) {
+  const a = document.activeElement, wasIn = !!a?.closest?.('.hf-stack');
   rows.forEach((r, i) => {
     const node = rw.querySelector(`.hf-row[data-ri="${i}"]`); if (!node) return;
     const tr = node.querySelector('.hf-track');
@@ -530,10 +598,12 @@ function mountRows(force) {
     const want = at + MOUNT[r.type];   // (as many ahead of the focus as fit, and more: Right never reaches an unmounted card)
     if (!force && mounted[r.id] >= want && mounted[r.id] !== undefined) return;
     const upto = Math.min(r.list.length, want);
-    setHtml(tr, cardsHtml(r, upto, Math.abs(i - fi) <= 1));
+    setHtml(tr, cardsHtml(r, upto, Math.abs(i - fi) <= 1), false);
     mounted[r.id] = upto;
   });
   paintImages();
+  // (the focused card drawn anew: focus goes to the card he is on, by the remembered position)
+  if (wasIn && !a.isConnected && mode === 'rows') { placeRows(); focusOwn(cardEl()); }
 }
 // images get src only within one row of the focus
 function paintImages() {
@@ -578,7 +648,7 @@ function focusRow(i, j) {
   if ((mem[r.id] || 0) >= (mounted[r.id] || 0) - 2 && mounted[r.id] < r.list.length) { mounted[r.id] = undefined; mountRows(true); }
   placeRows();
   const c = cardEl();
-  if (c) focus(c);
+  if (c) focusOwn(c);
   R.enteredRow(r.id);
   if (mem[r.id] >= r.list.length - 1) R.scrolledEnd(r.id);
   answerFocus();
@@ -597,8 +667,12 @@ function answerFocus() {
     if (!x._d) colT = setTimeout(() => enrich(x).then(() => { if (rows[fi] === r && r.list[mem[r.id] || 0] === x) setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false); }), 450);
   } else if (r.type === 'channel') wantPicture({ kind: 'flat', logo: x.logo, name: x.name, key: `c:${x.id}` });
   else if (r.type === 'game') wantPicture({ kind: 'flat', key: 'flat' });
-  else if (r.type === 'wide' && x.cont) { const it = x.cont.item, m = metaOf(it.kind === 'episode' ? 'series' : 'movie', imdbOfItem(it)); wantPicture(m?.background ? { kind: 'img', url: bgUrl(m.background), key: `m:${imdbOfItem(it)}` } : it.poster ? { kind: 'poster', url: it.poster, key: `p:${it.id}` } : { kind: 'flat', key: 'flat' }); }
-  else if (r.type === 'wide' && x.show) wantPicture(x.show.meta?.background ? { kind: 'img', url: bgUrl(x.show.meta.background), key: `m:${x.show.imdb}` } : { kind: 'flat', key: 'flat' });
+  else if (r.type === 'wide' && x.cont) {
+    const it = x.cont.item, ep = it.kind === 'episode', m = metaOf(ep ? 'series' : 'movie', imdbOfItem(it));
+    if (it.kind === 'rp') wantPicture(it.game ? { kind: 'game', g: gameById(it.game.id) || it.game, quiet: true, key: `rp:${it.id}` } : { kind: 'flat', key: 'flat' });
+    else wantPicture(contPicture({ kind: ep ? 'series' : 'movie', imdb: imdbOfItem(it), name: ep ? it.seriesName || it._title : it._title || it.name, year: it.year, tmdb: it.tmdb, still: ep && x.cont.t > 30 ? it.still : '', poster: it.poster, meta: m }));
+  }
+  else if (r.type === 'wide' && x.show) wantPicture(contPicture({ kind: 'series', imdb: x.show.imdb, name: x.show.name, year: x.show.meta?.year, poster: x.show.meta?.poster, meta: x.show.meta }));
   else wantPicture({ kind: 'flat', key: 'flat' });
 }
 const enriching = new Map();
@@ -625,29 +699,29 @@ function colHtml(r, x) {
     const d = x._d || {}, logo = d.logo || x.logo, series = x.kind === 'series';
     const rt = d.runtime || x.runtime;
     const meta = [series ? d.releaseInfo || (x.year ? `${x.year}–` : '') : x.year ? String(x.year) : '', { html: `<span>${esc((d.genres || x.genres || []).slice(0, 3).join(' · '))}</span>` }, rt ? (series ? `${rt} min` : dur(rt)) : '', !series && rt ? `Ends ${endsAt(rt)}` : '', d.rating || (x.src === 'cinemeta' && x.rating) ? `IMDb ${(d.rating || x.rating).toFixed(1)}` : '', series && (d.country || x.country) ? SH.firstCountry(d.country || x.country) : ''].filter((y) => y && (typeof y === 'string' || y.html !== '<span></span>'));
-    return `${logo ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta">${facts(meta)}</div>${x.overview ? `<div class="line">${esc(fitWords(x.overview, 500))}</div>` : ''}${hint('Details', 'Play now, Save, Not interested')}`;
+    return `${logo ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta">${facts(meta)}</div>${plotHtml(x.overview)}${hint('Details', 'Play now, Save, Not interested')}`;
   }
   if (r.type === 'wide' && x.cont) {
     const p = x.cont, it = p.item, ep = it.kind === 'episode', m = metaOf(ep ? 'series' : 'movie', imdbOfItem(it));
     if (it.kind === 'rp') return `<div class="title">${esc(it.game ? `${it.game.away.name} at ${it.game.home.name}` : it.title || it.name)}</div><div class="meta">${facts(['Replay', it.pos?.chapter ? `Stopped in ${it.pos.chapter}` : 'Started'])}</div>${hint('Resume', 'From tip-off, Game page, Remove')}`;
     const vid = ep ? m?.videos?.find((v) => v.season === +it.season && v.episode === +it.ep) : null;
     const name = ep ? it.seriesName || m?.name : it._title || it.name;
-    return `${m?.logo ? logoHtml(m.logo, name, 48, 320, 'hf-lg') : `<div class="title">${esc(name)}</div>`}<div class="meta">${facts([...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || ''] : []), leftText(p.d - p.t), `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`].filter(Boolean))}</div>${(vid?.overview || m?.description) ? `<div class="line">${esc(fitWords(vid?.overview || m?.description, 500))}</div>` : ''}${hint('Resume', 'Start over, Details, Mark watched, Remove from Home')}`;
+    return `${m?.logo ? logoHtml(m.logo, name, 48, 320, 'hf-lg') : `<div class="title">${esc(name)}</div>`}<div class="meta">${facts([...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || ''] : []), leftText(p.d - p.t), `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`].filter(Boolean))}</div>${plotHtml(vid?.overview || m?.description)}${hint('Resume', 'Start over, Details, Mark watched, Remove from Home')}`;
   }
   if (r.type === 'wide' && x.show) {
     const f = x.show, m = f.meta;
-    return `${m?.logo ? logoHtml(m.logo, f.name, 48, 320, 'hf-lg') : `<div class="title">${esc(f.name)}</div>`}<div class="meta">${facts([`S${f.next.season} · E${f.next.episode}`, f.next.name, f.fresh ? `${f.count} new` : 'Up next'])}</div>${f.next.overview ? `<div class="line">${esc(fitWords(f.next.overview, 500))}</div>` : ''}${hint('Play', 'Details')}`;
+    return `${m?.logo ? logoHtml(m.logo, f.name, 48, 320, 'hf-lg') : `<div class="title">${esc(f.name)}</div>`}<div class="meta">${facts([`S${f.next.season} · E${f.next.episode}`, f.next.name, f.fresh ? `${f.count} new` : 'Up next'])}</div>${plotHtml(f.next.overview || m?.description)}${hint('Play', 'Details')}`;
   }
   if (r.type === 'channel') {
     const pr = onNow(guideNow(x)), pv = pr ? programmeView(x, pr) : null;
     const next = (guideNow(x) || []).filter((p) => pr && p.start >= pr.end).slice(0, 3);
-    return `<div class="title">${esc(pv?.title || x.name)}</div><div class="meta">${facts([`${x.name} · ${x.num}`, pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''].filter(Boolean))}</div>${next.length ? `<div class="line">Next · ${esc(next.map((p) => `${programmeView(x, p).title} ${hm(p.start)}`).join(' · '))}</div>` : ''}${hint('Tune', 'Save channel, Open in the guide')}`;
+    return `<div class="title">${esc(pv?.title || x.name)}</div><div class="meta">${facts([`${chShort(x.name)} · ${x.num}`, pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''].filter(Boolean))}</div>${next.length ? plotHtml(`Next · ${next.map((p) => `${programmeView(x, p).title} ${hm(p.start)}`).join(' · ')}`) : ''}${hint('Tune', 'Save channel, Open in the guide')}`;
   }
   if (r.type === 'game') {
     const g = x, hid = show(g).hidden || (shielded(g) && behindReplay(g));
     const st = g.state === 'pre' ? [`Tip-off ${hm(g.date)}`, tipsIn(g.date), bestChannel(g)?.name || g.tv[0] || ''] : g.state === 'in' || heldLive(g) ? ['On now', bestChannel(g)?.name || g.tv[0] || '', hid ? 'Score hidden' : `${g.away.score} – ${g.home.score}`] : [hid ? 'Ended' : 'Final', hid ? 'Score hidden' : `${g.away.score} – ${g.home.score}`];
     const recs = `${g.away.name} ${recordFor(g.away).text || '–'} · ${g.home.name} ${recordFor(g.home).text || '–'}${g.state !== 'pre' && (hid || g.state === 'in') ? ' · as of tip-off' : ''}`;
-    return `<div class="title">${esc(`${g.away.name} at ${g.home.name}`)}</div><div class="meta">${facts(st.filter(Boolean))}</div><div class="line">${esc(recs)}</div>${hint('Game page', g.state === 'in' ? 'Watch live, From tip-off' : 'Teams, more')}`;
+    return `<div class="title">${esc(`${g.away.name} at ${g.home.name}`)}</div><div class="meta">${facts(st.filter(Boolean))}</div>${plotHtml(recs)}${hint('Game page', g.state === 'in' ? 'Watch live, From tip-off' : 'Teams, more')}`;
   }
   if (r.type === 'door') return `<div class="title">${esc(x.label)}</div><div class="meta">${facts([x.kind === 'movie' ? 'Movies' : 'Series', 'A long shelf to browse'])}</div>${hint('Open the shelf', '')}`;
   if (r.type === 'note') return `<div class="title">Films and series</div><div class="meta"><span>They come from your Stremio add-ons</span></div>${hint('Account > Add-ons', '')}`;
@@ -672,13 +746,13 @@ function toMarquee(line = 0) {
   lit = Math.max(0, Math.min(line, lines.length - 1));
   placeLines();
   const n = mq.querySelector(`.hf-e[data-li="${lit}"]`);
-  if (n) focus(n);
+  if (n) focusOwn(n);
   wantPicture(lines[lit]?.v?.picture, { now: true });
 }
 function lineFocus(j) {
   lit = j; placeLines();
   const n = mq.querySelector(`.hf-e[data-li="${j}"]`);
-  if (n) focus(n);
+  if (n) focusOwn(n);
 }
 
 // ---------- the remote (SPEC 4) ----------
@@ -914,7 +988,7 @@ function applyPage(p) {
     const i = rows.findIndex((r) => r.id === keepId);
     fi = i >= 0 ? i : 0;
     mountRows(true); placeRows();
-    const c = cardEl(); if (c) focus(c);
+    const c = cardEl(); if (c) focusOwn(c);
   }
 }
 function refreshRows(force) {
@@ -984,6 +1058,7 @@ export default {
     });
     // focus that came from elsewhere (the top bar's Down, a page popped): the halves follow it
     root.addEventListener('tvfocus', (e) => {
+      if (own) return;
       const ln = e.target.closest('.hf-e');
       if (ln) { if (mode !== 'mq') setMode('mq'); const j = +ln.dataset.li; if (j !== lit) { lit = j; placeLines(); } else wantPicture(lines[lit]?.v?.picture); return; }
       const c = e.target.closest('.hf-track > .fx');

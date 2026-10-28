@@ -1,5 +1,5 @@
 // The add-on library (design/ui-v1/home-final/SPEC.md 3, 7; mock 05): Movies' chips (Popular, New, Top rated, his
-// genres first, More genres, Anime, Á íslensku, the add-ons' catalogs, Saved, History); Popular is Cinemeta's, paged 50
+// genres first, More genres, Anime, In Icelandic, the add-ons' catalogs, Saved, History); Popular is Cinemeta's, paged 50
 // (skip), with the grid's 6 × 124 posters from x 58 (rings inside 48–912) and at most 72 mounted; scrolled, the solid
 // band (Movies · Popular, the focused title, its facts) and the bubble while ▼ repeats; Comedy is TMDB's, paged 20; a
 // filter keeps loading until it has enough ("so far"); Title A–Z; OK opens the title's page; Back scrolls to the top
@@ -15,7 +15,7 @@ module.exports = async (ctx) => {
   await ev(() => window.__tunerTest.go('movie')); await p.waitForTimeout(3500);
   const chips = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].map((c) => c.textContent.trim()));
   console.log('chips:', chips.join(' | '));
-  check('the chips: Popular, New, Top rated, his genres (Comedy first), More genres, Anime, Á íslensku …', chips[0] === 'Popular' && chips[1] === 'New' && chips[2] === 'Top rated' && chips[3] === 'Comedy' && chips.includes('More genres') && chips.includes('Anime') && chips.includes('Á íslensku') && chips.includes('Saved') && chips.includes('History'), chips.slice(0, 8).join(','));
+  check('the chips: Popular, New, Top rated, his genres (Comedy first), More genres, Anime, In Icelandic …', chips[0] === 'Popular' && chips[1] === 'New' && chips[2] === 'Top rated' && chips[3] === 'Comedy' && chips.includes('More genres') && chips.includes('Anime') && chips.includes('In Icelandic') && chips.includes('Saved') && chips.includes('History'), chips.slice(0, 8).join(','));
   const head = await ev(() => document.querySelector('[data-screen="movie"] [data-head]').textContent.replace(/\s+/g, ' '));
   check('the header: Popular · how many', /Movies ?Popular ?·? ?\d+\+? titles/.test(head), head.slice(0, 60));
   check('no provider film is listed', await ev(async () => { const c = await import('/tv/js/catalog.js'); const prov = new Set((c.catalog.movie?.titles || []).map((t) => t.name)); return ![...document.querySelectorAll('[data-screen="movie"] .lb-p')].some((x) => /^\d+$/.test(x.dataset.key?.split(':').pop() || '')); }));
@@ -85,5 +85,5 @@ module.exports = async (ctx) => {
   await ev(() => { localStorage.removeItem('tuner.tmdbKey'); }); await ev(async () => (await import('/tv/js/tmdb.js')).clearKey());
   await ev(() => window.__tunerTest.go('movie')); await p.waitForTimeout(2000);
   const c2 = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].map((c) => c.textContent.trim()));
-  check('without a key: no Top rated, no Á íslensku', !c2.includes('Top rated') && !c2.includes('Á íslensku'), c2.slice(0, 6).join(','));
+  check('without a key: no Top rated, no In Icelandic', !c2.includes('Top rated') && !c2.includes('In Icelandic'), c2.slice(0, 6).join(','));
 };
