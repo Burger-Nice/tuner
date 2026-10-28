@@ -395,6 +395,8 @@ window.TUNER_TEST = true;
         const sk = (name, arg = 'state', after = 200) => skKeys(name, arg, [], after);
         const quick = (keys, name, after = 0) => step({ keys, name, quick: true }, after);
         // (one failed check must not leave the rest on a paused picture)
+        // (the controls hide by themselves 4 s after a key while playing; waiting for that, not Back, which could close the player)
+        const hidden = (name) => poll(name, (x) => /controls=false/.test(x), 7000);
         const resume = async (name) => { const x = await sk(name); if (/playing=false/.test(x) && !/upnext=true|end=true/.test(x)) await sk(`${name}-play`, 'play', 800); };
         const poll = async (name, ok, ms) => { let s = ''; for (let t0 = Date.now(), k = 0; Date.now() - t0 < ms; k++) { s = await sk(`${name}-${k}`); if (ok(s)) break; await wait(300); } return s; };
         const pos = (s) => +(/pos=(\d+)/.exec(s) || [])[1];
@@ -418,22 +420,23 @@ window.TUNER_TEST = true;
         check('skip SK-2: OK skips to the intro\'s end − 0.5 s, the way-back chip', has(s, /chip=back .*title=Intro skipped sub=28 s ok=go back/) && pos(s) >= 131000 && pos(s) <= 136500, { s });
         s = await sk('skip-after-back');
         const back = s;
-        await press(['DPAD_UP'], 'skip-back-buttons', 300);
+        await quick(['DPAD_UP'], 'skip-back-buttons', 500);
         s = await sk('skip-back-focus');
+        await shot('player-skip-back-buttons');
         check('skip SK-5: back to 1:44, no chip again, ▲ lands on Play', has(back, /chip=none /) && pos(back) >= 103800 && pos(back) <= 107000 && has(back, /intro@104000-131646:once:alone/) && has(s, /focus=play /) && has(s, /pill=Skip intro /), { back, s });
-        await press(['BACK'], 'skip-back-controls-hidden', 1600);
+        await hidden('skip-back-controls-hidden');
         await resume('skip-credits-playing');
         // SK-16 and SK-33: the credits at 21:28: Next episode in 15 s; with the controls up the keys go and the count goes on
         await sk('skip-credits-seek', 'seek:1286000', 1500);
         s = await poll('skip-upnext', (x) => has(x, /upnext=true /), 8000);
         await shot('player-upnext-credits');
         const up = s;
-        await press(['DPAD_UP'], 'skip-upnext-controls', 1500);
+        await quick(['DPAD_UP'], 'skip-upnext-controls', 1500);
         const upCtl = await sk('skip-upnext-controls-state');
-        await quick(['BACK'], 'skip-upnext-controls-hidden', 300);
-        const upBack = await sk('skip-upnext-keys-back');
+        await shot('player-upnext-controls');
+        const upBack = await hidden('skip-upnext-keys-back');
         const n0 = +(/Next episode in (\d+) s/.exec(up) || [])[1], n1 = +(/Next episode in (\d+) s/.exec(upCtl) || [])[1];
-        check('skip SK-33: controls up while Up next counts: no key column, the count goes on, the keys come back', has(upCtl, /upnext=true .*upKeys=false/) && n1 < n0 && has(upBack, /upKeys=true/), { up, upCtl, upBack });
+        check('skip SK-33: controls up while Up next counts: no key column, the count goes on, the keys come back when they go', has(upCtl, /upnext=true .*upKeys=false/) && n1 < n0 && has(upBack, /upKeys=true/), { up, upCtl, upBack });
         s = await poll('skip-upnext-moved-on', (x) => has(x, /index=1 /), 22000);
         check('skip SK-16: Up next at 21:28 counts 15 s, then S1 E2 plays and S1 E1 is marked watched', pos(up) >= 1287000 && pos(up) <= 1291500 && n0 >= 13 && has(s, /index=1 /) && !!ST.progressOf(s1[0])?.done, { up, s, e1: JSON.stringify(ST.progressOf(s1[0]) || null) });
         // SK-7: ▲ during a fresh intro lands on Skip intro (the last of the left group); OK skips; focus on the seek thumb
@@ -441,19 +444,19 @@ window.TUNER_TEST = true;
         await resume('skip-e2-playing');
         await sk('skip-e2-seek', 'seek:80000', 1800);
         s = await poll('skip-e2-chip', (x) => has(x, /chip=skip /), 6000);
-        await press(['DPAD_UP'], 'skip-e2-buttons', 300);
+        await quick(['DPAD_UP'], 'skip-e2-buttons', 500);
         const pillUp = await sk('skip-e2-pill');
-        await shot('player-skip-bar');
         await quick(['DPAD_CENTER'], 'skip-e2-pill-ok', 300);
         s = await sk('skip-e2-pill-skipped');
         await shot('player-back-pill');
         check('skip SK-7: ▲ lands on Skip intro, OK skips, focus on the seek thumb, Back to intro in the row', has(pillUp, /focus=Skip intro /) && pos(s) >= 105300 && pos(s) <= 108500 && has(s, /focus=seek /) && has(s, /pill=Back to intro:back /), { pillUp, s });
-        await press(['BACK'], 'skip-e2-controls-hidden', 7000);   // (the way-back chip comes back with its 5 s, then goes)
+        await hidden('skip-e2-controls-hidden');
+        await wait(7000);   // (the way-back chip comes back with its 5 s, then goes)
         await resume('skip-e2-credits-playing');
         // SK-17: Back on Up next: no count again, the queue stays, the picture holds at the end with the end card
         await sk('skip-e2-credits', 'seek:1249000', 1500);
         await poll('skip-e2-upnext', (x) => has(x, /upnext=true /), 8000);
-        await quick(['BACK'], 'skip-e2-stay', 300);
+        if (state()?.watching) await quick(['BACK'], 'skip-e2-stay', 300);
         const stay = await sk('skip-e2-stay-state');
         await sk('skip-e2-near-end', 'seek:1312000', 1500);
         s = await poll('skip-e2-end', (x) => has(x, /end=true /), 16000);
