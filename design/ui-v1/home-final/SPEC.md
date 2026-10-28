@@ -493,6 +493,36 @@ In Icelandic, Channels. Personal rows appear after 3 finished titles; blends aft
 sheet: `Comedy for you · 55 % of what you watched in the last month is comedy · Always Sunny (8 episodes), The Office
 (5), The Studio (3) · Hide this row`.
 
+### 6b. After the owner's first evening (0.3.81): what changed, and where it departs from the above
+
+- **More rows, TMDB-led.** The page is up to **20 rows** (was 12 to 16: he asked for more). With his key the discovery
+  rows are TMDB's: `Trending this week` (`/trending/all/week`), `New on <service>` (discover `with_watch_providers`,
+  US region, flat-rate, the last 12 months; the services his add-ons have lists for first, then Netflix, Disney+, Max,
+  Apple TV+, Prime Video; three at most, **each once**), `Top rated films` and `Top rated series` (two rows, was one
+  mixed), `Hidden gems` (7.5 and up, 150 to 1,500 votes), `From the 90s` (his decade when 10 % of his weight is from
+  one, else the 90s or the 2000s by the day), `Films under 100 minutes` (70 to 100 min, 7 and up), `Family night` (only
+  when Animation + Family is 5 % of his profile), `Popular <genre>` discovery rows when he has fewer than three genre
+  rows of his own (Cinemeta's genre lists without a key), and `Because you watched` from up to three seeds. TMDB has no
+  awards data in discover, so there is no `Award winners` row.
+- **The add-ons' catalogs are curated** (an allow-list): his own Stremio lists (`Your Stremio watchlist`, `From your
+  Stremio`: shown whole, they neither take nor lose titles), a streaming service's list (`On Netflix`, the films and
+  series lists merged, dropped when TMDB's `New on Netflix` is on the page), and lists made for browsing (popular, new,
+  top, a genre: named with `films` or `series`). Sports, racing, live events, channels, trailers and anything else never
+  make a row, and nor do entries without an IMDb id. At most 2 such rows with a key, 4 without; they come last in
+  priority.
+- **Every row**: no two rows with the same name (normalised), no title without a poster (the `No poster` tile of mock 08
+  is gone from the rows), and a row whose first 20 are 60 % titles already placed is skipped (the personal genres' first
+  rows, the blends and Because you watched only lose their duplicates).
+- **The column's plot is three lines** (Inter 500 14/18, cut at a word with an ellipsis), so the column starts at y 80.
+  `Á íslensku` is now `In Icelandic` everywhere.
+- **The lineup**: the lit card opens in the slot it lands in on Down as on Up (no slide of the ring; the line that
+  closes on Up still slides down under it).
+- **Continue watching's picture**: the backdrop (Cinemeta, else TMDB, else Cinemeta found by name), else the episode's
+  still, else a glow of the poster's colour; never the poster as a box.
+- **Channels**: the card's lines cut with an ellipsis; a channel without a guide says `No guide information`; in the rows
+  the field shows no logo (it ran into the column and the index).
+- Account > Provider > TMDB key shows `TMDB: working · N of M Home rows from TMDB`, or what failed.
+
 ---
 
 ## 7. The add-on library (Movies and Series tabs, Search, the title page)
