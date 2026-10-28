@@ -164,7 +164,7 @@ column({ ey: 'Á íslensku · Heartstone', title: 'Heartstone',
   line: 'In a fishing village in Iceland, a boy develops feelings for his best friend as the summer ends.',
   hint: rowsHint('Play now') }) +
 index('Á íslensku') +
-row('Á íslensku', 'Icelandic films and series', [poster('heartstone', { on: true }), poster('godland'), `<div class="poster load"><b>Woman at War</b></div>`, `<div class="poster load"><b>Rams</b></div>`, poster('lamb'), `<div class="poster txt"><small>No poster</small><b>Northern Comfort</b></div>`, poster('touch')]) +
+row('Á íslensku', 'Icelandic films and series · 97', [poster('heartstone', { on: true }), poster('godland'), `<div class="poster load"><b>Woman at War</b></div>`, `<div class="poster load"><b>Rams</b></div>`, poster('lamb'), `<div class="poster txt"><small>No poster</small><b>Northern Comfort</b></div>`, poster('touch')]) +
 peek('Saved', '4 titles you have not started', ['oppenheimer', 'dune2', 'sinners', 'mickey17'].map((f) => poster(f))) + foot;
 
 // ---------------------------------------------------------------- 9. rows: Continue watching (wide cards)

@@ -23,8 +23,8 @@ timeline: the game the evening mocks announce is the game the game-night mock sh
 
 The look and structure stay (the owner: "that's really nice"). This round makes it correct and solid, and shortens
 the walk to browsing, which the owner and the outside UX expert both raised. The data-source parts of the engine
-(Top rated, genre filtering, the anime rule, Á íslensku) are **held** until the research on sources other than
-Cinemeta (TMDB discover, Trakt, MDBList, Kitsu) comes in; they are listed at the end with what is already decided.
+(Top rated, genre rows and blends, anime, Á íslensku, Because you watched) now read **TMDB's API** with the owner's
+own free key, after the catalog research of 28 Oct 2026 (section 6a); Cinemeta stays for ids, metas and search.
 
 **Must fix**
 
@@ -32,11 +32,11 @@ Cinemeta (TMDB discover, Trakt, MDBList, Kitsu) comes in; they are listed at the
 |---|---|---|
 | 1 | The rows' ring at x 40 | Rows start at x 56 (`.row { left: 56px }`), the lifted ring at x 49; the seventh poster still peeks at x 944 (`02`, `03`, `08`, `09`, `10`) |
 | 2 | The row index unreadable, `7 more` in text-4 | The index sits on its own backing (`.hf-sr`, a right-hand scrim from x 576 to canvas at 88 %), in text-2 with the current in chalk; `N more` in text-3; checked on the brightest art of the set (The Nice Guys, Spy x Family) |
-| 3 | `Top rated` from Cinemeta's `imdbRating` (`Featured`) catalog | **Held for the source research.** Decided already: `Top rated` and `Something different` are never read from `imdbRating`; they come from the app's ratings file (`scripts/build-ratings.js`: rating, votes, genres per title, with a votes floor) joined to catalog pages, or from a source that filters by rating. Section 6 says so |
-| 4 | Genre catalogs hold titles outside the genre | **Held for the source research.** Decided already: every genre row, blend and library genre shelf re-filters by the title's own `genres` (or the source's), and the "too few" rule applies after the filter |
-| 5 | The anime rule tags Pixar | **Held for the source research.** Decided already: Japan must be the title's *first* country, plus an allow-list / deny-list built at build time, tested on negatives (Moana, Up, Frozen, Toy Story, Soul, Sing, Super Mario, Secret Life of Pets) as well as positives; or an anime source (Kitsu) if the research prefers it |
+| 3 | `Top rated` from Cinemeta's `imdbRating` (`Featured`) catalog | `Top rated`, `Top rated <genre>` and `Something different` read TMDB `/discover` with `sort_by=vote_average.desc` and a votes floor (`vote_count.gte` 300 films / 150 series); never `imdbRating`. Without a TMDB key they fall back to the app's ratings file (`scripts/build-ratings.js`) joined to Cinemeta `top` pages, with a votes floor (section 6a) |
+| 4 | Genre catalogs hold titles outside the genre | Genre rows and blends read TMDB `/discover` with `with_genres` (AND) and a `without_genres` exclusion per row (a Comedy row excludes Drama, Thriller, Horror, Crime, Mystery, War), **a heuristic to tune**: TMDB's own Comedy filter also holds Parasite and Pulp Fiction. On the Cinemeta fallback every genre row re-filters by the title's own `genres`. The "too few" rule applies after the filter |
+| 5 | The anime rule tags Pixar | Anime = TMDB keyword **210024 (`anime`)** AND `original_language=ja` (optionally `with_genres=16` to drop live action). The research checked the negatives: Moana, Up, Frozen, Toy Story and Soul are not among the 2,395 anime-keyword films; Spy x Family, Mob Psycho 100, Haikyu!! come out of the anime + comedy blend. The fallback without a key is Animation with Japan as the *first* country plus a build-time deny list, tested on those negatives |
 | 6 | Genre shares double-count; "the seed's first genre" is alphabetical | Fixed in section 6: a title's weight is split across its genres (`w / n`), anime is its own genre that absorbs the title's Animation and Action weight, and `Because you watched X` queries the seed genre with the largest share in his profile, not the first in Cinemeta's alphabetical list |
-| 7 | `Á íslensku` has no real source; a made-up count; duplicates; Icelandic names | **Held for the source research** (a build-time list of Icelandic IMDb ids is the fallback). Fixed now: no count on the row, Cinemeta's English names (`Heartstone`, `Godland`, `Woman at War`, `Rams`), and a rule that every row de-duplicates by IMDb id across sources (`08`) |
+| 7 | `Á íslensku` has no real source; a made-up count; duplicates; Icelandic names | TMDB `/discover` with `with_original_language=is` and `vote_count.gte=10` (about 89 films and 8 series today; the row prints TMDB's `total_results`), titles and overviews requested in `is-IS` with a field-by-field English fallback (the research found Icelandic text on few titles: `Snerting` yes, most no). Every row de-duplicates by IMDb / TMDB id across sources (`08`). The fallback without a key is a build-time list of Icelandic ids (`country` includes Iceland) |
 | 8 | The play log does not exist | Section 6 now specifies it: an append-only `plays` store in IndexedDB (one record per session over 3 minutes: imdb id, type, episode, from, to, completion, when), the migration from today's `progress` store through `imdb.js` matching, and the first weeks as a cold start |
 
 **The four earlier points done badly**
@@ -89,7 +89,11 @@ title by 12 px.
 | The launch intro | Full on a cold start and at most once a day; any key skips it (section 10) |
 | Game night at 03:00 | Account > NBA gains `Game night: full / quiet` (quiet keeps the fields to the right third) |
 
-**Verified against Cinemeta today (28 Oct 2026):** the manifest's catalogs (`top` with `genre`/`search`/`skip`, `year`
+**Verified by the catalog research (28 Oct 2026, `catalog-research`)**: TMDB's discover parameters and semantics
+from the official references; the anime keyword 210024 and its negatives; the Icelandic counts; the vote-floored
+Top rated order (Shawshank, The Godfather …); CORS from a WebView (`access-control-allow-origin: *`, the
+`Authorization` header allowed); images need no key; the API returns 401 without one. Not called with a real key
+from this session, so the first run on the TV confirms the shapes. Also **verified against Cinemeta today:** the manifest's catalogs (`top` with `genre`/`search`/`skip`, `year`
 with `genre` = a year, `imdbRating` named `Featured`), `top/genre=Comedy` answering at skip 3,000, `country` on the
 metas of the seven anime titles (Japan first) and of Heartstone, Godland and Rams (Iceland first or second), the
 episode lists, runtimes and ratings used in the mocks. **Not yet re-verified:** the reviewer's measurements of the
@@ -133,8 +137,9 @@ old anime rule; the source research decides what the engine reads, and the check
    Animation and its `country` includes Japan (checked today: Spy x Family, One Punch Man, Mob Psycho 100, KonoSuba,
    Kaguya-sama, Dandadan, Saiki K all carry `Japan`). An anime add-on's own catalog, when he has one, feeds the same
    row and is named after the add-on.
-8. **Films and series come from the add-ons; the provider is live TV.** Home's rows, the Movies and Series tabs,
-   Search and the title pages read Cinemeta (catalogs, metas, episodes) and the stream add-ons (copies). The
+8. **Films and series come from the add-ons and TMDB; the provider is live TV.** The personal rows, Top rated,
+   anime and Á íslensku read TMDB's API with the owner's own free key (section 6a); Popular, New, Search, metas,
+   episodes and ids read Cinemeta; copies come from the stream add-ons. The
    provider feeds channels, the guide, the game and its replays. *Why:* the owner's decision; Cinemeta's catalogs
    are deep (Popular films answer at skip 10,000) and carry genres, ratings, runtimes, countries and art for every
    title.
@@ -215,6 +220,28 @@ page could not be opened from this session, the finding is from its published su
   the **diversity** of what members watch. → Diversity is a goal of the engine, not a side effect.
   [Kellogg Insight](https://insight.kellogg.northwestern.edu/article/what-lures-netflix-viewers).
 
+**Catalog sources (v1.1, the catalog research of 28 Oct 2026)**
+- TMDB API v3 (official references read: discover movie / tv, movie recommendations, append_to_response,
+  authentication, rate limiting, FAQ, API terms): `/discover` filters by genre (AND / OR), keyword, original
+  language, vote average with a votes floor, dates and runtime; `/recommendations` per title; free for
+  non-commercial use with attribution; no caching beyond 6 months; no ML use; about 40 requests a second. The
+  research confirmed on TMDB's own site that the vote-floored Top rated order is sensible, that keyword 210024 is
+  `anime` (2,395 films, 2,435 series; none of Moana, Up, Frozen, Toy Story, Soul), that `original_language=is`
+  gives 1,401 films (89 with 10+ votes) and 9 series, that Icelandic translations are thin, and that TMDB's Comedy
+  filter still holds Parasite and Pulp Fiction (hence the exclusion heuristic). → Section 6a and the rows that read
+  TMDB. [Discover movie](https://developer.themoviedb.org/reference/discover-movie), [Discover TV](https://developer.themoviedb.org/reference/discover-tv),
+  [Recommendations](https://developer.themoviedb.org/reference/movie-recommendations), [FAQ](https://developer.themoviedb.org/docs/faq),
+  [API terms](https://www.themoviedb.org/api-terms-of-use), [Rate limiting](https://developer.themoviedb.org/docs/rate-limiting),
+  [The anime keyword](https://www.themoviedb.org/keyword/210024-anime/movie).
+- The add-on alternatives were checked and set aside for Home: the TMDB add-on (no Icelandic, no top rated, no
+  anime, no blends; `tmdb:` ids), AIOMetadata (catalogs only after a per-user web configuration on a third-party
+  host), MDBList and Trakt (keys or accounts; curated lists, not his taste; Trakt would have to be kept in sync),
+  Anime Kitsu (Cloudflare-blocked from the session; `kitsu:` ids), AniList (keyless, good anime scores, no IMDb
+  mapping for most titles). Streaming Catalogs is an optional `On Netflix now` row. Cinemeta stays the backbone
+  for ids, metas (they carry `moviedb_id`), episodes and search.
+  [TMDB add-on](https://raw.githubusercontent.com/mrcanelas/tmdb-addon/main/README.md), [AIOMetadata](https://raw.githubusercontent.com/cedya77/aiometadata/master/README.md),
+  [AniList](https://graphql.anilist.co), [Streaming Catalogs](https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json).
+
 **10-foot UI guidelines**
 - Android TV design guidelines (Google, read directly): design at **960 × 540 dp**; keep important elements inside
   **5 % margins (48 dp sides, 27 dp top and bottom)**; let backgrounds bleed; a 12-column grid with **card widths
@@ -276,7 +303,7 @@ runtime and rating printed on the mocks. The independent review measured three t
 re-verify and the design now treats as true until the source research reports: the `imdbRating` catalog's first
 page is mostly 2026 and unrated, 6 of the first 50 `top/genre=Comedy` titles are not comedies by their own genres,
 and about 40 of the first 150 `top/genre=Animation` films list Japan among their countries. Those three findings
-are why Top rated, genre rows and anime are held and re-specified (section 6).
+are why Top rated, genre rows and anime now read TMDB (section 6a), with the Cinemeta fallbacks re-specified.
 
 **Where this design departs on purpose**
 - No hero carousel and no autoplay, though Netflix, Max and Disney+ have them: the owner's rule (nothing moves by
@@ -442,12 +469,44 @@ channel: its number (1–3 digits) or the Live tab in 4; any named row: P− the
 - Genre shares: a title's weight is **split across its genres** (`w / n` for each of its n genres, as calibration
   does), so the shares add up to 100 %: `G[g] = Σ (w / n) over titles carrying g ÷ Σ w`, per type and combined.
   **Anime is its own genre**: an anime title's Animation weight, and its Action weight when it carries Action, go to
-  `Anime` instead, so `Action for you` cannot ride along on his anime. Country shares the same way. The anime test
-  and the Icelandic test are **held for the source research** (v1.1 changes, must fix 5 and 7); whatever source is
-  chosen, the test is applied to the title's own data, with a build-time allow/deny list, and tested on negatives.
+  `Anime` instead, so `Action for you` cannot ride along on his anime. A title in his history is anime when its
+  TMDB keywords include 210024 and its original language is `ja` (one `/{type}/{id}?append_to_response=keywords`
+  per history title, cached 30 days); without a key, Animation with Japan as the first country and a deny list.
+  Country shares the same way; Icelandic = `original_language` `is` (or `country` Iceland first on the fallback).
 - Pair counts `P[a,b]` = Σ w over titles carrying both a and b; a pair is a **blend candidate** when `P[a,b]` ≥ the
   weight of 3 full plays and both shares ≥ 8 %.
 - Seeds: the last three finished titles (for `Because you watched`), the last finished film and series separately.
+
+### 6a. The sources (TMDB for the rows, Cinemeta for ids, meta and search)
+
+- **TMDB API v3**, called by the app with the owner's own free key (the "API Read Access Token", sent as
+  `Authorization: Bearer`). The key is typed once through the existing phone page (Account > Provider > `TMDB
+  key`), kept in the app's settings store, **never in the repo** (the repo is public). Free for non-commercial use;
+  airglow has no ads or payments. CORS is open from the WebView. Rate: about 40 requests a second upper bound; a
+  Home build is 12 to 20 calls; a 429 backs off and uses the cache.
+- **What TMDB gives each row**: `/discover/{movie,tv}` with `with_genres` (comma = AND), `without_genres`,
+  `with_keywords=210024` (anime), `with_original_language` (`ja`, `is`), `sort_by=vote_average.desc` with
+  `vote_count.gte`, `primary_release_date` / `first_air_date` ranges; `/movie/{id}/recommendations` and
+  `/tv/{id}/recommendations` for `Because you watched`; posters and backdrops from `image.tmdb.org/t/p/w342` and
+  `/w1280` (no key needed); `language=is-IS` for Icelandic titles and overviews with English as the fallback.
+- **Ids**: discover results carry TMDB ids, no IMDb id. A row draws from TMDB's own art and names; when a title is
+  opened (or becomes the focused title in the rows) the app calls `/{type}/{id}?append_to_response=external_ids`
+  for its `imdb_id`, then continues through Cinemeta meta and the stream add-ons as today. A title first met in
+  Cinemeta maps the other way without a call: Cinemeta metas carry `moviedb_id`.
+- **Cinemeta stays** for `Popular films` / `Popular series` (`top`), `New this year` (`year`), Search, episode
+  lists, logos by IMDb id and the Marquee's titles. The `imdbRating` catalog is never read.
+- **Caching, within TMDB's terms** (nothing cached longer than 6 months): discover pages 12 hours, recommendations
+  24 hours, title details 30 days, images in the WebView's HTTP cache. `Because you watched` is a counting rule
+  (how often a candidate appears in the recommendations of his last 5–10 titles), not a model: TMDB's terms forbid
+  using its data for ML/AI applications, and this is not one.
+- **Attribution**: Account > About shows the TMDB logo (less prominent than airglow's) and "This product uses the
+  TMDB API but is not endorsed or certified by TMDB."
+- **No key yet** (the first run, or a revoked key): the rows that need TMDB fall back to Cinemeta and are **named
+  honestly**: `Popular comedies` (Cinemeta `top/genre=Comedy`, re-filtered by the title's own genres) instead of
+  `Comedy for you`'s TMDB list, `Top rated` from the app's ratings file over Cinemeta pages with a votes floor,
+  `Anime` from Animation with Japan first plus the deny list, `Á íslensku` from the build-time Icelandic list,
+  `Because you watched` from the Cinemeta scoring below; the blends and `Something different` hide. The Marquee
+  shows a one-time line `Add your TMDB key for better rows · Account > Provider` on the first evening without one.
 
 **Row candidates**, each with a source, a name rule and a reason line:
 
@@ -457,16 +516,17 @@ channel: its number (1–3 digits) or the Live tab in 4; any named row: P− the
 | New in your shows | followed series' new episodes (home-v2 9.3) | `New in your shows` | `Slow Horses S6 and 2 more` |
 | Tonight in the NBA | the slate (ESPN) | as home-v2 4.2 | `1 live · 1 later · 3 final` |
 | A film for tonight | `top` films, unseen, runtime known, ends before 00:00, ≥ 6.5 | `A film for tonight` | `Ends before midnight · best first` |
-| Genre for you | `top/genre=G` (films and series interleaved by his type share), unseen, ≥ 6.5, his languages or English | `Comedy for you` | `Because you watch Always Sunny, The Office and 12 more` (the three heaviest titles of that genre in his history) |
-| Blend | `top/genre=A` pages filtered to genre B (and `country` Japan for anime), up to 6 pages (300 titles) until 20 are found | from the table below | `Two things you watch, together · Animation from Japan + Comedy` |
-| Because you watched X | the seed's genre **with the largest share in his profile** (never Cinemeta's alphabetical first), its catalog pages scored by shared genres (2 points each), shared director (3), shared cast (1 each, up to 3), same decade (1); unseen; top 20 | `Because you watched The Bear` | `Same kind of thing · Comedy · Drama` |
+| Genre for you | TMDB `/discover` `with_genres=G` and the row's `without_genres` exclusion (Comedy: 18,53,27,80,9648,10752; Crime: none; Horror: 35,16 … a table the builder tunes), `vote_count.gte=100`, `sort_by=popularity.desc`, films and series interleaved by his type share, unseen, ≥ 6.5 | `Comedy for you` | `Because you watch Always Sunny, The Office and 12 more` (the three heaviest titles of that genre in his history) |
+| Blend | TMDB `/discover` `with_genres=A,B` (AND); anime blends add `with_keywords=210024&with_original_language=ja` | from the table below | `Two things you watch, together · anime + comedy` |
+| Anime | TMDB `with_keywords=210024&with_original_language=ja` (`with_genres=16` to drop live action), `vote_count.gte=150` | `Anime` | `Because you watch Spy x Family and 4 more` |
+| Because you watched X | TMDB `/recommendations` for each of his last 5–10 finished titles, merged on the device: a candidate's score = how many seeds recommend it (+1 per seed), unseen only, top 20; X is the seed that contributed most. Fallback without a key: the seed's genre with the largest share in his profile, scored by shared genres (2 points each), director (3), cast (1 each, up to 3), decade (1) | `Because you watched The Bear` | `Same kind of thing · Comedy · Drama` |
 | Popular | `top` films / series | `Popular films` / `Popular series` | `This week on Cinemeta` |
 | New this year | `year` films / series | `New this year` | `2026 on Cinemeta` |
-| Top rated | **never Cinemeta's `imdbRating` catalog** (it is `Featured`: mostly new, mostly unrated). The app's ratings file (`scripts/build-ratings.js`: rating, votes, genres per IMDb id) with a votes floor (25,000 films, 10,000 series), joined to `top` pages, or a source that filters by rating (held for the research) | `Top rated` | `IMDb 8.0 and up` |
-| Top rated in a genre | the same, filtered by genre | `Top rated comedies` | `IMDb 7.5 and up` |
-| Something different | a genre with share < 3 %, the same rated source, ≥ 7.5 | `Something different` | `Documentaries · a kind you rarely watch, rated 7.5 and up` |
+| Top rated | TMDB `/discover` `sort_by=vote_average.desc&vote_count.gte=300` (150 for series); **never Cinemeta's `imdbRating` catalog** (it is `Featured`: mostly new, mostly unrated). Fallback: the app's ratings file (`scripts/build-ratings.js`) with a votes floor (25,000 films, 10,000 series) over Cinemeta `top` pages | `Top rated` | `Rated 8.0 and up · TMDB` |
+| Top rated in a genre | the same with `with_genres=G` | `Top rated comedies` | `Rated 7.5 and up` |
+| Something different | a genre with share < 3 %, the same, `vote_average.gte=7.5` | `Something different` | `Documentaries · a kind you rarely watch, rated 7.5 and up` |
 | Add-on catalog | another add-on's catalog (its manifest) | the catalog's name | `From <add-on>` |
-| Á íslensku | **held for the source research**; the fallback is a build-time list of Icelandic IMDb ids (`country` includes Iceland, crawled once from the catalogs and shipped like the ratings file), plus copies with Icelandic audio; no count is printed | `Á íslensku` | `Icelandic films and series` |
+| Á íslensku | TMDB `/discover` `with_original_language=is&vote_count.gte=10` (films and series; `language=is-IS` with English fallback per field), plus copies with Icelandic audio; the count is TMDB's `total_results`. Fallback: a build-time list of Icelandic ids (`country` includes Iceland) | `Á íslensku` | `Icelandic films and series · 97` |
 | Saved | Saved, not started | `Saved` | – |
 | Browse your library | the doors (home-v2 4.4), over the add-on catalogs | `Browse your library` | `OK opens the shelf` |
 | Channels | favourites and recent | `Channels` | `Favourites and recent` |
@@ -520,10 +580,12 @@ sheet: `Comedy for you · 55 % of what you watched in the last month is comedy �
 
 ## 7. The add-on library (Movies and Series tabs, Search, the title page)
 
-- **Shelves**: Popular (`top`), New (`year`), Top rated (`imdbRating`), one per genre (19 films, 22 series) under
-  `top`, the other add-ons' catalogs by their names, Saved, History; the chips row of UI-SPEC 5.5 carries All ·
-  Popular · New · Top rated · four of his genres · More genres (a sheet).
-- **Paging**: 50 per page with `skip`; the grid asks for the next page when the focus is 2 rows from the end of what
+- **Shelves**: Popular (Cinemeta `top`), New (Cinemeta `year`), Top rated (TMDB discover, vote-floored), one per
+  genre (TMDB discover with the exclusion table; Cinemeta `top/genre=G` re-filtered when there is no key), `Anime`
+  (TMDB keyword 210024, combinable with a genre), `Á íslensku`, the other add-ons' catalogs by their names, Saved,
+  History; the chips row of UI-SPEC 5.5 carries All · Popular · New · Top rated · four of his genres · More genres
+  (a sheet). A TMDB shelf pages 20 at a time (`page`), a Cinemeta shelf 50 (`skip`).
+- **Paging**: by the source's page; the grid asks for the next page when the focus is 2 rows from the end of what
   is loaded and keeps at most 12 rows (72 titles) mounted around the focus (rows above are unmounted into a height
   spacer and remounted from the cache on the way up); the scroll bubble reads `#313 of 3,000+` (Cinemeta gives no
   total: `3,000+` once a page past 3,000 answered).
@@ -587,8 +649,13 @@ The rules of home-v2 3.2 hold with these changes:
   of series JSON at most, parsed off the main thread) plus the metas of new history titles.
 - **Game night**: flat CSS fields, a skewed box for the split, grain; no mask on moving pixels.
 - **Nothing animates width**; nothing uses `filter`; the only shadows are the ring and the 1 px border.
-- **The engine** runs in a worker from IndexedDB; Cinemeta pages are cached 24 h (`catalog/<type>/<id>/<extra>`),
-  metas 30 days; a blend needs at most 6 catalog pages, fetched after `launchDone` in the queue, 3 at a time.
+- **The engine** runs in a worker from IndexedDB; TMDB discover pages are cached 12 h and recommendations 24 h
+  (section 6a), Cinemeta pages 24 h (`catalog/<type>/<id>/<extra>`), metas 30 days; a Home build is 12 to 20 TMDB
+  calls (one per row, 5–10 for recommendations) plus the Cinemeta pages, fetched after `launchDone` in the queue,
+  3 at a time; TMDB responses are small (about 20 KB a page), so the series-page budget above applies to Cinemeta
+  only. Row art for TMDB rows is `image.tmdb.org/t/p/w342` posters and `w1280` backdrops (the app's `sized()` already
+  rewrites TMDB URLs); the focused title's logo comes from `/{type}/{id}/images?include_image_language=en,null`
+  once, cached with the title.
 - **Memory**: ≤ 16 rows × 8 cards + the grid's 72 cells; the audit's node count stays under 400.
 
 ---
@@ -601,6 +668,9 @@ The rules of home-v2 3.2 hold with these changes:
   `Hidden` group for rows he hid, `Why this row?` on each, `Reset` and `Forget what you like` (clears the profile,
   not History).
 - **Account > Add-ons**: unchanged; the no-add-ons state of Home points here.
+- **Account > Provider** gains `TMDB key` (typed through the phone page, shown as `Set · ends …`, `Remove`); the
+  first evening without one shows the Marquee's one-time line (section 6a).
+- **Account > About** gains the TMDB logo and the attribution line (section 6a).
 - **First start**: the three quick choices gain `Pick what you like` (3 genre chips, skippable).
 - **The title page**: unchanged; it is where copies are checked and where OK from a row lands.
 - **The NBA tab**: drops its LIVE pill while Home's lit line is the game; unchanged otherwise.
