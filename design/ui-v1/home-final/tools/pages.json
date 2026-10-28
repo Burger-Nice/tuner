@@ -1,0 +1,42 @@
+[
+  {
+    "file": "01-evening.html",
+    "title": "A normal evening",
+    "note": "Wed 20:41 · the Marquee: the lineup, Severance resumes with one press"
+  },
+  {
+    "file": "02-rows-comedy.html",
+    "title": "The rows: Comedy for you",
+    "note": "Down from the lineup · the picture answers the poster · the row index at the right"
+  },
+  {
+    "file": "03-rows-blend.html",
+    "title": "The rows: Anime comedy",
+    "note": "A blend row: two of his genres together, named plainly, marked New row for a week"
+  },
+  {
+    "file": "04-game-night.html",
+    "title": "Game night",
+    "note": "Thu 03:12 · Grizzlies at Trail Blazers live, shield on: ON NOW, no clock, records as of tip-off"
+  },
+  {
+    "file": "05-library-comedy.html",
+    "title": "Movies: Comedy, deep",
+    "note": "The add-on library: one long Cinemeta scroll per genre, #313 of 3,000+"
+  },
+  {
+    "file": "06-cold-start.html",
+    "title": "First evening",
+    "note": "No history: a popular pick, the team, the channel, and Pick what you like"
+  },
+  {
+    "file": "07-channel-no-picture.html",
+    "title": "The channel line",
+    "note": "No picture to show: the channel’s logo on a flat field, the programme and its time"
+  },
+  {
+    "file": "08-loading-missing-art.html",
+    "title": "Loading and missing art",
+    "note": "Posters still loading, a title with no poster, a title with no logo"
+  }
+]
