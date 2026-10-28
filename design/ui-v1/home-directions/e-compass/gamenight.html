@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=960,height=540">
+<title>Compass: game night</title>
+<meta name="tl" content="Thu 29 Oct 02:41 · shield on · centre: Grizzlies at Trail Blazers, live since 02:00 (ESPN, 4K), no score, record or clock · Up NBA: the same game from tip-off · Right Movies: The Big Lebowski (1 h 02 min left) · Down Live: Nuggets at Thunder on TNT · Left Series: It's Always Sunny S18 E10 (22 min)">
+<link rel="stylesheet" href="../../../../app/tv/brand/fonts.css"><link rel="stylesheet" href="../../../../app/tv/brand/tokens.css"><link rel="stylesheet" href="compass.css">
+<style>
+  /* Game night: the room itself takes the two teams. Away (Memphis) left, home (Portland) right, the one 12° split. */
+  .room.fields { --away:#12173F; --away-a:#5D76A9; --home:#000000; --home-a:#E03A3E; --split:58%; opacity:.55; }
+  .room.fields::after { content:""; position:absolute; inset:0; background: radial-gradient(closest-side, rgba(21,19,29,.1), rgba(21,19,29,.75)); }
+  .f.c .fields { --split:76%; }
+  .f.c .sc { background: linear-gradient(90deg, rgba(21,19,29,.82) 0, rgba(21,19,29,.6) 40%, rgba(21,19,29,0) 62%); }
+  .ro .name { white-space: normal; width: 330px; font-size: 32px; line-height: 36px; }
+  .ro .row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .f.c .crest .n { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:10px; font:700 18px/22px var(--a-font-display); white-space:nowrap; }
+  .sp .live { height: 18px; padding: 0 7px; font-size: 10px; }
+  .f.s.games { background: var(--a-bg-1); }
+</style>
+</head><body><div class="screen">
+<div class="room fields"><div class="a"></div><div class="h"></div><div class="e"><i></i><i></i></div></div>
+<div class="grain"></div>
+
+<div class="map room3d">
+  <!-- up: NBA, the same game from tip-off -->
+  <div class="f n" style="--away:#12173F;--away-a:#5D76A9;--home:#000;--home-a:#E03A3E">
+    <div class="fields" style="--split:52%"><div class="a"></div><div class="h"></div><div class="e"><i></i><i></i></div></div>
+    <div class="crest" style="--s:110px;left:40px;top:200px"><img src="art/mem.png" alt=""></div><div class="crest" style="--s:110px;left:490px;top:200px"><img src="art/por.png" alt=""></div><div class="veil"></div>
+  </div>
+  <!-- left: Series, a short one -->
+  <div class="f w" style="--pos:50% 30%"><img class="art" src="art/sunny-bg.jpg" alt=""><div class="veil"></div></div>
+  <!-- right: Movies, the film he is in the middle of -->
+  <div class="f e" style="--pos:30% 30%"><img class="art" src="art/lebowski-bg.jpg" alt=""><div class="veil"></div></div>
+  <!-- down: Live, the other game on now -->
+  <div class="f s" style="--away:#0E2240;--away-a:#FEC524;--home:#007AC1;--home-a:#EF3B24">
+    <div class="fields" style="--split:52%"><div class="a"></div><div class="h"></div><div class="e"><i></i><i></i></div></div>
+    <div class="crest" style="--s:96px;left:60px;top:20px"><img src="art/den.png" alt=""></div><div class="crest" style="--s:96px;left:480px;top:20px"><img src="art/okc.png" alt=""></div><div class="veil"></div>
+  </div>
+  <!-- the centre: the game -->
+  <div class="f c" style="--away:#12173F;--away-a:#5D76A9;--home:#000;--home-a:#E03A3E">
+    <div class="fields"><div class="a"></div><div class="h"></div><div class="e"><i></i><i></i></div></div>
+    <div class="crest" style="--s:124px;left:332px;top:44px"><img src="art/mem.png" alt=""><div class="n">Grizzlies</div></div>
+    <div class="crest" style="--s:124px;left:488px;top:44px"><img src="art/por.png" alt=""><div class="n">Trail Blazers</div></div>
+    <div class="plate" style="position:absolute;left:400px;top:236px"><span class="s"><svg class="eyeoff" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.2A9.8 9.8 0 0 1 12 5c5 0 8.5 4.2 9.5 7a13 13 0 0 1-2.4 3.7M6.4 6.6A13 13 0 0 0 2.5 12c1 2.8 4.5 7 9.5 7a9.6 9.6 0 0 0 4-.9M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>Score hidden</span></div>
+    <div class="sc"></div>
+    <div class="ro" style="width:340px">
+      <div class="ey">Game night <span class="live">Live</span></div>
+      <div class="name">Grizzlies at<br>Trail Blazers</div>
+      <div class="meta"><span>ESPN</span><span class="badge">4K</span><span class="dot">·</span><span>tip-off 02:00, 41 min ago</span></div>
+            <div class="hint"><span><span class="k">OK</span><b>Watch live</b></span><span><span class="k">Hold</span>Reveal, Game page</span></div>
+    </div>
+  </div>
+</div>
+<div class="top-dim"></div>
+
+<div class="sp n"><span class="dk"><svg viewBox="0 0 12 12"><path d="M6 2l5 7H1z"/></svg></span><span class="rd">NBA</span><span class="tt">From tip-off</span><span class="mm">the same game, from 02:00 · no score</span></div>
+<div class="sp w"><span class="dk"><svg viewBox="0 0 12 12"><path d="M2 6l7-5v10z"/></svg></span><span class="rd">Series</span><img class="lg" src="art/sunny-logo.png" alt="It's Always Sunny in Philadelphia"><span class="mm">S18 · E10<br>22 min</span></div>
+<div class="sp e"><span class="dk"><svg viewBox="0 0 12 12"><path d="M10 6L3 1v10z"/></svg></span><span class="rd">Movies</span><img class="lg" src="art/lebowski-logo.png" alt="The Big Lebowski"><span class="mm">1 h 02 min<br>left</span></div>
+<div class="sp s"><span class="dk"><svg viewBox="0 0 12 12"><path d="M6 10l5-7H1z"/></svg></span><span class="rd">Live</span><span class="tt">Nuggets at Thunder</span><span class="mm">also on now · TNT</span></div>
+
+<img class="mk" src="../../../../app/tv/brand/assets/mark-small.svg" alt="">
+<div class="tb-r"><span>Thu 02:41</span><span class="avatar"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.4-4.4 4.4-6.5 8-6.5s6.6 2.1 8 6.5"/></svg></span></div>
+
+<div class="mini"><i style="left:28px;top:4px"></i><i style="left:28px;top:16px"></i><i style="left:4px;top:28px"></i><i style="left:16px;top:28px"></i><i class="here" style="left:28px;top:28px"></i><i style="left:40px;top:28px"></i><i style="left:52px;top:28px"></i><i style="left:28px;top:40px"></i><i style="left:28px;top:52px"></i></div>
+</div></body></html>
