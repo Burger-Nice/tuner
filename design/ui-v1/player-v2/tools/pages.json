@@ -1,0 +1,57 @@
+[
+ {
+  "file": "01-vod-playing.html",
+  "title": "VOD: playing, controls up",
+  "note": "The bar on the picture, no box: the title block top-left (the title treatment Home shows, the episode, what you’re getting), Ends at top-right; discs and pills over a scrim; the thumb has focus; the hint bar on the same scrim."
+ },
+ {
+  "file": "02-vod-paused.html",
+  "title": "VOD: paused",
+  "note": "OK pauses: the picture rests 35 % darker, the Play glyph comes back, Ends at gives way to a Paused tag and the minutes left (a clock that would drift), one line of the story. The controls never hide while paused; after 2 min they fade to 35 % for the OLED."
+ },
+ {
+  "file": "03-vod-scrubbing.html",
+  "title": "VOD: scrubbing",
+  "note": "▶ held: the row fades to 22 %, the bubble (chalk, ink) rides the thumb with the speed chip beside it; the played part follows the thumb; release seeks. No frame thumbnails: the provider’s streams carry no trick-play track (Research)."
+ },
+ {
+  "file": "04-vod-buttons.html",
+  "title": "VOD: the buttons, Skip intro",
+  "note": "▲ lands on the Skip intro pill while its window is fresh (skip spec 3.3); ◀ ▶ move along the row, the focused button says what it is above itself (tvOS’s labelled transport bar), so the hint bar can stay short."
+ },
+ {
+  "file": "05-vod-upnext.html",
+  "title": "VOD: Up next at the credits",
+  "note": "The credits started: Up next counts 15 s in its ring, sitting above the bar (its keys are not drawn while the controls are up: OK and Back work the controls). Next episode in the row is the way on; Back stays."
+ },
+ {
+  "file": "06-live-banner.html",
+  "title": "Live: the channel banner",
+  "note": "No box: the same top block as a film. Number · logo · channel and the zap ring, the programme in Outfit 24, its times with the 4 dp progress and what’s next; tags, the kept-channel glyph and LIVE at the right. Hint bar as before. Gone after 4 s."
+ },
+ {
+  "file": "07-live-zap.html",
+  "title": "Live: zapping",
+  "note": "▲ pressed: the old picture dims at once, the zap card names the next channel and what’s on, the banner is already its (number, name, programme). Gone at the first frame, 600 ms at least."
+ },
+ {
+  "file": "08-live-paused.html",
+  "title": "Live: paused, behind live",
+  "note": "⏯ on a kept channel: the bar becomes the programme (21:00 to 23:50), the live point a red dot with LIVE beside it and the part not aired yet dashed; top-right how far behind you are and that the channel keeps replays. Back to live leads the right group."
+ },
+ {
+  "file": "09-replay-timeline.html",
+  "title": "Replay: the timeline, shield on",
+  "note": "Watch from tip-off while the game is still on: Score hidden and your own position top-right, never the live game’s; chapter ticks Tip-off to Q4 (OT only once played), Q2 lit, End hidden at the right, the live point 66 % along with the dashed part not aired yet. Skip to Q3 names where it goes. No score anywhere."
+ },
+ {
+  "file": "10-replay-panel.html",
+  "title": "Replay: the game panel",
+  "note": "The Game disc or Options › Game panel: the bar hides, the panel shows the score as aired at the moment you’re watching (90 s behind the picture, never ahead), Quarters with their aired times (OK jumps there, the one you’re in on surface-2), Plays to the moment, Sync. No box score until the buzzer + 2 min has played."
+ },
+ {
+  "file": "11-options.html",
+  "title": "Options (a film)",
+  "note": "▼ from the bar: the controls hide, the panel floats at the left, first row focused (inset ring on surface-3, no scale). Rows name the value at the right; a missing track is a disabled row. Unchanged in behaviour; the tokens and spacing are the new bar’s."
+ }
+]
