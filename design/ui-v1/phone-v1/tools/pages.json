@@ -1,11 +1,52 @@
 [
-  { "file": "01-home-evening.html", "title": "Home, a normal evening", "note": "Wed 20:41 · the Marquee stacked: the picture, the lit line as its card, the other lines as rows, the first browsing row; Resume is one tap" },
-  { "file": "02-home-gamenight.html", "title": "Home, game night", "note": "Thu 03:12 · the two teams are the picture, ON NOW and Score hidden, records as of tip-off, Watch live one tap, From tip-off beside it; the NBA tab carries LIVE" },
-  { "file": "03-live.html", "title": "Live", "note": "The guide as channel rows: now with its progress, next, LIVE; the group chip; your last channel on top; tap plays, swipe favourites, the chevron opens the channel’s day" },
-  { "file": "04-nba-hub.html", "title": "NBA: the hub", "note": "The section chips, your team’s next game as the hero (the tip-off slab), the day chips, the game cards full width in the TV’s shape" },
-  { "file": "05-title-series.html", "title": "A series: Severance", "note": "The title page: backdrop, logo, facts, plot, Resume · Saved · Subtitles, the copy line, seasons, episodes as a list with their stills and progress" },
-  { "file": "06-player-portrait.html", "title": "The player, portrait: the game", "note": "The video on top, the controls below it: Score hidden, You’re in Q2, the timeline to the live point, Skip to Q3, Back to live, channel up/down, AirPlay, PiP, the zap ring" },
-  { "file": "07-player-landscape.html", "title": "The player, landscape: an episode", "note": "Full screen: the TV’s v2 bar (title block, −10 / +10, Next episode, the track, Ends) with the iOS buttons at the right; swipe to seek" },
-  { "file": "08-account.html", "title": "Account", "note": "The TV’s groups as grouped lists: Provider (Sign in with your TV), Playback (data saver, PiP), NBA (team, shield), Films and series (add-ons, TMDB key, Home rows), App" },
-  { "file": "09-signin.html", "title": "Sign in", "note": "First run: Sign in with your TV (the TV shows a code and a QR, the phone pulls the login over Wi-Fi), or Xtream / M3U by hand" }
+  {
+    "file": "01-home-evening.html",
+    "title": "Home, a normal evening",
+    "note": "Wed 20:41 · the Marquee stacked: the picture (the subject above the card), the lit line as its card, the other lines as rows, the first row’s reason on its own line, the row peeking by design"
+  },
+  {
+    "file": "02-home-gamenight.html",
+    "title": "Home, game night",
+    "note": "Thu 03:12 · the two teams are the picture, ON NOW and Score hidden, records as of tip-off, Watch live one tap, From tip-off beside it; the NBA tab keeps its label and carries a LIVE badge"
+  },
+  {
+    "file": "03-live.html",
+    "title": "Live",
+    "note": "The guide as channel rows: name and LIVE on one line, the programme, then its times and Next with room; the group chip; your last channel on top; tap plays, swipe favourites, the chevron opens the channel’s day"
+  },
+  {
+    "file": "04-nba-hub.html",
+    "title": "NBA: the hub",
+    "note": "The section chips, your team’s next game as the hero (the tip-off slab, 44 pt buttons), the day chips, the other games as full-width cards in the TV’s shape (the hero’s game is not repeated)"
+  },
+  {
+    "file": "05-title-series.html",
+    "title": "A series: Severance",
+    "note": "The title page: backdrop, logo, facts, plot, Resume · Saved · Subtitles, the copy line, seasons, episodes as a list with their stills and progress"
+  },
+  {
+    "file": "06-player-portrait.html",
+    "title": "The player, portrait: the game",
+    "note": "An HTML5 video on top with the X, AirPlay and PiP on the picture; the shield corner on the bottom scrim; the timeline to the live point; one transport row (Subtitles & audio, −1 m, pause, +1 m, Options); Skip to Q3, Back to live, Game; the zap ring in view"
+  },
+  {
+    "file": "07-player-landscape.html",
+    "title": "The player, landscape: an episode",
+    "note": "Full screen, no status bar, aspect-fit with 65 pt black at the short edges: the TV’s v2 bar (title block, −10 / +10, Next episode, the track, Ends 21:02 · 13 min left · −12:50 agree) with the iOS buttons at the right"
+  },
+  {
+    "file": "08-account.html",
+    "title": "Account",
+    "note": "Pushed from the avatar with Back: Provider (the line, Connections: the TV is using one), Playback (data saver, subtitles, PiP), NBA (team, shield), Films and series (add-ons, TMDB key, Home rows), App"
+  },
+  {
+    "file": "09-signin.html",
+    "title": "Sign in",
+    "note": "First run: the provider login typed once (Xtream or M3U, the same as the TV); then your team, the TMDB key and the Stremio add-ons, as on the TV"
+  },
+  {
+    "file": "10-library.html",
+    "title": "Library: Movies, Comedy",
+    "note": "Movies · Series · Saved as segments, the shelf chips, three posters across with their captions, the scroll bubble #313 of 3,000+; an MKV-only title is marked (it opens in Infuse / VLC)"
+  }
 ]

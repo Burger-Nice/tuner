@@ -18,6 +18,52 @@ the NBA at work, on iOS.
 The timeline is home-final's: Wed 28 Oct 2026 20:41 in Reykjavik, shield `My team`, add-ons Cinemeta and `Northlight`,
 the Grizzlies at Portland Thu 29 Oct 02:00; `02` and `06` are Thu 03:12 to 03:14 with the game on.
 
+| Also | |
+|---|---|
+| `PORT-NATIVE.md` | the native side, short: WebView flags, `Info.plist` keys, the audio session, the streams (HLS first, mpegts.js over ManagedMediaSource as the fallback), the MKV hand-off, AltStore |
+| `REVIEW-independent-1.md` | the review of v1.0 (7.2; the design 7.6, buildability 5) that v1.1 answers |
+| `10-library.html` | new in v1.1: the Library tab (Movies, Comedy, deep) |
+
+---
+
+## v1.1 changes (an answer to the review; the build starts from this)
+
+**The shell and the player are HTML in the existing Capacitor phone app. No native screens.**
+- §0.2, §2, §0.14, §3.6: the tab bar is an HTML pill (`position: fixed`, `backdrop-filter`), sheets are `ui.js`'s
+  `openOverlay` with two snap heights (medium, full), long-press is an HTML menu (`contextMenu`), the search field is
+  ours. The SwiftUI and UIKit names are gone from the spec.
+- §0.8, §3.7: the player is an HTML5 `<video>` in the WebView with the v2 controls in HTML (the old phone player,
+  `app/player.js`, already tries HLS, then MPEG-TS, then native). HLS first (Xtream serves `.m3u8`), `mpegts.js` over
+  `ManagedMediaSource` (iOS 17.1+) as the fallback; PiP by `webkitSetPresentationMode` / `requestPictureInPicture`,
+  AirPlay by the element's picker. The native side is a configuration list, `PORT-NATIVE.md`, not a plugin.
+- §0.11a, §3.5, `copies.js`: a **plays-here** ranking term on iOS (MP4 / HLS first); an MKV-only title says so and
+  offers `Open in Infuse / VLC`. The library card carries an `MKV` chip (`10`).
+- §0.10, §3.8, `09`: **sign-in types the provider login once** (then the team, the TMDB key typed or sent from the TV's
+  phone page, the Stremio account code, as on the TV). "Sign in with your TV" moves to open items with the facts
+  corrected (`PhonePage` listens on 8790, only while its screen is open, 10 minutes, a 6-digit code with a 5-try
+  lock, no `/ping`; it receives, it does not send).
+- Delivery: AltStore, as before.
+
+**Must-fixes in the mocks.** `06`: AirPlay and PiP are on the video (top-right), one `Subs & audio` button, no
+chevrons in the transport row, the X top-left, the shield corner on the bottom scrim, the zap ring in view; §3.7 says
+what auto-hides (only the video's overlay). Gestures: one job each (§3.7). `03`: the LIVE pill on the channel's name
+line, the times and `Next` with room (`until 20:55 · Next Fréttir 20:55`).
+
+**Should-fixes.** `01` / `02`: the row's reason on its own line; the subject's face clear of the card (`--pos`, the card
+48 pt lower and lighter); `02`: the `NBA` label stays and the LIVE badge sits on the icon; the card's skew is gone (the
+Sharp angle belongs to the split and the plates; the card keeps a gradient edge). `04`: the hero's game is not
+repeated in the list (`6 games · yours above`), the hero's buttons are 44 pt, `Your team · NBA · Tip-off`. `05`: the
+copy line on one line, 16 pt above the season chips. `07`: no status bar, aspect-fit with 65 pt black at the short
+edges, 24 pt top inset, `Ends 21:02 · 13 min left · −12:50` agree. `08`: a pushed page with Back and no avatar; the
+provider line untruncated; `Connections · 1 of 2 in use · the TV is watching …`. Everywhere: 44 pt targets
+(`.dt-back`, `.dt-more`, `.pv-close`, `.ph-top .ib`, `.nb-hero .act`, `.pv-act`, the `…` disc). The shield: the seen
+store is per device (§0.9); Now Playing, PiP and the `Remind me` text go through it (§3.7). A named diagnosis state
+for the provider's stream limit (§3.7). `10-library` is mocked; the game page is not (open item 10). Safe areas
+through `env()` (§0.13, §2). Nits: the `Favourites` chip keeps its icon and drops the dot; no stars inside the
+Favourites group; the guide's hint retires after 5 showings; `09` spacing and the privacy line above the home
+indicator; §3.1 says the first row is a peek by design; `Morant 27.8` is dropped from the phone's game line (no room;
+the fan line keeps rank, streak, `as of tip-off`).
+
 ---
 
 ## 0. Decisions (each with its reason)
@@ -27,12 +73,13 @@ the Grizzlies at Portland Thu 29 Oct 02:00; `02` and `06` are Thu 03:12 to 03:14
    Standings · Leaders · Team stats · News`); the title page has the same facts line, the same copy line and the same
    pill; the player wears the v2 bar. *Why:* the owner said so, and the TV design has been through five reviews. A
    phone that looks like the TV is also the phone he can use without learning anything.
-2. **A tab bar with four tabs and the search tab: Home, Live, NBA, Library, and Search at the trailing end.** The
-   TV's seven destinations (Search, Home, Live, NBA, Movies, Series, Saved) become four plus Search. **Library** holds
-   Movies, Series and Saved as a segmented control at its top. Account is the avatar at the top right of every tab,
-   exactly where the TV has it. *Why:* Apple's guidance (section 1): fewer tabs are easier, overflow (a More tab)
-   hides content, and iOS 26 reserves a dedicated search tab at the trailing end. Movies and Series are one kind of
-   browsing on a phone (the same library, the same grid), so one tab with a switch loses nothing the TV has.
+2. **A tab bar with four tabs and the search tab: Home, Live, NBA, Library, and Search at the trailing end**, drawn
+   in HTML (a fixed glass pill; v1.1). The TV's seven destinations (Search, Home, Live, NBA, Movies, Series, Saved)
+   become four plus Search. **Library** holds Movies, Series and Saved as a segmented control at its top. Account is
+   the avatar at the top right of every tab, exactly where the TV has it, and opens as a pushed page with Back.
+   *Why:* Apple's guidance (section 1): fewer tabs are easier, overflow (a More tab) hides content, and iOS 26 puts a
+   dedicated search tab at the trailing end, which an HTML bar can mirror. Movies and Series are one kind of browsing
+   on a phone (the same library, the same grid), so one tab with a switch loses nothing the TV has.
 3. **NBA is one tap from Home on a game day, and the tab says so.** The Marquee's game line is the first line when
    the game is live or within 3 h of tip-off (the TV's rule), its card opens in place with `Watch live` and `From
    tip-off`, and the NBA tab carries the LIVE pill while the game is on (the TV's top-bar rule). *Why:* the brief's
@@ -62,40 +109,50 @@ the Grizzlies at Portland Thu 29 Oct 02:00; `02` and `06` are Thu 03:12 to 03:14
    under it drive the grid; the game cards are the TV's cards at full width (status line, two team rows with their
    colour edges and records, the plate at the right). *Why:* the hub spec's hero-state table and the shield's per-surface
    rules apply unchanged; cards at full width read like ESPN's and the NBA app's Scores lists, which he knows.
-8. **The player is the TV's v2 bar in two orientations.** Portrait: the video 16:9 under the status bar, then the
-   title block, the track with its chapter ticks up to the live point, the ends row, the transport row (−1 m, channel
-   up, pause, channel down, +1 m), the game actions (`Skip to Q3`, `Back to live`, `Game`), the iOS row (Subtitles,
-   Audio, AirPlay, PiP, Options), and the zap ring as a list. Landscape: full screen, the v2 bar on the bottom scrim,
-   the title block top-left, `Ends 21:02` top-right, the iOS buttons at the right of the buttons row. *Why:* the bar's
-   words and order are the TV's, reviewed twice; AVPlayerViewController's own controls would lose the chapters, the
-   shield's `End hidden` and the zap ring, so the controls are ours, on an AVPlayer layer, with the system's AirPlay
-   route button and PiP controller (section 1, Apple's rule: a custom player should mirror the system one's
-   habits, which these controls do: tap to toggle, double-tap the edges to seek, swipe to scrub).
+8. **The player is an HTML5 `<video>` in the WebView wearing the TV's v2 bar, in two orientations** (v1.1).
+   Portrait: the video 16:9 under the status bar with the X, AirPlay and PiP on it and the shield's corner on its
+   bottom scrim; under it the title block, the track with its chapter ticks up to the live point, the ends row, one
+   transport row (`Subs & audio`, −1 m, pause, +1 m, Options), the game actions (`Skip to Q3`, `Back to live`,
+   `Game`), and the zap ring as a list. Landscape: full screen, no status bar, the v2 bar on the bottom scrim, the
+   title block top-left, `Ends 21:02` top-right, the iOS buttons (CC, AirPlay, PiP, Options) at the right of the
+   buttons row. *Why:* the bar's words and order are the TV's, reviewed twice, and the logic behind them (`games.js`,
+   `replay.js`, `subs.js`, `quality.js`, `conncheck.js`) is JavaScript that runs as it is in the WebView; the old
+   phone player (`app/player.js`) already drives a `<video>` through HLS, MPEG-TS and native. Apple's rule for a
+   custom player (section 1) is to keep the system player's habits: tap to toggle, double-tap the edges to seek,
+   drag the bar to scrub, PiP and AirPlay where the system puts them. `PORT-NATIVE.md` lists what iOS needs.
 9. **The shield is the TV's, byte for byte.** `Score hidden`, `ON NOW` without a clock, records `as of tip-off`, the
-   timeline that stops at the live point, `End hidden`, the Reveal behind a confirm, the seen store shared with the
-   TV through the provider account. The phone never reveals what the TV would hide. *Why:* `games.js` already does it;
-   the phone only draws its answers.
-10. **"Sign in with your TV."** The TV's Account › Provider gets `Send to your phone`: a six-character code and a QR.
-    The phone types the code or scans it, finds the TV on the same Wi-Fi (the TV already runs `PhonePage`, the small
-    HTTP server a phone opens to type the TMDB key into the TV) and pulls the provider login, the team, the shield
-    mode, the add-ons and the TMDB key. Xtream and M3U by hand stay below it. *Why:* every big service signs a TV in
-    from a phone with a code or a QR (Netflix's `netflix.com/tv2`, Disney+'s eight-digit code); here the direction is
-    reversed because the TV is the one that is signed in. The owner must never retype a provider password on a phone
-    keyboard.
+   timeline that stops at the live point, `End hidden`, the Reveal behind a confirm. The seen store (`games.js`
+   `{ upTo, ids }`) is **per device** (v1.1: the provider holds no app data; unsynced is spoiler-safe, a device can only
+   over-hide). The phone never reveals what the TV would hide, and its own new surfaces go through the shield too:
+   the lock screen's Now Playing title and artwork, PiP's title, the `Remind me` notification's text (the masked game
+   name, never an ESPN headline). *Why:* `games.js` already does it; the phone only draws its answers.
+10. **Sign-in types the provider login once, as on the TV** (v1.1): Xtream or M3U, then the team and the shield,
+    then the TMDB key (typed, or sent from the TV's phone page, which already exists for that) and the add-ons from
+    the Stremio account with its code. *Why:* it is what `screens/first.js` and `screens/account.js` do today, so it
+    builds tonight. "Sign in with your TV" (the TV shows a code and a QR, the phone pulls the login over the LAN) is
+    open item 6 with the facts corrected: it needs a new, confirmed, send-out path on the TV's `PhonePage`, which
+    today only receives.
 11. **A data-saver quality choice, on by default on mobile data.** `Best on Wi-Fi · 720p on mobile data`, a toggle in
     Account › Playback and a chip on the player (`Mobile data · 720p`) that opens the quality sheet. *Why:* the
-    brief's note; the copy ranking (`copies.js`) already knows each copy's resolution, and the provider's streams
-    carry their variants.
+    brief's note; the copy ranking (`copies.js`) already knows each copy's resolution, and HLS variants are picked by
+    capping the level (hls.js `autoLevelCapping`; on the native HLS path the provider's lower-quality copy).
+11a. **Copies are ranked by whether they play here** (v1.1). On iOS the `<video>` plays MP4 / M4V / MOV (H.264,
+    HEVC; AAC, AC-3 on most devices) and HLS; it refuses MKV, AVI, DTS and TrueHD. `copies.js` gets a plays-here term
+    first in the order; the library card marks an MKV-only title (`10`); its title page says `Only MKV copies · Open in
+    Infuse` with the hand-off button (`PORT-NATIVE.md`). *Why:* without it `best of 3 copies` would promise and then
+    fail; Infuse and VLC are the two players every iPhone IPTV user already has.
 12. **Dark only, the TV's tokens, Dynamic Type where it is cheap.** The phone scale is Outfit 700 32 (large titles),
     24, 20; Inter 16 body, 14 secondary, 13 caption, 12 labels and badges (the TV's 14-pt floor was for 3 m; iOS body
     is 17 and caption 12). Body and row text follow the system's text size up to the `xxLarge` step (the Marquee's
     card, the cards and the player's bar are fixed). *Why:* one brand; the owner sets his phone's text size like
     everyone else.
-13. **Safe areas are respected everywhere.** 59 pt top (status bar and the Dynamic Island), 34 pt bottom (the home
-    indicator), 16 pt side gutters; the tab bar floats 26 pt from the bottom; content scrolls under it (a fade keeps
-    the last row readable). The player in landscape keeps its text 64 pt in from the short edges, clear of the island.
-14. **Touch targets are 44 pt or bigger**, chips 36 pt (Apple allows 28 for chips in a row), rows 50 to 72 pt. Every
-    hold-OK menu on the TV is a long-press context menu here (the system's, with the same items in the same order).
+13. **Safe areas are respected everywhere**, through `viewport-fit=cover` and `env(safe-area-inset-*)` (v1.1), never
+    hard-coded: 59 pt top and 34 pt bottom on the 15 Pro the mocks draw (62 / 34 on a 16 Pro, 20 / 0 on an SE), 16 pt
+    side gutters; the tab bar floats 8 pt above the bottom inset; content scrolls under it (a fade keeps the last row
+    readable). The player in landscape keeps its text 80 pt in from the short edges, clear of the island.
+14. **Touch targets are 44 pt or bigger**, chips 36 pt (Apple allows 28 for chips in a row), rows 50 to 84 pt. Every
+    hold-OK menu on the TV is a long-press menu here (`ui.js` `contextMenu` drawn as a bottom sheet, the same items in
+    the same order; a 500 ms press with the light haptic).
 15. **Nothing moves by itself** (UI-SPEC 1.4 holds): no carousel, no autoplay, no reordering while a tab is on screen,
     the picture swaps only after the rest.
 
@@ -124,9 +181,9 @@ this session (9to5Mac, Tom's Guide, Android Central, Six Colors, the NBA's suppo
   lists, the episode list. [Lists and tables](https://developer.apple.com/design/human-interface-guidelines/lists-and-tables)
 - Apple's safe-area and touch-target rules (44 × 44 pt) as in *Layout*; iPhone 15 Pro: 393 × 852 pt at 3×, top inset 59,
   bottom 34. → Decisions 13 and 14.
-- iOS 26's tab-bar API (WWDC25 session 284, S): `tabBarMinimizeBehavior(.onScrollDown)`, `Tab(role: .search)`,
-  `tabViewBottomAccessory`. → The bar minimises on scroll in the rows and the guide; a playing stream's mini bar is
-  the bottom accessory (open item 4).
+- iOS 26's tab-bar behaviour (WWDC25 session 284, S): the bar minimises on scroll, a search tab at the trailing
+  end, a bottom accessory for a mini player. → Mirrored in HTML: the bar minimises on scroll in the rows and the
+  guide; a playing stream's mini bar above it is open item 4.
 
 **The apps named in the brief (2025–2026)**
 - Apple TV app, iOS 26 (S): redesigned with Liquid Glass, vertical posters, new player controls; Continue Watching on
@@ -154,15 +211,16 @@ shield per surface), `catchup/SPEC.md` (replays, the timeline), `subtitles/`, `c
 
 | Element | Geometry |
 |---|---|
-| Status bar | the system's; the clock at the left, the island 125 × 37 at y 11 (nothing of ours above y 59) |
+| Status bar | the system's; the clock at the left, the island 125 × 37 at y 11; nothing of ours above `env(safe-area-inset-top)` (59 on the 15 Pro, 62 on the 16 Pro, 20 on an SE), the page is `viewport-fit=cover` |
 | Top bar | y 59 to 103: the mark (26 pt) on Home, else the tab's large title (Outfit 700 32); at the right the tab's own buttons (Live: search; NBA: `ESPN · 20:41`) and the avatar (34 pt, the gradient disc; a dot on it when Updates has one) |
 | Content | from y 112; 16 pt gutters; rows and cards edge to edge inside them |
-| Tab bar | floating, 58 pt high, 26 pt from the bottom, 16 pt in from the sides: a glass pill (bg-1 at 78 % under the system blur) with Home, Live, NBA, Library (icon 24 + label 11), the selected tab on a chalk-tint pill; the search tab a 58 pt disc at the trailing end; a 120 pt fade under content so the last row stays readable |
+| Tab bar | an HTML pill, `position: fixed`, 58 pt high, `env(safe-area-inset-bottom)` − 8 from the bottom, 16 pt in from the sides: bg-1 at 78 % with `backdrop-filter: blur(24px)` (WKWebView draws it), a 1 pt chalk line, Home, Live, NBA, Library (icon 24 + label 11, labels never change), the selected tab on a chalk-tint pill, the LIVE badge on the NBA icon's corner while a game is on; the search tab a 58 pt disc at the trailing end; a 130 pt fade under content so the last row stays readable. It minimises to the selected tab's icon while a list scrolls down (a class toggled by the scroll direction) and comes back on a scroll up |
 | Home indicator | the system's |
-| Back | the system's: a chevron top-left on pushed pages, the edge swipe, and tapping the selected tab returns to its root (the TV's Back model: tab roots stay where you left them) |
+| Back | `router.js`'s stack: a chevron top-left on pushed pages and a left-edge swipe handled in JS (`touchstart` within 20 pt of the edge); tapping the selected tab returns to its root (the TV's Back model: tab roots stay where you left them) |
 
-Sheets are the system's (`.presentationDetents`): medium for pickers and menus (the radio menus of `ui.js`), large
-for lists (the 15 rows, the sources sheet, Choose a video). Toasts are the TV's, 44 pt above the tab bar.
+Sheets are `ui.js`'s `openOverlay` drawn as bottom sheets with two heights (medium: pickers, the radio menus, the
+long-press menu; full: lists such as the 15 rows, the sources sheet, Choose a video); a drag down or the scrim closes
+them. Toasts are the TV's, 44 pt above the tab bar.
 
 ---
 
@@ -177,11 +235,11 @@ page are read as data; only the draw changes.
 
 | TV | Phone |
 |---|---|
-| the picture full-bleed, the lineup at x 56 | the picture is the top 470 pt (`--pos` per title, the cap from the 32 pt copy, the top scrim for the bar, the bottom scrim to canvas); the lineup starts at y 238 |
+| the picture full-bleed, the lineup at x 56 | the picture is the top 470 pt (`--pos` per title with the subject in the top 280 pt, so the card never boxes a face; the cap from the 32 pt copy, the top scrim for the bar, the bottom scrim to canvas); the lineup starts at y 286 |
 | the lit line is its card in the column | the lit line is its card across the width (`.hm-card`: radius 18, the glow colour to canvas, a 1 pt chalk line): eyebrow, logo 46 pt (else the name Outfit 700 26), the facts with badges, one line, the bar 180 × 4, the actions: the pill (`Resume`, `Play`, `Watch live`, `Tune`, `Details` on a pick) full width beside one ghost button (`Episodes`, `From tip-off`, `More popular films`) and `…` (the hold-OK menu) |
 | the unlit lines, Outfit 30 at 66 % | 44 pt rows, Outfit 700 20 at 78 % + the facts in 13 pt, a chevron; a tap lights the line (its card opens in place, the picture answers after 600 ms) |
-| the peek, `P− Browse · 15 rows` | the first row peeks under the lines; its title row ends in `15 rows ▾` (the index sheet) |
-| game night: the two fields, crests 150 | the fields fill the top 470 pt (the split at 62 %, 12°), crests 96 at y 112 with names and `as of tip-off`, the `ON NOW` chip and the `Score hidden` plate at y 254, the Sharp card (5° here: 12° on a 200 pt card would cost 42 pt of width) |
+| the peek, `P− Browse · 15 rows` | the first row peeks under the lines **by design** (about 100 pt of posters above the tab bar; the Marquee is the point of the first screen, the rows start one scroll down); its title row ends in `15 rows ▾` (the index sheet) and its reason sits on its own line under the title |
+| game night: the two fields, crests 150 | the fields fill the top 470 pt (the split at 62 %, 12°), crests 96 at y 112 with names and `as of tip-off`, the `ON NOW` chip and the `Score hidden` plate at y 254, the game's card with a gradient edge (no skew on a 361 pt card: the Sharp angle belongs to the split and the plates) |
 | the rows: picture area + column + index + one row | the rows: each row is its title (Outfit 700 20), its reason (13 pt, one line, ellipsis), `15 rows ▾`, then its cards in a horizontal scroll (posters 108 × 162 radius 10, 10 pt gutters, 3.4 visible; wide cards 198 × 111; game cards 250 × 118 the TV's shape); no picture area, no column: the title's facts are one tap away on its title page |
 | OK Details / hold OK menu | tap opens Details; long-press is the menu (`Play now`, `Save`, `Not interested`, `Why this row?`, `Hide this row`) |
 
@@ -200,10 +258,10 @@ a programme that is a game).
 | TV | Phone |
 |---|---|
 | the Now panel (thumbnail, title, channel, times, progress, the line) | the top card (`.lv-now`): the last channel watched (or the lit row's programme when the list is scrolled with a selection), `Tune` and `Earlier` (the archive) |
-| the ruler and six rows by time | `Now 20:41 · Wed 28 Oct` and the hint; then channel rows (72 pt): number, tile (the logo on its colour, else the abbreviation), the name with the favourite star, the programme on now (LIVE pill when the TV draws one; a game under the shield reads the TV's masked name), the progress bar and `20:35 to 20:55 · Next Fréttir 20:55`; `No guide information` as on the TV |
+| the ruler and six rows by time | `Now 20:41 · Wed 28 Oct` and the hint (5 showings, then gone); then channel rows (84 pt, three lines): the name with the LIVE pill when the TV draws one (and the favourite star outside the Favourites group), the programme on now (a game under the shield reads the TV's masked name), then the progress bar, `until 20:55` and `Next Fréttir 20:55` with room; `No guide information` as on the TV |
 | ◀ ▶ along time | the chevron opens the channel's day: a vertical list of its programmes with the archive above now (`catchup` §4: kept programmes play from their start, gone ones are grey) |
 | group chip + the groups sheet | the chip row (`Favourites · 10`, `All channels`, the provider's groups, `Sports` first when a game is on) |
-| hold OK favourite with undo toast | swipe left: `Favourite` / `Unfavourite` with the undo toast; long-press: the hold-OK menu (favourite, open the channel's day, which game it carries) |
+| hold OK favourite with undo toast | swipe left (a JS touch handler on the row, 88 pt reveal): `Favourite` / `Unfavourite` with the undo toast; long-press: the hold-OK menu (favourite, open the channel's day, which game it carries) |
 | digits jump | the search button top right: by number or name |
 | CH± pages | scroll |
 
@@ -234,11 +292,13 @@ the final layout; team None: `Teams` opens the picker). Pull to refresh on the h
 ### 3.4 Library (Movies · Series · Saved)
 
 **From the TV:** `screens/lib.js` (the add-on library: Popular, New, Top rated, genres, the add-ons' catalogs; Sort /
-Filters / Jump), `shelves.js` (`Pager`, `shelves(kind)`, `genreShelf`), `screens/saved.js`, `catalog.js`. No mock this
-round: it is the TV's grid at 3 posters across (108 × 162, 10 pt gutters), the shelf chips in a row at the top
-(`Popular`, `New`, `Top rated`, `Comedy`, …), the segmented control `Movies · Series · Saved` in the title bar, the
-scroll bubble (`#313 of 3,000+`) while the scrollbar is dragged, Sort and Filters as a medium sheet. The owner's
-decision stands: the library is the add-ons, never the provider's VOD.
+Filters / Jump), `shelves.js` (`Pager`, `shelves(kind)`, `genreShelf`), `screens/saved.js`, `catalog.js`. Mock `10-library`: the
+segmented control `Movies · Series · Saved` under the title, the shelf chips (`Popular`, `New`, `Top rated`,
+`Comedy`, …), the context line (`Comedy · Popular · 3,000+ films · Sort · Filters`), the TV's grid at 3 posters across
+(2:3, 10 pt gutters) with the caption under each (name, `2014 · 1h 39m · 8.1`), a `4K` chip where a copy is known
+and an `MKV` chip when no copy plays here (decision 11a), the scroll bubble (`#313 of 3,000+`) while the list is
+flung or its edge dragged, Sort and Filters as a medium sheet. The owner's decision stands: the library is the
+add-ons, never the provider's VOD.
 
 ### 3.5 The title page (`05-title-series`)
 
@@ -250,7 +310,7 @@ decision stands: the library is the add-ons, never the provider's VOD.
 |---|---|
 | the backdrop, the text at x 48 | the backdrop as the top 400 pt under the cap and scrims; the back chevron and `…` on 40 pt discs at y 61 |
 | `SERIES · THRILLER · SCI-FI`, the title, the facts | the eyebrow, the logo 54 pt (else the name Outfit 700 28), `★ 8.7 · 2022– · 2 seasons · TV-MA · 4K · EN`, the plot clamped at 2 lines (tap expands) |
-| `Resume S1 · E3` · `Save` · `Subtitles: English` | the pill full width beside `Saved` and the CC button (the subtitles sheet); under them the copy line with the tick |
+| `Resume S1 · E3` · `Save` · `Subtitles: English` | the pill full width beside `Saved` and the CC button (the subtitles sheet); under them the copy line with the tick (`4K HDR, 5.1 · best of 3 · Icelandic subs · plays here`); when no copy plays here the pill reads `Open in Infuse` and the line `Only MKV copies · Infuse or VLC plays them` |
 | season chips, the episode rail, the lit episode's line | the season chips with `10 episodes · 3 left`; the episodes as a vertical list (still 132 × 74 with the number chip, the tick for watched, the progress bar; name, duration or `21 min left`, one line of the episode; the one you are on in pink-text) |
 | hold OK on the pill | long-press the pill: `Start over`, `Choose a copy` (the sources sheet), `Mark watched` |
 
@@ -258,55 +318,73 @@ A film: the same page without seasons; `Play` / `Resume`; `More like this` as a 
 
 ### 3.6 Search and Saved
 
-`screens/search.js` behind the search tab (the system's search field in the tab bar, results as the TV's: channels,
-titles and games in sections; the keyboard is the phone's, which is the point). Saved is the Library's third segment
+`screens/search.js` behind the search tab (our own field at the top of the Search screen, autofocused, results as
+the TV's: channels, titles and games in sections; the keyboard is the phone's, which is the point). Saved is the Library's third segment
 (`screens/saved.js`).
 
 ### 3.7 The player (`06-player-portrait`, `07-player-landscape`)
 
-**From the TV:** `player.js` (commands and events: `meta`, `game`, `ring`, `tune`, `queue`, `versions`; events `track`,
+**From the TV:** `player.js` (the JS side: `meta`, `game`, `ring`, `tune`, `queue`, `versions`; events `track`,
 `need`, `pick`, `progress`, `exit`), `games.js` (the per-channel delay, `chaptersOf`, `asAired`, the replay state,
-`behindReplay`), `replay.js`, `catchup.js`, `subs.js` + `subs/*`, `quality.js`, `conncheck.js` (the diagnosis),
-`intros.js` / `skipshow.js` (Skip intro, Up next). The native side is new on iOS: an `AVPlayer` with
-`AVPlayerLayer`, `AVRoutePickerView` (AirPlay), `AVPictureInPictureController`, `AVPlayerItem.externalMetadata` for
-the lock screen and PiP, HLS natively (the provider's HLS and the add-ons' direct links; the TS streams the Android
-player takes through Media3 are open item 2). The v2 bar's port checklist (`player-v2/player-v2.css`, class per
-view) is the checklist here too, in SwiftUI or UIKit.
+`behindReplay`), `replay.js`, `catchup.js`, `subs.js` + `subs/*` (the subtitle renderer draws over the video in HTML,
+as the TV's `SrtTrack` does natively), `quality.js`, `conncheck.js` (the diagnosis), `intros.js` / `skipshow.js` (Skip
+intro, Up next). **The element** is an HTML5 `<video playsinline x-webkit-airplay="allow">` driven by the old phone
+player's loader (`app/player.js`: HLS natively, else `hls.js`, else `mpegts.js`, in that order; on iOS 17.1+ `mpegts.js`
+runs over `ManagedMediaSource`). The controls are the v2 bar's classes (`pv-*`) in HTML. PiP is
+`video.webkitSetPresentationMode('picture-in-picture')` (`app.js` 1194 already does it), AirPlay is the element's
+picker (`webkitShowPlaybackTargetPicker()`), the lock screen is `navigator.mediaSession`. What iOS needs is
+`PORT-NATIVE.md`.
 
 **Portrait (the game, `06`)**
 
 | Part | Geometry |
 |---|---|
-| the video | y 59 to 280, 16:9 aspect-fit; over it the top scrim (80 pt), the close chevron (40 pt disc, top-left), the corner block (`Score hidden` / `You're in Q2`, or `Ends 21:02` / `21 min left`), the data-saver chip bottom-right (`Mobile data · 720p`, opens the quality sheet) |
-| the title block | y 292: the name Outfit 700 22 (or the logo 36 pt), `NBA League Pass 4 · Thu 29 Oct · late · 4K`, the st-what line with the tick |
-| the track | y 362: the TV's: played in the gradient, the thumb 18 (22 while dragging, with the bubble), the ticks at Tip-off / Q2 / Half / Q3 up to the live point, the live dot, the dashed `ahead` segment to the right end |
-| the ends row | y 388: the chapter names, the compact LIVE pill at the live point, the eye-off at the right end (`End hidden`; the TV's words, the icon alone because 361 pt holds no more) |
-| the transport row | y 420: −1 m, channel up, pause 60 pt, channel down, +1 m (an episode: −10, pause, +10, Next episode) |
-| the actions | y 492: `Skip to Q3` (the next unplayed chapter), `Back to live`, `Game` (the game panel as a sheet: quarters, plays, Sync) |
-| the iOS row | y 546: Subtitles, Audio, AirPlay, PiP, Options (the TV's Options panel as a sheet: subtitles, audio, picture size, quality, connection, speed, frame rate, intros) |
-| the zap ring | y 628: `Channels · Favourites · 4 of 10 · All channels ›` and the ring as rows (the current one ringed in pink-tint); tap tunes; the channel buttons step through this ring |
+| the video | under the status bar, 16:9 aspect-fit (221 pt on 393); over it the top scrim (80 pt) with the **X** (44 pt, top-left), **AirPlay and PiP** (44 pt discs, top-right); the bottom scrim (90 pt) with the **shield corner** (`Score hidden` / `You're in Q2 · 1:32 behind live`, or `Ends 21:02` / `21 min left`) at the left and the data-saver chip (`Mobile data · 720p`, opens the quality sheet) at the right |
+| the title block | the name Outfit 700 22 (or the logo 36 pt), `NBA League Pass 4 · Thu 29 Oct · late · 4K`, the st-what line with the tick (`From tip-off · the archive copy · HLS`) |
+| the track | the TV's: played in the gradient, the thumb 18 (22 while dragging, with the bubble), the ticks at Tip-off / Q2 / Half / Q3 up to the live point, the live dot, the dashed `ahead` segment to the right end |
+| the ends row | the chapter names, the compact LIVE pill at the live point, the eye-off at the right end (`End hidden`; the TV's words, the icon alone because 361 pt holds no more) |
+| the transport row | `Subs & audio` (one button: the subtitles and audio sheet), −1 m, pause 60 pt, +1 m, Options (the TV's Options panel as a sheet: picture size, quality, connection, speed, intros). An episode: −10, pause, +10 |
+| the actions | `Skip to Q3` (the next unplayed chapter), `Back to live` (a neutral chip carrying the one LIVE pill), `Game` (the game panel as a sheet: quarters, plays, Sync); an episode: `Next episode ›` |
+| the zap ring | `Channels · Favourites · 4 of 10 · All channels ›` and the ring as rows (the current one ringed in pink-tint); tap tunes. No channel buttons: the list is the zapper in portrait |
 
-**Landscape (an episode, `07`)**: the video full screen, aspect-fit (16:9 on 19.5:9 leaves 65 pt black each side,
-where the island and the home indicator live); the close X at x 58; the title block from x 110 (logo 36, the episode,
-the st-what line); the corner at the right; the buttons row at y 262 (−10, pause 52, +10, `Next episode ›`, then
-Subtitles, Audio, AirPlay, PiP, Options at the right); the track at y 326; the ends row at y 352 with the gesture hint
-(`‹ › swipe 10 s · double-tap the edges`) until it has shown 5 times (the TV's hint rule); the scrims the TV's.
-Live in landscape wears the channel banner (`player-v2` 06 and 13): the number, the tile, the channel, the
-programme, the third line, the tags; channel up / down by a vertical swipe on the picture.
+**What hides:** only the video's own overlay (the X, AirPlay, PiP, the shield corner, the chip) after 4 s without a
+touch, never while paused; the bands under the video stay. A tap on the video brings the overlay back; a second tap
+toggles pause.
 
-**Gestures:** tap toggles the controls (auto-hide 4 s; never while paused); double-tap the left or right third seeks
-10 s (a game: 1 min); a horizontal drag on the track scrubs (the bubble, the chip `▶▶ ×8` on a long drag); a vertical
-swipe on a live picture zaps; pinch toggles aspect-fill (the HIG's two modes); the system's edge swipe and the close
-button leave the player; rotating the phone switches the layout without stopping playback (open item 1 on the
-rotation lock).
+**Landscape (an episode, `07`)**: full screen, **the status bar hidden**, the video aspect-fit (16:9 on 19.5:9
+leaves 65 pt black at each short edge, where the island and the home indicator live); the X at x 70, y 26; the title
+block from x 124, 24 pt down (logo 36, the episode, the st-what line); the corner at the right (`Ends 21:02 · 13 min
+left`); the buttons row at y 262 (−10, pause 52, +10, `Next episode ›`, then CC, AirPlay, PiP, Options at the right);
+the track at y 326; the ends row at y 352 (`34:10 … −12:50`) with the gesture hint (`double-tap the edges 10 s · drag
+the bar`) until it has shown 5 times (the TV's hint rule); the scrims the TV's; everything hides after 4 s, a tap
+brings it back. Live in landscape wears the channel banner (`player-v2` 06 and 13): the number, the tile, the channel,
+the programme, the third line, the tags.
+
+**Gestures, one job each (v1.1):**
+
+| Gesture | Where | Does |
+|---|---|---|
+| tap | the video | shows the overlay / the bar; a second tap toggles pause |
+| double-tap | the left or right third of the video | seeks 10 s (a game: 1 min), the TV's ◀ ▶ |
+| drag | the track | scrubs (the bubble; `▶▶ ×8` on a long drag) |
+| swipe down | the video, portrait | dismisses the player (the iOS norm); the stream keeps playing in PiP if PiP is on, else stops |
+| X | top-left, both orientations | leaves the player (Back to the title page or the guide row with `Resume`, Apple's rule) |
+| swipe up / down | the **middle third** of the video, **landscape only**, live only | zaps through the ring (the TV's ▲ ▼) |
+| pinch | the video | toggles aspect-fill (the HIG's two modes) |
+| rotate | | switches the layout without stopping playback (open item 1 on the rotation lock) |
+
+No edge-swipe exit in the player (it would collide with the track's left end), and no vertical gesture in portrait
+(Notification Centre and the swipe-down dismiss own it).
 
 **States:** loading (black with the spinner after 2 s, the title block already drawn), stalled (the diagnosis card:
-`conncheck.js`'s connection check, `Try another copy`), paused (the picture 35 % darker, the Paused tag; live pause as
-the TV's `2:40 behind live`), behind live (the corner, `Back to live`), the shield (`Score hidden`, `End hidden`, the
-timeline's ahead segment), Up next (the countdown ring chip at the credits), Skip intro (the chip), subtitles (chalk
-Inter 600 at 5.3 % of the video's height), no copy (`Nothing to play yet · Check the add-ons`), PiP (the system's
-window; the app's tab stays where it was), background (audio continues for a game or a channel when the data-saver
-setting allows; the lock screen shows the title and the artwork).
+`conncheck.js`'s connection check, `Try another copy`), **the provider's limit** (a named state: `Your provider allows
+1 stream · the TV is using it`, from `core.js`'s account info `max_connections` / `active_cons` when a stream fails),
+paused (the picture 35 % darker, the Paused tag; live pause as the TV's `2:40 behind live`), behind live (the corner,
+`Back to live`), the shield (`Score hidden`, `End hidden`, the timeline's ahead segment), Up next (the countdown ring
+chip at the credits), Skip intro (the chip), subtitles (chalk Inter 600 at 5.3 % of the video's height, drawn in
+HTML over the element), no copy that plays here (`Only MKV copies · Open in Infuse`), PiP (the system's window; the
+app's tab stays where it was; the PiP title is the masked name), background (audio continues for a game or a channel
+when the data-saver setting allows; the lock screen shows the masked title and the artwork).
 
 ### 3.8 Account (`08-account`) and sign-in (`09-signin`)
 
@@ -315,25 +393,21 @@ About), `screens/addons.js` (the add-ons pane, the Stremio account link), `qr.js
 `N of M rows`), `screens/first.js` (sign-in: Xtream and M3U, verifying), `core.js` (providers, settings, storage),
 `state.js`, `session.js`.
 
-Account is the TV's groups as iOS grouped lists: **Provider** (the line, `Active`, expiry, channels; `Sign in with
-your TV`; `Refresh channels and guide` and `Connections` on the provider page), **Playback** (`Data saver on mobile
-data`, `Subtitles`, `Keep playing when you leave` (PiP), `Match frame rate` is not a phone setting), **NBA** (`Your
-team`, `Spoiler shield`: Off / My team / All, the TV's radio sheet), **Films and series** (`Add-ons`, `TMDB key`,
-`Home rows`), **App** (`Updates`: TestFlight or AltStore say what is new; the TV's version shown beside it, `About`,
-`Sign out`). Languages sits under Subtitles.
+Account is the TV's groups as grouped lists on a **pushed page with Back** (from the avatar; no avatar on it):
+**Provider** (the line, `Active`, expiry; `Connections · 1 of 2 in use · the TV is watching Sky Cinema Action`, from
+the account info; `Refresh channels and guide` on the provider page), **Playback** (`Data saver on mobile data`,
+`Subtitles` with the languages under it, `Keep playing when you leave` (PiP); `Match frame rate` is not a phone
+setting), **NBA** (`Your team`, `Spoiler shield`: Off / My team / All, the TV's radio sheet), **Films and series**
+(`Add-ons`, `TMDB key`, `Home rows`), **App** (`Updates`: the phone's version, `AltStore refreshes it`; `About`;
+`Sign out`).
 
-Sign-in (first run and `Sign in with your TV`): the lockup, one line; the card `Sign in with your TV` (the six code
-boxes, `Scan the TV's code`, what it brings); `or sign in by hand`: `Xtream Codes · M3U link`, the three fields, `Sign
-in` (the ghost button becomes the pill once the fields are filled; verifying is the TV's state), the privacy line.
-Errors are neutral (the dashed field and one sentence, brand §6).
-
-**How the hand-off works** (the builder's note): the TV's Account › Provider › `Send to your phone` shows a code
-(`A7K3PQ`: 6 of 32 characters, no 0/O/1/I) and a QR (`airglow://tv?host=192.168.1.23&port=8777&code=A7K3PQ`) for 5
-minutes; `PhonePage` gains `GET /handoff?code=…` answering, once, the provider lines, the team, the shield mode, the
-add-ons' manifests and the TMDB key, over the LAN only; the phone types or scans, calls it, and the TV shows `Sent to
-your phone ✓`. Typing the code without scanning: the phone finds the TV by trying the local subnet's `/ping` on the
-TV's port (the TV already answers it for the phone page); if it cannot, it asks for the TV's address, which the TV's
-page shows.
+Sign-in (`09`, first run): the lockup and one line; the three steps as chips (`1 · Provider`, `2 · Your team`, `3 ·
+Films`); the card `Your provider` (`Xtream Codes · M3U link`, the three fields with `Show` on the password, `Sign in`
+as the pill once the fields are filled, the TV's ghost before; verifying is `screens/first.js`'s state); the line
+under it says what comes next, as on the TV: the team and the shield (`teamSheet`), the TMDB key (typed, or sent
+from the TV's phone page: `tmdbKeyScreen`, `phoneKeyReady`), the add-ons from the Stremio account with its code
+(`screens/addons.js`, `qr.js`). Errors are neutral (the dashed field and one sentence, brand §6). The privacy line sits
+above `env(safe-area-inset-bottom)`.
 
 ---
 
@@ -349,40 +423,55 @@ page shows.
 
 ---
 
-## 5. What is reused, in one table
+## 5. What is reused, and what the phone writes (corrected in v1.1)
 
-| Phone screen | TV modules reused unchanged | New on the phone |
-|---|---|---|
-| Home | `screens/home.js` (lines, lit card, game night, `gameLit`), `rows.js`, `shelves.js`, `tmdb.js`, `art.js`, `cards.js` | the stacked layout, the tap-to-light, the rows' sheet, the tab bar |
-| Live | `screens/live.js`, `guide.js`, `catchup.js`, `replay.js`, `games.js` (`gameOn`, feeds), `catalog.js` | the channel rows, the channel's day page, swipe to favourite |
-| NBA | `screens/nba.js`, `nba/*`, `league.js`, `games.js`, `screens/game.js`, `screens/team.js`, `app/nba.js` | the stacked hub, full-width cards, chip rows for the leaders' categories |
-| Library, Search, Saved | `screens/lib.js`, `screens/search.js`, `screens/saved.js`, `shelves.js`, `catalog.js` | the 3-across grid, the segmented control, the system search field |
-| Title page | `screens/detail.js`, `titlecopies.js`, `copies.js`, `titlesubs.js`, `subs/*`, `imdb.js` | the episode list, the sheets |
-| Player | `player.js` (the JS side), `games.js`, `replay.js`, `catchup.js`, `subs.js`, `quality.js`, `conncheck.js`, `intros.js`, `skipshow.js` | the native iOS player (AVPlayer, AirPlay, PiP, lock screen), the two layouts, the gestures |
-| Account, sign-in | `screens/account.js`, `screens/addons.js`, `qr.js`, `screens/first.js`, `core.js`, `state.js`, `session.js` | the grouped lists, `Sign in with your TV`, the data-saver setting |
-| Everything | `ui.js` (sheets, menus, toasts become the system's), `util.js`, `focus.js` is not used (touch) | the frame (§2) |
+The data modules port as they are: they import nothing from the TV's views. The screens do not: `screens/home.js`
+(1,162 lines), `screens/live.js`, `screens/detail.js`, `nba/hub.js` and friends mix their model with HTML, `focus.js`,
+`router.js` and `ui.js`. **The phone rewrites the views** (`app/phone/*.js`, one file per screen, on the classes in
+`phone.css`) and **reads the models** through the exports those screens already have, extracting a model function
+where one is missing (the TV keeps working: the extraction is a move, not a change; `tests/tv/*.js` guard it).
 
-The build: `scripts/build-web.js phone` already produces a phone `www/`; it should bundle `app/tv/js` with a phone
-entry (`app/phone.html` + `app/phone/`) instead of the old `app/index.html` / `app/app.js`, and the Capacitor iOS
-project at `ios/` gains the player plugin (the Android `TunerPlayerPlugin`'s command / event contract, re-implemented).
+| Phone screen | Reused as is | Model lifted out of a TV screen | Written for the phone |
+|---|---|---|---|
+| Home | `rows.js`, `shelves.js`, `tmdb.js`, `art.js`, `state.js`, `catalog.js` | `screens/home.js`: the lines (`kind`, the 3-or-4 rule, the morning after, `gameLit`), the lit card's facts | the stacked layout, tap-to-light, the rows' sheet, the tab bar |
+| Live | `guide.js`, `catchup.js`, `catalog.js`, `games.js` (`gameOn`, feeds) | `screens/live.js`: `groups()`, `groupName`, the row's programme view (`programmeView`), tune; `replay.js`: `playProgramme`, `programmeProgress` | the channel rows, the channel's day page, swipe to favourite |
+| NBA | `league.js`, `games.js`, `app/nba.js`, `nba/common.js` | `nba/hub.js`: the hero state table, the day's games; `nba/standings.js`, `leaders.js`, `teamstats.js`, `news.js`, `team.js`: their data shapes | the stacked hub, full-width cards, chip rows for the leaders' categories, the tables |
+| Library, Search, Saved | `shelves.js` (`Pager`, `shelves`, `genreShelf`, `savedItems`, `historyItems`), `catalog.js` | `screens/lib.js`: Sort / Filters state; `screens/search.js`: the query and sections | the 3-across grid, the segmented control, the search field |
+| Title page | `copies.js` (+ the plays-here term), `imdb.js`, `subs/*` | `screens/detail.js`: the facts line, the pill's verb, seasons and episodes; `titlecopies.js`: a title's copies; `titlesubs.js`: the pill's state | the episode list, the sheets, the Infuse hand-off |
+| Player | `games.js`, `replay.js`, `catchup.js`, `subs.js`, `quality.js`, `conncheck.js`, `intros.js`, `skipshow.js`, `app/player.js` (the loader) | `player.js`: the command / event vocabulary, kept as the contract between the controls and the element | the `<video>` host, the v2 bar in HTML, the gestures, the two layouts, PiP / AirPlay / media session |
+| Account, sign-in | `core.js`, `state.js`, `session.js`, `tmdb.js`, `addons.js`, `qr.js` | `screens/account.js`: the groups and their rows, `teamSheet`; `screens/addons.js`: `addonsPane`, `tmdbKeyScreen`; `screens/first.js`: verify | the grouped lists, the pushed page |
+| Everything | `util.js`, `ui.js` (sheets, menus, toasts drawn as bottom sheets) | | the frame (§2); `focus.js` is not used (touch) |
+
+The build: `scripts/build-web.js phone` produces `www/` from `app/phone.html` + `app/tv/js` + `app/phone/` instead
+of the old `app/index.html` / `app/app.js`, copies `capacitor.js` as the `tv` target does, then `npx cap sync ios`.
+The native side is `PORT-NATIVE.md`; delivery is AltStore.
 
 ---
 
 ## 6. Open items
 
 1. **Rotation:** the player follows the phone's orientation lock (so a user with the lock on gets portrait; a
-   landscape button on the portrait player forces landscape, as YouTube's does). Decide with the owner on the real phone.
-2. **TS streams:** AVPlayer plays HLS; a provider's raw MPEG-TS needs a remux (the old phone build used `mpegts.js` in
-   the WebView, which cannot do PiP or AirPlay). Try the provider's HLS variant first (Xtream serves `.m3u8`); if a
-   channel only has TS, play it in the WebView without PiP and say so in the Options sheet.
+   landscape button on the portrait player forces landscape through `@capacitor/screen-orientation`, as YouTube's
+   does). Decide with the owner on the real phone.
+2. **The owner's line and `.m3u8`:** test it before the build (`PORT-NATIVE.md`). If HLS output is off, live plays
+   through `mpegts.js` over `ManagedMediaSource` (iOS 17.1+): PiP and background audio still work on the element;
+   AirPlay of an MSE stream mirrors the screen.
 3. **The channel banner in portrait** (live TV, not a game): the mock shows the game; a live channel in portrait wears
    the banner's facts in the title block (number, tile, channel, programme, times, the third line).
-4. **A mini player** as the tab bar's accessory while a game plays in the background (audio) is cheap in iOS 26 and
-   worth a try after the first build; not in this round.
+4. **A mini player** above the tab bar while a game plays in the background (audio) is an HTML strip; not in this round.
 5. **Dynamic Type** beyond `xxLarge` (accessibility sizes): the cards would need a single-column layout; out of scope.
-6. **The hand-off's `PhonePage` endpoint** (§3.8) is new on the TV side; until it ships the phone signs in by hand.
+6. **"Sign in with your TV"** (the TV shows a code and a QR, the phone pulls the login over the LAN): the TV's
+   `PhonePage` listens on **8790**, only while its screen is open and for **10 minutes**, with a **6-digit code and a
+   5-try lock**, and it **receives** (the TMDB key, with a confirm on the TV); it has no `/ping`. Sending the provider
+   password out is a new direction of trust: the QR would carry host, port and a one-time token; a typed code would
+   make the TV ask `Send your login to this phone?` first; no subnet scan (iOS's Local Network prompt, and slow). Needs
+   `NSCameraUsageDescription` and a barcode plugin for the scanner. After v1.
 7. **Episode stills:** Cinemeta's episode thumbnails (the mock reuses the backdrop as a stand-in).
 8. **Haptics and sounds:** the TV's UI sounds play on the phone only for the launch and a tune (the owner's sounds are
-   final); a light haptic on tune and on reveal; off when the phone is silent.
-9. **Push for `Remind me`:** a local notification at tip-off minus 10 (the TV's reminder is in-app).
-10. **A real broadcast frame** for `06` (the court is drawn, as in `player-v2`).
+   final); a light haptic on tune and on reveal (`@capacitor/haptics`); off when the phone is silent.
+9. **Push for `Remind me`:** a local notification at tip-off minus 10 (`@capacitor/local-notifications`); its text is
+   the masked game name under the shield.
+10. **Mocks still owed:** the game page with its shield covers, Search, the channel's day, the Reveal confirm, the
+    long-press menu and the `15 rows` sheet (the builder works from the TV's and this spec's rules).
+11. **A real broadcast frame** for `06` (the court is drawn, as in `player-v2`).
+12. **MKV on the phone itself** (VLCKit in the WebView app) if the Infuse / VLC hand-off annoys the owner.
