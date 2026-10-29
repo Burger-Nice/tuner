@@ -16,7 +16,7 @@ const I = {
 };
 const ic = (n, cls = '') => `<svg class="ic${I[n][1] ? ' fill' : ''} ${cls}" viewBox="0 0 24 24"><path d="${I[n][0]}"/></svg>`;
 const eye = `<svg class="eye" viewBox="0 0 24 24"><path d="${I.eyeOff[0]}"/></svg>`;
-const K = (k) => `<span class="k">${k}</span>`;
+const K = (k) => `<span class="k${k === '⏯' ? ' g' : ''}">${k}</span>`;
 const dot = ' · ';
 
 const head = (title) => `<!doctype html>
@@ -29,7 +29,7 @@ const foot = `</div></body></html>\n`;
 // ---- pieces ----
 const pic = (art, pos = '50% 40%') => `<div class="pv-pic"><img src="${ART}${art}" alt="" style="--pos:${pos}"></div>\n`;
 const court = () => `<div class="pv-pic court"><img class="a" src="${ART}mem.png" alt=""><img class="h" src="${ART}por.png" alt=""></div>\n`;
-const scrims = (top = true) => `${top ? '<div class="pv-st"></div>' : ''}<div class="pv-sb"></div>\n`;
+const scrims = (top = true, bottom = 'bar') => `${top ? '<div class="pv-st"></div>' : ''}${bottom === 'bar' ? '<div class="pv-sb"></div>' : bottom === 'hint' ? '<div class="pv-sb sm"></div>' : ''}\n`;
 const hint = (pairs) => `<div class="pv-hint">${pairs.map(([k, t]) => `<span>${K(k)}${t}</span>`).join('')}</div>\n`;
 const topVod = (o) => `<div class="pv-top">${o.logo ? `<img class="logo" src="${ART}${o.logo}" alt="${o.title}">` : `<h1>${o.title}</h1>`}<div class="sub">${o.sub}</div>${o.what ? `<div class="what"><span class="tick">${ic('check')}</span>${o.what}</div>` : ''}${o.line ? `<div class="line">${o.line}</div>` : ''}</div>\n`;
 const topRight = (l1, l2, o = {}) => `<div class="pv-tr">${o.paused ? `<div class="paused">${ic('pause')}Paused</div>` : ''}<b>${o.eye ? eye : ''}${l1}</b>${l2 ? `<span>${l2}</span>` : ''}</div>\n`;
@@ -82,67 +82,92 @@ page('03-vod-scrubbing.html', 'VOD: scrubbing', '▶ held: the row fades to 22 %
   bubble(71, '42:30', '▶▶ ×8') + track({ p: 71, l: '42:30', r: '−17:30' }) + hint([['◀ ▶', '10 s, hold for faster'], ['OK', 'Pause'], ['Back', 'Hide']]));
 
 // 4. ▲ on the buttons, inside an intro: the Skip intro pill is the last of the left group; the focused button names itself above
-page('04-vod-buttons.html', 'VOD: the buttons, Skip intro', '▲ lands on the Skip intro pill while its window is fresh (skip spec 3.3); ◀ ▶ move along the row, the focused button says what it is above itself (tvOS’s labelled transport bar), so the hint bar can stay short.',
-  pic('slowhorses-bg.jpg', '60% 30%') + scrims() + topVod({ logo: 'slowhorses-logo.png', title: 'Slow Horses', sub: `S6 · E4${dot}Hello Goodbye${dot}<span class="tag q">4K</span>`, what: `4K, 5.1${dot}best of 2 copies${dot}Icelandic subtitles` }) + topRight('Ends at 21:58', '47 min left') +
+page('04-vod-buttons.html', 'VOD: the buttons, Skip intro', '▲ lands on the Skip intro pill while its window is fresh (skip spec 3.3); ◀ ▶ move along the row, the focused button says what it is above itself (tvOS’s labelled transport bar), so the hint bar can stay short. The Slow Horses wordmark is grey on grey brick (under 3:1 against its own backdrop), so the text title stands in (v1.1 rule).',
+  pic('slowhorses-bg.jpg', '60% 30%') + scrims() + topVod({ title: 'Slow Horses', sub: `S6 · E4${dot}Hello Goodbye${dot}<span class="tag q">4K</span>`, what: `4K, 5.1${dot}best of 2 copies${dot}Icelandic subtitles` }) + topRight('Ends at 21:58', '47 min left') +
   btns([disc('pause'), disc('−10'), disc('+10'), pill('Next episode', { chev: true }), pill('Skip intro', { icon: 'skipFwd', f: true, lbl: 'Skip intro · 1:12' })], vodRight()) +
   track({ p: 4, f: false, l: '1:52', r: '−46:08' }) + hint([['OK', 'Skip intro'], ['◀ ▶', 'Move'], ['▼', 'Seek bar'], ['Back', 'Hide']]));
 
 // 5. the credits: Up next counts above the bar; with the controls up its key column is not drawn (skip spec 5.1)
-page('05-vod-upnext.html', 'VOD: Up next at the credits', 'The credits started: Up next counts 15 s in its ring, sitting above the bar (its keys are not drawn while the controls are up: OK and Back work the controls). Next episode in the row is the way on; Back stays.',
+page('05-vod-upnext.html', 'VOD: Up next at the credits', 'The credits started: Up next counts 15 s in its ring above the bar (its keys are not drawn while the controls are up). ▲ lands on Next episode while the card counts (v1.1, the fresh-Skip rule), so ▲ OK plays it; Back stays.',
   pic('severance-bg.jpg', '72% 30%') + scrims() + topVod(SEV) + topRight('Ends at 21:02', '2 min left') +
   chip({ deg: 60, b: 'Next episode in 9 s', s: 'S2 · E4 · Woe’s Hollow' }) +
-  btns([disc('pause'), disc('−10'), disc('+10'), pill('Next episode', { chev: true })], vodRight()) +
-  track({ p: 96, l: '57:48', r: '−2:12' }) + hint(VOD_HINT_THUMB));
+  btns([disc('pause'), disc('−10'), disc('+10'), pill('Next episode', { chev: true, f: true, lbl: 'Next episode · S2 · E4' })], vodRight()) +
+  track({ p: 96, f: false, l: '57:48', r: '−2:12' }) + hint([['OK', 'Next episode'], ['◀ ▶', 'Move'], ['▼', 'Seek bar'], ['Back', 'Hide']]));
 
 // 6. a live channel: the banner (4 s after a zap, or on Info)
-const HEAT = { num: '112', ini: 'SC', ch: 'Sky Cinema Action HD', ring: 'Favourites · 3 of 10', pg: 'Heat', l3: `21:00 to 23:50`, p: 58, nx: 'Next 23:50 Collateral' };
+const HEAT = { num: '112', ini: 'SC', ch: 'Sky Cinema Action HD', ring: 'Favourites · 3 of 10', pg: 'Heat', l3: `21:00 to 23:50`, p: 58, nx: 'Next 23:50 Collateral', feed: 'Subtitles · Replays 3 days' };
 const banner = (b, o = {}) => `<div class="pv-bn"><div class="num">${b.num}</div><div class="tile">${b.img ? `<img src="${ART}${b.img}" alt="">` : b.ini}</div><div class="col"><div class="ch">${b.ch}<small>${b.ring}</small></div><div class="pg">${b.pg}</div><div class="l3">${b.l3}${b.p != null ? `<span class="bar" style="--p:${b.p}%"><i></i></span>` : ''}${b.nx ? `<span class="nx">${b.nx}</span>` : ''}${b.feed ? `<span class="nx">${b.feed}</span>` : ''}</div></div><div class="tags">${o.tags || ''}</div></div>\n`;
-const TAGS = `<span class="tag q">4K</span><span class="tag q">HDR</span><span class="tag">CC</span><span class="tag">${ic('hist')}</span><span class="live">LIVE</span>`;
-page('06-live-banner.html', 'Live: the channel banner', 'No box: the same top block as a film. Number · logo · channel and the zap ring, the programme in Outfit 24, its times with the 4 dp progress and what’s next; tags, the kept-channel glyph and LIVE at the right. Hint bar as before. Gone after 4 s.',
-  pic('heat-bg.jpg', '50% 30%') + scrims(true) + banner(HEAT, { tags: TAGS }) +
+const TAGS = `<span class="clk">Wed 22:42</span><span class="tag q">4K</span><span class="tag q">HDR</span><span class="live">LIVE</span>`;
+const TAGS_BEHIND = `<span class="clk">Wed 22:42</span><span class="tag q">4K</span><span class="tag q">HDR</span>`;
+page('06-live-banner.html', 'Live: the channel banner', 'No box: the same top block as a film. Number · logo · channel and the zap ring, the programme in Outfit 24, its times with the 4 dp progress, what’s next, subtitles and the replay days as words; the clock, 4K, HDR and LIVE at the right (v1.1: three facts, not five lozenges). The first 5 views: the hint bar on a 110 dp scrim. Gone after 4 s.',
+  pic('heat-bg.jpg', '50% 30%') + scrims(true, 'hint') + banner(HEAT, { tags: TAGS }) +
   hint([['OK', 'Channels'], ['⏯', 'Pause'], ['◀', 'Options'], ['▶', 'Info'], ['▲ ▼', 'Zap'], ['Hold OK', 'Last']]));
 
 // 7. zapping: the next channel's card at once (the old picture goes dark), its banner already filled from the guide
 page('07-live-zap.html', 'Live: zapping', '▲ pressed: the old picture dims at once, the zap card names the next channel and what’s on, the banner is already its (number, name, programme). Gone at the first frame, 600 ms at least.',
-  pic('heat-bg.jpg', '50% 30%') + '<div class="pv-dim" style="background:rgba(21,19,29,.7)"></div>' + scrims(true) +
-  banner({ num: '113', ini: 'SP', ch: 'Sky Sports Main Event HD', ring: 'Favourites · 4 of 10', pg: 'Super Sunday: Liverpool v Arsenal', l3: '21:15 to 23:30', p: 22, nx: 'Next 23:30 Match of the Day' }, { tags: `<span class="tag q">HD</span><span class="live">LIVE</span>` }) +
+  pic('heat-bg.jpg', '50% 30%') + '<div class="pv-dim" style="background:rgba(21,19,29,.7)"></div>' + scrims(true, 'hint') +
+  banner({ num: '113', ini: 'SP', ch: 'Sky Sports Main Event HD', ring: 'Favourites · 4 of 10', pg: 'Super Sunday: Liverpool v Arsenal', l3: '21:15 to 23:30', p: 22, nx: 'Next 23:30 Match of the Day' }, { tags: `<span class="clk">Wed 22:42</span><span class="tag q">HD</span><span class="live">LIVE</span>` }) +
   `<div class="pv-zap"><div class="tile">SP</div><div><div class="n">Sky Sports Main Event HD</div><div class="w">Super Sunday: Liverpool v Arsenal</div><div class="k">Connecting…</div></div></div>\n` +
   hint([['OK', 'Channels'], ['◀', 'Options'], ['▶', 'Info'], ['▲ ▼', 'Zap'], ['Hold OK', 'Last']]));
 
 // 8. live TV paused on a kept channel: the timeline map; the live point and LIVE in the ends row
-page('08-live-paused.html', 'Live: paused, behind live', '⏯ on a kept channel: the bar becomes the programme (21:00 to 23:50), the live point a red dot with LIVE beside it and the part not aired yet dashed; top-right how far behind you are and that the channel keeps replays. Back to live leads the right group.',
-  pic('heat-bg.jpg', '50% 30%') + '<div class="pv-dim"></div>' + scrims() + banner(HEAT, { tags: TAGS }) +
-  `<div class="pv-tr" style="top:84px"><div class="paused">${ic('pause')}Paused</div><b>2:40 behind live</b><span>Replays for 3 days on this channel</span></div>\n` +
+page('08-live-paused.html', 'Live: paused, behind live', '⏯ on a kept channel: the bar becomes the programme (21:00 to 23:50), the live point a red dot with LIVE beside it (the compact pill, inside the ends row) and the part not aired yet dashed; the banner drops its own LIVE (v1.1: one LIVE, where it is true); the picture rests 35 % darker as a paused film does; the corner says how far behind and when you paused (the replay days are already on the banner). Back to live leads the right group.',
+  pic('heat-bg.jpg', '50% 30%') + '<div class="pv-dim"></div>' + scrims() + banner(HEAT, { tags: TAGS_BEHIND }) +
+  `<div class="pv-tr" style="top:84px"><div class="paused">${ic('pause')}Paused</div><b>2:40 behind live</b><span>Paused at 22:39</span></div>\n` +
   btns([disc('play'), disc('skipBack'), disc('−1m'), disc('+1m')], [pill('Back to live'), disc('cc'), disc('audio'), disc('pic')]) +
   track({ p: 56, live: 58, l: '21:00', r: '23:50' }) + hint([['OK', 'Play'], ['◀ ▶', '10 s, hold for faster'], ['▲', 'Buttons'], ['▼', 'Options'], ['Back', 'Hide']]));
 
 // 9. a game replay under the shield: chapters, Skip to Q3, End hidden, the live point ahead
 const GAME = { title: 'Grizzlies at Trail Blazers', sub: `NBA League Pass 4${dot}Thu 29 Oct · late${dot}<span class="tag q">4K</span>` };
 const gameTop = () => `<div class="pv-top"><h1>${GAME.title}</h1><div class="sub">${GAME.sub}</div></div>\n`;
-const TICKS = [0, 23, 45, 55, 79];
-const LABELS = [[0, 'Tip-off'], [23, 'Q2', true], [45, 'Half'], [55, 'Q3'], [79, 'Q4']];
-page('09-replay-timeline.html', 'Replay: the timeline, shield on', 'Watch from tip-off while the game is still on: Score hidden and your own position top-right, never the live game’s; chapter ticks Tip-off to Q4 (OT only once played), Q2 lit, End hidden at the right, the live point 66 % along with the dashed part not aired yet. Skip to Q3 names where it goes. No score anywhere.',
+const TICKS = [0, 23, 45, 55];   // Tip-off, Q2, Half, Q3: live is in Q3, so Q4 has no tick yet (v1.1)
+const LABELS = [[0, 'Tip-off'], [23, 'Q2', true], [45, 'Half'], [55, 'Q3']];
+page('09-replay-timeline.html', 'Replay: the timeline, shield on', 'Watch from tip-off while the game is still on: Score hidden and your own position top-right, never the live game’s; chapter ticks only up to the live point (Tip-off, Q2, Half, Q3; Q4 appears when it airs, OT only once played), Q2 lit, End hidden at the right, the live point 66 % along with the dashed part not aired yet. Skip to Q3 names where it goes. No score anywhere.',
   court() + scrims() + gameTop() + topRight('Score hidden', 'You’re in Q2', { eye: true }) +
   btns([disc('pause'), disc('skipBack'), disc('−1m'), disc('+1m'), pill('Skip to Q3', { chev: true })], [pill('Back to live'), disc('score'), disc('cc'), disc('audio'), disc('pic')]) +
   track({ p: 31, live: 66, ticks: TICKS, labels: LABELS, r: `${eye}End hidden` }) +
   hint([['OK', 'Pause'], ['◀ ▶', '10 s, hold for faster'], ['▲', 'Buttons'], ['▼', 'Options'], ['Back', 'Hide']]) + note('The picture is a stand-in for the broadcast.'));
 
 // 10. the game panel in a replay: the score as aired (90 s behind your picture), Quarters with their aired times
-page('10-replay-panel.html', 'Replay: the game panel', 'The Game disc or Options › Game panel: the bar hides, the panel shows the score as aired at the moment you’re watching (90 s behind the picture, never ahead), Quarters with their aired times (OK jumps there, the one you’re in on surface-2), Plays to the moment, Sync. No box score until the buzzer + 2 min has played.',
+page('10-replay-panel.html', 'Replay: the game panel', 'The Game disc or Options › Game panel: the bar hides, the panel shows the score as aired at the moment you’re watching (90 s behind the picture, never ahead), Quarters with their aired times, only the ones aired so far (Q4 hasn’t started live: no row, as the bar has no tick; v1.1), OK jumps there, the one you’re in on surface-2; Plays to the moment, Sync. No box score until the buzzer + 2 min has played.',
   court() + scrims(true) + gameTop() +
   `<div class="pv-panel r"><div class="gp-head"><div class="crest" style="--c:#5D76A9"><img src="${ART}mem.png" alt="MEM"></div><div class="plate">31 – 27</div><div class="crest" style="--c:#E03A3E"><img src="${ART}por.png" alt="POR"></div></div>
   <div class="gp-status">Q2 8:14${dot}as aired</div>
   <div class="gp-tabs"><span class="sel f">Quarters</span><span>Plays</span><span class="act">${ic('refresh', 's16')}Sync</span></div>
-  <div class="gp-row">Tip-off<span>02:12</span></div><div class="gp-row cur">Q2<span>now</span></div><div class="gp-row">Halftime<span>03:06</span></div><div class="gp-row">Q3<span>03:24</span></div><div class="gp-row">Q4<span>03:52</span></div>
+  <div class="gp-row">Tip-off<span>02:12</span></div><div class="gp-row cur">Q2<span>now</span></div><div class="gp-row">Halftime<span>03:06</span></div><div class="gp-row">Q3<span>03:24</span></div>
   <div class="gp-foot">OK jumps there. The box score comes after the final buzzer.</div></div>\n` +
   hint([['◀ ▶', 'Tabs'], ['▼', 'Quarters'], ['Back', 'Close']]) + note('The picture is a stand-in for the broadcast.'));
 
 // 11. Options (a film): the same panel, polished tokens
 const op = (icon, n, s, v, o = {}) => `<div class="op-row${o.f ? ' f' : ''}${o.dis ? ' dis' : ''}">${ic(icon)}<div class="n"><b>${n}</b>${s ? `<span>${s}</span>` : ''}</div><div class="v">${v}${o.chev === false ? '' : ic('chevR', 's16')}</div></div>`;
 page('11-options.html', 'Options (a film)', '▼ from the bar: the controls hide, the panel floats at the left, first row focused (inset ring on surface-3, no scale). Rows name the value at the right; a missing track is a disabled row. Unchanged in behaviour; the tokens and spacing are the new bar’s.',
-  pic('severance-bg.jpg', '72% 30%') + '<div class="pv-dim" style="background:rgba(21,19,29,.25)"></div>' +
+  pic('severance-bg.jpg', '72% 30%') + '<div class="pv-dim" style="background:rgba(21,19,29,.25)"></div>' + scrims(false, 'hint') +
   `<div class="pv-panel lft"><h2>Options</h2>${op('cc', 'Subtitles', '', 'Icelandic', { f: true })}${op('audio', 'Audio', 'English 5.1 · only track', 'Track 1', { dis: true, chev: false })}${op('pic', 'Picture size', 'This title', 'Fit')}${op('quality', 'Quality', '24 fps · HEVC · 4K HDR', 'Best')}${op('signal', 'Connection', 'Steady · about 28 Mbps', 'Good')}${op('speed', 'Speed', '', '1×')}${op('frames', 'Match frame rate', 'Switches the TV to the film’s rate', 'Off', { chev: false })}${op('skipFwd', 'Intros in this show', 'Skip by itself', 'Ask', {})}</div>\n` +
   hint([['OK', 'Open'], ['▲ ▼', 'Move'], ['Back', 'Close']]));
+
+
+// 12. the steady state: what he sees after the hint bar's 5 views
+page('12-vod-steady.html', 'VOD: the steady state (no hint bar)', 'After 5 views the hint bar retires (UI-SPEC 7): this is the screen he lives with. Two rows and the corner; the ends row has the bottom to itself.',
+  pic('severance-bg.jpg', '72% 30%') + scrims() + topVod(SEV) + topRight('Ends at 21:02', '21 min left') +
+  btns([disc('pause'), disc('−10'), disc('+10'), pill('Next episode', { chev: true })], vodRight()) +
+  track({ p: 57, l: '34:10', r: '−25:50' }));
+
+// 13. the live banner once the hint has retired: no bottom scrim at all
+page('13-live-steady.html', 'Live: the banner, steady state', 'Once the hint bar has retired a zap draws the top block alone: no bottom scrim, nothing over the lower half of the broadcast (v1.1).',
+  pic('heat-bg.jpg', '50% 30%') + scrims(true, 'none') + banner(HEAT, { tags: TAGS }));
+
+// 14. the bar over a real bright frame: a near-white scene
+page('14-vod-white.html', 'VOD: a near-white frame', 'The scrim’s test: a CC0 snow field (Wikimedia Commons, the brightest frame a film can throw). The title block on the heavier top scrim with the text shadow; the bar on the bottom scrim; measured in tools/contrast.js, every text passes 4.5:1 (SPEC 3).',
+  `<div class="pv-pic"><img src="art/snow-field.jpg" alt="" style="--pos:50% 60%"></div>\n` + scrims() + topVod({ title: 'Fargo', sub: `1996${dot}1 h 38 min${dot}<span class="tag q">4K</span>`, what: `4K, 5.1${dot}best of 2 copies${dot}Icelandic subtitles` }) + topRight('Ends at 22:19', '58 min left') +
+  btns([disc('pause'), disc('−10'), disc('+10')], vodRight()) +
+  track({ p: 41, l: '40:12', r: '−57:48' }) + hint(VOD_HINT_THUMB) + note('The frame is a stand-in for the film (CC0, Wikimedia Commons).'));
+
+// 15. the replay bar over a bright court
+page('15-replay-court.html', 'Replay: over a bright court', 'The same timeline as 09 over a broadcast-like frame: bright hardwood across the bottom, the broadcaster’s own bug at the top. The scrims and the shadow carry the type; the LIVE pill, the lit chapter and the dot stay readable (measured, SPEC 3).',
+  `<div class="pv-pic court-bright"><div class="stands"></div><div class="bug"><span class="a">MEM</span><span>2nd · 4:12</span><span class="h">POR</span></div></div>\n` + scrims() + gameTop() + topRight('Score hidden', 'You’re in Q2', { eye: true }) +
+  btns([disc('pause'), disc('skipBack'), disc('−1m'), disc('+1m'), pill('Skip to Q3', { chev: true })], [pill('Back to live'), disc('score'), disc('cc'), disc('audio'), disc('pic')]) +
+  track({ p: 31, live: 66, ticks: TICKS, labels: LABELS, r: `${eye}End hidden` }) +
+  hint([['OK', 'Pause'], ['◀ ▶', '10 s, hold for faster'], ['▲', 'Buttons'], ['▼', 'Options'], ['Back', 'Hide']]) + note('The court is drawn, a stand-in for the broadcast.'));
 
 fs.writeFileSync(path.join(root, 'tools', 'pages.json'), JSON.stringify(pages, null, 1) + '\n');
 console.log('wrote', pages.length, 'pages');

@@ -16,27 +16,29 @@ svg.ic.s16 { width: 16px; height: 16px; }
 .pv-pic.court img { position: absolute; width: 260px; height: 260px; top: 120px; opacity: .28; object-fit: contain; }
 .pv-pic.court .a { left: 150px; } .pv-pic.court .h { left: 550px; }
 .pv-pic.court::after { content: ""; position: absolute; inset: 0; background: url("../../../app/tv/brand/sprites/grain.png"); opacity: .5; }
-.pv-st { left: 0; right: 0; top: 0; height: 200px; background: linear-gradient(180deg, rgba(21,19,29,.78), rgba(21,19,29,.42) 55%, rgba(21,19,29,0)); }   /* Ui.SCRIM_TOP: 78 % to 0 over 200 dp */
+.pv-st { left: 0; right: 0; top: 0; height: 220px; background: linear-gradient(180deg, rgba(21,19,29,.84), rgba(21,19,29,.68) 55%, rgba(21,19,29,0)); }   /* Ui.SCRIM_TOP: 84 % → 68 % at 55 % → 0 over 220 dp (v1.1, measured: tools/contrast.js) */
+.pv-sb.sm { height: 110px; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.8)); }   /* the hint bar alone (live, first 5 views): 110 dp, not the bar's 250 */
 .pv-sb { left: 0; right: 0; bottom: 0; height: 250px; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.62) 46%, rgba(21,19,29,.92)); }   /* Ui.SCRIM_BOTTOM: 0 to 92 % over 250 dp */
 .pv-dim { inset: 0; background: rgba(21,19,29,.35); }   /* paused: the whole picture rests 35 % darker (never on live) */
 
 /* ---- the top block: who you're watching (VOD) or the channel (live) ---- */
-.pv-top { left: 48px; top: 30px; width: 600px; }
+.pv-top { left: 48px; top: 30px; width: 600px; text-shadow: 0 1px 2px rgba(0,0,0,.7), 0 0 10px rgba(0,0,0,.55); }   /* Ui: setShadowLayer(10, 0, 1, 0xB3000000) on every top-block TextView */
+.pv-top .logo { filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)) drop-shadow(0 0 8px rgba(0,0,0,.5)); }   /* native: the logo ImageView gets the same shadow bitmap, drawn once */
 .pv-top .logo { display: block; height: 40px; max-width: 260px; width: auto; object-fit: contain; object-position: left center; margin: 2px 0 6px; }
 .pv-top h1 { margin: 0; font: 700 28px/32px var(--a-font-display); color: var(--a-text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.01em; }
 .pv-top .sub { font: 500 16px/22px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
-.pv-top .what { margin-top: 4px; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); display: flex; align-items: center; gap: 8px; }
+.pv-top .what { margin-top: 4px; font: 500 15px/20px var(--a-font-text); color: var(--a-text-1); display: flex; align-items: center; gap: 8px; }   /* chalk, not text-2: the lowest line sits where the scrim is thinnest (v1.1) */
 .pv-top .what .tick { width: 16px; height: 16px; border-radius: 50%; background: var(--a-ok); display: grid; place-items: center; }
 .pv-top .what .tick svg { width: 10px; height: 10px; fill: none; stroke: var(--a-ink); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
 .pv-top .line { margin-top: 6px; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); max-width: 520px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-tr { right: 48px; top: 32px; text-align: right; white-space: nowrap; }
+.pv-tr { right: 48px; top: 32px; text-align: right; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.7), 0 0 10px rgba(0,0,0,.55); }
 .pv-tr b { display: flex; justify-content: flex-end; align-items: center; gap: 6px; font: 650 18px/22px var(--a-font-text); color: var(--a-text-1); }
 .pv-tr span { display: block; font: 500 15px/20px var(--a-font-text); color: var(--a-text-2); }
 .pv-tr .paused { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 999px; background: rgba(21,19,29,.55); border: 1px solid rgba(243,239,230,.14); font: 650 14px/1 var(--a-font-text); color: var(--a-text-1); margin-bottom: 4px; }
-.pv-tr .paused svg { width: 12px; height: 12px; }
+.pv-tr .paused svg { width: 14px; height: 14px; }
 
 /* the live banner (the top block of a channel): number · logo · name and ring / programme / times, progress, next */
-.pv-bn { left: 48px; top: 30px; right: 48px; display: flex; align-items: flex-start; gap: 14px; }
+.pv-bn { left: 48px; top: 30px; right: 48px; display: flex; align-items: flex-start; gap: 14px; text-shadow: 0 1px 2px rgba(0,0,0,.7), 0 0 10px rgba(0,0,0,.55); }
 .pv-bn .num { font: 700 24px/44px var(--a-font-text); color: var(--a-text-2); min-width: 30px; text-align: center; }
 .pv-bn .tile { width: 44px; height: 44px; border-radius: 8px; background: var(--a-surface-2); display: grid; place-items: center; font: 700 14px/1 var(--a-font-display); color: var(--a-text-2); flex: none; overflow: hidden; }
 .pv-bn .tile img { width: 100%; height: 100%; object-fit: contain; }
@@ -49,8 +51,9 @@ svg.ic.s16 { width: 16px; height: 16px; }
 .pv-bn .l3 .bar i { display: block; height: 100%; width: var(--p, 40%); background: var(--a-grad); }
 .pv-bn .l3 .nx { color: var(--a-text-3); }
 .pv-bn .tags { display: flex; align-items: center; gap: 8px; height: 44px; flex: none; }
-.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 8px; background: rgba(21,19,29,.78); border: 1px solid var(--a-border-strong); color: var(--a-text-1); font: 650 12px/1 var(--a-font-text); letter-spacing: .04em; text-transform: uppercase; }
-.tag.q { background: var(--a-surface-3); border-color: transparent; }
+.pv-bn .tags .clk { font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); margin-right: 6px; }
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 6px; background: var(--a-surface-3); color: var(--a-text-1); font: 650 12px/1 var(--a-font-text); letter-spacing: .04em; text-transform: uppercase; text-shadow: none; }   /* facts: a filled lozenge, no outline (v1.1) */
+.tag.q { background: var(--a-surface-3); }
 .tag svg { width: 16px; height: 16px; }
 .live { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px 0 8px; border: 2px solid var(--a-live); border-radius: 999px; color: var(--a-live-text); background: var(--a-live-soft); font: 700 13px/1 var(--a-font-text); letter-spacing: .1em; }
 .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--a-live); }
@@ -66,7 +69,7 @@ svg.ic.s16 { width: 16px; height: 16px; }
 /* ---- the bar: buttons (y 382-426), the track (centre y 448), the ends row (y 460-480) ---- */
 .pv-btns { left: 48px; right: 48px; top: 382px; height: 44px; display: flex; align-items: center; gap: 10px; }
 .pv-btns .sp { flex: 1; }
-.pv-btns.faded { opacity: .22; }   /* while scrubbing: the bubble takes the row's place */
+.pv-btns.faded { opacity: 0; }   /* while scrubbing the row is gone (0 %, v1.1): the bubble takes its place */
 .disc { position: relative; width: 44px; height: 44px; border-radius: 50%; background: rgba(21,19,29,.55); border: 1px solid rgba(243,239,230,.14); display: grid; place-items: center; color: var(--a-text-1); flex: none; font: 700 15px/1 var(--a-font-text); }
 .disc.f { background: var(--a-surface-3); border-color: transparent; box-shadow: 0 0 0 3px var(--a-focus); }
 .pill { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 999px; border: 2px solid var(--a-border-strong); background: rgba(21,19,29,.45); font: 700 16px/1 var(--a-font-display); color: var(--a-text-1); white-space: nowrap; flex: none; }
@@ -82,15 +85,15 @@ svg.ic.s16 { width: 16px; height: 16px; }
 .pv-track .ahead { position: absolute; top: 7px; height: 6px; border-radius: 3px; background: var(--a-bg-1); box-shadow: inset 0 0 0 1px var(--a-border-strong); background-image: repeating-linear-gradient(90deg, transparent 0 4px, rgba(21,19,29,1) 4px 7px); }
 .pv-track .p { position: absolute; left: 0; top: 7px; height: 6px; border-radius: 3px; background: var(--a-grad); width: var(--p, 30%); }
 .pv-track .tick { position: absolute; top: 3px; width: 2px; height: 14px; border-radius: 1px; background: var(--a-text-2); margin-left: -1px; }
-.pv-track .th { position: absolute; top: 2px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--a-text-1); left: var(--p, 30%); }
-.pv-track .th.f { top: -1px; width: 22px; height: 22px; margin-left: -11px; box-shadow: 0 0 0 3px var(--a-focus); }   /* (a 2.5 dp gap inside the ring on the native thumb) */
+.pv-track .th { position: absolute; top: 3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--a-text-1); left: var(--p, 30%); }
+.pv-track .th.f { top: -1px; width: 22px; height: 22px; margin-left: -11px; box-shadow: 0 0 0 2.5px var(--a-bg-0), 0 0 0 5.5px var(--a-focus); }   /* the house ring: 2.5 dp canvas gap, 3 dp white (v1.1) */
 .pv-track .ld { position: absolute; top: 3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--a-live); box-shadow: 0 0 0 2px var(--a-bg-0); }
 .pv-ends { left: 48px; right: 48px; top: 460px; height: 20px; font: 500 14px/20px var(--a-font-text); color: var(--a-text-2); }
 .pv-ends > * { position: absolute; top: 0; white-space: nowrap; }
 .pv-ends .l { left: 0; } .pv-ends .r { right: 0; display: flex; align-items: center; gap: 6px; }
 .pv-ends .ch { transform: translateX(-50%); color: var(--a-text-3); }
 .pv-ends .ch.on { color: var(--a-text-1); font-weight: 650; }
-.pv-ends .live { position: absolute; top: -1px; }
+.pv-ends .live { position: absolute; top: 0; height: 20px; font-size: 12px; border-width: 1.5px; padding: 0 8px 0 7px; }   /* the compact pill: inside the 20 dp row, 7 dp clear of the hint caps (v1.1) */
 
 /* the scrub bubble and the speed chip, above the track where the buttons were */
 .pv-bub { top: 400px; height: 28px; display: flex; align-items: center; gap: 8px; transform: translateX(-50%); }
@@ -102,7 +105,8 @@ svg.ic.s16 { width: 16px; height: 16px; }
 /* ---- the hint bar: outlined key caps on the same scrim, text y 489-507 ---- */
 .pv-hint { left: 48px; top: 487px; height: 22px; display: flex; align-items: center; gap: 22px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-2); white-space: nowrap; }
 .pv-hint > span { display: inline-flex; align-items: center; gap: 7px; }
-.k { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 7px; border: 1.5px solid var(--a-border-strong); border-radius: 6px; font: 700 13px/1 var(--a-font-text); color: var(--a-text-1); letter-spacing: .03em; background: rgba(21,19,29,.5); }
+.k { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 7px; border-radius: 6px; font: 700 13px/1 var(--a-font-text); color: var(--a-text-2); letter-spacing: .03em; background: rgba(21,19,29,.62); }   /* keys: a filled cap, no outline, text-2 (v1.1: keys, buttons and facts each look like one thing) */
+.k.g { font-size: 17px; line-height: 1; }
 .k.dim { opacity: .4; }
 
 /* ---- the chips at the bottom right (Up next, Skip intro): as the skip spec, 48 / 60 high, over the bar's row ---- */
@@ -152,3 +156,12 @@ svg.ic.s16 { width: 16px; height: 16px; }
 
 .eye { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .a-note { right: 48px; bottom: 6px; font: 500 11px/14px var(--a-font-text); color: rgba(200,196,216,.45); }
+
+/* a drawn broadcast frame for 15: hardwood (planks, the key and the arc), the broadcaster's bug, bright stands */
+.pv-pic.court-bright { background: linear-gradient(180deg, #d8d2c8 0, #cfc6b8 36%, #e9c48f 36.5%, #e3b97e 100%); }
+.pv-pic.court-bright::before { content: ""; position: absolute; left: 0; right: 0; top: 36.5%; bottom: 0; background: repeating-linear-gradient(90deg, rgba(120,70,20,.16) 0 2px, transparent 2px 46px), linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,.3) 50%, rgba(255,255,255,0) 100%); }
+.pv-pic.court-bright::after { content: ""; position: absolute; left: 300px; width: 360px; top: 36.5%; height: 240px; border: 4px solid #f6f1e8; border-top: 0; border-radius: 0 0 180px 180px; box-sizing: border-box; }
+.pv-pic.court-bright .bug { position: absolute; left: 48px; top: 150px; height: 34px; display: flex; align-items: center; background: #111; color: #fff; font: 700 15px/1 var(--a-font-text); border-radius: 4px; overflow: hidden; }
+.pv-pic.court-bright .bug span { padding: 0 12px; }
+.pv-pic.court-bright .bug .a { background: #5D76A9; } .pv-pic.court-bright .bug .h { background: #E03A3E; }
+.pv-pic.court-bright .stands { position: absolute; left: 0; right: 0; top: 0; height: 36.5%; background: repeating-linear-gradient(90deg, rgba(20,20,40,.35) 0 6px, rgba(230,220,210,.0) 6px 13px), linear-gradient(180deg, #b9b3ad 0, #e4ded6 100%); }
