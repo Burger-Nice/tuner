@@ -36,9 +36,11 @@ module.exports = async (ctx) => {
   console.log('played:', played);
   ok('it plays US: ESPN HD from tip-off', /ESPN/.test(played || ''), played);
   await shot('played');
-  // remembered: Home's hero now has Watch from tip-off
+  // remembered: Home's game line now has Watch from tip-off
   await ev(() => { try { window.__replayTest?.({ type: 'exit', played: 0 }); } catch {} });
   await ev(() => window.__tunerTest.go('home')); await p.waitForTimeout(3000);
-  console.log('hero after:', await hero('home'));
-  ok('remembered: Home\'s hero has the replay (Resume or Watch from tip-off)', /Watch from tip-off|Resume/.test(await hero('home')), await kind('home'));
+  // (Home's Marquee, home-final SPEC 4: the game's line, its lit card)
+  const gl = () => ev(() => { const e = document.querySelector('[data-screen="home"] .hf-e[data-key="line:game"]'); return e ? `${e.dataset.rowKind} ${e.innerText.replace(/\s+/g, ' ')}` : ''; });
+  console.log('game line after:', await gl());
+  ok('remembered: Home\'s game line has the replay (Resume or Watch from tip-off)', /Watch from tip-off|Resume/.test(await gl()), await gl());
 };

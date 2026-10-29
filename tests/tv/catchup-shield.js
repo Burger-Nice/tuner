@@ -29,10 +29,12 @@ module.exports = async (ctx) => {
   // ---------- A. the morning after ----------
   await setup(ctx);
   await go('home', 4000); await sweep('A home');
-  await hold(); await sweep('A sources sheet'); await key('Escape', 1, 500);
+  await ev(() => document.querySelector('[data-screen="home"] .hf-e[data-key="line:game"]')?.focus()); await p.waitForTimeout(300);
+  await hold(); ok('A: the sources sheet is open', await ev(() => !!document.querySelector('.cu-srcs'))); await sweep('A sources sheet'); await key('Escape', 1, 500);
   await go('nba', 4000); await sweep('A hub');
   await ev((id) => window.__tunerTest.go('home'), JAZZ);
-  await go('home', 2000); await key('ArrowRight', 1, 400); await key('Enter', 1, 3000);   // Game page
+  await go('home', 2000); await ev(async (id) => (await import('./tv/js/router.js')).push('game', { id }), JAZZ); await p.waitForTimeout(3000);   // Game page
+  ok('A: on the game page', (await ev(() => window.__tunerTest.state().screen)) === 'game');
   await sweep('A game page');
   await hold(); for (let i = 0; i < 8 && !(await focused()).includes('Choose a video'); i++) await key('ArrowDown', 1, 250);
   await key('Enter', 1, 1500); await sweep('A choose a video'); await shot('A-choose');
@@ -54,9 +56,10 @@ module.exports = async (ctx) => {
   await p.waitForTimeout(1500);
   console.log('watching live reveals for the session:', await ev(async () => { const m = await import('./tv/js/games.js'); return m.revealed.has('401909875'); }));
   await go('home', 2000);
-  for (let i = 0; i < 4 && !(await focused()).includes('From tip-off'); i++) await key((await focused()).includes('Watch live') ? 'ArrowRight' : 'ArrowLeft', 1, 400);
-  console.log('focus:', await focused());
-  await key('Enter', 1, 3000);   // From tip-off
+  // (Home's Marquee, home-final SPEC 4: the game's line, OK Watch live, → From tip-off)
+  await ev(() => document.querySelector('[data-screen="home"] .hf-e[data-key="line:game"]')?.focus()); await p.waitForTimeout(400);
+  console.log('focus:', await focused(), '| line:', await ev(() => document.querySelector('[data-screen="home"] .hf-e[data-key="line:game"]')?.dataset.rowKind));
+  await key('ArrowRight', 1, 3000);   // From tip-off
   console.log('after From tip-off, revealed:', await ev(async () => { const m = await import('./tv/js/games.js'); return m.revealed.has('401909875'); }));
   const g = await ev(() => { window.__replayTest.event({ type: 'position', played: 24 * 60e3 }); return window.__replayTest.state(); });
   console.log('the player\'s as-aired data in Q1:', JSON.stringify({ clock: g?.game?.clock, score: g?.game?.score, box: g?.game?.box?.away?.rows?.length, chapters: g?.game?.chapters?.map((c) => c.label).join(' ') }));
@@ -65,14 +68,14 @@ module.exports = async (ctx) => {
   await p.clock.fastForward('35:00');
   behindNow = true;
   await go('home', 3000); await sweep('B home, behind'); await shot('B-home-behind');
-  ok('B hero: behind', (await ev(() => document.querySelector('[data-screen="home"] .hero-plate')?.dataset.rowKind)) === 'behind');
+  ok('B the game\'s line: behind', (await ev(() => document.querySelector('[data-screen="home"] .hf-e[data-key="line:game"]')?.dataset.rowKind)) === 'behind');
   await go('nba', 3500); await sweep('B hub, behind');
   await go('live', 3000);
   const espn = await ev(() => [...document.querySelectorAll('.g-row')].find((r) => /ESPN/.test(r.querySelector('.nm')?.textContent))?.querySelector('.g-cell.now')?.innerText.replace(/\s+/g, ' '));
   console.log('ESPN on now:', espn);
   ok('B the channel holds the game\'s own title', /Grizzlies at Jazz/.test(espn || ''));
   await sweep('B guide, behind');
-  await go('home', 2000); await key('ArrowRight', 2, 300); await key('Enter', 1, 3000);
+  await go('home', 2000); await ev(async (id) => (await import('./tv/js/router.js')).push('game', { id }), JAZZ); await p.waitForTimeout(3000);
   await sweep('B game page, behind'); await shot('B-game-behind');
   console.log('game page:', await ev(() => document.querySelector('[data-screen="game"]')?.innerText.replace(/\s+/g, ' ')), '| focus', await focused());
   ok('B game page: Resume first', (await focused()).includes('Resume'));
@@ -80,7 +83,9 @@ module.exports = async (ctx) => {
   // ---------- the replay's buzzer + 2 min plays: seen for good ----------
   behindNow = false;
   await setup(ctx);
-  await go('home', 4000); await key('Enter', 1, 3000);
+  await go('home', 4000);
+  await ev(() => document.querySelector('[data-screen="home"] .hf-e[data-key="line:game"]')?.focus()); await p.waitForTimeout(300);
+  await key('Enter', 1, 3000);   // (the morning after: OK is Watch from tip-off)
   const R = await ev(() => window.__replay?.R);
   await ev(() => window.__replayTest.event({ type: 'position', played: 60 * 60e3 }));
   console.log('seen at Q2?', await ev(async () => (await import('./tv/js/games.js')).seenForGood({ id: '401909875', date: Date.parse('2026-10-27T01:00:00Z') })));
@@ -89,6 +94,6 @@ module.exports = async (ctx) => {
   ok('seen at the replay\'s buzzer + 2 min', seen);
   await ev(() => window.__replayTest.event({ type: 'exit', played: 200 * 60e3 }));
   await go('home', 3000);
-  console.log('hero after the buzzer:', await ev(() => document.querySelector('[data-screen="home"] .hero-plate')?.innerText.replace(/\s+/g, ' ')));
+  console.log('game line after the buzzer:', await ev(() => document.querySelector('[data-screen="home"] .hf-e[data-key="line:game"]')?.innerText.replace(/\s+/g, ' ')));
   console.log(fails ? `${fails} FAILED` : 'all passed');
 };
