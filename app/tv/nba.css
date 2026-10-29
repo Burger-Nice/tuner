@@ -30,6 +30,9 @@
 .nb-sec .meta .ic{width:16px;height:16px;color:var(--a-text-2)}
 .nb-days{position:absolute;left:48px;right:48px;top:128px;height:36px;display:flex;align-items:center;gap:8px}
 .nb-days .t-cap{margin-left:auto;white-space:nowrap}
+.nb-dayline{position:absolute;left:48px;right:48px;height:36px;display:flex;align-items:center;gap:10px;font:500 15px/20px var(--a-font-text);color:var(--a-text-2);white-space:nowrap}
+.nb-dayline .ic{color:var(--a-text-3);flex:none}
+.nb-dayline .pillbtn{margin-left:8px}
 
 /* ---------- tables (standings, team stats, roster): 32 px rows, inset ring (dense rows), sticky column names ---------- */
 .nb-th{position:absolute;left:48px;width:852px;height:24px;display:flex;align-items:center;padding:0 16px;font:650 14px/18px var(--a-font-text);letter-spacing:.06em;color:var(--a-text-3);z-index:5;background:var(--a-bg-0);white-space:nowrap}
@@ -170,8 +173,9 @@
 .nb-tools .t-cap{margin-left:auto;white-space:nowrap}
 .c-no{width:36px;text-align:left;color:var(--a-text-3);font-weight:650}
 .c-gp{width:44px}.c-st5{width:58px}
-.nb-tr .inj{display:inline-flex;align-items:center;gap:5px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);flex:none}
-.nb-tr .inj svg{width:15px;height:15px}
+.nb-tr .inj{display:inline-flex;align-items:center;gap:5px;font:500 14px/18px var(--a-font-text);color:var(--a-text-2);flex:0 100 auto;min-width:0;overflow:hidden}   /* (a long injury is cut before the name is) */
+.nb-tr .inj span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.nb-tr .inj svg{width:15px;height:15px;flex:none}
 
 /* the player sheet */
 .nb-pl{display:flex;flex-direction:column;gap:0}

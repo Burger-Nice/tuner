@@ -4,7 +4,7 @@
 import { esc, ic, dot, setHtml, hm } from '../util.js';
 import { on } from '../state.js';
 import { ensure } from '../catalog.js';
-import { nba, bestChannel, dayGames, dayLabel, isMine, favTeam, show, findFeeds, feedsNow, reveal, startNba, myGame } from '../games.js';
+import { nba, bestChannel, dayGames, dayLabel, isMine, favTeam, show, findFeeds, feedsNow, reveal, startNba, myGame, retryScores } from '../games.js';
 import { peek, want } from '../league.js';
 import { gameCard, gameHero } from '../cards.js';
 import { playLive, watching } from '../player.js';
@@ -14,14 +14,14 @@ import { toast, contextMenu } from '../ui.js';
 import { ringFor, ringName } from '../screens/home.js';
 import { findReplays, replaysOf, dayHasReplay } from '../catchup.js';
 import { heroAct as replayAct, heroHold, watchFromTipoff } from '../replay.js';
-import { tc, gameName, reveal as revealIt } from './common.js';
+import { tc, gameName, reveal as revealIt, downCard, stateCard } from './common.js';
 
 let el, ctx, offset = 0, games = [], loading = false, err = '', lookT = 0;
 
 const counts = (list, hero) => {
   const n = (s) => list.filter((g) => g.state === s).length;
   const all = list.length + (hero ? 1 : 0);
-  if (!list.length) return err || !all ? (err ? '' : 'No games') : '';
+  if (!list.length) return '';   // (an empty day says so in its card)
   return [`${list.length} ${hero ? 'more ' : ''}${list.length === 1 ? 'game' : 'games'}`, n('in') && `${n('in')} live`, n('in') && 'live first'].filter(Boolean).join(dot);
 };
 
@@ -59,8 +59,10 @@ function draw() {
     <span class="t-cap">${loading ? 'Loading…' : counts(rest, mine && games.some((g) => g.id === mine.id))}${!loading && dayHasReplay(games) ? `${dot}${ic('hist', 'xs')}&nbsp;= replay` : ''}</span></div>`;
   if (mine && mine.state !== 'pre' && !replaysOf(mine)) findReplays(mine);
   const hero = mine ? gameHero(mine, { channel: bestChannel(mine), feeds: feedsNow(mine).length, top: 128, hub: true }) : '';
-  const body = err && !games.length ? `<div class="center-col" style="top:${gridTop + 8}px"><div class="state big"><div class="ico">${ic('wifiOff')}</div><b>Scores aren't reachable</b><p>${esc(err)}</p></div></div>`
-    : !games.length && !loading ? `<div class="center-col" style="top:${gridTop + 8}px"><div class="state"><div class="ico">${ic('clock')}</div><b>No games ${offset ? 'that day' : 'today'}</b><p>◀ ▶ on the day picks another day.</p></div></div>`
+  // (under the hero there are 125 px to the safe line: a one-line note, never a card cut off at the bottom)
+  const line = (icon, text, btn) => `<div class="nb-dayline" data-row style="top:${gridTop + 12}px">${ic(icon, 'sm')}<span>${text}</span>${btn ? `<span class="pillbtn fx" tabindex="-1" data-act="retry">${ic('refresh')}Try again</span>` : ''}</div>`;
+  const body = err && !games.length ? (mine ? line('wifiOff', `Scores aren’t reachable · ESPN isn’t answering${offset ? '' : ', airglow tries again every minute'}`, true) : offset ? stateCard({ title: 'Scores aren’t reachable', text: 'ESPN isn’t answering for that day.', btn: ['retry', 'Try again'], top: gridTop + 8 }) : downCard(gridTop + 8))
+    : !games.length && !loading ? (mine ? line('clock', `No games ${offset ? 'that day' : 'today'} · ◀ ▶ on the day picks another day`) : `<div class="center-col" style="top:${gridTop + 8}px"><div class="state"><div class="ico">${ic('clock')}</div><b>No games ${offset ? 'that day' : 'today'}</b><p>◀ ▶ on the day picks another day.</p></div></div>`)
     : `<div class="nba-grid" data-grid data-cols="3" style="top:${gridTop}px">${rest.map((g, i) => gameCard(g, i)).join('')}</div>`;
   setHtml(el.querySelector('.page'), hero + days + body);
   el._mine = mine;
@@ -83,10 +85,11 @@ function place() {
   el.querySelector('.hub-cover').hidden = !(shift > 0);
   ctx.scrolled(shift > 0);
 }
-async function load(o) {
-  offset = o; loading = true; err = ''; draw();
+async function load(o, { force = false, quiet = false } = {}) {
+  offset = o;
+  if (!quiet) { loading = true; err = ''; draw(); }
   let got, bad = '';
-  try { got = await dayGames(o); } catch (e) { bad = e.message; got = []; }
+  try { got = await dayGames(o, { force }); } catch (e) { bad = e.message; got = []; }
   if (o !== offset) return;   // you've moved to another day since: this answer is for a day that's no longer shown
   games = got; err = bad;
   loading = false;
@@ -139,6 +142,7 @@ export default {
       const d = e.target.closest('[data-day]');
       if (d) { const v = +d.dataset.day; if (v) load(offset + v); return; }
       const b = e.target.closest('[data-act]');
+      if (b?.dataset.act === 'retry') { if (offset) load(offset, { force: true }); else { loading = true; err = ''; draw(); retryScores(); } focus(el.querySelector('[data-day="0"]')); return; }
       if (b && b.closest('.hero-plate')) return heroAct(b.dataset.act, b);
       const card = e.target.closest('.gc');
       if (card) push('game', { id: card.dataset.g });
@@ -156,7 +160,8 @@ export default {
       const c = e.target.closest?.('.gc');
       if (c) lookT = setTimeout(() => { const g = games.find((x) => x.id === c.dataset.g); if (g && document.activeElement === c) findReplays(g); }, 600);
     });
-    const redraw = () => { if (ctx.visible()) { if (!offset) games = nba.today; draw(); } };
+    // (another day with games not final yet is asked again, a minute apart at most: its scores move too)
+    const redraw = () => { if (ctx.visible()) { if (!offset) { games = nba.today; loading = false; err = nba.err; } else if (!loading && games.some((g) => g.state !== 'post')) load(offset, { quiet: true }); draw(); } };
     on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('replays', redraw); on('progress', redraw);
     on('league', (k) => { if (k === `schedule:${favTeam()}` || k === 'standings') redraw(); });
   },

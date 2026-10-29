@@ -11,9 +11,9 @@ import { toast, contextMenu } from '../ui.js';
 import { ringFor, ringName } from './home.js';
 import { findReplays, replaysOf, replaysLooked, replaysBusy, keptUntil, nightLabel } from '../catchup.js';
 import { watchFromTipoff, resumeGame, backToLive, sourcesSheet, chooseVideo, lookAgain, pickChannel } from '../replay.js';
-import { behindReplay, shielded, replayPick, liveByClock, replayProgress } from '../games.js';
+import { behindReplay, shielded, replayPick, liveByClock, replayProgress, holdGame } from '../games.js';
 
-let el, id = null, tab = 'away', scroll = 0;
+let el, id = null, tab = 'away', scroll = 0, cur = null;   // cur: this page's params (its tab and scroll go back in them)
 const STATS = [['fieldGoalPct', 'Field goal %'], ['threePointFieldGoalPct', '3-point %'], ['freeThrowPct', 'Free throw %'], ['totalRebounds', 'Rebounds'], ['assists', 'Assists'], ['totalTurnovers', 'Turnovers'], ['steals', 'Steals'], ['blocks', 'Blocks'], ['pointsInPaint', 'Points in the paint'], ['fastBreakPoints', 'Fast-break points'], ['largestLead', 'Largest lead']];
 const COLS = ['MIN', 'PTS', 'REB', 'AST', 'FG', '3PT', '+/-'];
 
@@ -51,7 +51,8 @@ function draw() {
   if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden || !id) return;
   const g0 = gameById(id);
-  if (!g0) { setHtml(el, '<div class="center-col" style="top:200px"><div class="state big"><b>This game is no longer listed</b></div></div>'); return; }
+  if (!g0) { setHtml(el, '<div class="center-col" style="top:200px"><div class="state big"><b>This game is no longer listed</b><p>Back returns to where you were.</p></div></div>'); return; }
+  holdGame(g0);   // (kept while you look at it: the scoreboard's day moving on doesn't take the page away)
   const v = show(g0), g = v.g, s = v.s;
   const side = (t, right) => `<div class="side${right ? ' r' : ''}" style="${teamVars(t)}">${right ? '' : crest(t, 'md')}<div class="nm">${esc(t.name)}</div>${right ? crest(t, 'md') : ''}</div>`;
   const mid = v.hidden ? `<span class="shield">${ic('eyeOff')}<span>Score hidden</span></span>` : g.state === 'pre' ? '<span class="score md">VS</span>' : `<span class="score md">${esc(g.away.score)}</span><span class="t-3" style="font:700 20px var(--a-font-display)">–</span><span class="score md">${esc(g.home.score)}</span>`;
@@ -140,18 +141,21 @@ export default {
     setInterval(() => { if (current() === 'game') draw(); }, 1000);
   },
   enter(root, params, { fresh }) {
+    cur = params;
     if (params.id && (fresh || params.id !== id)) {
       if (id) wantSummary(id, false);
       id = params.id; scroll = 0;
       const g = gameById(id);
       tab = params.tab || (g && g.home.abbr === favTeam() ? 'home' : 'away');
+      // back to this page from one pushed on it (its team's page, then another game): the tab and scroll you left
+      if (!fresh && params._g) ({ tab, scroll } = params._g);
       wantSummary(id, true);
       if (g) findFeeds(g);
       if (g && g.state !== 'pre') findReplays(g);   // (its replays: looked up when its page opens, 5.3)
     }
     draw();
   },
-  leave() { if (id) wantSummary(id, false); },
+  leave() { if (id) wantSummary(id, false); if (cur) cur._g = { tab, scroll }; },
   // (never the Reveal button: a second OK while the page opens would reveal the game for good)
   // the shield card's first button (Watch from tip-off, Resume, Look again; catch-up 5.5's fix), else the tabs
   entry: (root) => root.querySelector('.cu-state .btn') || root.querySelector(`[data-tab-g="${tab}"]`) || root.querySelector('[data-tab-g]'),

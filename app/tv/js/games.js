@@ -18,7 +18,11 @@ export const favTeam = () => { const t = settings().nbaTeam || 'MEM'; return t =
 export const isMine = (g) => !!g && !!favTeam() && (g.home.abbr === favTeam() || g.away.abbr === favTeam());
 export const mySide = (g) => (g.home.abbr === favTeam() ? g.home : g.away);
 export const gameById = (id) => nba.today.find((g) => g.id === id) || [...nba.other.values()].flat().find((g) => g.id === id)
-  || peekAll('schedule:').map(([, d]) => (d.games || []).find((g) => g.id === id)).find(Boolean) || null;   // (a team page's schedule)
+  || peekAll('schedule:').map(([, d]) => (d.games || []).find((g) => g.id === id)).find(Boolean)   // (a team page's schedule)
+  || held.get(id) || null;
+// The last games whose page was open: a page stays whole when ESPN's day moves on and its game leaves the scoreboard.
+const held = new Map();
+export function holdGame(g) { if (!g) return; held.delete(g.id); held.set(g.id, g); if (held.size > 8) held.delete(held.keys().next().value); }
 export const myGame = () => nba.today.find(isMine) || null;
 // (a game you're behind in stays live by the clock, 7.2: the real game ending says nothing yet)
 export const liveGames = () => nba.today.filter((g) => g.state === 'in' || heldLive(g));
@@ -71,6 +75,7 @@ async function refreshToday() {
   clearTimeout(timer);
   try {
     // ESPN's "today" follows US time; once last night's games are all final and your own day has moved on, show your today.
+    const asked = Date.now();   // (a box score fetched before this is older than the scoreboard: it doesn't win)
     let r = await NBA.scoreboard('');
     const local = isoDay(new Date());
     // (a game you're behind in a replay holds the day until its tip-off + 3 h 30, whatever the scoreboard: catch-up N5)
@@ -78,7 +83,7 @@ async function refreshToday() {
       try { const next = await NBA.scoreboard(local.replace(/-/g, '')); r = { day: next.day || local, games: next.games }; } catch {}
     }
     const before = new Map(nba.today.map((g) => [g.id, g.state]));
-    nba.today = sortGames(r.games.map((g) => merge(g)));
+    nba.today = sortGames(r.games.map((g) => merge(g, asked)));
     nba.todayDay = r.day;
     tipOffs(before);
     prunePins();
@@ -88,8 +93,10 @@ async function refreshToday() {
     store.set(SAVED, { at: Date.now(), day: r.day, games: r.games });
   } catch (e) { nba.err = e.message; }
   emit('nba');
-  timer = setTimeout(refreshToday, nba.stale ? 30000 : nba.today.some((g) => g.state === 'in') ? 15000 : 120000);
+  timer = setTimeout(refreshToday, nba.stale ? 30000 : nba.err ? 60000 : nba.today.some((g) => g.state === 'in') ? 15000 : 120000);
 }
+// Try again (the Games section's error card): today's scoreboard now.
+export const retryScores = () => refreshToday();
 // A shielded game tipping off: keep the league as it stood before it (SPEC 8.1). A game you're watching whose final buzzer
 // just sounded: seen for good.
 function tipOffs(before) {
@@ -104,25 +111,32 @@ function tipOffs(before) {
 // of that game is open: the live buzzer isn't yours to see when you're behind, catch-up M2)
 function buzzer(g) { if (watch.gameId === g.id && watch.up && replay.gameId !== g.id) markSeen(g.id); }
 on('player-closed', () => { watch.up = false; });
-// Keep a summary's fresher score on the scoreboard entry.
-function merge(g) {
+// Keep a summary's fresher score on the scoreboard entry: only one fetched after the entry's own (a box score kept from an
+// hour ago never puts an old score and clock back), and never one that puts the game back (a final stays final).
+const STAGE = { pre: 0, in: 1, post: 2 };
+function merge(g, since = g._at || 0) {
   const s = nba.sums.get(g.id);
-  if (s && s.at > (g._at || 0) && s.game.state !== 'pre') {
+  if (s && s.at > since && s.game.state !== 'pre' && (STAGE[s.game.state] ?? 0) >= (STAGE[g.state] ?? 0)) {
     Object.assign(g, { state: s.game.state, final: s.game.final ?? g.final, detail: s.game.detail || g.detail, clock: s.game.clock, period: s.game.period });
     for (const side of ['home', 'away']) if (s.game[side].score) { g[side].score = s.game[side].score; if (s.game[side].lines.length) g[side].lines = s.game[side].lines; }
   }
   g._at = Date.now();
   return g;
 }
-export async function dayGames(offset) {
+// Another day's games: kept a minute while any of them isn't final (live or still to come), 12 hours once all are; a
+// failed refetch keeps what was there.
+const otherAt = new Map();
+export async function dayGames(offset, { force = false } = {}) {
   if (!offset) return nba.today;
   const base = nba.todayDay ? new Date(nba.todayDay + 'T12:00:00') : new Date();
   base.setDate(base.getDate() + offset);
   const ymd = isoDay(base).replace(/-/g, '');
-  if (nba.other.has(ymd)) return nba.other.get(ymd);
-  const r = await NBA.scoreboard(ymd);
+  const kept = nba.other.get(ymd), age = Date.now() - (otherAt.get(ymd) || 0);
+  if (kept && !force && age < (kept.every((g) => g.state === 'post') ? 12 * 3600e3 : 60e3)) return kept;
+  let r;
+  try { r = await NBA.scoreboard(ymd); } catch (e) { if (kept) return kept; throw e; }
   const games = sortGames(r.games);
-  nba.other.set(ymd, games);
+  nba.other.set(ymd, games); otherAt.set(ymd, Date.now());
   bump();
   return games;
 }
@@ -135,7 +149,8 @@ export function dayLabel(offset) {
 }
 
 // Box scores: fetched every 10 s for the games someone is looking at.
-export function wantSummary(id, on = true) { if (on) want.add(id); else want.delete(id); if (on && !nba.sums.has(id)) sumTick(); }
+// (a page opened again with a box score kept from earlier: fetched now, not at the next tick)
+export function wantSummary(id, on = true) { if (on) want.add(id); else want.delete(id); if (on && !(Date.now() - (nba.sums.get(id)?.at || 0) < 10000)) sumTick(); }
 async function sumTick() {
   clearTimeout(sumTimer);
   for (const id of [...want]) {

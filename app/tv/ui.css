@@ -283,7 +283,7 @@ svg.ic.fill{fill:currentColor;stroke:none}
 .gd-body{position:absolute;left:48px;right:48px;top:220px}
 table.box{width:100%;border-collapse:collapse;font:500 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-1)}
 table.box th{font:650 var(--a-size-caption)/var(--a-lh-caption) var(--a-font-text);color:var(--a-text-3);text-align:right;padding:2px 12px 4px;letter-spacing:.06em}
-table.box thead th{transform:translateY(var(--sy,0));background:var(--a-bg-0);position:relative;z-index:1}   /* the column names stay at the top while the table scrolls */
+table.box thead th{transform:translateY(var(--sy,0));background:var(--a-bg-0);box-shadow:0 4px 0 var(--a-bg-0);position:relative;z-index:1}   /* the column names stay at the top while the table scrolls */
 table.box th:first-child,table.box td:first-child{text-align:left;width:280px}
 table.box td{text-align:right;padding:0 12px;height:29px;border-top:1px solid var(--a-border)}
 table.box td.b{font-weight:700}
