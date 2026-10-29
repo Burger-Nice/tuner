@@ -14,6 +14,8 @@ import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.shapes.RectShape;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -44,6 +46,21 @@ final class Ui {
     static final int OK = 0xFF47D394;
     /** Panels sit on the picture at 92 to 94%. */
     static final int PANEL = 0xF01E1B28, BANNER = 0xEB1E1B28, SCRIM = 0xD915131D;
+    // player v2 (design/ui-v1/player-v2/SPEC.md 3): the controls sit on the picture over scrims, no box
+    static final int GLASS = 0x8C15131D;        // discs and the Paused tag: bg-0 at 55 %
+    static final int GLASS_PILL = 0x7315131D;   // pills: bg-0 at 45 %
+    static final int GLASS_EDGE = 0x24F3EFE6;   // the 1 dp edge on discs and key caps: chalk at 14 %
+    static final int DIM = 0x5915131D;          // paused: the picture 35 % darker
+    static final int DIM_ZAP = 0xB315131D;      // a zap: the old picture at 30 % until the first frame
+    static final int KEYCAP = 0x9E15131D;       // the hint bar's caps: bg-0 at 62 %
+    static final int LABEL_BG = 0xBF15131D;     // the focused button's name: bg-0 at 75 % (reads on a white frame)
+    static final int SHADOW = 0xB3000000;       // one text shadow per view: setShadowLayer(10, 0, 1, black 70 %)
+    static final int[] SCRIM_TOP = { 0xD615131D, 0xAD15131D, 0x0015131D };      // 84 %, 68 % at .55, 0; 220 dp
+    static final float[] SCRIM_TOP_AT = { 0, 0.55f, 1 };
+    static final int[] SCRIM_BOTTOM = { 0x0015131D, 0x9E15131D, 0xEB15131D };   // 0, 62 % at .46, 92 %; 250 dp
+    static final float[] SCRIM_BOTTOM_AT = { 0, 0.46f, 1 };
+    static final int[] SCRIM_HINT = { 0x0015131D, 0xCC15131D };                 // the hint bar alone: 0 to 80 %, 110 dp
+    static final float[] SCRIM_HINT_AT = { 0, 1 };
 
     // ---- fonts ----
     static Typeface inter500, inter600, inter650, inter700, outfit700, barlow;
@@ -88,6 +105,50 @@ final class Ui {
         t.setPadding(t.getPaddingLeft(), pad, t.getPaddingRight(), Math.max(0, h - natural - pad));
     }
     static void tabular(TextView t) { t.setFontFeatureSettings("tnum"); }
+    /** The one soft shadow every text on the picture carries (the top block, the corner, the banner, the label). */
+    static <T extends TextView> T shadow(T t) { t.setShadowLayer(dp(10), 0, dp(1), SHADOW); return t; }
+
+    /** A top-to-bottom scrim with stops: a ShapeDrawable whose shader is a LinearGradient (GradientDrawable's
+     * setColors(int[], float[]) is API 29; minSdk is 24). */
+    static Drawable scrim(int[] colors, float[] stops) {
+        ShapeDrawable d = new ShapeDrawable(new RectShape());
+        d.setShaderFactory(new ShapeDrawable.ShaderFactory() {
+            @Override public Shader resize(int w, int h) { return new LinearGradient(0, 0, 0, h, colors, stops, Shader.TileMode.CLAMP); }
+        });
+        return d;
+    }
+    static View scrimView(Context c, int[] colors, float[] stops) { View v = new View(c); v.setBackground(scrim(colors, stops)); return v; }
+
+    /** A transport disc (44): a glyph or "−10", chalk on glass with a 1 dp edge. */
+    static TextView disc(Context c, String icon, String text) {
+        TextView t = text(c, text == null ? "" : text, 15, T1, inter700);
+        t.setGravity(Gravity.CENTER);
+        tabular(t);
+        if (icon != null) { t.setTag(icon); discIcon(t, icon); }
+        discState(t, false);
+        return t;
+    }
+    static void discIcon(TextView t, String icon) {
+        Drawable d = icon(icon, T1, 22);
+        d.setBounds(0, 0, dp(22), dp(22));
+        t.setCompoundDrawables(d, null, null, null);
+        t.setPadding(dp(11), 0, 0, 0);
+    }
+    /** Idle: glass with the chalk edge; focused: surface-3 and the 3 dp white ring, no edge. */
+    static void discState(TextView t, boolean focused) {
+        GradientDrawable g = circle(focused ? S3 : GLASS);
+        if (focused) g.setStroke(dp(3), FOCUS); else g.setStroke(Math.max(1, dp(1)), GLASS_EDGE);
+        t.setBackground(g);
+    }
+    /** The focused button's name, above it: Inter 650 14 chalk on a small dark backing, with the shadow. */
+    static TextView label(Context c) {
+        TextView t = line(c, "", 14, T1, inter650);
+        lineHeight(t, 24);
+        t.setPadding(dp(8), t.getPaddingTop(), dp(8), t.getPaddingBottom());
+        t.setBackground(round(LABEL_BG, 8));
+        shadow(t);
+        return t;
+    }
 
     // ---- shapes ----
     static GradientDrawable round(int color, float radiusDp) {
@@ -140,9 +201,7 @@ final class Ui {
         TextView t = text(c, s.toUpperCase(), 12, T1, inter650);
         t.setLetterSpacing(0.04f);
         t.setGravity(Gravity.CENTER);
-        GradientDrawable bg = round(quality ? S3 : 0xC715131D, 8);
-        if (!quality) bg.setStroke(Math.max(1, dp(1)), BORDER_STRONG);
-        t.setBackground(bg);
+        t.setBackground(round(S3, 6));   // facts: a filled lozenge, no outline (player v2)
         t.setPadding(dp(7), 0, dp(7), 0);
         t.setLayoutParams(new LinearLayout.LayoutParams(-2, dp(22)));
         return t;
@@ -169,7 +228,7 @@ final class Ui {
         if (primary) {
             g = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[] { PINK, ORCHID });
             g.setCornerRadius(dp(999));
-        } else g = round(focused ? S3 : 0, 999);
+        } else g = round(focused ? S3 : GLASS_PILL, 999);
         if (focused) g.setStroke(dp(3), FOCUS);
         else if (!primary) g.setStroke(dp(2), BORDER_STRONG);
         t.setBackground(g);
@@ -179,13 +238,17 @@ final class Ui {
         for (Drawable d : ds) if (d instanceof Icon) ((Icon) d).color(fg);
     }
 
-    /** A remote key, as drawn in the hint bar: chalk on surface-2. */
+    /** A remote key, as drawn in the hint bar (player v2): a filled cap, bg-0 at 62 % with a 1 dp chalk edge at 14 % (so it
+     * still reads as a key on a black frame), Inter 700 13 text-2; the ⏯ glyph at 17. */
     static TextView kbd(Context c, String s) {
-        TextView t = text(c, s, 14, T1, inter650);
+        TextView t = text(c, s, "⏯".equals(s) ? 17 : 13, T2, inter700);
         t.setGravity(Gravity.CENTER);
-        t.setBackground(round(S2, 8));
-        t.setPadding(dp(8), 0, dp(8), 0);
-        t.setMinWidth(dp(22));
+        t.setLetterSpacing(0.03f);
+        GradientDrawable g = round(KEYCAP, 6);
+        g.setStroke(Math.max(1, dp(1)), GLASS_EDGE);
+        t.setBackground(g);
+        t.setPadding(dp(7), 0, dp(7), 0);
+        t.setMinWidth(dp(24));
         return t;
     }
 

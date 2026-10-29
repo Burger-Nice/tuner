@@ -90,11 +90,8 @@ final class Timeline {
 
     private final PlayerActivity a;
     Model m;
-    final LinearLayout top, bar;
-    private final TextView title, sub, pos1, pos2, bubble, speedChip;
-    private final ImageView eye;
+    final Hud hud;
     private final LinearLayout buttons;
-    private final Track track;
     private final List<TextView> btnViews = new ArrayList<>();
     private List<Btn> btns = new ArrayList<>();
     private String btnKey = "";
@@ -110,111 +107,41 @@ final class Timeline {
 
     Timeline(PlayerActivity a, FrameLayout root) {
         this.a = a;
-        Context c = a;
-        top = new LinearLayout(c);
-        top.setGravity(Gravity.TOP);
-        LinearLayout tcol = new LinearLayout(c);
-        tcol.setOrientation(LinearLayout.VERTICAL);
-        title = Ui.line(c, "", 28, Ui.T1, Ui.outfit700);
-        Ui.lineHeight(title, 32);
-        sub = Ui.line(c, "", 16, Ui.T2, Ui.inter500);
-        Ui.lineHeight(sub, 22);
-        tcol.addView(title);
-        tcol.addView(sub);
-        top.addView(tcol, new LinearLayout.LayoutParams(0, -2, 1));
-        LinearLayout pcol = new LinearLayout(c);
-        pcol.setOrientation(LinearLayout.VERTICAL);
-        pcol.setGravity(Gravity.END);
-        LinearLayout l1 = new LinearLayout(c);
-        l1.setGravity(Gravity.CENTER_VERTICAL);
-        eye = Ui.iconView(c, "eyeOff", Ui.T1, 18);
-        LinearLayout.LayoutParams el = new LinearLayout.LayoutParams(Ui.dp(18), Ui.dp(18));
-        el.setMarginEnd(Ui.dp(6));
-        l1.addView(eye, el);
-        pos1 = Ui.line(c, "", 18, Ui.T1, Ui.inter650);
-        Ui.lineHeight(pos1, 22);
-        Ui.tabular(pos1);
-        l1.addView(pos1);
-        pos2 = Ui.line(c, "", 15, Ui.T2, Ui.inter500);
-        Ui.lineHeight(pos2, 20);
-        pos2.setGravity(Gravity.END);
-        pcol.addView(l1);
-        pcol.addView(pos2);
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(-2, -2);
-        pl.setMarginStart(Ui.dp(24));
-        top.addView(pcol, pl);
-        top.setPadding(Ui.dp(48), Ui.dp(30), Ui.dp(48), Ui.dp(36));
-        top.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { Ui.SCRIM, 0x0015131D }));
-        root.addView(top, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
-
-        bar = new LinearLayout(c);
-        bar.setOrientation(LinearLayout.VERTICAL);
-        bar.setPadding(Ui.dp(20), Ui.dp(16), Ui.dp(20), Ui.dp(10));
-        bar.setBackground(Ui.round(Ui.BANNER, 16));
-        bar.setClipChildren(false);
-        bar.setClipToPadding(false);
-        buttons = new LinearLayout(c);
-        buttons.setGravity(Gravity.CENTER_VERTICAL);
-        bar.addView(buttons, new LinearLayout.LayoutParams(-1, Ui.dp(44)));
-        track = new Track(c);
-        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(-1, Ui.dp(Track.H));
-        tl.topMargin = Ui.dp(14 - 8);
-        tl.setMarginStart(-Ui.dp(Track.PAD));
-        tl.setMarginEnd(-Ui.dp(Track.PAD));
-        bar.addView(track, tl);
-        FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
-        bl.setMargins(Ui.dp(48), 0, Ui.dp(48), Ui.dp(64));
-        root.addView(bar, bl);
-
-        // the scrub bubble and the speed chip, above the bar on the thumb
-        bubble = Ui.text(c, "", 15, Ui.INK, Ui.inter700);
-        bubble.setGravity(Gravity.CENTER);
-        bubble.setBackground(Ui.round(Ui.T1, 8));
-        bubble.setPadding(Ui.dp(10), 0, Ui.dp(10), 0);
-        Ui.tabular(bubble);
-        FrameLayout.LayoutParams bb = new FrameLayout.LayoutParams(-2, Ui.dp(28), Gravity.BOTTOM | Gravity.START);
-        bb.bottomMargin = Ui.dp(64 + 126 + 12);
-        root.addView(bubble, bb);
-        speedChip = Ui.text(c, "", 15, Ui.T1, Ui.inter700);
-        speedChip.setGravity(Gravity.CENTER);
-        GradientDrawable sg = Ui.round(Ui.BG1, 8);
-        sg.setStroke(Math.max(1, Ui.dp(1)), Ui.BORDER_STRONG);
-        speedChip.setBackground(sg);
-        speedChip.setPadding(Ui.dp(10), 0, Ui.dp(10), 0);
-        root.addView(speedChip, new FrameLayout.LayoutParams(bb));
-        top.setVisibility(View.GONE);
-        bar.setVisibility(View.GONE);
-        bubble.setVisibility(View.GONE);
-        speedChip.setVisibility(View.GONE);
+        hud = new Hud(a, root);
+        buttons = hud.row;
     }
 
-    boolean visible() { return bar.getVisibility() == View.VISIBLE; }
+    boolean visible() { return hud.up(); }
     boolean scrubbing() { return scrubbing; }
     /** After the map switches back to live, for 800 ms key repeats are dropped and ▶ is ignored (M8). */
     void guardLive() { liveGuardUntil = SystemClock.uptimeMillis() + 800; }
     boolean guarded() { return SystemClock.uptimeMillis() < liveGuardUntil; }
 
+    /** Live paused: the channel's banner is the top block (SPEC 4.8), and the corner sits under its tags. */
+    private boolean bannerTop() { return m instanceof LivePause; }
     void show() {
         if (m == null) return;
         boolean was = visible();
-        top.setVisibility(View.VISIBLE);
-        bar.setVisibility(View.VISIBLE);
+        hud.topBlock(!bannerTop());
+        hud.show();
         if (!was) { a.handler.post(tick); a.timelineShown(); }
         rebuild(false);
         update();
+        hud.touch();
         a.handler.removeCallbacks(hide);
         if (m.playing() && !scrubbing) a.handler.postDelayed(hide, 4000);
+        if (!was) { a.timelineBanner(bannerTop()); a.placeChip(); }
         a.hintsChanged();
         a.updateBug();
     }
     void hide() {
         if (scrubbing) return;
-        top.setVisibility(View.GONE);
-        bar.setVisibility(View.GONE);
-        bubble.setVisibility(View.GONE);
-        speedChip.setVisibility(View.GONE);
+        boolean was = visible();
+        hud.hide();
         row = 0;
+        hud.focus(null, null);
         a.handler.removeCallbacks(hide);
+        if (was) { a.timelineBanner(false); a.placeChip(); }
         a.hintsChanged();
         a.updateBug();
     }
@@ -231,26 +158,21 @@ final class Timeline {
         buttons.removeAllViews();
         btnViews.clear();
         boolean spaced = false;
+        TextView last = null;
         for (Btn b : btns) {
-            if (b.right && !spaced) { spaced = true; buttons.addView(new View(a), new LinearLayout.LayoutParams(0, 1, 1)); }
-            TextView t;
-            if (b.pill) t = Ui.pill(a, b.text, b.icon, "skip".equals(b.id) || "next".equals(b.id));
-            else {
-                t = Ui.text(a, b.text == null ? "" : b.text, 15, Ui.T1, Ui.inter700);
-                t.setGravity(Gravity.CENTER);
-                Ui.tabular(t);
-                if (b.icon != null) {
-                    Drawable d = Ui.icon(b.icon, Ui.T1, 22);
-                    d.setBounds(0, 0, Ui.dp(22), Ui.dp(22));
-                    t.setCompoundDrawables(d, null, null, null);
-                    t.setPadding(Ui.dp(11), 0, 0, 0);
-                }
+            if (b.right && !spaced) {
+                spaced = true;
+                if (last != null) ((LinearLayout.LayoutParams) last.getLayoutParams()).setMarginEnd(0);
+                buttons.addView(new View(a), new LinearLayout.LayoutParams(0, 1, 1));
             }
+            TextView t = b.pill ? Ui.pill(a, b.text, b.icon, "skip".equals(b.id) || "next".equals(b.id)) : Ui.disc(a, b.icon, b.text);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(b.pill ? -2 : Ui.dp(44), Ui.dp(b.pill ? 40 : 44));
             lp.setMarginEnd(Ui.dp(10));
             buttons.addView(t, lp);
             btnViews.add(t);
+            last = t;
         }
+        if (last != null) ((LinearLayout.LayoutParams) last.getLayoutParams()).setMarginEnd(0);
         if (!spaced) buttons.addView(new View(a), new LinearLayout.LayoutParams(0, 1, 1));
         btn = 0;
         if (was != null) for (int i = 0; i < btns.size(); i++) if (btns.get(i).id.equals(was)) btn = i;
@@ -258,52 +180,51 @@ final class Timeline {
         draw();
     }
 
+    /** The focused button's name, over it ("Subtitles · Icelandic", "Back to live"). */
+    private String labelOf(Btn b) {
+        switch (b.id) {
+            case "play": return m.playing() ? "Pause" : "Play";
+            case "cc": case "audio": case "pic": return a.buttonLabel(b.id);
+            default: return b.pill && b.text != null ? b.text : b.hint;
+        }
+    }
+    /** For the emulator test: the name over the focused button. */
+    String labelText() { return hud.labelText(); }
+
     private void draw() {
         for (int i = 0; i < btnViews.size(); i++) {
             TextView t = btnViews.get(i);
             Btn b = btns.get(i);
             boolean f = row == 1 && i == btn;
             if (b.pill) { Ui.pillState(t, false, f); continue; }
-            GradientDrawable g = Ui.circle(f ? Ui.S3 : Ui.S2);
-            if (f) g.setStroke(Ui.dp(3), Ui.FOCUS);
-            t.setBackground(g);
-            if ("play".equals(b.id)) {
-                Drawable d = Ui.icon(m.playing() ? "pause" : "play", Ui.T1, 22);
-                d.setBounds(0, 0, Ui.dp(22), Ui.dp(22));
-                t.setCompoundDrawables(d, null, null, null);
-            }
+            Ui.discState(t, f);
+            if ("play".equals(b.id)) Ui.discIcon(t, m.playing() ? "pause" : "play");
         }
-        track.focused = row == 0;
-        track.invalidate();
+        hud.track.focused = row == 0;
+        hud.track.invalidate();
+        boolean on = row == 1 && btn < btns.size();
+        hud.focus(on ? btnViews.get(btn) : null, on ? labelOf(btns.get(btn)) : null);
+        hud.paused(!m.playing());
     }
 
     private void update() {
         if (m == null) return;
-        title.setText(m.title());
-        String s = m.sub();
-        sub.setText(s == null ? "" : s);
-        sub.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE);
-        String l1 = m.line1(), l2 = m.line2();
-        pos1.setText(l1 == null ? "" : l1);
-        eye.setVisibility(m.line1Eye() && l1 != null && !l1.isEmpty() ? View.VISIBLE : View.GONE);
-        pos2.setText(l2 == null ? "" : l2);
-        pos2.setVisibility(l2 == null || l2.isEmpty() ? View.GONE : View.VISIBLE);
+        hud.title(m.title(), null, null, false);
+        hud.sub(m.sub());
+        hud.corner(m.line1(), m.line1Eye(), m.line2());
         long pos = scrubbing ? scrubPos : m.shown();
-        track.pos = pos;
-        track.invalidate();
-        if (scrubbing) {
-            bubble.setText(m.bubble(pos));
-            bubble.setVisibility(View.VISIBLE);
-            speedChip.setText((scrubDir > 0 ? "▶▶ ×" : "◀◀ ×") + speed());
-            speedChip.setVisibility(View.VISIBLE);
-            bubble.measure(0, 0);
-            speedChip.measure(0, 0);
-            float x = bar.getX() + track.getX() + track.thumbX() - bubble.getMeasuredWidth() / 2f;
-            float maxX = bar.getX() + bar.getWidth() - bubble.getMeasuredWidth() - speedChip.getMeasuredWidth() - Ui.dp(8);
-            x = Math.max(bar.getX(), Math.min(maxX, x));
-            bubble.setTranslationX(x);
-            speedChip.setTranslationX(x + bubble.getMeasuredWidth() + Ui.dp(8));
-        } else { bubble.setVisibility(View.GONE); speedChip.setVisibility(View.GONE); }
+        Track t = hud.track;
+        t.length = Math.max(1, m.length());
+        t.pos = pos;
+        t.live = m.livePos();
+        t.ticks = m.ticks();
+        t.current = m.current();
+        t.left = m.leftEnd(pos);
+        t.right = m.rightEnd(pos);
+        t.endHidden = m.endHidden();
+        t.invalidate();
+        hud.scrubbing(scrubbing);
+        if (scrubbing) hud.placeBubble(m.bubble(pos), (scrubDir > 0 ? "▶▶ ×" : "◀◀ ×") + speed());
         String k = m.buttonsKey();
         if (!k.equals(btnKey)) rebuild(false);
         else draw();
@@ -315,6 +236,8 @@ final class Timeline {
         if (m == null) return false;
         boolean shown = visible();
         if (guarded() && (repeat || code == KeyEvent.KEYCODE_DPAD_RIGHT)) return true;
+        // after the 2 min fade: any key brings the bar back; OK and ⏯ also do what they do
+        if (shown && hud.wake() && !VodControls.playKey(code)) { show(); return true; }
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_MEDIA_REWIND: case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD: {
                 int dir = code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ? 1 : -1;
@@ -390,116 +313,5 @@ final class Timeline {
     static String hms(long ms) {
         long s = Math.max(0, ms / 1000);
         return String.format(Locale.ROOT, "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60);
-    }
-
-    /** The track and the chapter row under it, drawn in one view so the labels sit exactly on their ticks. */
-    final class Track extends View {
-        static final int H = 22 + 4 + 24, PAD = 12;
-        boolean focused = true;
-        long pos;
-        private final Paint trackP = new Paint(Paint.ANTI_ALIAS_FLAG), fill = new Paint(Paint.ANTI_ALIAS_FLAG), thumb = new Paint(Paint.ANTI_ALIAS_FLAG),
-                ring = new Paint(Paint.ANTI_ALIAS_FLAG), tickP = new Paint(Paint.ANTI_ALIAS_FLAG), ahead = new Paint(Paint.ANTI_ALIAS_FLAG),
-                dash = new Paint(Paint.ANTI_ALIAS_FLAG), live = new Paint(Paint.ANTI_ALIAS_FLAG), edge = new Paint(Paint.ANTI_ALIAS_FLAG),
-                label = new Paint(Paint.ANTI_ALIAS_FLAG), pill = new Paint(Paint.ANTI_ALIAS_FLAG), pillBg = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
-        private final Drawable eyeD = Ui.icon("eyeOff", Ui.T2, 16);
-        Track(Context c) {
-            super(c);
-            trackP.setColor(Ui.S3);
-            thumb.setColor(Ui.T1);
-            ring.setStyle(Paint.Style.STROKE); ring.setStrokeWidth(Ui.dp(3)); ring.setColor(Ui.FOCUS);
-            tickP.setColor(Ui.T2);
-            ahead.setColor(Ui.BG1);
-            dash.setStyle(Paint.Style.STROKE); dash.setStrokeWidth(Math.max(1, Ui.dp(1))); dash.setColor(Ui.BORDER_STRONG);
-            dash.setPathEffect(new DashPathEffect(new float[] { Ui.dp(4), Ui.dp(3) }, 0));
-            live.setColor(Ui.LIVE);
-            edge.setColor(Ui.BG1);
-            label.setTextSize(Ui.dp(14));
-            pill.setStyle(Paint.Style.STROKE); pill.setStrokeWidth(Ui.dp(2)); pill.setColor(Ui.LIVE);
-            pillBg.setColor(0x29FF4B4B);
-        }
-        private float x0() { return Ui.dp(PAD); }
-        private float x1() { return getWidth() - Ui.dp(PAD); }
-        private float xOf(long t) { long len = Math.max(1, m.length()); return x0() + (x1() - x0()) * Math.max(0, Math.min(1f, t / (float) len)); }
-        float thumbX() { return xOf(pos); }
-        @Override protected void onSizeChanged(int w, int h, int ow, int oh) { fill.setShader(new LinearGradient(x0(), 0, x1(), 0, Ui.PINK, Ui.ORCHID, Shader.TileMode.CLAMP)); }
-        @Override protected void onDraw(@NonNull Canvas c) {
-            if (m == null) return;
-            float cy = Ui.dp(11), h = Ui.dp(6), x0 = x0(), x1 = x1(), tx = thumbX();
-            long lp = m.livePos();
-            float lx = lp >= 0 && lp < m.length() ? xOf(lp) : -1;
-            // the track; from the live point on, what hasn't aired yet: dashed
-            r.set(x0, cy - h / 2, lx >= 0 ? lx : x1, cy + h / 2);
-            c.drawRoundRect(r, h / 2, h / 2, trackP);
-            if (lx >= 0) { r.set(lx, cy - h / 2, x1, cy + h / 2); c.drawRoundRect(r, h / 2, h / 2, ahead); c.drawRoundRect(r, h / 2, h / 2, dash); }
-            r.set(x0, cy - h / 2, Math.max(x0 + h, tx), cy + h / 2);
-            c.drawRoundRect(r, h / 2, h / 2, fill);
-            // chapter ticks
-            List<Mark> ticks = m.ticks();
-            for (Mark k : ticks) {
-                float x = xOf(k.at);
-                r.set(x - Ui.dp(1), cy - Ui.dp(7), x + Ui.dp(1), cy + Ui.dp(7));
-                c.drawRoundRect(r, Ui.dp(1), Ui.dp(1), tickP);
-            }
-            // the live point, and its pill in the chapter row
-            List<RectF> taken = new ArrayList<>();
-            float rowTop = Ui.dp(26), base = rowTop + Ui.dp(17);
-            if (lx >= 0) {
-                c.drawCircle(lx, cy, Ui.dp(7), edge);
-                c.drawCircle(lx, cy, Ui.dp(5), live);
-                label.setTypeface(Ui.inter700);
-                label.setTextSize(Ui.dp(13));
-                label.setLetterSpacing(0.1f);
-                float tw = label.measureText("LIVE"), pw = Ui.dp(8 + 8 + 5) + tw + Ui.dp(8), ph = Ui.dp(22);
-                float px = lx + Ui.dp(12) + pw > x1 - Ui.dp(90 - 12) && lx > x1 - Ui.dp(90) ? lx - Ui.dp(12) - pw : lx + Ui.dp(12);
-                RectF pr = new RectF(px, rowTop + Ui.dp(1), px + pw, rowTop + Ui.dp(1) + ph);
-                c.drawRoundRect(pr, ph / 2, ph / 2, pillBg);
-                c.drawRoundRect(pr, ph / 2, ph / 2, pill);
-                c.drawCircle(pr.left + Ui.dp(8 + 4), pr.centerY(), Ui.dp(4), live);
-                label.setColor(Ui.LIVE_TEXT);
-                c.drawText("LIVE", pr.left + Ui.dp(8 + 8 + 5), pr.centerY() + Ui.dp(4.5f), label);
-                label.setLetterSpacing(0);
-                label.setTextSize(Ui.dp(14));
-                taken.add(new RectF(pr.left - Ui.dp(6), pr.top, pr.right + Ui.dp(6), pr.bottom));
-            }
-            // the ends: elapsed and remaining, or [eye-off] End hidden
-            label.setTypeface(Ui.inter500);
-            label.setColor(Ui.T2);
-            String le = m.leftEnd(pos);
-            if (le != null && !le.isEmpty()) { float w = label.measureText(le); c.drawText(le, x0, base, label); taken.add(new RectF(x0, rowTop, x0 + w + Ui.dp(8), rowTop + Ui.dp(24))); }
-            if (m.endHidden()) {
-                String t = "End hidden";
-                float w = label.measureText(t), ix = x1 - w - Ui.dp(22);
-                c.drawText(t, x1 - w, base, label);
-                eyeD.setBounds((int) ix, (int) (rowTop + Ui.dp(4)), (int) ix + Ui.dp(16), (int) (rowTop + Ui.dp(20)));
-                eyeD.draw(c);
-                taken.add(new RectF(ix - Ui.dp(8), rowTop, x1, rowTop + Ui.dp(24)));
-            } else {
-                String re = m.rightEnd(pos);
-                if (re != null && !re.isEmpty()) { float w = label.measureText(re); c.drawText(re, x1 - w, base, label); taken.add(new RectF(x1 - w - Ui.dp(8), rowTop, x1, rowTop + Ui.dp(24))); }
-            }
-            // chapter labels, centred on their ticks; the one you're in chalk (the current one first, so it always shows)
-            String cur = m.current();
-            List<Mark> order = new ArrayList<>();
-            for (Mark k : ticks) if (k.key.equals(cur)) order.add(k);
-            for (Mark k : ticks) if (!k.key.equals(cur)) order.add(k);
-            for (Mark k : order) {
-                boolean on = k.key.equals(cur);
-                label.setTypeface(on ? Ui.inter650 : Ui.inter500);
-                label.setColor(on ? Ui.T1 : Ui.T3);
-                String t = "Halftime".equals(k.label) ? "Half" : k.label;
-                float w = label.measureText(t), x = Math.max(x0, Math.min(x1 - w, xOf(k.at) - w / 2));
-                RectF lr = new RectF(x - Ui.dp(4), rowTop, x + w + Ui.dp(4), rowTop + Ui.dp(24));
-                boolean clash = false;
-                for (RectF o : taken) if (RectF.intersects(o, lr)) { clash = true; break; }
-                if (clash) continue;
-                taken.add(lr);
-                c.drawText(t, x, base, label);
-            }
-            // the thumb: 18 dp, 22 with the ring when focused
-            float tr = Ui.dp(focused ? 11 : 9);
-            c.drawCircle(tx, cy, tr, thumb);
-            if (focused) c.drawCircle(tx, cy, tr + Ui.dp(2.5f), ring);
-        }
     }
 }

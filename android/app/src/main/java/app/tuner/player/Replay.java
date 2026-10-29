@@ -746,8 +746,7 @@ final class Replay implements Timeline.Model {
     }
     @Override public String title() { return title; }
     @Override public String sub() {
-        if (onNow() && !p.getPlayWhenReady()) return sub + " · paused";
-        return sub;
+        return sub;   // (paused: the corner's Paused tag says so)
     }
     private static String behind(long ms) {
         if (ms < 10 * 60000) { long s = Math.max(0, ms / 1000); return s / 60 + ":" + String.format(java.util.Locale.ROOT, "%02d", s % 60) + " behind live"; }

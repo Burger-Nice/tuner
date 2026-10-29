@@ -76,9 +76,10 @@ final class LivePause implements Timeline.Model {
         long ms = behind(), s = ms / 1000;
         return ms < 10 * 60000 ? s / 60 + ":" + String.format(java.util.Locale.ROOT, "%02d", s % 60) + " behind live" : Math.round(ms / 60000.0) + " min behind live";
     }
+    /** Paused: when the picture stopped ("Paused at 22:39"); the replay days are on the banner's line 3 (player-v2 4.8). */
     @Override public String line2() {
-        int d = keptDays();
-        if (d > 0) return "Replays for " + d + " day" + (d == 1 ? "" : "s") + " on this channel";
+        if (!p.getPlayWhenReady()) return "Paused at " + PlayerActivity.hm(System.currentTimeMillis() - behind());
+        if (keptDays() > 0) return "";
         return hls() ? "This channel rewinds " + Math.round(windowMs() / 1000.0) + " s" : "This channel doesn't rewind";
     }
     @Override public boolean line1Eye() { return false; }

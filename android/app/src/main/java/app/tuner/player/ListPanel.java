@@ -30,7 +30,7 @@ class ListPanel extends Overlay {
         boolean head, tickA, tickB, info, subLit;   // info: takes no focus but reads as normal text (Quality's "Now: …"); subLit: line 2 too
         int indent;
         float progress = -1;
-        int height = 48;
+        int height = 46;   // (player v2: eight rows and the header fit the 453 cap)
         Runnable ok;
         Object data;
         Item(String title) { this.title = title; }

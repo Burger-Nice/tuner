@@ -98,6 +98,9 @@ public class PlayerActivity extends AppCompatActivity {
     /** A channel, movie or episode. */
     static final class Entry {
         String id = "", url = "", title = "", sub = "", logo = "";
+        String artLogo = "", line = "";
+        float[] artBox;
+        boolean artDark;
         int num;
         long start;
         // a film's or an episode's copy (design/ui-v1/addons/PORT-NATIVE.md 1): its own request headers (an add-on's
@@ -115,6 +118,14 @@ public class PlayerActivity extends AppCompatActivity {
             e.title = str(o, "title");
             e.sub = str(o, "sub");
             e.logo = str(o, "logo");
+            JSONObject art = o.optJSONObject("art");   // a film's or an episode's title art (player-v2 SPEC 3): its logo when it reads, the story line
+            if (art != null) {
+                if (art.optBoolean("ok", true)) e.artLogo = art.optString("logo", "");
+                JSONArray bx = art.optJSONArray("box");
+                if (bx != null && bx.length() == 4) e.artBox = new float[] { (float) bx.optDouble(0), (float) bx.optDouble(1), (float) bx.optDouble(2), (float) bx.optDouble(3) };
+                e.artDark = art.optBoolean("dark");
+                e.line = art.optString("line", "");
+            }
             e.num = o.optInt("num", 0);
             e.start = (long) o.optDouble("startAt", 0);
             e.mime = str(o, "mime");
@@ -193,9 +204,11 @@ public class PlayerActivity extends AppCompatActivity {
 
     // overlays
     private Overlay open;
-    private LinearLayout banner, bNx, hint, zap, chip, card, bug;
+    private LinearLayout banner, bL3, hint, zap, chip, card, bug;
+    private View bScrim, zapDim;
+    private android.graphics.drawable.Drawable hintScrim;
     private TextView chipSay;
-    private TextView bNum, bName, bLine, bNext, zName, zNow, chipTitle, chipSub, chipOk, cardTitle, cardSub, toast, digitsView;
+    private TextView bNum, bName, bLine, bTimes, bNext, bClock, zName, zNow, zConn, chipTitle, chipSub, chipOk, cardTitle, cardSub, toast, digitsView;
     private FrameLayout bLogo, zLogo;
     private LinearLayout bTags;
     private Ui.Bar bProg;
@@ -241,9 +254,9 @@ public class PlayerActivity extends AppCompatActivity {
     private long chipUntil;
     private int stayIndex = -1;
 
-    private final Runnable hideBanner = () -> { banner.setVisibility(View.GONE); hintForce = false; hintsChanged(); updateBug(); };
+    private final Runnable hideBanner = () -> { if (this.bannerHeld) return; bannerOn(false); hintForce = false; hintsChanged(); updateBug(); };
     private final Runnable hideToast = () -> toast.setVisibility(View.GONE);
-    private final Runnable hideZap = () -> zap.setVisibility(View.GONE);
+    private final Runnable hideZap = this::zapGone;
     private final Runnable jump = this::jumpToTypedChannel;
     // 12 s of BUFFERING: a stream still refilling at half speed or better isn't thrown away (that would drop what it has
     // loaded), until 45 s; one that isn't is reconnected (SPEC 3.1)
@@ -594,59 +607,87 @@ public class PlayerActivity extends AppCompatActivity {
     // ---------- the overlays' views ----------
 
     private void buildOverlays() {
-        // banner: number, logo, name + ring, now + times + feed, progress + next, tags, LIVE
+        // the banner (player-v2 SPEC 3, "Live banner"): no box, the top block on the top scrim. Number · tile · line 1 the
+        // channel and the zap ring, line 2 the programme (the big line), line 3 times · progress · next · facts; at the
+        // right the wall clock, the quality tags and LIVE (only at the live point)
+        bScrim = Ui.scrimView(this, Ui.SCRIM_TOP, Ui.SCRIM_TOP_AT);
+        bScrim.setVisibility(View.GONE);
+        root.addView(bScrim, overlayBase(), new FrameLayout.LayoutParams(-1, Ui.dp(220), Gravity.TOP));
         banner = new LinearLayout(this);
-        banner.setGravity(Gravity.CENTER_VERTICAL);
-        banner.setPadding(Ui.dp(14), 0, Ui.dp(14), 0);
-        banner.setBackground(Ui.round(Ui.BANNER, 16));
-        bNum = Ui.text(this, "", 24, Ui.T1, Ui.inter700);
+        banner.setGravity(Gravity.TOP);
+        bNum = Ui.shadow(Ui.text(this, "", 24, Ui.T2, Ui.inter700));
         bNum.setGravity(Gravity.CENTER);
+        bNum.setMinWidth(Ui.dp(30));
         Ui.tabular(bNum);
-        banner.addView(bNum, gapped(new LinearLayout.LayoutParams(Ui.dp(40), -2)));
+        Ui.lineHeight(bNum, 44);
+        banner.addView(bNum, gapped(new LinearLayout.LayoutParams(-2, Ui.dp(44)), 14));
         bLogo = Ui.logo(this, 44);
-        banner.addView(bLogo, gapped(new LinearLayout.LayoutParams(Ui.dp(44), Ui.dp(44))));
+        banner.addView(bLogo, gapped(new LinearLayout.LayoutParams(Ui.dp(44), Ui.dp(44)), 14));
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        bName = Ui.line(this, "", 16, Ui.T1, Ui.inter650);
-        bLine = Ui.line(this, "", 14, Ui.T2, Ui.inter500);
+        bName = Ui.shadow(Ui.line(this, "", 16, Ui.T1, Ui.inter650));
+        Ui.lineHeight(bName, 20);
         col.addView(bName);
-        col.addView(bLine);
-        banner.addView(col, gapped(new LinearLayout.LayoutParams(0, -2, 1)));
-        bNx = new LinearLayout(this);
-        bNx.setOrientation(LinearLayout.VERTICAL);
+        bLine = Ui.shadow(Ui.line(this, "", 24, Ui.T1, Ui.outfit700));
+        Ui.lineHeight(bLine, 28);
+        bLine.setLetterSpacing(-0.01f);
+        bLine.setMaxWidth(Ui.dp(600));
+        LinearLayout.LayoutParams l2 = new LinearLayout.LayoutParams(-2, -2);
+        l2.topMargin = Ui.dp(2);
+        col.addView(bLine, l2);
+        bL3 = new LinearLayout(this);
+        bL3.setGravity(Gravity.CENTER_VERTICAL);
+        bTimes = Ui.shadow(Ui.text(this, "", 14, Ui.T2, Ui.inter500));
+        Ui.tabular(bTimes);
+        bL3.addView(bTimes, gapped(new LinearLayout.LayoutParams(-2, -2), 10));
         bProg = new Ui.Bar(this, Ui.S2);
-        bNx.addView(bProg, new LinearLayout.LayoutParams(Ui.dp(120), Ui.dp(4)));
-        bNext = Ui.line(this, "", 14, Ui.T3, Ui.inter500);
-        bNext.setMaxWidth(Ui.dp(220));
-        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(-2, -2);
-        nl.topMargin = Ui.dp(4);
-        bNx.addView(bNext, nl);
-        banner.addView(bNx, gapped(new LinearLayout.LayoutParams(-2, -2)));
+        bL3.addView(bProg, gapped(new LinearLayout.LayoutParams(Ui.dp(120), Ui.dp(4)), 10));
+        bNext = Ui.shadow(Ui.line(this, "", 14, Ui.T3, Ui.inter500));
+        bL3.addView(bNext, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout.LayoutParams l3 = new LinearLayout.LayoutParams(-1, Ui.dp(18));
+        l3.topMargin = Ui.dp(4);
+        col.addView(bL3, l3);
+        banner.addView(col, gapped(new LinearLayout.LayoutParams(0, -2, 1), 14));
         bTags = new LinearLayout(this);
         bTags.setGravity(Gravity.CENTER_VERTICAL);
-        banner.addView(bTags);
-        FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(-1, Ui.dp(64), Gravity.TOP);
-        bl.setMargins(Ui.dp(48), Ui.dp(27), Ui.dp(48), 0);
+        bClock = Ui.shadow(Ui.text(this, "", 14, Ui.T3, Ui.inter500));
+        Ui.tabular(bClock);
+        banner.addView(bTags, new LinearLayout.LayoutParams(-2, Ui.dp(44)));
+        FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
+        bl.setMargins(Ui.dp(48), Ui.dp(30), Ui.dp(48), 0);
         banner.setVisibility(View.GONE);
         root.addView(banner, bl);
 
-        // zap card: logo, name, what's on; shown at once on a zap until the first frame
+        // the zap card: the next channel the moment you press, until its first frame (SPEC 3, "Zap card"); the old
+        // picture goes to 30 % under it
+        zapDim = new View(this);
+        zapDim.setBackgroundColor(Ui.DIM_ZAP);
+        zapDim.setVisibility(View.GONE);
+        root.addView(zapDim, overlayBase(), new FrameLayout.LayoutParams(-1, -1));
         zap = new LinearLayout(this);
         zap.setGravity(Gravity.CENTER_VERTICAL);
-        zap.setPadding(Ui.dp(26), Ui.dp(18), Ui.dp(26), Ui.dp(18));
-        GradientDrawable zb = Ui.round(Ui.PANEL, 24);
-        zb.setStroke(Math.max(1, Ui.dp(1)), Ui.BORDER);
+        zap.setPadding(Ui.dp(20), Ui.dp(18), Ui.dp(28), Ui.dp(18));
+        GradientDrawable zb = Ui.round(0xD115131D, 20);
+        zb.setStroke(Math.max(1, Ui.dp(1)), 0x1AF3EFE6);
         zap.setBackground(zb);
-        zLogo = Ui.logo(this, 56);
-        zap.addView(zLogo, gapped(new LinearLayout.LayoutParams(Ui.dp(56), Ui.dp(56)), 16));
+        zLogo = Ui.logo(this, 64);
+        zap.addView(zLogo, gapped(new LinearLayout.LayoutParams(Ui.dp(64), Ui.dp(64)), 18));
         LinearLayout zc = new LinearLayout(this);
         zc.setOrientation(LinearLayout.VERTICAL);
         zName = Ui.line(this, "", 22, Ui.T1, Ui.outfit700);
+        Ui.lineHeight(zName, 28);
         zName.setMaxWidth(Ui.dp(420));
         zNow = Ui.line(this, "", 16, Ui.T2, Ui.inter500);
+        Ui.lineHeight(zNow, 22);
         zNow.setMaxWidth(Ui.dp(420));
         zc.addView(zName);
         zc.addView(zNow);
+        zConn = Ui.kbd(this, "Connecting…");
+        zConn.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 14);
+        zConn.setTypeface(Ui.inter500);
+        LinearLayout.LayoutParams zk = new LinearLayout.LayoutParams(-2, Ui.dp(22));
+        zk.topMargin = Ui.dp(6);
+        zc.addView(zConn, zk);   // (the cap's edge, not its text, lines up with the lines above)
         zap.addView(zc);
         zap.setVisibility(View.GONE);
         root.addView(zap, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
@@ -807,13 +848,15 @@ public class PlayerActivity extends AppCompatActivity {
         chl.setMargins(0, 0, Ui.dp(48), Ui.dp(64));
         root.addView(chip, chl);
 
-        // hint bar: a scrim fading up from the bottom edge, key caps and labels
+        // the hint bar (player-v2 SPEC 3): caps and labels at y 487 to 509; on the bar's bottom scrim while a bar is up,
+        // else on its own 110 dp scrim
         hint = new LinearLayout(this);
         hint.setGravity(Gravity.BOTTOM | Gravity.START);
-        hint.setPadding(Ui.dp(48), 0, Ui.dp(48), Ui.dp(30));
-        hint.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { 0x0015131D, Ui.SCRIM, 0xF015131D }));
+        hint.setPadding(Ui.dp(48), 0, Ui.dp(48), Ui.dp(540 - 509));
+        hintScrim = Ui.scrim(Ui.SCRIM_HINT, Ui.SCRIM_HINT_AT);
+        hint.setBackground(hintScrim);
         hint.setVisibility(View.GONE);
-        root.addView(hint, new FrameLayout.LayoutParams(-1, Ui.dp(64), Gravity.BOTTOM));
+        root.addView(hint, new FrameLayout.LayoutParams(-1, Ui.dp(110), Gravity.BOTTOM));
     }
     private static LinearLayout.LayoutParams gapped(LinearLayout.LayoutParams lp) { return gapped(lp, 12); }
     private static LinearLayout.LayoutParams gapped(LinearLayout.LayoutParams lp, int dp) { lp.setMarginEnd(Ui.dp(dp)); return lp; }
@@ -826,16 +869,33 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void showBanner() {
         if (!live || open != null) return;
+        if (zapping) { bannerAfterZap = true; return; }   // (one at a time: the card says it until the first frame)
         fillBanner();
-        banner.setVisibility(View.VISIBLE);
+        bannerOn(true);
         handler.removeCallbacks(hideBanner);
         handler.postDelayed(hideBanner, 4000);
         if (!hintsOn) hintsOn = hintForce || bump("live");
         hintsChanged();
         updateBug();
     }
+    private void bannerOn(boolean on) {
+        banner.setVisibility(on ? View.VISIBLE : View.GONE);
+        bScrim.setVisibility(on ? View.VISIBLE : View.GONE);
+    }
+    private boolean bannerAfterZap, bannerHeld;
+    /** Live paused: the banner is the timeline's top block while the bar is up (SPEC 4.8), without LIVE or its mini bar. */
+    void timelineBanner(boolean on) {
+        if (on == bannerHeld) return;
+        bannerHeld = on;
+        handler.removeCallbacks(hideBanner);
+        if (on) { fillBanner(); bannerOn(true); }
+        else bannerOn(false);
+        updateBug();
+    }
+    private static final SimpleDateFormat CLOCK = new SimpleDateFormat("EEE HH:mm", Locale.ENGLISH);   // the UI thread only
     private void fillBanner() {
         if (cur == null) return;
+        boolean behind = bannerHeld;   // (behind live: the track's LIVE is the only one, and the track is the only bar)
         bNum.setText(cur.num > 0 ? String.valueOf(cur.num) : "");
         bNum.setVisibility(cur.num > 0 ? View.VISIBLE : View.GONE);
         Ui.bindLogo(bLogo, cur.title, cur.logo);
@@ -849,40 +909,41 @@ public class PlayerActivity extends AppCompatActivity {
         }
         bName.setText(name);
         JSONObject m = metaOf(cur);
-        StringBuilder l2 = new StringBuilder();
-        boolean nx = false;
+        // line 3's facts, words in text-3: the feed, subtitles, the replay days (catch-up 6.8)
+        List<String> facts = new ArrayList<>();
+        if (m != null && !m.optString("feed").isEmpty()) facts.add(m.optString("feed"));
+        if (textTracks > 0) facts.add("Subtitles");
+        int kd = keptDays();
+        if (kd > 0) facts.add("Replays " + kd + " day" + (kd == 1 ? "" : "s"));
+        String next = "";
+        boolean timed = false;
         if (m != null && !m.optString("now").isEmpty()) {
-            l2.append(m.optString("now"));
-            long s = m.optLong("start"), e = m.optLong("end");
-            if (s > 0 && e > 0) {
-                l2.append("  ·  ").append(hm(s)).append(" to ").append(hm(e));
-                bProg.set((System.currentTimeMillis() - s) / (float) Math.max(1, e - s));
-                nx = true;
+            bLine.setText(m.optString("now"));
+            long st = m.optLong("start"), en = m.optLong("end");
+            if (st > 0 && en > 0) {
+                bTimes.setText(hm(st) + " to " + hm(en));
+                bProg.set((System.currentTimeMillis() - st) / (float) Math.max(1, en - st));
+                timed = true;
             }
-            if (!m.optString("feed").isEmpty()) l2.append("  ·  ").append(m.optString("feed"));
-            String next = m.optString("next");
-            bNext.setText(next.isEmpty() ? "" : "Next " + (m.optLong("nextStart") > 0 ? hm(m.optLong("nextStart")) + " " : "") + next);
-        } else {
-            l2.append(error != null ? error : played ? "No guide for this channel" : "Connecting…");
-            bNext.setText("");
-        }
-        bLine.setText(l2);
-        bNx.setVisibility(nx ? View.VISIBLE : View.GONE);
+            String nx = m.optString("next");
+            if (!nx.isEmpty()) next = "Next " + (m.optLong("nextStart") > 0 ? hm(m.optLong("nextStart")) + " " : "") + nx;
+        } else bLine.setText(error != null ? error : played ? "No guide for this channel" : "Connecting…");
+        String l3 = next;
+        if (!facts.isEmpty()) l3 = (l3.isEmpty() ? "" : l3 + "  ·  ") + android.text.TextUtils.join(" · ", facts);
+        bTimes.setVisibility(timed ? View.VISIBLE : View.GONE);
+        bProg.setVisibility(timed && !behind ? View.VISIBLE : View.GONE);
+        bNext.setText(l3);
+        bL3.setVisibility(timed || !l3.isEmpty() ? View.VISIBLE : View.GONE);
         bTags.removeAllViews();
+        bClock.setText(CLOCK.format(new Date()));
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(-2, -2);
+        cl.setMarginEnd(Ui.dp(14));
+        bTags.addView(bClock, cl);
         if (!quality.isEmpty()) bTags.addView(withGap(Ui.tag(this, quality, true)));
         if (hdr) bTags.addView(withGap(Ui.tag(this, "HDR", true)));
-        if (textTracks > 0) bTags.addView(withGap(Ui.tag(this, "CC", false)));
-        if (keptDays() > 0) {   // a kept channel: the history glyph as a tag (catch-up 6.8)
-            FrameLayout k = new FrameLayout(this);
-            GradientDrawable kb = Ui.round(0xC715131D, 8);
-            kb.setStroke(Math.max(1, Ui.dp(1)), Ui.BORDER_STRONG);
-            k.setBackground(kb);
-            k.addView(Ui.iconView(this, "hist", Ui.T1, 16), new FrameLayout.LayoutParams(Ui.dp(16), Ui.dp(16), Gravity.CENTER));
-            LinearLayout.LayoutParams kl = new LinearLayout.LayoutParams(Ui.dp(30), Ui.dp(22));
-            kl.setMarginEnd(Ui.dp(8));
-            bTags.addView(k, kl);
-        }
-        if (m != null && m.optBoolean("live")) bTags.addView(Ui.livePill(this, false));
+        if (m != null && m.optBoolean("live") && !behind) bTags.addView(Ui.livePill(this, false));
+        View lastTag = bTags.getChildAt(bTags.getChildCount() - 1);
+        if (lastTag.getLayoutParams() instanceof LinearLayout.LayoutParams) ((LinearLayout.LayoutParams) lastTag.getLayoutParams()).setMarginEnd(0);
     }
     private View withGap(TextView t) {
         LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) t.getLayoutParams();
@@ -902,15 +963,33 @@ public class PlayerActivity extends AppCompatActivity {
         if (cur == null) return;
         Ui.bindLogo(zLogo, cur.title, cur.logo);
         zName.setText(cur.title);
-        JSONObject m = metaOf(cur);
-        String now = m == null ? "" : m.optString("now");
-        zNow.setText(now);
-        zNow.setVisibility(now.isEmpty() ? View.GONE : View.VISIBLE);
+        showZapCardText();
+        bannerOn(false);   // (the card alone until the first frame: never the same name twice)
+        handler.removeCallbacks(hideBanner);
+        zapDim.animate().cancel();
+        zapDim.setAlpha(1);
+        zapDim.setVisibility(View.VISIBLE);
+        zap.animate().cancel();
+        zap.setAlpha(1);
         zap.setVisibility(View.VISIBLE);
+        zapping = true;
         zapAt = SystemClock.uptimeMillis();
         handler.removeCallbacks(hideZap);
         handler.postDelayed(hideZap, 8000);
     }
+    /** The first frame (600 ms at least), a failure or a card: the zap card and the dim go (120 ms), and the banner the
+     * zap asked for shows now, with its 4 s. */
+    private void zapGone() {
+        handler.removeCallbacks(hideZap);
+        zapping = false;
+        for (View v : new View[] { zap, zapDim }) {
+            if (v.getVisibility() != View.VISIBLE) continue;
+            v.animate().cancel();
+            v.animate().alpha(0).setDuration(120).withEndAction(() -> { if (!zapping) v.setVisibility(View.GONE); }).start();
+        }
+        if (bannerAfterZap) { bannerAfterZap = false; showBanner(); }
+    }
+    private boolean zapping;
 
     // ---------- hint bar ----------
 
@@ -947,12 +1026,15 @@ public class PlayerActivity extends AppCompatActivity {
             hintNow = h;
             hint.removeAllViews();
             for (String[] k : h) {
-                hint.addView(Ui.kbd(this, k[0]), gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 6));
+                hint.addView(Ui.kbd(this, k[0]), gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 7));
                 TextView t = Ui.text(this, k[1], 14, Ui.T2, Ui.inter500);
                 hint.addView(t, gapped(new LinearLayout.LayoutParams(-2, Ui.dp(22)), 22));
                 t.setGravity(Gravity.CENTER_VERTICAL);
             }
         }
+        // on the bar's bottom scrim while a bar is up; alone (live, a panel), its own 110 dp scrim
+        boolean bar = (vod != null && vod.visible()) || (tl != null && tl.visible());
+        hint.setBackground(bar ? null : hintScrim);
         hint.setVisibility(View.VISIBLE);
     }
 
@@ -1137,7 +1219,8 @@ public class PlayerActivity extends AppCompatActivity {
     void show(Overlay o) {
         if (open != null) { root.removeView(open.root); Overlay was = open; open = null; was.closed(); }
         open = o;
-        banner.setVisibility(View.GONE);
+        bannerOn(false);
+        bannerHeld = false;
         handler.removeCallbacks(hideBanner);
         if (chipUp && !chipIsUpNext) hideChip();
         if (skips != null) skips.panelOpened();
@@ -2784,7 +2867,7 @@ public class PlayerActivity extends AppCompatActivity {
             if (el >= 1000 && !cardUp) { puck.set(rd.arrival > 0.02 && rd.refill > 0 ? (float) (rd.ahead / target) : -1); puck.setVisibility(View.VISIBLE); }
             if (el >= 1000 && !versionsAsked && live) { versionsAsked = true; if (versions == null || cur == null || !cur.id.equals(versions.optString("id"))) emitNeed("versions"); }
             if (el >= 3000 && el < 12000) { boolean rec = rd.refill >= 0.8 && (target - rd.ahead) / rd.refill <= 4; notRec = rec ? 0 : notRec + 1; }
-            if (!cardUp && (notRec >= 2 || el >= 12000 || stallSlowStart)) { if (stallSlowStart) zap.setVisibility(View.GONE); openCheck(); }
+            if (!cardUp && (notRec >= 2 || el >= 12000 || stallSlowStart)) { if (stallSlowStart) zapGone(); openCheck(); }
         } else {
             if (stallStart > 0) { stallEnded(now - stallStart); stallStart = 0; notRec = 0; }
             boolean asking = rp != null && rp.busy() && now - spinnerFrom >= 1000 && spinnerFrom > 0;
@@ -2919,7 +3002,7 @@ public class PlayerActivity extends AppCompatActivity {
             dcard.bringToFront();
             puck.setVisibility(View.GONE);
             toast.setVisibility(View.GONE);
-            zap.setVisibility(View.GONE);
+            zapGone();
             hintsChanged();
         }
         if (changed) emitDiag(c, "card");
@@ -3443,6 +3526,42 @@ public class PlayerActivity extends AppCompatActivity {
 
     // ---------- what Skips asks (design/ui-v1/skip) ----------
     boolean controlsUp() { return vod != null && vod.visible(); }
+    /** Where the scrims and dims go: just above the picture (and under the subtitles). */
+    int overlayBase() { return root.indexOfChild(view) + 1; }
+    /** The 2 min pause fade takes the hint bar with it. */
+    void hintAlpha(float a) { hint.animate().cancel(); hint.animate().alpha(a).setDuration(320).start(); }
+    /** Up next (or the timeline's next-programme card) with a bar up: its bottom at y 346, clear of the buttons row and of
+     * the focused button's name over it (SPEC 3, "Chips"); with the bar hidden, where the skip spec puts it (bottom 64). */
+    void placeChip() {
+        boolean bar = (vod != null && vod.visible()) || (tl != null && tl.visible());
+        chip.setTranslationY(bar ? -Ui.dp(540 - 346 - 64) : 0);
+    }
+    /** The focused disc's name with what it's set to: "Subtitles · Icelandic", "Audio · English 5.1", "Picture · Fit". */
+    String buttonLabel(String id) {
+        try {
+            switch (id) {
+                case "cc": {
+                    String v = null;
+                    if (subs != null && subs.value() != null) v = subs.value();
+                    else if (player != null && !player.getTrackSelectionParameters().disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)) {
+                        int n = 0;
+                        for (Tracks.Group g : player.getCurrentTracks().getGroups()) if (g.getType() == C.TRACK_TYPE_TEXT) for (int i = 0; i < g.length; i++) { n++; if (g.isTrackSelected(i)) v = trackName(g.getTrackFormat(i), n); }
+                    }
+                    return "Subtitles · " + (v == null ? "Off" : v);
+                }
+                case "audio": {
+                    if (player != null) for (Tracks.Group g : player.getCurrentTracks().getGroups()) if (g.getType() == C.TRACK_TYPE_AUDIO) for (int i = 0; i < g.length; i++) if (g.isTrackSelected(i)) {
+                        Format f = g.getTrackFormat(i);
+                        String ch = f.channelCount >= 6 ? (f.channelCount == 8 ? " 7.1" : " 5.1") : "";
+                        return "Audio · " + trackName(f, 1) + ch;
+                    }
+                    return "Audio";
+                }
+                case "pic": return "Picture · " + PICTURE_NAMES[pictureIndex(pictureFor(cur))];
+            }
+        } catch (Exception ignored) {}
+        return "";
+    }
     boolean panelOpen() { return open != null; }
     boolean scrubbing() { return vod != null && vod.scrubbing(); }
     long lastKeyAt() { return lastKeyAt; }
@@ -3455,7 +3574,7 @@ public class PlayerActivity extends AppCompatActivity {
         String s = skips == null ? "no-skips" : skips.describe();
         return s + " upnext=" + (chipUp && chipIsUpNext) + " end=" + endCard + " upTitle=" + (chipUp && chipIsUpNext ? chipTitle.getText() : "") + " upKeys=" + (upKeys != null && upKeys.getVisibility() == View.VISIBLE)
                 + " upBound=" + upNextBound() + " stay=" + (stayIndex == index) + " index=" + index + " of=" + ring.size() + " pauseAtEnd=" + (player != null && player.getPauseAtEndOfMediaItems())
-                + " playing=" + (player != null && player.isPlaying()) + " controls=" + controlsUp() + " focus=" + (vod == null ? "" : vod.focusName()) + " subLift=" + liftNow;
+                + " playing=" + (player != null && player.isPlaying()) + " controls=" + controlsUp() + " focus=" + (vod == null ? "" : vod.focusName()) + " subLift=" + liftNow + " label=" + (vod == null ? "" : vod.labelText());
     }
     // Subtitles and the chips (skip SPEC 2.1): when a chip is up and the subtitle text's box would touch it, the text steps
     // up until its bottom is 8 above the chip's top; back when the chip goes. No animation; a short centred line stays.
@@ -3467,7 +3586,8 @@ public class PlayerActivity extends AppCompatActivity {
         int left = -1, top = -1;
         int[] b = skips != null ? skips.box() : null;
         if (b != null) { left = b[0]; top = b[1]; }
-        else if (chipUp && chip.getVisibility() == View.VISIBLE && chip.getWidth() > 0) { left = chip.getLeft(); top = chip.getTop(); }
+        else if (chipUp && chip.getVisibility() == View.VISIBLE && chip.getWidth() > 0) { left = chip.getLeft(); top = (int) (chip.getTop() + chip.getTranslationY()); }
+        if (controlsUp() && root.getHeight() > 0) { left = 0; top = root.getHeight() - Ui.dp(540 - 382); }   // the bar up: 8 dp above its buttons row (player-v2 SPEC 3)
         String text = "";
         if (left >= 0) {
             if (subs != null && subs.on != null) text = subs.lastText();

@@ -25,26 +25,26 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Movies and episodes: the title at the top and a bar at the bottom. Focus rests on the seek thumb: ◀▶ seek 10 s
- * (holding scrubs, faster every second, up to ×32), OK pauses and resumes, ▲ reaches the buttons, ▼ opens Options.
- * The controls hide after 4 s while playing.
+ * Movies and episodes (design/ui-v1/player-v2/SPEC.md 4.1 to 4.5): the title block top-left, the corner (Ends at / n min
+ * left; Paused), and on the bottom scrim the buttons row and the track, no box. Focus rests on the seek thumb: ◀▶ seek
+ * 10 s (holding scrubs, faster every second, up to ×32), OK pauses and resumes, ▲ reaches the buttons, ▼ opens Options.
+ * The controls hide after 4 s while playing; paused they stay, and fade to 35 % after 2 min (any key brings them back;
+ * OK and ⏯ also act).
  */
 final class VodControls {
     private final PlayerActivity a;
     private final ExoPlayer p;
-    final LinearLayout top, bar;
-    private final TextView title, sub, ends, elapsed, remaining, bubble, what;
-    private final android.widget.ImageView whatTick;
-    private final LinearLayout whatRow;
-    private final Seek seek;
+    final Hud hud;
     private final LinearLayout buttons;
     private final List<TextView> btns = new ArrayList<>();
+    private final List<String> ids = new ArrayList<>();
     private final List<Runnable> acts = new ArrayList<>();
     private int row;            // 0 the seek thumb, 1 the buttons
     private int btn;
     private boolean scrubbing;
     private long scrubPos, scrubFrom;
-    private TextView playBtn;
+    private int scrubDir = 1;
+    private TextView playBtn, nextBtn;
 
     private final Runnable hide = this::hide;
     private final Runnable tick = new Runnable() { @Override public void run() { update(); if (visible()) a.handler.postDelayed(this, 250); } };
@@ -52,99 +52,32 @@ final class VodControls {
     VodControls(PlayerActivity a, ExoPlayer p, FrameLayout root) {
         this.a = a;
         this.p = p;
-        Context c = a;
-        top = new LinearLayout(c);
-        LinearLayout tcol = new LinearLayout(c);
-        tcol.setOrientation(LinearLayout.VERTICAL);
-        title = Ui.line(c, "", 28, Ui.T1, Ui.outfit700);
-        Ui.lineHeight(title, 32);
-        sub = Ui.line(c, "", 16, Ui.T2, Ui.inter500);
-        Ui.lineHeight(sub, 22);
-        tcol.addView(title);
-        tcol.addView(sub);
-        // the st-what line (design/ui-v1/subtitles SPEC 7.1): tick + the copy's checked quality and sound · best of N
-        // copies · the subtitles that are on
-        whatRow = new LinearLayout(c);
-        whatRow.setGravity(Gravity.CENTER_VERTICAL);
-        whatTick = new android.widget.ImageView(c);
-        whatTick.setImageDrawable(new Ui.Tick(16));
-        LinearLayout.LayoutParams wt = new LinearLayout.LayoutParams(Ui.dp(16), Ui.dp(16));
-        wt.setMarginEnd(Ui.dp(8));
-        whatRow.addView(whatTick, wt);
-        what = Ui.line(c, "", 15, Ui.T2, Ui.inter500);
-        whatRow.addView(what, new LinearLayout.LayoutParams(0, -2, 1));
-        LinearLayout.LayoutParams wl = new LinearLayout.LayoutParams(-1, -2);
-        wl.topMargin = Ui.dp(4);
-        whatRow.setVisibility(View.GONE);
-        tcol.addView(whatRow, wl);
-        top.addView(tcol, new LinearLayout.LayoutParams(0, -2, 1));
-        ends = Ui.text(c, "", 16, Ui.T2, Ui.inter500);
-        Ui.tabular(ends);
-        top.addView(ends);
-        FrameLayout.LayoutParams tl = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
-        top.setPadding(Ui.dp(48), Ui.dp(30), Ui.dp(48), Ui.dp(36));
-        top.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { Ui.SCRIM, 0x0015131D }));
-        root.addView(top, tl);
-
-        bar = new LinearLayout(c);
-        bar.setOrientation(LinearLayout.VERTICAL);
-        bar.setPadding(Ui.dp(20), Ui.dp(16), Ui.dp(20), Ui.dp(14));
-        bar.setBackground(Ui.round(Ui.BANNER, 16));
-        buttons = new LinearLayout(c);
-        buttons.setGravity(Gravity.CENTER_VERTICAL);
-        bar.addView(buttons, new LinearLayout.LayoutParams(-1, Ui.dp(44)));
-        FrameLayout seekBox = new FrameLayout(c);
-        seekBox.setClipChildren(false);
-        seek = new Seek(c);
-        seekBox.addView(seek, new FrameLayout.LayoutParams(-1, Ui.dp(28), Gravity.BOTTOM));
-        bubble = Ui.text(c, "", 14, Ui.INK, Ui.inter700);
-        bubble.setGravity(Gravity.CENTER);
-        bubble.setBackground(Ui.round(Ui.T1, 8));
-        bubble.setPadding(Ui.dp(8), 0, Ui.dp(8), 0);
-        Ui.tabular(bubble);
-        bubble.setVisibility(View.GONE);
-        seekBox.addView(bubble, new FrameLayout.LayoutParams(-2, Ui.dp(26), Gravity.TOP | Gravity.START));
-        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(-1, Ui.dp(28 + 30));
-        sl.topMargin = Ui.dp(-22);
-        bar.addView(seekBox, sl);
-        bar.setClipChildren(false);
-        LinearLayout times = new LinearLayout(c);
-        elapsed = Ui.text(c, "", 14, Ui.T2, Ui.inter500);
-        remaining = Ui.text(c, "", 14, Ui.T2, Ui.inter500);
-        Ui.tabular(elapsed);
-        Ui.tabular(remaining);
-        times.addView(elapsed, new LinearLayout.LayoutParams(0, -2, 1));
-        times.addView(remaining);
-        LinearLayout.LayoutParams tml = new LinearLayout.LayoutParams(-1, -2);
-        tml.topMargin = Ui.dp(8);   // (14 px under the bar, not 10: the thumb's focus ring at 0:00 touched the elapsed time)
-        bar.addView(times, tml);
-        FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
-        bl.setMargins(Ui.dp(48), 0, Ui.dp(48), Ui.dp(64));
-        root.addView(bar, bl);
-        top.setVisibility(View.GONE);
-        bar.setVisibility(View.GONE);
+        hud = new Hud(a, root);
+        buttons = hud.row;
     }
 
-    boolean visible() { return bar.getVisibility() == View.VISIBLE; }
+    boolean visible() { return hud.up(); }
 
     /** New title: rebuild the buttons (Next episode only when there is one). */
     void setItem(PlayerActivity.Entry e, boolean hasNext) {
-        title.setText(e.title);
-        sub.setText(e.sub == null ? "" : e.sub);
-        sub.setVisibility(e.sub == null || e.sub.isEmpty() ? View.GONE : View.VISIBLE);
+        hud.title(e.title, e.artLogo, e.artBox, e.artDark);
+        hud.sub(e.sub);
+        hud.story(e.line);
         buttons.removeAllViews();
         btns.clear();
+        ids.clear();
         acts.clear();
-        playBtn = round("play", null, () -> toggle());
-        round(null, "−10", () -> seekBy(-10000));
-        round(null, "+10", () -> seekBy(10000));
-        if (hasNext) pill("Next episode", () -> a.nextEpisode());
+        playBtn = disc("play", "play", null, () -> toggle());
+        disc("m10", null, "−10", () -> seekBy(-10000));
+        disc("p10", null, "+10", () -> seekBy(10000));
+        nextBtn = hasNext ? pill("next", "Next episode", () -> a.nextEpisode()) : null;
         skipBtn = null;
         spacer = new View(a);
         buttons.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1));
-        round("cc", null, () -> a.openSubtitles());
-        round("audio", null, () -> a.openAudio());
-        round("pic", null, () -> a.openPicture());
+        disc("cc", "cc", null, () -> a.openSubtitles());
+        disc("audio", "audio", null, () -> a.openAudio());
+        TextView last = disc("pic", "pic", null, () -> a.openPicture());
+        ((LinearLayout.LayoutParams) last.getLayoutParams()).setMarginEnd(0);
         btn = 0;
         if (skipLabel != null) addSkip();
         draw();
@@ -164,6 +97,7 @@ final class VodControls {
             int at = btns.indexOf(skipBtn);
             buttons.removeView(skipBtn);
             btns.remove(at);
+            ids.remove(at);
             acts.remove(at);
             skipBtn = null;
             if (row == 1 && btn == at) row = 0;   // (the controls keep their 4 s timer)
@@ -179,12 +113,7 @@ final class VodControls {
     }
     private void addSkip() {
         if (spacer == null) return;
-        TextView t = Ui.text(a, skipLabel, 16, Ui.T1, Ui.outfit700);
-        t.setGravity(Gravity.CENTER);
-        t.setSingleLine(true);
-        skipIcon(t, skipIcon);
-        t.setCompoundDrawablePadding(Ui.dp(8));
-        t.setPadding(Ui.dp(14), 0, Ui.dp(18), 0);
+        TextView t = Ui.pill(a, skipLabel, skipIcon == null ? "skipFwd" : skipIcon, false);
         t.setTag("pill");
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, Ui.dp(40));
         lp.setMarginStart(Ui.dp(6));   // (16 either side with the pill before it)
@@ -193,13 +122,14 @@ final class VodControls {
         for (int i = 0; i < at; i++) if (btns.contains(buttons.getChildAt(i))) bi++;
         buttons.addView(t, at, lp);
         btns.add(bi, t);
+        ids.add(bi, "skip");
         acts.add(bi, () -> { if (skipAct != null) skipAct.run(); });
         if (btn >= bi && row == 1) btn++;   // (focus stays on what it was on: a late answer adds the pill without moving it)
         skipBtn = t;
     }
     private static void skipIcon(TextView t, String icon) {
-        android.graphics.drawable.Drawable d = Ui.icon(icon == null ? "skipFwd" : icon, Ui.T1, 18);
-        d.setBounds(0, 0, Ui.dp(18), Ui.dp(18));
+        android.graphics.drawable.Drawable d = Ui.icon(icon == null ? "skipFwd" : icon, Ui.T1, 20);
+        d.setBounds(0, 0, Ui.dp(20), Ui.dp(20));
         t.setCompoundDrawables(d, null, null, null);
     }
     /** After a skip from the pill, or when it goes: focus on the seek thumb. */
@@ -208,105 +138,126 @@ final class VodControls {
     boolean onButtons() { return row == 1; }
     /** For the emulator test: what has focus. */
     String focusName() { if (row == 0 || btn >= btns.size()) return "seek"; TextView t = btns.get(btn); return t.getText().length() > 0 ? t.getText().toString() : String.valueOf(t.getTag()); }
-    /** ▲: the buttons, on the Skip pill while its window is fresh, else on Play. */
-    private int upTo() { return skipBtn != null && a.skipPillFresh() ? btns.indexOf(skipBtn) : 0; }
+    /** ▲: the buttons, on the Skip pill while its window is fresh, on Next episode while Up next counts, else on Play. */
+    private int upTo() {
+        if (skipBtn != null && a.skipPillFresh()) return btns.indexOf(skipBtn);
+        if (nextBtn != null && a.upNextShowing()) return btns.indexOf(nextBtn);
+        return 0;
+    }
+    /** For the emulator test: the name over the focused button. */
+    String labelText() { return hud.labelText(); }
 
-    private TextView round(String icon, String text, Runnable act) {
-        TextView t = Ui.text(a, text == null ? "" : text, 16, Ui.T1, Ui.inter650);
-        t.setGravity(Gravity.CENTER);
-        Ui.tabular(t);
-        if (icon != null) t.setTag(icon);
+    private TextView disc(String id, String icon, String text, Runnable act) {
+        TextView t = Ui.disc(a, icon, text);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(44), Ui.dp(44));
         lp.setMarginEnd(Ui.dp(10));
         buttons.addView(t, lp);
         btns.add(t);
+        ids.add(id);
         acts.add(act);
         return t;
     }
-    private void pill(String text, Runnable act) {
-        TextView t = Ui.text(a, text, 16, Ui.T1, Ui.outfit700);
-        t.setGravity(Gravity.CENTER);
-        android.graphics.drawable.Drawable ch = Ui.icon("chevR", Ui.T1, 18);
-        ch.setBounds(0, 0, Ui.dp(18), Ui.dp(18));
-        t.setCompoundDrawables(ch, null, null, null);
-        t.setCompoundDrawablePadding(Ui.dp(8));
-        t.setPadding(Ui.dp(16), 0, Ui.dp(18), 0);
+    private TextView pill(String id, String text, Runnable act) {
+        TextView t = Ui.pill(a, text, null, true);
         t.setTag("pill");
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, Ui.dp(40));
         lp.setMarginEnd(Ui.dp(10));
         buttons.addView(t, lp);
         btns.add(t);
+        ids.add(id);
         acts.add(act);
+        return t;
+    }
+
+    private boolean paused() { return !p.getPlayWhenReady(); }
+    /** The focused button's name, over it: "Subtitles · Icelandic", "Skip intro". */
+    private String labelOf(int i) {
+        String id = ids.get(i);
+        switch (id) {
+            case "play": return paused() ? "Play" : "Pause";
+            case "m10": return "Back 10 s";
+            case "p10": return "On 10 s";
+            case "next": return a.upNextShowing() ? "Play now" : "Next episode";
+            case "skip": return skipLabel == null ? "" : skipLabel;
+            default: return a.buttonLabel(id);
+        }
+    }
+    /** What OK does there, for the hint bar. */
+    private String hintOf(int i) {
+        String id = ids.get(i);
+        switch (id) {
+            case "cc": return "Subtitles";
+            case "audio": return "Audio";
+            case "pic": return "Picture size";
+            default: return labelOf(i);
+        }
     }
 
     private void draw() {
         for (int i = 0; i < btns.size(); i++) {
             TextView t = btns.get(i);
             boolean f = row == 1 && i == btn;
-            boolean pill = "pill".equals(t.getTag());
-            GradientDrawable g = pill ? Ui.round(f ? Ui.S3 : 0, 999) : Ui.circle(f ? Ui.S3 : Ui.S2);
-            if (f) g.setStroke(Ui.dp(3), Ui.FOCUS);
-            else if (pill) g.setStroke(Ui.dp(2), Ui.BORDER_STRONG);
-            t.setBackground(g);
-            Object icon = t.getTag();
-            if (icon instanceof String && !pill) {
-                String name = t == playBtn ? (p.isPlaying() ? "pause" : "play") : (String) icon;
-                android.graphics.drawable.Drawable d = Ui.icon(name, Ui.T1, 22);
-                d.setBounds(0, 0, Ui.dp(22), Ui.dp(22));
-                t.setCompoundDrawables(d, null, null, null);
-                t.setPadding(Ui.dp(11), 0, 0, 0);
-            }
+            if ("pill".equals(t.getTag())) Ui.pillState(t, false, f);
+            else Ui.discState(t, f);
         }
-        seek.focused = row == 0;
-        seek.invalidate();
+        if (playBtn != null) Ui.discIcon(playBtn, paused() ? "play" : "pause");
+        hud.track.focused = row == 0;
+        hud.track.invalidate();
+        hud.focus(row == 1 && btn < btns.size() ? btns.get(btn) : null, row == 1 && btn < btns.size() ? labelOf(btn) : null);
+        hud.paused(paused());
     }
 
     /** The st-what line: [tick, text] from the player, or null for none. */
-    void setWhat(boolean tick, String text) {
-        boolean on = text != null && !text.isEmpty();
-        whatRow.setVisibility(on ? View.VISIBLE : View.GONE);
-        whatTick.setVisibility(tick ? View.VISIBLE : View.GONE);
-        what.setText(on ? text : "");
-    }
+    void setWhat(boolean tick, String text) { hud.what(tick, text); }
     void show() {
         a.fillWhat(this);
         boolean was = visible();
-        top.setVisibility(View.VISIBLE);
-        bar.setVisibility(View.VISIBLE);
+        hud.show();
         if (!was) a.handler.post(tick);
         draw();
         update();
+        hud.touch();
         a.handler.removeCallbacks(hide);
         if (p.isPlaying() && !scrubbing) a.handler.postDelayed(hide, 4000);
         a.hintsChanged();
+        if (!was) a.placeChip();
     }
     void hide() {
         if (scrubbing) return;
-        top.setVisibility(View.GONE);
-        bar.setVisibility(View.GONE);
-        bubble.setVisibility(View.GONE);
+        hud.hide();
         row = 0;   // the next time they come up, focus is back on the seek thumb
+        hud.focus(null, null);
         a.handler.removeCallbacks(hide);
         a.hintsChanged();
+        a.placeChip();
     }
     void playStateChanged() { if (visible()) show(); }
 
     private void update() {
         long d = p.getDuration(), pos = scrubbing ? scrubPos : p.getCurrentPosition();
-        if (d == C.TIME_UNSET || d <= 0) { seek.set(0); elapsed.setText(fmt(pos)); remaining.setText(""); ends.setText(""); return; }
-        seek.set(pos / (float) d);
-        elapsed.setText(fmt(pos));
-        remaining.setText("-" + fmt(Math.max(0, d - pos)));
-        float speed = p.getPlaybackParameters().speed;
-        long endAt = System.currentTimeMillis() + (long) ((d - p.getCurrentPosition()) / Math.max(0.25f, speed));
-        ends.setText("Ends at " + PlayerActivity.hm(endAt));
+        if (d == C.TIME_UNSET || d <= 0) {
+            hud.track.vod(0, 1, fmt(pos), "");
+            hud.corner("", false, "");
+        } else {
+            hud.track.vod(pos, d, fmt(pos), "−" + fmt(Math.max(0, d - pos)));
+            // the corner: one time, the same as the bar's end (−25:50 is "26 min left", and it ends then)
+            float speed = Math.max(0.25f, p.getPlaybackParameters().speed);
+            long left = (long) (Math.max(0, d - p.getCurrentPosition()) / speed), endAt = System.currentTimeMillis() + left;
+            String mins = minsLeft(left), ends = "Ends at " + PlayerActivity.hm(endAt);
+            if (paused()) hud.corner(mins, false, ends + " if you play now");
+            else hud.corner(ends, false, mins);
+        }
+        hud.scrubbing(scrubbing);
         if (scrubbing) {
-            bubble.setVisibility(View.VISIBLE);
-            bubble.setText(fmt(pos));
-            bubble.measure(0, 0);
-            float x = seek.thumbX() - bubble.getMeasuredWidth() / 2f;
-            bubble.setTranslationX(Math.max(0, Math.min(seek.getWidth() - bubble.getMeasuredWidth(), x)));
-        } else bubble.setVisibility(View.GONE);
+            long held = System.currentTimeMillis() - scrubFrom;
+            int sp = (int) Math.min(32, 1L << Math.min(5, held / 1000));
+            hud.placeBubble(fmt(pos), sp >= 2 ? (scrubDir > 0 ? "▶▶ ×" : "◀◀ ×") + sp : null);
+        }
+    }
+    /** "26 min left", "1 h 12 min left", rounded to the minute like the bar's end. */
+    static String minsLeft(long ms) {
+        long m = Math.max(1, Math.round(ms / 60000.0));
+        return m >= 60 ? m / 60 + " h " + (m % 60 > 0 ? m % 60 + " min " : "") + "left" : m + " min left";
     }
 
     static String fmt(long ms) {
@@ -327,6 +278,8 @@ final class VodControls {
     /** Keys while nothing else is open. */
     boolean key(int code, boolean repeat) {
         boolean shown = visible();
+        // after the 2 min fade: any key brings the controls back; OK and ⏯ also do what they do (no wasted press)
+        if (shown && hud.wake() && !playKey(code)) { show(); return true; }
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_MEDIA_REWIND: case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD: {
                 int dir = code == KeyEvent.KEYCODE_DPAD_RIGHT || code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ? 1 : -1;
@@ -338,6 +291,7 @@ final class VodControls {
                 }
                 if (!repeat) { scrubbing = false; seekBy(dir * 10000L); return true; }
                 if (!scrubbing) { scrubbing = true; scrubFrom = System.currentTimeMillis(); scrubPos = p.getCurrentPosition(); }
+                scrubDir = dir;
                 long held = System.currentTimeMillis() - scrubFrom;
                 int speed = (int) Math.min(32, 1L << Math.min(5, held / 1000));
                 long d = p.getDuration();
@@ -383,38 +337,19 @@ final class VodControls {
     /** Back hides the controls first. */
     boolean back() { if (visible()) { scrubbing = false; hide(); return true; } return false; }
 
-    String[][] hints() {
-        if (row == 1) return new String[][] { { "◀ ▶", "Move" }, { "OK", "Choose" }, { "▼", "Seek bar" }, { "Back", "Hide" } };
-        return new String[][] { { "OK", p.isPlaying() ? "Pause" : "Play" }, { "◀ ▶", "Seek 10 s" }, { "▲", "Buttons" }, { "▼", "Options" }, { "Back", "Hide" } };
+    static boolean playKey(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_NUMPAD_ENTER:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: case KeyEvent.KEYCODE_SPACE: case KeyEvent.KEYCODE_MEDIA_PLAY: case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                return true;
+        }
+        return false;
     }
 
-    /** 6 dp seek bar: surface-3 track, gradient fill, 22 dp chalk thumb with the focus ring around it. */
-    static final class Seek extends View {
-        boolean focused = true;
-        private float v;
-        private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG), fill = new Paint(Paint.ANTI_ALIAS_FLAG), thumb = new Paint(Paint.ANTI_ALIAS_FLAG), ring = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
-        Seek(Context c) {
-            super(c);
-            track.setColor(Ui.S3);
-            thumb.setColor(Ui.T1);
-            ring.setStyle(Paint.Style.STROKE);
-            ring.setStrokeWidth(Ui.dp(3));
-            ring.setColor(Ui.FOCUS);
-        }
-        void set(float x) { x = Math.max(0, Math.min(1, x)); if (x != v) { v = x; invalidate(); } }
-        float pad() { return Ui.dp(14); }
-        float thumbX() { return pad() + (getWidth() - pad() * 2) * v; }
-        @Override protected void onSizeChanged(int w, int h, int ow, int oh) { fill.setShader(new LinearGradient(0, 0, w, 0, Ui.PINK, Ui.ORCHID, Shader.TileMode.CLAMP)); }
-        @Override protected void onDraw(@NonNull Canvas c) {
-            float cy = getHeight() / 2f, h = Ui.dp(6), x0 = pad(), x1 = getWidth() - pad(), tx = thumbX();
-            r.set(x0, cy - h / 2, x1, cy + h / 2);
-            c.drawRoundRect(r, h / 2, h / 2, track);
-            r.set(x0, cy - h / 2, tx, cy + h / 2);
-            c.drawRoundRect(r, h / 2, h / 2, fill);
-            float tr = Ui.dp(11);
-            c.drawCircle(tx, cy, focused ? tr : tr * 0.7f, thumb);
-            if (focused) c.drawCircle(tx, cy, tr + Ui.dp(2.5f), ring);
-        }
+    String[][] hints() {
+        String ok = paused() ? "Play" : "Pause";
+        if (scrubbing) return new String[][] { { "◀ ▶", "10 s, hold for faster" }, { "OK", ok }, { "Back", "Hide" } };
+        if (row == 1 && btn < btns.size()) return new String[][] { { "OK", hintOf(btn) }, { "◀ ▶", "Move" }, { "▼", "Seek bar" }, { "Back", "Hide" } };
+        return new String[][] { { "OK", ok }, { "◀ ▶", "Seek 10 s" }, { "▲", "Buttons" }, { "▼", "Options" }, { "Back", "Hide" } };
     }
 }
