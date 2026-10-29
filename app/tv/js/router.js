@@ -64,13 +64,13 @@ export function refresh(name = current()) { const s = screens.get(name); if (s?.
 
 // ---------- top bar ----------
 const topbar = $('#topbar');
-let barState = { live: false, update: false, avatar: '' };
+let barState = { live: false, update: false, avatar: '', offline: false };
 export function setBar(patch) { barState = { ...barState, ...patch }; drawBar(); }
 export function drawBar() {
   const sel = nav.stack.length ? null : nav.tab;
   const t = (k, l) => `<button class="tab fx${k === 'search' ? ' srch' : ''}${k === (sel || nav.tab) ? ' sel' : ''}" tabindex="-1" data-tab="${k}">${k === 'search' ? ic('search') : ''}${l}${k === 'nba' && barState.live ? '<span class="a-live compact">Live</span>' : ''}</button>`;
   const html = `${brandImg('mark-small.svg', 'mk')}<div class="tabs">${TABS.map(([k, l]) => t(k, l)).join('')}</div>
-    <div class="tb-r"><button class="avatar fx${nav.tab === 'account' ? ' sel' : ''}" tabindex="-1" data-tab="account" style="box-sizing:content-box">${barState.avatar ? esc(barState.avatar) : '<svg class="ic" viewBox="0 0 24 24" style="width:20px;height:20px;margin-top:8px" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.4-4.4 4.4-6.5 8-6.5s6.6 2.1 8 6.5"/></svg>'}${barState.update ? '<i class="udot"></i>' : ''}</button></div>`;
+    <div class="tb-r">${barState.offline ? `<span class="offline-bar" id="offline">${ic('wifiOff', 'sm')}<b>Offline</b></span>` : ''}<button class="avatar fx${nav.tab === 'account' ? ' sel' : ''}" tabindex="-1" data-tab="account" style="box-sizing:content-box">${barState.avatar ? esc(barState.avatar) : '<svg class="ic" viewBox="0 0 24 24" style="width:20px;height:20px;margin-top:8px" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.4-4.4 4.4-6.5 8-6.5s6.6 2.1 8 6.5"/></svg>'}${barState.update ? '<i class="udot"></i>' : ''}</button></div>`;
   if (topbar._html !== html) {
     const had = topbar.contains(document.activeElement) ? document.activeElement.dataset.tab : null;
     topbar.innerHTML = html; topbar._html = html;

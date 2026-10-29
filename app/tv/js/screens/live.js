@@ -15,7 +15,7 @@ import { focus } from '../focus.js';
 import { openOverlay, toast, scrollList } from '../ui.js';
 
 const ROWS = 6, PITCH = 52, AXIS = 656, SPAN = 150 * 60e3, PX = AXIS / SPAN;
-let el, group = 'fav', chans = [], top = 0, r = 0, at = Date.now(), winStart = 0, nowFloor = 0, toastT = 0, digitBuf = '', digitT = 0;
+let el, group = 'fav', chans = [], top = 0, r = 0, at = Date.now(), winStart = 0, nowFloor = 0, toastT = 0, toastCh = '', digitBuf = '', digitT = 0;
 let inPast = false;   // the window was moved back before now (catch-up 4.1): it stays there until Back, or ▶ brings it back
 // The window starts at the half hour that holds now, so the programme on now shows whole (not cut to its last minutes).
 const floor30 = (t) => { const d = new Date(t); d.setMinutes(d.getMinutes() < 30 ? 0 : 30, 0, 0); return d.getTime(); };
@@ -30,15 +30,17 @@ function groups() {
   groupsMemo = { c, key: memoKey, list: countGroups(c) };
   return groupsMemo.list;
 }
+// (separator entries, "##### SPORTS #####", are no channel: never a row, never counted)
+const realOf = (c) => { if (c._real?.src !== c.items) c._real = { src: c.items, list: c.items.filter((x) => !x._sep) }; return c._real.list; };
 function countGroups(c) {
-  const counts = new Map();
-  for (const it of c.items) counts.set(it.cat, (counts.get(it.cat) || 0) + 1);
+  const counts = new Map(), items = realOf(c);
+  for (const it of items) counts.set(it.cat, (counts.get(it.cat) || 0) + 1);
   const fav = favList('live').length;
   const out = [];
   if (fav) out.push(['fav', 'Favourites, then all', `${fav} saved`, 'star']);
   const lg = liveGames().length;
   if (lg) out.push(['games', 'Live games', lg, 'live']);
-  out.push(['all', 'All channels', c.items.length, 'tv']);
+  out.push(['all', 'All channels', items.length, 'tv']);
   for (const k of c.cats) if (counts.get(k.id)) out.push([k.id, k.name, counts.get(k.id), 'tv']);
   return out;
 }
@@ -47,10 +49,11 @@ export const groupName = (g = group) => groups().find((x) => x[0] === g)?.[1] ||
 function listFor(g) {
   const c = catalog.live;
   if (!c) return [];
-  if (g === 'fav') { const f = favList('live').map((x) => c.byId.get(x.id)).filter(Boolean); const set = new Set(f); return [...f, ...c.items.filter((x) => !set.has(x))]; }
-  if (g === 'games') { const out = []; for (const gm of liveGames()) for (const f of feedsNow(gm)) if (!out.includes(f.ch)) out.push(f.ch); return out.length ? out : c.items; }
-  if (g === 'all') return c.items;
-  return c.items.filter((x) => x.cat === g);
+  const items = realOf(c);
+  if (g === 'fav') { const f = favList('live').map((x) => c.byId.get(x.id)).filter((x) => x && !x._sep); const set = new Set(f); return [...f, ...items.filter((x) => !set.has(x))]; }
+  if (g === 'games') { const out = []; for (const gm of liveGames()) for (const f of feedsNow(gm)) if (!out.includes(f.ch)) out.push(f.ch); return out.length ? out : items; }
+  if (g === 'all') return items;
+  return items.filter((x) => x.cat === g);
 }
 // Your team's game is pinned first while it's on.
 function pinned() {
@@ -64,6 +67,13 @@ function rebuild() {
   chans = pin ? [pin, ...base.filter((x) => x.id !== pin.id)] : base;
   chans._pin = pin;
   r = Math.min(r, Math.max(0, chans.length - 1));
+}
+// A new list (the catalog, the pinned game coming or going): focus stays on the same channel, not the same row number.
+function rebuildKeep() {
+  const keep = chans[r]?.id;
+  rebuild();
+  const i = keep ? chans.findIndex((c) => c.id === keep) : -1;
+  if (i >= 0) r = i;
 }
 
 const x = (t) => Math.round((t - winStart) * PX);
@@ -90,7 +100,7 @@ function pastCell(ch, ri, kind, until) {
 function cells(ch, ri) {
   const rl = rowList(ch), list = rl.list;
   const end = winStart + SPAN;
-  if (!list) return `<div class="g-cell fx" tabindex="-1" data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b style="color:var(--a-text-3);font-weight:500">Loading guide…</b></div>`;
+  if (!list) return `<div class="g-cell fx" tabindex="-1" data-hold data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b style="color:var(--a-text-3);font-weight:500">Loading guide…</b></div>`;
   const now0 = Date.now();
   // a window that starts before now: the row's past (not kept: one outlined cell; kept: the table's programmes)
   let lead = '', from = winStart;
@@ -105,7 +115,7 @@ function cells(ch, ri) {
   if (lead && !vis.length) return lead;
   // Say why there's nothing: offline, or the provider didn't answer this time (tried again soon), or it has no guide.
   const why = S.offline ? 'Offline · OK still tunes' : guideFailed(ch) ? "Guide didn't load · OK still tunes" : 'No guide information';
-  if (!vis.length) return `<div class="g-cell empty fx" tabindex="-1" data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b>${why}</b></div>`;
+  if (!vis.length) return `<div class="g-cell empty fx" tabindex="-1" data-hold data-r="${ri}" data-s="${winStart}" data-e="${end}" style="left:0;width:${AXIS - 4}px"><b>${why}</b></div>`;
   const now = Date.now();
   let clipTo = 0;   // a matched re-air of a hidden game is drawn 2 h 30 long; the programme starting inside that is clipped (S12, S3)
   return lead + vis.map((p) => {
@@ -149,7 +159,7 @@ function ruler() {
   let named = false;
   for (let t = Math.ceil((winStart + 1) / 1800e3) * 1800e3; t < winStart + SPAN; t += 1800e3) {
     if (x(t) <= (pastDay ? 112 : 40) || x(t) >= AXIS - (nowRight ? 150 : 40) || Math.abs(x(t) - nx) <= 64) continue;
-    const other = pastDay && !named && dayOf(t) !== dayOf(winStart);
+    const other = !named && dayOf(t) !== dayOf(pastDay ? winStart : n);   // (ahead: the first tick on tomorrow says so)
     if (other) named = true;
     ticks.push(`<span style="left:${x(t)}px">${other ? `${new Date(t).toLocaleDateString('en-GB', { weekday: 'short' })} ` : ''}${hm(t)}</span>`);
   }
@@ -184,10 +194,13 @@ function nowPanel() {
   const ch = chans[r];
   if (!ch) return '<div class="grow"><div class="t-title">No channels</div></div>';
   const f = document.activeElement;
-  if (f?.classList?.contains('g-cell') && (f.dataset.past || f.dataset.gone) && +f.dataset.e <= Date.now() + 60e3 && toastT <= Date.now()) return pastPanel(ch, f);
-  const s = f?.classList?.contains('g-cell') ? +f.dataset.s : Date.now();
+  if (f?.classList?.contains('g-cell') && (f.dataset.past || f.dataset.gone) && +f.dataset.e <= Date.now() + 60e3 && !(toastT > Date.now() && toastCh === ch.id)) return pastPanel(ch, f);
+  const onCell = !!f?.classList?.contains('g-cell') && el.contains(f);
+  const s = onCell ? +f.dataset.s : Date.now();
   const list = rowList(ch).list || [];
-  const p = list.find((q) => q.start <= Math.max(s, winStart) && q.end > Math.max(s, winStart)) || onNow(list);
+  // the focused cell's own programme (of overlapping ones, the one it draws)
+  // (a programme's cell carries its start; an empty or loading cell matches none, so it describes nothing)
+  const p = onCell ? list.find((q) => q.start === s) || null : onNow(list);
   const g = p && p.start <= Date.now() && p.end > Date.now() ? gameOn(ch, [p]) : null;
   const hide = g && hidden(g);
   const nowish = p && p.start <= Date.now() && p.end > Date.now();
@@ -196,10 +209,10 @@ function nowPanel() {
   const pvw = p ? programmeView(ch, p) : null;
   const desc = hide || pvw?.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : pvw?.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : esc(pvw?.desc || '');
   const kept = ch.archive && nowish ? `<br>◀ earlier${dot}${keptWords(ch.archive)}` : '';
-  const right = toastT > Date.now() ? `<span class="toast"><b>${isFav(ch) ? 'Added to Favourites' : 'Removed from Favourites'}</b><span class="t-cap">Hold OK to undo</span></span>` : `<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune${kept ? dot : '<br>'}Hold OK favourite${kept}</div>`;
+  const right = toastT > Date.now() && toastCh === ch.id ? `<span class="toast"><b>${isFav(ch) ? 'Added to Favourites' : 'Removed from Favourites'}</b><span class="t-cap">Hold OK to undo</span></span>` : `<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune${kept ? dot : '<br>'}Hold OK favourite${kept}</div>`;
   return `${pv}<div class="grow">
     <div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(pvw?.title || p?.title || ch.name)}</span>${g?.state === 'in' ? liveP() : ''}</div>
-    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${reairOf(ch, p) ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
+    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${p ? esc(ch.name) : `Channel ${ch.num}`}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${reairOf(ch, p) ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
     <div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide || pvw?.mask ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${desc}</span></div>
   </div>${right}`;
 }
@@ -314,14 +327,14 @@ function cellOk(cell) {
   const pv = p ? programmeView(ch, p) : null, re = p && reairOf(ch, p);   // (the shield: its title, its description; a re-air shows its start only)
   const pdesc = pv?.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : pv?.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : esc(pv?.desc || '');
   const ov = openOverlay(`<div class="menu" style="left:48px;top:120px;width:520px"><h3>${esc(pv?.title || 'Later')}</h3><div class="t-cap" style="padding:0 8px 8px">${esc(ch.name)}${p ? `${dot}${re ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}</div>${pdesc ? `<p class="t-body clamp3" style="margin:0 8px 12px">${pdesc}</p>` : ''}<div data-row class="row-flex" style="gap:12px;padding:4px 8px"><span class="btn fx" tabindex="-1" data-act="tune" style="max-width:480px;transform-origin:0 50%">${ic('play')}<span class="ellipsis" style="min-width:0">Watch ${esc(ch.name)} now</span></span></div></div>`, {
-    onClick: (act) => { ov.close(false); if (act === 'tune') tune(ch); },
+    onClick: (act) => { ov.close(); if (act === 'tune') tune(ch); },   // (focus back on the cell, for when the player closes)
   });
 }
 function favHold(cell) {
   const ch = chans[+cell.dataset.r];
   if (!ch) return;
   toggleFav(ch);
-  toastT = Date.now() + 4000;
+  toastT = Date.now() + 4000; toastCh = ch.id;   // (the toast is that channel's: it doesn't follow you to the next row)
   setHtml(el.querySelector('.g-now'), nowPanel());
   setTimeout(() => { if (current() === 'live') setHtml(el.querySelector('.g-now'), nowPanel()); }, 4100);
 }
@@ -330,7 +343,7 @@ function groupSheet() {
   const ov = openOverlay(`<div class="sheet left" style="width:340px"><h3>Channel group</h3><div class="t-cap" style="margin-top:-6px">Up and Down in the player stay in this group</div>
     <div class="sheet-body"><div class="inner" data-col>${gs.map(([id, name, n]) => `<div class="lr fx" tabindex="-1" data-act="${esc(id)}"><span class="rd${id === group ? ' on' : ''}"></span><span class="grow ellipsis">${esc(name)}</span><small>${n.toLocaleString()}</small></div>`).join('')}</div></div></div>`, {
     focusSel: `[data-act="${CSS.escape(group)}"]`,
-    onClick: (act) => { ov.close(false); group = act; store.set(scoped('liveCat'), act); r = 0; top = 0; rebuild(); draw(() => focusCell(0, Date.now())); },
+    onClick: (act) => { if (act === group) return ov.close(); ov.close(false); group = act; store.set(scoped('liveCat'), act); r = 0; top = 0; rebuild(); draw(() => focusCell(0, Date.now())); },
   });
   scrollList(ov.el);
 }
@@ -341,19 +354,20 @@ function digit(d) {
   digitT = setTimeout(() => {
     const n = parseInt(digitBuf, 10); digitBuf = '';
     let i = chans.findIndex((c) => c.num === n);
-    if (i < 0 && catalog.live?.items.some((c) => c.num === n)) { group = 'all'; rebuild(); i = chans.findIndex((c) => c.num === n); }
+    if (i < 0 && catalog.live?.items.some((c) => c.num === n && !c._sep)) { group = 'all'; rebuild(); i = chans.findIndex((c) => c.num === n); }
     if (i < 0) return toast(`There is no channel ${n}.`);
     r = i; top = Math.max(0, i - 1); at = Date.now();
     draw(() => focusCell(r, at));
   }, 1200);
 }
 
-export default {
+const def = {
   name: 'live',
   mount(root) {
     el = root;
     root.innerHTML = '<div class="g-now"></div><div class="g-grid"></div>';
     const grid = root.querySelector('.g-grid');
+    root.addEventListener('click', (e) => { if (e.target.closest('[data-act="reload"]')) { e.stopImmediatePropagation(); def.enter(root, {}); } }, true);
     grid.addEventListener('tvfocus', () => setHtml(el.querySelector('.g-now'), nowPanel()));
     root.addEventListener('click', (e) => {
       if (e.target.closest('[data-act="group"]')) return groupSheet();
@@ -364,11 +378,12 @@ export default {
     // Every row gets the guide's own navigation.
     const obs = new MutationObserver(() => grid.querySelectorAll('.g-row').forEach((rw) => (rw.navHook = hook)));
     obs.observe(grid, { childList: true });
-    on('catalog', (k) => { if (k === 'live' && current() === 'live') { rebuild(); draw(); } });
-    on('nba', () => { if (current() === 'live') draw(); });
+    on('catalog', (k) => { if (k === 'live' && current() === 'live') { rebuildKeep(); draw(); } });
+    on('nba', () => { if (current() === 'live') { rebuildKeep(); draw(); } });   // (your game tipping off pins its channel; ending unpins it)
     // (favouriting re-orders the Favourites group: focus stays on that channel, wherever it moved, so Hold OK undoes it)
     on('favs', () => {
-      if (current() !== 'live' || group !== 'fav') return;
+      if (current() !== 'live') return;
+      if (group !== 'fav') return draw();   // (the row's star)
       const keep = chans[r];
       rebuild();
       const i = keep ? chans.indexOf(keep) : -1;
@@ -380,13 +395,19 @@ export default {
     on('progress', () => { if (current() === 'live' && inPast) drawSoon(); });
     setInterval(() => { if (current() === 'live') draw(); }, 30000);
   },
-  enter(root, params) {
+  enter(root, params, { fresh = true } = {}) {
     if (!catalog.live) {
       setHtml(root.querySelector('.g-grid'), `<div class="t-cap" style="padding:40px 0">Loading channels…</div>`);
-      ensure('live').then(() => { if (current() === 'live') this.enter(root, params); }).catch((e) => setHtml(root.querySelector('.g-grid'), `<div class="state big" style="margin-top:40px"><div class="ico">${ic('wifiOff')}</div><b>Could not load channels</b><p>${esc(e.message)}</p></div>`));
+      ensure('live').then(() => { if (current() === 'live') def.enter(root, params); }).catch((e) => {
+        if (current() !== 'live') return;
+        setHtml(root.querySelector('.g-grid'), `<div class="state big" style="margin-top:40px"><div class="ico">${ic('wifiOff')}</div><b>Could not load channels</b><p>${esc(e.message)}</p><div data-row><span class="btn fx" tabindex="-1" data-act="reload">Try again</span></div></div>`);
+        if (mayFocus()) focus(root.querySelector('[data-act="reload"]'));
+      });
       return;
     }
     takeFresh('live');
+    // the same screen again (the provider answering after Offline): everything stays where it is, the guides are asked again
+    if (!fresh && chans.length && !params.ch && !params.digit) { rebuildKeep(); draw(); return; }
     const saved = store.get(scoped('liveCat'), 'fav');
     const gs = groups();
     group = gs.some((g) => g[0] === saved) ? saved : gs.some((g) => g[0] === 'fav') ? 'fav' : 'all';
@@ -411,12 +432,15 @@ export default {
     if (k === 'digit') { digit(e.key); return true; }
     return false;
   },
+  leave() { clearTimeout(digitT); digitBuf = ''; },
   toTop() { r = 0; top = 0; winStart = 0; inPast = false; draw(); },
   // Back in the past: the window returns to now, on the same channel's programme on now (catch-up 4.1)
   back() {
-    if (!inPast || !el.querySelector('.g-grid').contains(document.activeElement)) return false;
+    if (digitBuf) { clearTimeout(digitT); digitBuf = ''; }   // (a channel number still being typed: Back drops it)
+    if ((!inPast && winStart <= nowFloor) || !el.querySelector('.g-grid').contains(document.activeElement)) return false;
     inPast = false; winStart = 0; at = Date.now();
     draw(() => focusCell(r, Date.now()));
     return true;
   },
 };
+export default def;

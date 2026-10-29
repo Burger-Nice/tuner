@@ -4,7 +4,7 @@ import { S, on, emit, settings, store } from './state.js';
 import { setBase, move, focus, entryOf, inLayer, topLayer } from './focus.js';
 import { closeTop, overlayKey, toast } from './ui.js';
 import { register, go, pop, nav, current, screenDef, screenEl, focusTab, setBar, barHidden, refresh } from './router.js';
-import { resetGuides } from './guide.js';
+import { staleGuides } from './guide.js';
 import { native } from './native.js';
 import { resume } from './session.js';
 import { startNba, myGame, nba, liveShown } from './games.js';
@@ -149,7 +149,7 @@ let offlineT = 0;   // the Offline bar's retry
 on('session', () => {
   // a new session starts online: an Offline bar from the last one (or from before signing out) goes
   S.offline = false; clearTimeout(offlineT);
-  const bar = $('#offline'); if (bar) bar.hidden = true;
+  setBar({ offline: false });
   if (!S.acc) return;
   const n = S.acc.name || '';
   setBar({ avatar: (n.match(/\p{L}/u)?.[0] || '').toUpperCase() });
@@ -158,17 +158,16 @@ on('session', () => {
 on('signed-out', (msg) => go('first', { error: msg }));
 // Offline: a slim bar that stays while the provider can't be reached (a toast went by unseen under the launch),
 // and a quiet retry every 30 s; when it answers again the bar goes and the guide is asked again.
+// (a pill in the top bar, by the avatar: inside the safe area and over nothing you can focus; the guide's cells say
+// "Offline · OK still tunes")
 on('offline', () => {
-  let bar = $('#offline');
-  if (!bar) { bar = document.createElement('div'); bar.id = 'offline'; bar.className = 'offline-bar'; app.appendChild(bar); }
-  bar.innerHTML = `${ic('wifiOff', 'sm')}<span><b>Offline</b> · showing what airglow remembers · trying again</span>`;
-  bar.hidden = false;
+  setBar({ offline: true });
   clearTimeout(offlineT);
   const retry = () => {
-    if (!S.src || !S.offline) { bar.hidden = true; return; }
+    if (!S.src || !S.offline) { setBar({ offline: false }); return; }
     S.src.login().then((d) => {
-      S.offline = false; S.info = d; bar.hidden = true;
-      resetGuides(); emit('online'); refresh();
+      S.offline = false; S.info = d; setBar({ offline: false });
+      staleGuides(); emit('online'); refresh();
     }).catch(() => { offlineT = setTimeout(retry, 30000); });
   };
   offlineT = setTimeout(retry, 30000);

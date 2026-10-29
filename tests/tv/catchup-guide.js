@@ -58,6 +58,12 @@ module.exports = async (ctx) => {
   ok('Back returns to now', w.includes(' now') || w.includes('now'));
   console.log('ruler:', await ev(() => document.querySelector('.g-time')?.innerText.replace(/\s+/g, ' ')));
   await shot('guide-back');
+  // the guide is asked again once its 10 minutes are up (the short guide runs dry after a few hours otherwise, hunt 3)
+  let asked = 0; const onReq = (r) => { if (/get_short_epg/.test(r.url())) asked++; };
+  p.on('request', onReq);
+  await p.clock.fastForward('11:00'); await key('ArrowDown', 1, 500); await key('ArrowUp', 1, 500); await p.waitForTimeout(2500);
+  p.off('request', onReq);
+  ok('the guide is asked again after 10 minutes', asked > 0, `${asked} requests`);
   const { spoilers } = setup;
   console.log('spoilers in the guide:', JSON.stringify(spoilers(rows)));
 };

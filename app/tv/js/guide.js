@@ -85,11 +85,14 @@ export function pastFor(ch, { urgent = false } = {}) {
 }
 export const pastNow = (ch) => tables.get(ch.id)?.ready;
 export const pastFailed = (ch) => !!tables.get(ch.id)?.failed && !tables.get(ch.id)?.ready;
-export const pastKnown = (ch) => { const t = tables.get(ch.id); return !!t && !(t.failed && Date.now() - t.at > 30000); };
+export const pastKnown = (ch) => { const t = tables.get(ch.id); return !!t && Date.now() - t.at < (t.failed ? 30000 : 600000); };
 // The last try for this channel's guide failed (it is tried again after 30 s).
 export const guideFailed = (ch) => !!guides.get(ch.id)?.failed;
-// (a failed guide is unknown again after 30 s, so the screens ask for it again)
-export const known = (ch) => { const g = guides.get(ch.id); return !!g && !(g.failed && Date.now() - g.at > 30000); };
+// (a failed guide is unknown again after 30 s, a loaded one after its 10 minutes, so the screens ask for it again: the
+// short guide runs dry after a few hours; the old copy stays on screen until the new one arrives)
+export const known = (ch) => { const g = guides.get(ch.id); return !!g && Date.now() - g.at < (g.failed ? 30000 : 600000); };
+// The provider answers again after being offline: every guide is asked for again, the copies kept on screen meanwhile.
+export const staleGuides = () => { for (const g of [...guides.values(), ...tables.values()]) if (g.ready) g.at = 0; };
 export const onNow = (list, now = Date.now()) => list?.find((p) => p.start <= now && p.end > now) || null;
 export const nextUp = (list, now = Date.now()) => list?.find((p) => p.start > now) || null;
 

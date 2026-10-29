@@ -397,7 +397,7 @@ export async function sourcesSheet(g) {
     <div class="t-cap">Your pick is remembered for this game. ${first}</div></div>`, {
     focusSel: `[data-act="${curI}"]`,
     onClick: (act) => {
-      ov.close(false);
+      ov.close();   // (focus back on what opened it: the player returns there, and so does the next sheet)
       if (act === 'choose') return chooseVideo(g);
       if (act === 'pickch') return pickChannel(g);
       const x = list[+act];
@@ -425,7 +425,7 @@ export function pickChannel(g) {
     onClick: async (act) => {
       const ch = list[+act];
       if (!ch) return;
-      ov.close(false);
+      ov.close();
       setReplayPick(g.id, { kind: 'channel', id: String(ch.id) });
       const l = await findReplays(g, { force: true });
       const src = l.find((x) => x.kind === 'channel' && x.id === String(ch.id));
@@ -464,7 +464,7 @@ export function chooseVideo(g, { focusId } = {}) {
         if (act === 'none') return ov.close();
         const play = act[0] === 'p', m = vids[+(play ? act.slice(1) : act)];
         if (!m) return;
-        ov.close(false);
+        ov.close();
         // a matched full game (or a pick for this game): the game's replay with it as the source; Play this video: as it is
         const r = matchVideo(m, g);
         if (play || !r) return playVideoFor(g, m);
