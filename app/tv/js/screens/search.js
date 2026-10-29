@@ -65,10 +65,13 @@ function addonBlock() {
 }
 const recentKey = 'searchRecent';
 
+const trending = () => (catalog.movie?._sorted?.popular || (catalog.movie?.titles ? browse('movie', { sort: 'popular', f: {}, langFirst: false }) : [])).slice(0, 4);
+// films and series still on their way (the big lists load after you stay or type): not "no results" yet
+const bigLoad = { failed: {} };
 function results() {
   if (!q.trim()) {
     const recent = store.get(recentKey, []);
-    const trend = (catalog.movie?._sorted?.popular || (catalog.movie?.titles ? browse('movie', { sort: 'popular', f: {}, langFirst: false }) : [])).slice(0, 4);
+    const trend = trending();
     return `${recent.length ? `<div class="t-label" style="margin-bottom:10px">Recent</div><div class="chips" data-row>${recent.map((r) => `<span class="chip lg fx" tabindex="-1" data-recent="${esc(r)}">${ic('clock')}${esc(r)}</span>`).join('')}</div>` : ''}
       ${trend.length ? `<div class="t-label" style="margin:24px 0 10px">Trending</div><div class="rail" style="padding:0;gap:16px;margin:0"><div class="track" data-row style="gap:16px">${trend.map((t, i) => poster(t, 'tr' + i, { sm: true })).join('')}</div></div>` : '<div class="t-body">Type a channel, programme, movie, series or team.</div>'}`;
   }
@@ -81,7 +84,7 @@ function results() {
   for (const ch of catalog.live?.items || []) {
     if (onTv.length >= (scope === 'live' ? 12 : 3)) break;
     const p = onNow(guideNow(ch));
-    if (p && matches(p.title)) onTv.push({ ch, p });
+    if (p && !ch._sep && matches(p.title)) onTv.push({ ch, p });
   }
   const adb = addonBlock();
   // (the counts take in the add-ons' titles too: Series 1 when Dune Prophecy comes from Cinemeta)
@@ -96,7 +99,9 @@ function results() {
   const chRow = (ch) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(ch.name)}</div><div class="t-cap">Channel ${ch.num}</div></div></div>`;
   const moreRow = (k, label) => `<div class="rrow fx s-more" tabindex="-1" data-scope="${k}"><span class="grow t-sub">${label}</span>${ic('chevR')}</div>`;
   const head = (t, top = 14) => `<div class="t-label" style="margin:${top}px 0 8px">${t}</div>`;
-  const none = (what) => `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b style="overflow-wrap:anywhere">No ${what} for “${esc(q.length > 24 ? q.slice(0, 23) + '…' : q)}”</b><p>Check the spelling, or try fewer letters.</p><div data-row style="display:flex;justify-content:center;gap:12px">${scope !== 'all' ? '<span class="btn2 sm fx" tabindex="-1" data-scope="all">Search everything</span>' : ''}<span class="btn2 sm fx" tabindex="-1" data-act="clear">Clear</span></div></div>`;
+  const waiting = (scope === 'live' ? [] : scope === 'all' ? ['movie', 'series'] : [scope]).filter((k) => !catalog[k]);
+  const none = (what) => waiting.length ? `<div class="state" style="margin-top:34px"><div class="ico">${waiting.some((k) => bigLoad.failed[k]) ? ic('wifiOff') : SPIN}</div><b>${waiting.some((k) => bigLoad.failed[k]) ? `${waiting.length > 1 ? 'Movies and series' : waiting[0] === 'movie' ? 'Movies' : 'Series'} didn’t load` : `Looking through ${waiting.length > 1 ? 'movies and series' : waiting[0] === 'movie' ? 'movies' : 'series'}…`}</b><p>${waiting.some((k) => bigLoad.failed[k]) ? 'The provider didn’t answer. Search again in a moment.' : 'Results show as soon as the list is here.'}</p></div>`
+    : `<div class="state" style="margin-top:34px"><div class="ico">${ic('search')}</div><b style="overflow-wrap:anywhere">No ${what} for “${esc(q.length > 24 ? q.slice(0, 23) + '…' : q)}”</b><p>Check the spelling, or try fewer letters.</p><div data-row class="s-none" style="display:flex;justify-content:center;gap:12px">${scope !== 'all' ? '<span class="btn2 sm fx" tabindex="-1" data-scope="all">Search everything</span>' : ''}<span class="btn2 sm fx" tabindex="-1" data-act="clear">Clear</span></div></div>`;
   let html = chips + '<div data-col class="s-list">';
   if (scope === 'movie' || scope === 'series') {
     const list = res[scope];
@@ -126,9 +131,9 @@ function results() {
   return html + adb + '</div>';
 }
 function suggestions() {
-  if (q.length < 2 || !res) return '<div style="height:44px"></div>';
+  if (q.length < 2 || !res) return '<div style="height:48px"></div>';   // (the chip row's own height: the keyboard never jumps)
   const names = [...new Set([...res.movie, ...res.series].slice(0, 6).map((t) => t.name))].slice(0, 2);   // (two fit the row whole)
-  if (!names.length) return '<div style="height:44px"></div>';
+  if (!names.length) return '<div style="height:48px"></div>';
   return `<div class="sugg" data-row data-exit>${names.map((n) => `<span class="chip fx" tabindex="-1" data-sugg="${esc(n)}">${ic('search')}<span class="ellipsis" style="max-width:116px">${esc(n)}</span></span>`).join('')}</div>`;
 }
 let behind = false;
@@ -137,8 +142,9 @@ function draw() {
   if (watching()) { behind = true; return; }   // nothing to see under the TV player; drawn once it closes
   if (!el || el.hidden) return;
   const right = results();
+  // (the field: a query too long for it shows its end and the caret, its start cut at the left; rtl only for that)
   setHtml(el.querySelector('[data-left]'), `
-    <div class="sfield"><span class="grow" style="white-space:nowrap;overflow:hidden;padding-left:8px">${q ? `<b>${esc((q.length > 22 ? '…' + q.slice(-21) : q).toUpperCase())}</b><i class="caret"></i>` : `<span class="ph">${PH[scope]}</span>`}</span></div>
+    <div class="sfield"><span class="grow" style="white-space:nowrap;overflow:hidden;padding-left:8px;direction:rtl;text-align:left"><span style="direction:ltr;unicode-bidi:isolate">${q ? `<b>${esc((q.length > 22 ? '…' + q.slice(-21) : q).toUpperCase())}</b><i class="caret"></i>` : `<span class="ph">${PH[scope]}</span>`}</span></span></div>
     ${suggestions()}
     <div class="kb" data-grid data-cols="6" data-exit>${KEYS.map((k) => `<span class="key fx" tabindex="-1" data-key="${k}">${k}</span>`).join('')}</div>
     <div class="kbrow" data-row data-exit><span class="key wide fx" tabindex="-1" data-key=" ">Space</span><span class="key wide fx" tabindex="-1" data-key="del">Delete</span><span class="key wide fx" tabindex="-1" data-key="clr">Clear</span></div>`);
@@ -146,6 +152,8 @@ function draw() {
   // ▼ past the last result stays on it (it never jumps back to the keyboard)
   const col = el.querySelector('[data-right] .s-list');
   if (col && !col.navHook) col.navHook = (dir, cur) => (dir === 'down' && cur === [...col.querySelectorAll('.fx')].pop() ? false : undefined);
+  const nr = el.querySelector('[data-right] .s-none');   // (nor from the No results card's buttons)
+  if (nr) nr.navHook = (dir) => (dir === 'down' ? false : undefined);
 }
 // the list scrolls inside its box (y 90 to 513): the focused row is kept whole inside it
 function place(a = document.activeElement) {
@@ -198,13 +206,13 @@ export default {
     root.innerHTML = '<div class="abs" data-left style="left:48px;top:90px;width:352px"></div><div class="abs s-box" data-right style="left:424px;top:82px;width:496px;height:431px"><div class="s-in"></div></div>';
     root.addEventListener('tvfocus', (e) => place(e.target));
     root.addEventListener('click', (e) => {
-      const k = e.target.closest('[data-key]'); if (k) return type(k.dataset.key);
+      const k = e.target.closest('.key[data-key]'); if (k) return type(k.dataset.key);   // (a poster's data-key is its identity, not a letter)
       const s = e.target.closest('[data-sugg]'); if (s) { q = s.dataset.sugg.toLowerCase(); draw(); focus(el.querySelector('[data-right] .rrow')); return; }
       const r = e.target.closest('[data-recent]'); if (r) { q = r.dataset.recent; draw(); return; }
       const sc = e.target.closest('[data-scope]');
       if (sc) { setScope(sc.dataset.scope); return; }
       const x = e.target.closest('[data-res]'); if (x) return openRes(x.dataset.res);
-      const p = e.target.closest('.pc'); if (p) { const t = (catalog.movie?._sorted?.popular || [])[+String(p.dataset.i).replace('tr', '')]; if (t) openDetail(t); return; }
+      const p = e.target.closest('.pc'); if (p) { const t = trending()[+String(p.dataset.i).replace('tr', '')]; if (t) openDetail(t); return; }
       if (e.target.closest('[data-act="clear"]')) { q = ''; draw(); focus(el.querySelector('[data-key="A"]')); }
     });
     on('catalog', () => { if (current() === 'search') draw(); });
@@ -217,7 +225,7 @@ export default {
     // top bar passes over Search on its way to Home.
     ensure('live').catch(() => {});
     clearTimeout(bigT);
-    const big = () => { clearTimeout(bigT); document.removeEventListener('keydown', inside, true); if (current() === 'search') ['movie', 'series'].forEach((k) => ensure(k).catch(() => {})); };
+    const big = () => { clearTimeout(bigT); document.removeEventListener('keydown', inside, true); if (current() === 'search') ['movie', 'series'].forEach((k) => { delete bigLoad.failed[k]; ensure(k).catch(() => { bigLoad.failed[k] = true; if (current() === 'search') draw(); }); }); };
     const inside = () => { if (!document.getElementById('topbar').contains(document.activeElement)) big(); };
     bigT = setTimeout(big, 800);
     document.addEventListener('keydown', inside, true);

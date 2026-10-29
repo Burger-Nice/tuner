@@ -3,7 +3,7 @@
 // the game on this channel at the synced delay, live games, groups, favourites) and acts on what you pick in its panels.
 // It also records where you got to in movies and episodes.
 import { S, settings, emit, on, store, scoped, recordProgress, progressOf, inProgress, addRecent, isFav, toggleFav, favList, saveSettings, markWatched } from './state.js';
-import { busy, catalog, versionLabel, pickVersion, forget, ensure, prefLangs } from './catalog.js';
+import { busy, catalog, versionLabel, pickVersion, refreshNow, prefLangs } from './catalog.js';
 import { subSettings, subState, forPlayer, prepare, retryNow, subMemory, cancelChecks, checkFor, checkedFor, playable, noteStart } from './subs.js';
 import { NAME_ISO1 } from './subs/lang.js';
 import { providerCopy, rank, copyLine, cutLabel } from './copies.js';
@@ -549,7 +549,7 @@ native?.player.onEvent((e) => {
     // the player's diagnosis (a card, chip, failure card or the Connection panel): no score or clock is in it
     window.__diag = { cause: e.cause, surface: e.surface, at: Date.now() };   // (the emulator test reads it)
   } else if (e.type === 'refresh') {   // Refresh channels, from a channel that's off at the provider
-    forget().then(() => { resetGuides(); return ensure('live'); }).then(() => cmd('show-text', 'Channels are up to date')).catch((er) => cmd('show-text', er?.message || 'Couldn’t refresh the channels'));
+    refreshNow().then(() => { resetGuides(); cmd('show-text', 'Channels are up to date'); }).catch((er) => cmd('show-text', er?.message || 'Couldn’t refresh the channels'));
   } else if (e.type === 'goto-account') {   // the account has ended: Account, once the player has closed
     c.gotoAfter = 'account';
   } else if (e.type === 'lag') {

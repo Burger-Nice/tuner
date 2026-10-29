@@ -89,16 +89,17 @@ function backToForm(a, e) {
   err = e?.message || '';
   const wrong = /wrong username or password/i.test(err);                       // retype the password
   const missing = /enter (your|the)/i.test(err);                               // a field left empty: go to it
-  errAt = e && (wrong || missing || /account is/i.test(err)) ? 'pass' : 'server';
+  errAt = e && (wrong || (missing && !/server address/i.test(err)) || /account is/i.test(err)) ? 'pass' : 'server';   // ("Enter the server address." sits under the server)
   step = formOf(a);
   draw();
   if (step === 'type') {
     el.querySelector('#fServer').value = a.server || ''; el.querySelector('#fUser').value = a.username || '';
     if (!wrong) el.querySelector('#fPass').value = a.password || '';
     const empty = ['#fServer', '#fUser', '#fPass'].find((s) => !el.querySelector(s).value);
-    if (e) focus(el.querySelector(missing && empty ? empty : wrong ? '#fPass' : '[data-act="signin"]'));
+    // (Back while connecting, no error: on Sign in too, so trying again is one OK)
+    focus(el.querySelector(e && missing && empty ? empty : e && wrong ? '#fPass' : '[data-act="signin"]'));
   }
-  if (step === 'm3u') { el.querySelector('#fUrl').value = a.url || ''; if (e) focus(el.querySelector('[data-act="loadm3u"]')); }
+  if (step === 'm3u') { el.querySelector('#fUrl').value = a.url || ''; focus(el.querySelector('[data-act="loadm3u"]')); }
 }
 async function run(a) {
   const my = ++seq, h = a.server ? host(a.server) : a.name || '';

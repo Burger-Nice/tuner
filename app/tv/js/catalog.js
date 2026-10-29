@@ -70,8 +70,25 @@ function cacheKey(kind) {
   return `${a.id}:${(h >>> 0).toString(36)}:${kind}`;
 }
 export const cacheAt = (kind) => catalog[kind]?._at || 0;
-// Refresh: forget the saved lists so the next open asks the provider.
+// Forget the saved lists so the next open asks the provider (the tests start from the provider this way).
 export async function forget() { if (S.acc) for (const k of ['live', 'movie', 'series']) await window.Core.cache.set(cacheKey(k), null); resetCatalogs(); }
+// Refresh now (Account, the player): the channel list is asked for at once and swapped in only once it has arrived, so a
+// provider that's down or busy keeps what's saved; films and series follow the way a background refresh does (fetched
+// once the remote rests or you're watching, swapped in when they aren't on screen), never wiped first.
+export async function refreshNow() {
+  const my = S.epoch;
+  const c = await S.src.live();
+  if (my !== S.epoch) throw new Error('stale');
+  c.at = Date.now();
+  await prepare('live', c);
+  if (my !== S.epoch) throw new Error('stale');
+  delete fresh.live; delete pending.live;
+  catalog.live = c;
+  save('live', c);
+  emit('catalog', 'live');
+  for (const k of ['movie', 'series']) refreshLater(k, my);
+  return c;
+}
 
 export function ensure(kind) {
   if (catalog[kind]) return Promise.resolve(catalog[kind]);
@@ -542,7 +559,7 @@ export function searchAll(q, limit = 30) {
   const score = (t) => (t._s.startsWith(words[0]) ? 0 : 1);
   const pick = (list) => { const out = []; for (const t of list) { if (hit(t._s)) out.push(t); if (out.length > 400) break; } return out.sort((a, b) => score(a) - score(b) || (b._pop || 0) - (a._pop || 0)).slice(0, limit); };
   return {
-    live: catalog.live ? pick(catalog.live.items) : [],
+    live: catalog.live ? pick(catalog.live.items).filter((c) => !c._sep) : [],
     movie: catalog.movie?.titles ? pick(catalog.movie._sorted.popular || catalog.movie.titles) : [],
     series: catalog.series?.titles ? pick(catalog.series._sorted.popular || catalog.series.titles) : [],
   };

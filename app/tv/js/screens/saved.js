@@ -58,7 +58,7 @@ function draw() {
   } else {
     const h = history();
     el._hist = h;
-    body = h.length ? `<div class="abs" style="left:48px;top:134px;width:864px;height:379px;overflow:hidden"><div class="inner" data-col style="transform:translateY(${-gridTop}px);transition:transform 200ms var(--a-ease)">${h.map((p, i) => {
+    body = h.length ? `<div class="abs" style="left:36px;top:128px;width:888px;height:385px;padding:6px 12px;box-sizing:border-box;overflow:hidden"><div class="inner" data-col style="transform:translateY(${-gridTop}px);transition:transform 200ms var(--a-ease)">${h.map((p, i) => {
       const it = p.item, mk = it.kind === 'movie' ? videoMask(it) : null;
       const title = mk ? mk.title : it.kind === 'rp' ? (it.game ? `${it.game.away.name} at ${it.game.home.name} · Replay` : `${it.title || it.name} · Replay`) : it.kind === 'episode' ? `${it.seriesName} · S${it.season} E${it.ep}` : it._title || it.name;
       const done = p.done || p.t >= p.d * 0.94;

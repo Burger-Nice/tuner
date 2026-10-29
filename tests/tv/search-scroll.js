@@ -8,6 +8,11 @@ module.exports = async ({ p, shot, key }) => {
   await require('./signin.js')({ p, key });
   await p.waitForTimeout(3000);
   await ev(() => window.__tunerTest.go('search')); await p.waitForTimeout(2500);
+  // OK on a Trending poster opens its title (its data-key once made it type its id, hunt 3)
+  await ev(() => document.querySelector('[data-right] .pc')?.focus()); await key('Enter', 1, 1500);
+  check('OK on a Trending poster opens the title', await ev(() => window.__tunerTest.state().screen) === 'detail', await ev(() => document.querySelector('.sfield')?.innerText || ''));
+  await key('Escape', 1, 1200);
+  await ev(() => document.querySelector('[data-key="A"]')?.focus());
   for (const c of 'NIGHT') await p.keyboard.press(c);
   await p.waitForFunction(() => document.querySelectorAll('[data-right] .rrow').length > 3, null, { timeout: 30000 }).catch(() => {});
   await p.waitForTimeout(500);

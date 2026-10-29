@@ -3,7 +3,7 @@ import { esc, ic, dot, setHtml, host } from '../util.js';
 import { S, on, emit, settings, saveSettings, store } from '../state.js';
 import { subSettings, saveSubSettings } from '../subs.js';
 import { rowValues } from '../subs/prefs.js';
-import { catalog, resetCatalogs, ensure, forget } from '../catalog.js';
+import { catalog, resetCatalogs, refreshNow } from '../catalog.js';
 import { resetGuides } from '../guide.js';
 import { setShield, shieldMode, favTeam, delayFor, nba } from '../games.js';
 import { native } from '../native.js';
@@ -168,7 +168,7 @@ async function guideCheck() {
     ['Replays', `${ch.archive ? keptWords(ch.archive) : NOT_KEPT} · ${(catalog.live?.items || []).filter((c) => c.archive > 0).length} channels have replays`],
   ];
   if (!ov.el.isConnected) return;
-  ov.el.querySelector('.inner').innerHTML = lines.map(([k, v], i) => `<div class="lr fx" tabindex="-1"${i ? '' : ' data-first'}><span style="width:120px;flex:none" class="t-3">${k}</span><span class="grow ellipsis">${esc(v)}</span></div>`).join('');
+  ov.el.querySelector('.inner').innerHTML = lines.map(([k, v], i) => `<div class="lr fx" tabindex="-1"${i ? '' : ' data-first'} style="height:auto;min-height:48px"><span style="width:120px;flex:none" class="t-3">${k}</span><span class="grow" style="white-space:normal;overflow-wrap:anywhere;line-height:20px;padding:6px 0">${esc(v)}</span></div>`).join('');   // (wrapped, never cut: it's there to be photographed)
   focus(ov.el.querySelector('.lr'));
 }
 // Languages: a tick sheet in the order you tick them (Shown first, Subtitle languages). done(list) when it closes.
@@ -177,7 +177,7 @@ function tickSheet(title, cur, done, cap = 'In the order you tick them') {
   const drawL = () => ov.el.querySelector('.inner').innerHTML = LANGS.map((l) => `<div class="lr fx" tabindex="-1" data-act="${l}"><span class="ck${langs.includes(l) ? ' on' : ''}">${langs.includes(l) ? ic('check') : ''}</span><span class="grow">${l}</span>${langs.includes(l) ? `<small>${langs.indexOf(l) + 1}</small>` : ''}</div>`).join('');
   const ov = openOverlay(`<div class="sheet"><h3>${esc(title)}</h3><div class="t-cap" style="margin-top:-6px">${esc(cap)}</div><div class="sheet-body"><div class="inner" data-col></div></div></div>`, {
     onClick: (l) => { langs = langs.includes(l) ? langs.filter((x) => x !== l) : [...langs, l]; if (!langs.length) langs = [cur[0] || 'English']; const at = document.activeElement?.dataset.act; drawL(); focus(ov.el.querySelector(`[data-act="${at}"]`)); },
-    onClose: () => done(langs),
+    onClose: () => { if (langs.join() !== cur.join()) done(langs); },   // (nothing changed: nothing to redo)
   });
   drawL(); focus(ov.el.querySelector('.lr')); scrollList(ov.el);
 }
@@ -192,11 +192,11 @@ function act(a) {
       try { await switchTo(x); go('home'); } catch (e) { toast(e.message, 5000); }
     } });
   } else if (a === 'add') go('first', { add: true });
-  else if (a === 'refresh') { toast('Refreshing channels, movies and series…'); forget().then(() => { resetGuides(); return ensure('live'); }).then(() => { draw(); toast('Channels are up to date'); }).catch((e) => toast(e.message, 5000)); }
+  else if (a === 'refresh') { toast('Refreshing channels, movies and series…'); refreshNow().then(() => { resetGuides(); draw(); toast('Channels are up to date'); }).catch((e) => toast(e.message, 5000)); }
   else if (a === 'signout') confirmMenu({ title: 'Sign out?', text: `airglow forgets ${S.acc?.name || 'this account'} on this TV. Your saved channels and progress go with it.`, yes: 'Sign out', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first'); } });
   else if (a === 'skip') radioMenu({ title: 'Skip intros and recaps', value: s.skipIntro || 'button', rows: [{ v: 'button', l: 'Show a button', sub: 'One press skips it' }, { v: 'auto', l: 'Skip by itself', sub: 'You can go back for 5 s' }, { v: 'off', l: 'Off', sub: 'No buttons' }], onPick: (v) => { saveSettings({ skipIntro: v }); draw(); } });   // (design/ui-v1/skip/SPEC.md 4.1)
   else if (a === 'zap') radioMenu({ title: 'Up arrow in the player', value: s.zapUp || 'next', rows: [{ v: 'next', l: 'Next channel' }, { v: 'prev', l: 'Previous channel' }], onPick: (v) => { saveSettings({ zapUp: v }); draw(); } });
-  else if (a === 'format') radioMenu({ title: 'Stream format', value: s.liveFormat, rows: [{ v: 'hls', l: 'HLS', sub: 'Most providers' }, { v: 'ts', l: 'Transport stream', sub: 'Steadier on some' }], onPick: (v) => { saveSettings({ liveFormat: v }); resetCatalogs(); draw(); } });
+  else if (a === 'format') radioMenu({ title: 'Stream format', value: s.liveFormat, rows: [{ v: 'hls', l: 'HLS', sub: 'Most providers' }, { v: 'ts', l: 'Transport stream', sub: 'Steadier on some' }], onPick: (v) => { if (v === s.liveFormat) return; saveSettings({ liveFormat: v }); resetCatalogs(); draw(); } });   // (the lists are made again only for a real change)
   else if (a === 'previews') { saveSettings({ previews: !s.previews }); flip(!s.previews); draw(); }
   else if (a === 'sounds') radioMenu({ title: 'Sounds', value: sfx.level(), rows: [{ v: 'on', l: 'On' }, { v: 'quiet', l: 'Quiet', sub: 'Half as loud' }, { v: 'off', l: 'Off' }], onPick: (v) => {
     saveSettings({ sounds: v }); sfx.mode(v); if (v !== 'off') setTimeout(() => sfx.play('select', { cd: 0 }), 60); draw();
@@ -236,7 +236,13 @@ function act(a) {
       else if (v === 'remove') { TMDB.clearKey(); toast('TMDB key removed · the rows use Cinemeta\'s lists'); draw(); }
     } });
   } else if (a?.startsWith('rk:')) { const k = a.slice(3), on = !!R.rowsOff()[k]; R.setRowOn(k, on); flip(on); draw(); }
-  else if (a?.startsWith('rh:')) { R.unhideRow(a.slice(3)); toast('The row comes back on Home'); draw(); }
+  else if (a?.startsWith('rh:')) {
+    // focus stays among the hidden rows: the next one, else the one above, else where the pane starts
+    const rows = [...el.querySelectorAll('[data-act^="rh:"]')], i = rows.findIndex((x) => x.dataset.act === a), next = (rows[i + 1] || rows[i - 1])?.dataset.act;
+    R.unhideRow(a.slice(3)); toast('The row comes back on Home'); draw();
+    const to = next && el.querySelector(`[data-act="${CSS.escape(next)}"]`);
+    if (to) focus(to);
+  }
   else if (a === 'picks') import('./home.js').then((H) => H.pickSheet(() => draw()));
   else if (a === 'hints') { R.resetHints(); toast('The hints show again on Home'); }
   else if (a === 'rowsreset') { R.resetRows(); toast('Home rows are reset'); draw(); }

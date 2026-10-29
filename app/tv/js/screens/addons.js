@@ -465,7 +465,7 @@ export function tmdbKeyScreen(done) {
         note = 'Checking the key with TMDB…'; draw();
         const r = await TMDB.checkKey(e.key);
         if (!open) return;
-        if (r.ok) { TMDB.setKey(TMDB.cleanKey(e.key)); ov.close(false); toast('TMDB key kept · your rows get better from here'); done?.(); }
+        if (r.ok) { TMDB.setKey(TMDB.cleanKey(e.key)); ov.close(); toast('TMDB key kept · your rows get better from here'); done?.(); }
         else { note = r.why; draw(); }
       }
     });
@@ -476,7 +476,7 @@ export function tmdbKeyScreen(done) {
     if (ov.el.isConnected) draw();
   })();
   t10 = setTimeout(() => { if (ov.el.isConnected) ov.close(); }, 10 * 60e3);
-  ov.el.addEventListener('click', (e) => { if (e.target.closest('[data-act="type"]')) { ov.close(false); tmdbTypeKey(done); } });
+  ov.el.addEventListener('click', (e) => { if (e.target.closest('[data-act="type"]')) { ov.close(); tmdbTypeKey(done); } });   // (closed with focus back on Account's row: the next one returns there)
   draw();
 }
 export function tmdbTypeKey(done) {
@@ -500,7 +500,7 @@ export function tmdbTypeKey(done) {
     const r = await TMDB.checkKey(v);
     if (!ov.el.isConnected) return;
     if (!r.ok) { err = r.why; draw(); return focus(step.querySelector('#tmKey')); }
-    TMDB.setKey(v); ov.close(false); toast('TMDB key kept · your rows get better from here'); done?.();
+    TMDB.setKey(v); ov.close(); toast('TMDB key kept · your rows get better from here'); done?.();
   });
   draw(); focus(step.querySelector('#tmKey'));
 }
