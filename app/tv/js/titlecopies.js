@@ -82,7 +82,13 @@ export function titleCopies(t, onChange) {
   // ---- words ----
   // (an Unsure match shows it too: its Copies menu asks "Which film is this?")
   tc.unsure = () => tc.match?.level === 'unsure' && !tc.match.none && (tc.match.cands || []).length > 0;
-  tc.pillShows = (n = tc.copies().length) => tc.active && (n >= 2 || (n === 1 && tc.addons && (tc.asking().length > 0 || tc.unsure())));
+  // (a lone copy's pill, shown while the add-ons were asked, stays once shown: the row doesn't shift under the remote and
+  // focus isn't thrown back to Play when the asking ends)
+  tc.pillShows = (n = tc.copies().length) => {
+    const on = !!tc.active && (n >= 2 || (n === 1 && (tc.pillKept || (tc.addons && (tc.asking().length > 0 || tc.unsure())))));
+    if (on) tc.pillKept = true;
+    return on;
+  };
   // "[tick] 4K HDR10 · best of 4" (checked) or the name's claim; the source follows the quality only when add-on copies
   // are in the list (subtitles SPEC 15)
   tc.pillHtml = (best = tc.best(), n = tc.copies().length, suffix = '', list = null) => {
