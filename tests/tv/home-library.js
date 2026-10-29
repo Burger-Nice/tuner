@@ -86,4 +86,17 @@ module.exports = async (ctx) => {
   await ev(() => window.__tunerTest.go('movie')); await p.waitForTimeout(2000);
   const c2 = await ev(() => [...document.querySelectorAll('[data-screen="movie"] .lib-chips .chip')].map((c) => c.textContent.trim()));
   check('without a key: no Top rated, no In Icelandic', !c2.includes('Top rated') && !c2.includes('In Icelandic'), c2.slice(0, 6).join(','));
+  const clearFilters = async () => { await ev(() => document.querySelector('[data-screen="movie"] [data-act="filters"]').focus()); await key('Enter', 1, 800); await ev(() => document.querySelector('#overlays [data-act="clear"]')?.click()); await key('Escape', 1, 1500); };
+  // hunt 3: an empty filter's Clear filters keeps focus when the NBA data refreshes
+  await ev(() => window.__tunerTest.go('movie')); await p.waitForTimeout(2000); await key('ArrowUp', 1, 500);
+  await clearFilters();
+  await ev(() => document.querySelector('[data-screen="movie"] [data-act="filters"]').focus()); await key('Enter', 1, 800);
+  for (const [k, v] of [['imdb', '8'], ['decade', 'Older'], ['lang', 'is']]) { await ev(([k, v]) => document.querySelector(`#overlays [data-k="${k}"][data-v="${v}"]`)?.focus(), [k, v]); await key('Enter', 1, 200); }
+  await key('Escape', 1, 2000);
+  const hasClear = await ev(() => { const b = document.querySelector('[data-screen="movie"] .lb-grid [data-act="clear"]'); b?.focus(); return !!b; });
+  if (hasClear) {
+    await ev(async () => (await import('/tv/js/state.js')).emit('nba')); await p.waitForTimeout(400);
+    check('the empty state: focus stays on Clear filters through an NBA refresh', await ev(() => document.activeElement.dataset.act === 'clear'));
+    await key('Enter', 1, 1500);
+  } else console.log('(the filters matched something; the empty-state check skipped)');
 };

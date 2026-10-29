@@ -39,7 +39,10 @@ export default function lib(kind) {
     return s || SH.shelves(kind)[0];
   }
   const shelfName = () => { const k = view.shelf, g = genreOf(k); return g || SH.shelves(kind).find((x) => x.key === k)?.label || 'Popular'; };
-  const orderName = () => (['popular', 'new', 'top'].includes(view.shelf) ? '' : ORDERS.find(([k]) => k === view.order)?.[1] || '');
+  // (a fixed shelf names its order only when it's A–Z; Saved and History keep their own order)
+  const fixedShelf = () => ['popular', 'new', 'top'].includes(view.shelf);
+  const sortKey = () => (view.order === 'az' || !fixedShelf() ? view.order : view.shelf);
+  const orderName = () => (['saved', 'history'].includes(view.shelf) || (fixedShelf() && view.order !== 'az') ? '' : ORDERS.find(([k]) => k === view.order)?.[1] || '');
   // the pager for this shelf and order (a genre's New is its own list: newest first; Title A–Z sorts what is loaded)
   function openShelf() {
     const d = shelfDef();
@@ -100,7 +103,7 @@ export default function lib(kind) {
     const chips = chipDefs().map(([k, l, by]) => `<span class="chip lg fx${k === view.shelf || (k === 'more' && genreOf(view.shelf) && !myG.includes(genreOf(view.shelf))) ? ' sel' : ''}" tabindex="-1" data-chip="${esc(k)}">${esc(k === 'more' && genreOf(view.shelf) && !myG.includes(genreOf(view.shelf)) ? genreOf(view.shelf) : l)}${by ? `<span class="ad-by">${esc(by)}</span>` : ''}</span>`).join('');
     return `<div class="lib-head" data-row><span class="t-head">${label}</span><span class="t-cap" style="margin-top:6px">${esc(ctx)}${dot}${esc(countLine())}</span><span class="grow"></span>
       <span class="pillbtn fx" tabindex="-1" data-act="search">${ic('search')}Search</span>
-      <span class="pillbtn fx" tabindex="-1" data-act="sort">${ic('sort')}Sort<b>${esc(ORDERS.find(([k]) => k === (['popular', 'new', 'top'].includes(view.shelf) ? view.shelf : view.order))?.[1] || 'Popular')}</b></span>
+      <span class="pillbtn fx" tabindex="-1" data-act="sort">${ic('sort')}Sort<b>${esc(ORDERS.find(([k]) => k === sortKey())?.[1] || 'Popular')}</b></span>
       <span class="pillbtn fx" tabindex="-1" data-act="filters">${ic('sliders')}Filters${fCount() ? `<span class="cnt">${fCount()}</span>` : ''}</span>
       <span class="pillbtn fx" tabindex="-1" data-act="jump">${ic('chevD')}Jump</span></div>
       <div class="lib-chips" data-row>${chips}</div>`;
@@ -110,25 +113,42 @@ export default function lib(kind) {
     const art = it.poster ? `<img src="${esc(SH.posterSmall(it.poster))}" alt="" decoding="async" data-ini="${esc(initials(it.name))}">` : '';
     return `<div class="lb-p fx${it.poster ? '' : ' txt'}" tabindex="-1" data-i="${i}" data-key="t:${esc(it.kind)}:${esc(it.imdb || it.id)}" data-hold style="left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px">${art}${it.poster ? '' : `<small>No poster</small><b>${esc(it.name)}</b>`}</div>`;
   }
+  // A state card (no add-on, empty, failed, loading): left alone when it hasn't changed (the 'nba' poll redraws often), and
+  // focus stays on its button when it has.
+  function setState(html) {
+    if (grid._state === html && !grid.querySelector('.lb-p')) return;
+    const a = document.activeElement, act = grid.contains(a) ? a.dataset.act : null;
+    grid.innerHTML = html; grid._state = html;
+    const b = act && grid.querySelector(`[data-act="${act}"]`);
+    if (b) focus(b);
+  }
   function drawGrid(focusIdx) {
     if (!anyStreamAddon()) {
-      grid.innerHTML = `<div class="state big" style="position:relative;margin:24px auto 0;left:0;width:620px"><div class="ico">${ic('film')}</div><b>Films and series come from your add-ons</b><p>Add a Stremio add-on for films and series. Your provider stays your live TV.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="addons">Add an add-on</span></span></div>`;
+      setState(`<div class="state big" style="position:relative;margin:24px auto 0;left:0;width:620px"><div class="ico">${ic('film')}</div><b>Films and series come from your add-ons</b><p>Add a Stremio add-on for films and series. Your provider stays your live TV.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="addons">Add an add-on</span></span></div>`);
       grid.style.transform = `translateY(${TOP0}px)`;
       return;
     }
     if (!list.length) {
       const loading = pager && !pager.end && !pager.failed;
-      grid.innerHTML = loading ? Array.from({ length: 12 }, (_, i) => `<span class="skb" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px;width:124px;height:186px;border-radius:12px"></span>`).join('')
+      setState(loading ? Array.from({ length: 12 }, (_, i) => `<span class="skb" style="position:absolute;left:${(i % COLS) * COLW}px;top:${Math.floor(i / COLS) * PITCH}px;width:124px;height:186px;border-radius:12px"></span>`).join('')
         : pager?.failed ? `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('wifiOff')}</div><b>This shelf isn't answering</b><p>Try again in a minute, or pick another shelf.</p><span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="retry">Try again</span></span></div>`
-        : `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('sliders')}</div><b>${fCount() ? 'Nothing matches these filters' : 'Nothing here yet'}</b><p>${fCount() ? 'Remove the last one, or clear them all.' : view.shelf === 'saved' ? 'Titles you save show up here.' : 'Titles you watch show up here.'}</p>${fCount() ? '<span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="clear">Clear filters</span></span>' : ''}</div>`;
+        : `<div class="state big" style="position:relative;margin:24px auto 0;left:0"><div class="ico">${ic('sliders')}</div><b>${fCount() ? 'Nothing matches these filters' : 'Nothing here yet'}</b><p>${fCount() ? 'Remove the last one, or clear them all.' : view.shelf === 'saved' ? 'Titles you save show up here.' : view.shelf === 'history' ? 'Titles you watch show up here.' : 'This shelf came back empty. Pick another one, or look again later.'}</p>${fCount() ? '<span class="row-flex" data-row style="gap:12px;justify-content:center"><span class="btn fx" tabindex="-1" data-act="clear">Clear filters</span></span>' : ''}</div>`);
       grid.style.transform = `translateY(${TOP0}px)`;
       return;
+    }
+    grid._state = null;
+    // the list re-sorted under the focus (A–Z merging a new page, the shield's masks): focus follows the title it was on
+    const cur = document.activeElement;
+    if (focusIdx == null && cur?.parentElement === grid && cur.dataset.i && cur._t && list[+cur.dataset.i] !== cur._t) {
+      const j = list.indexOf(cur._t);
+      focusIdx = j >= 0 ? j : Math.min(+cur.dataset.i, list.length - 1);
+      row = Math.floor(focusIdx / COLS);
     }
     // at most 8 rows (48 titles) mounted around the focus; the rest are drawn again from the list on the way back
     const a = Math.max(0, row - BEFORE), b = Math.min(Math.ceil(list.length / COLS), row + AFTER + 1);
     const want = new Set();
     for (let r = a; r < b; r++) for (let c = 0; c < COLS; c++) { const i = r * COLS + c; if (i < list.length) want.add(i); }
-    for (const node of [...grid.children]) { const i = +node.dataset.i; if (!node.dataset.i || !want.has(i) || node._t !== list[i]) { if (node === document.activeElement) continue; node.remove(); } }
+    for (const node of [...grid.children]) { const i = +node.dataset.i; if (!node.dataset.i || !want.has(i) || node._t !== list[i]) { if (node === document.activeElement && focusIdx == null) continue; node.remove(); } }
     const have = new Set([...grid.children].map((n) => +n.dataset.i));
     let html = '';
     for (const i of want) if (!have.has(i)) html += cell(list[i], i);
@@ -147,7 +167,7 @@ export default function lib(kind) {
     barHidden(inGrid && current() === kind);
     if (!inGrid) return;
     const a = document.activeElement, it = a?.closest?.('.lb-p') ? list[+a.dataset.i] : null;
-    const ctx = [label, shelfName(), orderName() || (['popular', 'new', 'top'].includes(view.shelf) ? '' : 'Popular'), fCount() ? `${fCount()} filter${fCount() > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+    const ctx = [label, shelfName(), orderName() || (fixedShelf() || ['saved', 'history'].includes(view.shelf) ? '' : 'Popular'), fCount() ? `${fCount()} filter${fCount() > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
     const d = it?._d || {};
     const rt = d.runtime || it?.runtime;
     const facts = it ? [it.year ? (kind === 'series' ? `${it.year}–` : String(it.year)) : '', rt ? (kind === 'series' ? `${rt} min` : rt >= 60 ? `${Math.floor(rt / 60)}h ${String(rt % 60).padStart(2, '0')}m` : `${rt} min`) : '', (it.genres || []).slice(0, 2).join(' · '), it.rating && it.src !== 'tmdb' ? `IMDb ${it.rating.toFixed(1)}` : ''].filter(Boolean).join('  ·  ') : '';
@@ -209,7 +229,7 @@ export default function lib(kind) {
   function sortMenu() {
     const fixed = ['popular', 'new', 'top'].includes(view.shelf);
     const rows = ORDERS.filter(([k]) => k !== 'top' || TM.hasKey()).map(([v, l]) => ({ v, l, sub: v === 'az' ? 'What has loaded so far' : '' }));
-    radioMenu({ title: 'Sort by', value: fixed ? view.shelf : view.order, rows, onPick: (v) => {
+    radioMenu({ title: 'Sort by', value: sortKey(), rows, onPick: (v) => {
       if (fixed && v !== 'az') setShelf(v, v);
       else { view = { ...view, order: v }; saveView(); if (v === 'az') { relist(); row = 0; draw(); } else { openShelf(); draw(); } }
       focus(el.querySelector('[data-act="sort"]'));
@@ -236,7 +256,7 @@ export default function lib(kind) {
   }
   function jumpMenu() {
     const marks = [0, 100, 250, 500, 1000, 2000].filter((x) => x < list.length);
-    radioMenu({ title: 'Jump to', value: null, rows: marks.map((x) => ({ v: String(x), l: x ? `#${x.toLocaleString()}` : 'Top of the list' })), extra: '<div class="t-cap" style="padding:8px 8px 2px">Further down loads as you scroll</div>', onPick: (v) => { const i = +v; move(i, false); } });
+    radioMenu({ title: 'Jump to', value: null, rows: marks.map((x) => ({ v: String(x), l: x ? `#${x.toLocaleString()}` : 'Top of the list' })), extra: '<div class="t-cap" style="padding:8px 8px 2px">Further down loads as you scroll</div>', onPick: (v) => { const i = +v; move(Math.max(0, i - 1), false); } });   // (#100 is the 100th, as the bubble counts)
   }
   // the genres he watches most come first in the chips (the taste profile, else a sensible default)
   async function learnGenres() {
@@ -268,11 +288,11 @@ export default function lib(kind) {
         if (act === 'retry') { openShelf(); return; }
         if (act === 'clear') { view = { ...view, f: {} }; saveView(); relist(); draw(); return; }
         const card = e.target.closest('.lb-p');
-        if (card) SH.openItem(list[+card.dataset.i]);
+        if (card) SH.openItem(card._t || list[+card.dataset.i]);   // (the title drawn on it)
       });
       root.addEventListener('tvhold', (e) => {
         const card = e.target.closest('.lb-p'); if (!card) return;
-        const it = list[+card.dataset.i]; if (!it) return;
+        const it = card._t || list[+card.dataset.i]; if (!it) return;
         const fav = { kind, id: it.imdb || it.id, key: it.imdb || it.id, name: it.name, poster: it.poster, year: it.year ? String(it.year) : '', addon: { type: kind }, _genres: it.genres };
         contextMenu(card, [
           { icon: 'saved', label: isFav(fav) ? 'Remove from Saved' : 'Save to Saved', run: async () => { const id = await SH.imdbOfItem(it); if (!id) return toast('airglow couldn\'t find this title\'s details'); fav.id = fav.key = id; toast(toggleFav(fav) ? `Saved ${it.name}` : `Removed ${it.name}`); } },
