@@ -5,7 +5,7 @@ fs.mkdirSync('ios-shots', { recursive: true });
 const seen = new Set();
 const start = Date.now();
 (async () => {
-  while (Date.now() - start < 300000) {
+  while (Date.now() - start < 480000) {
     let reports = [];
     try { reports = await (await fetch('http://127.0.0.1:8899/_reports')).json(); } catch {}
     for (const [i, r] of reports.entries()) {
