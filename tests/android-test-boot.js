@@ -539,11 +539,12 @@ window.TUNER_TEST = true;
         // NX-3: the row's Next episode on an add-on episode with nothing lined up (no copy of S1 E5 yet): on demand
         s = await poll('nx-e4-nocopy', (x) => /next=nocopy/.test(x), 20000);
         await hold('tt9000020:1:5', true);
-        // (quick steps: the controls hide 4 s after a key)
-        await quick(['DPAD_UP'], 'nx-e4-buttons', 300);
-        await quick(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'nx-e4-to-next', 200);
+        await quick(['DPAD_UP', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'nx-e4-to-next', 200);
         const btn = await sk('nx-e4-next-focus');
-        await quick(['DPAD_CENTER'], 'nx-e4-next-ok', 300);
+        // (the controls hide 4 s after a key, and the steps between can take longer: once they have, the same keys and OK
+        // in one step)
+        await poll('nx-e4-controls', (x) => /controls=false/.test(x), 7000);
+        await quick(['DPAD_UP', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_CENTER'], 'nx-e4-next-ok', 300);
         await shot('player-next-button');
         s = await poll('nx-e5-playing', (x) => /index=3 /.test(x) && /playing=true/.test(x), 20000);
         check('next NX-3: Next episode is in the row with nothing lined up, and plays the next one on demand', /next=nocopy/.test(btn) && /focus=Next episode /.test(btn) && /index=3 /.test(s) && PL.ctx.cur?.items?.[3]?.id === 'tt9000020:1:5', { btn, s });
