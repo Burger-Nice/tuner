@@ -1,5 +1,5 @@
 // airglow TV: start-up, the remote's keys, and Back.
-import { $, sleep, ic } from './util.js';
+import { $, sleep, ic, remote } from './util.js';
 import { S, on, emit, settings, store } from './state.js';
 import { setBase, move, focus, entryOf, inLayer, topLayer } from './focus.js';
 import { closeTop, overlayKey, toast } from './ui.js';
@@ -62,6 +62,7 @@ let okIsDown = false, okLast = 0;
 document.addEventListener('keydown', (e) => {
   const k = keyName(e);
   if (!k) return;
+  remote.at = performance.now();
   if (k === 'ok') {
     const now = performance.now(), again = e.repeat || (okIsDown && now - okLast < 400);
     okIsDown = true; okLast = now;

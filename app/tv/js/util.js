@@ -6,6 +6,23 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Lets the remote's key presses through between chunks of heavy work.
 export const breathe = () => new Promise((r) => setTimeout(r, 0));
+// The remote's last key (main.js sets it): background redraws (a poll, data landing) wait until it has been quiet a
+// moment, so they never take a frame from a press or a held key.
+export const remote = { at: 0 };
+const idleFns = new Set();
+let idleT = 0;
+export function whenIdle(fn, quiet = 300) {
+  idleFns.add(fn);
+  if (idleT) return;
+  const run = () => {
+    const wait = remote.at + quiet - performance.now();
+    if (wait > 0) { idleT = setTimeout(run, wait); return; }
+    idleT = 0;
+    const list = [...idleFns]; idleFns.clear();
+    for (const f of list) f();
+  };
+  run();
+}
 export const host = (u) => { try { return new URL(u).host; } catch { return u; } };
 export const keyOf = (it) => `${it.kind}:${it.id}`;
 // Provider art is often a TMDB link to the full-size original: ask TMDB for the size the slot needs instead
@@ -122,6 +139,34 @@ export function setHtml(el, html, restore = true) {
     if (to) focus(to);
     else { const scr = el.closest('[data-screen]'); focus(entryOf(scr || el)); }
   }
+  return true;
+}
+
+// A list redrawn part by part: parts are [key, html] in order (keys ascending, as the list scrolls). A part whose html
+// is unchanged keeps its nodes; only new or changed parts are parsed. Nodes are never moved (moving the focused one
+// would blur it). Returns true when anything changed. (The guide redrew every row on each ▲▼, a style, layout and
+// paint of the whole grid per press.)
+const tpl = document.createElement('template');
+export function patchList(el, parts) {
+  const all = parts.map((x) => x[1]).join('');
+  if (el._html === all && el.childNodes.length) return false;
+  const want = new Map(parts);
+  const keep = new Map();
+  for (const n of [...el.childNodes]) {
+    if (n._k != null && want.get(n._k) === n._html && !keep.has(n._k)) { keep.set(n._k, n); n._mem = null; }
+    else n.remove();
+  }
+  let at = el.firstChild;
+  for (const [k, html] of parts) {
+    const old = keep.get(k);
+    if (old) { at = old.nextSibling; continue; }
+    tpl.innerHTML = html;
+    const n = tpl.content.firstElementChild;
+    if (!n) continue;
+    n._k = k; n._html = html;
+    el.insertBefore(n, at);
+  }
+  el._html = all;
   return true;
 }
 

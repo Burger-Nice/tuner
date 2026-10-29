@@ -1,7 +1,7 @@
 // Live guide: the Now panel, a ruler with the group chip and "Now", and six channel rows whose programmes sit by time
 // (656 px = 2.5 h from now). ◀▶ move along time, ▲▼ between channels, OK tunes the programme on now (or shows a later
 // one), hold OK favourites with an undo toast, CH± pages, digits jump. The group you pick is the player's zap ring.
-import { $, esc, ic, dot, liveP, logo, hm, setHtml } from '../util.js';
+import { $, esc, ic, dot, liveP, logo, hm, setHtml, patchList } from '../util.js';
 import { S, on, store, scoped, favList, toggleFav, isFav } from '../state.js';
 import { catalog, ensure, takeFresh } from '../catalog.js';
 import { guideFor, guideNow, guideFailed, onNow, warm, known, pastFor, pastNow, pastFailed, pastKnown } from '../guide.js';
@@ -233,7 +233,7 @@ function draw(focusAt) {
   const vis = chans.slice(top, top + ROWS);
   const grid = el.querySelector('.g-grid'), a = document.activeElement, inGrid = grid.contains(a) && a !== grid;
   const was = inGrid ? (a.dataset.act === 'group' ? 'chip' : a.hasAttribute('data-ch') ? 'ch' : 'cell') : null;
-  const changed = setHtml(grid, `${ruler()}${vis.map((ch, i) => row(ch, top + i)).join('')}`, false);
+  const changed = patchList(grid, [['ruler', ruler()], ...vis.map((ch, i) => [`r${top + i}:${ch.id}`, row(ch, top + i)])]);
   if (focusAt) focusAt();
   else if (changed && was === 'chip') focus(el.querySelector('[data-act="group"]'));
   else if (changed && was === 'ch') focus(el.querySelector(`.g-ch[data-r="${r}"]`));

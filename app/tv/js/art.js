@@ -5,7 +5,9 @@
 import { esc } from './util.js';
 
 const memo = new Map(), logos = new Map(), ready = new Map();
-const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+// (a table: a logo's ink is up to 240 x 240 pixels, three Math.pow each was most of its cost)
+const LIN = Float64Array.from({ length: 256 }, (_, v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+const lin = (v) => LIN[v];
 // the small copy of a backdrop: metahub's small size, TMDB's w300
 export const small = (u) => String(u || '').replace(/\/background\/(medium|large)\//, '/background/small/').replace(/(image\.tmdb\.org\/t\/p\/)(w\d+|original)\//, '$1w300/');
 function load(src, ms = 4000) {

@@ -5,7 +5,7 @@
 // with its reason, the picture answering the focused title (gently), a row index at the right.
 // Nothing moves by itself: the page of rows changes between visits (rows.js), never under his thumb; the picture swaps
 // only after the focus rests 600 ms; a key press changes classes and one transform.
-import { esc, ic, setHtml, hm, leftText, sized, crest, teamPalette, initials } from '../util.js';
+import { esc, ic, setHtml, hm, leftText, sized, crest, teamPalette, initials, whenIdle } from '../util.js';
 import { S, on, store, scoped, settings, favList, continueRows, toggleFav, isFav, markWatched, progressOf, inProgress } from '../state.js';
 import { catalog, ensure } from '../catalog.js';
 import { guideNow, onNow, warm } from '../guide.js';
@@ -107,17 +107,17 @@ const chShort = (n) => { let s = String(n || '').replace(/^[A-Z]{2,3}\s*[|:]\s*/
 const metas = new Map();
 let metaT = 0;
 // A title's logo, or '' when it didn't load (the name shows in text then): each is tried once, a failure redraws
-const logoAsked = new Set();
+const logoAsked = new Set(), inkAsked = new Set();
 function okLogo(url) {
   if (!url || logoFailed(url)) return '';
-  if (!logoAsked.has(url)) { logoAsked.add(url); logoInfo(url).then((r) => { if (!r) { clearTimeout(metaT); metaT = setTimeout(softRedraw, 80); } }); }
+  if (!logoAsked.has(url)) { logoAsked.add(url); logoInfo(url).then((r) => { if (!r) { clearTimeout(metaT); metaT = setTimeout(softSoon, 80); } }); }
   return url;
 }
 function metaOf(type, imdb) {
   if (!imdb) return null;
   const k = `${type}:${imdb}`;
   if (metas.has(k)) return metas.get(k) instanceof Promise ? null : metas.get(k);
-  metas.set(k, AD.meta(type, imdb).then((m) => { metas.set(k, m || false); clearTimeout(metaT); metaT = setTimeout(softRedraw, 120); return m; }, () => metas.set(k, false)));
+  metas.set(k, AD.meta(type, imdb).then((m) => { metas.set(k, m || false); clearTimeout(metaT); metaT = setTimeout(softSoon, 120); return m; }, () => metas.set(k, false)));
   return null;
 }
 // A backdrop for a title Cinemeta has none for (or that has no IMDb id: a provider copy): TMDB's (with the key), else
@@ -144,7 +144,7 @@ function backdropFor(kind, imdb, name, year, tmdb) {
       if (h) url = (await AD.meta(kind, h.id).catch(() => null))?.background || '';
     }
     backs.set(k, url);
-    clearTimeout(metaT); metaT = setTimeout(softRedraw, 120);
+    clearTimeout(metaT); metaT = setTimeout(softSoon, 120);
   })().catch(() => backs.set(k, '')));
   return null;
 }
@@ -353,7 +353,8 @@ function drawLineup(keepKey) {
   placeLines();
   drawPeek();
   drawNote();
-  for (const v of views) if (v.logo && !v.logoAsked) { v.logoAsked = true; logoInfo(v.logo).then(() => { clearTimeout(metaT); metaT = setTimeout(softRedraw, 80); }); }
+  // (each logo's ink box is asked once: a redraw when it lands, not on every redraw, which looped every 80 ms)
+  for (const v of views) if (v.logo && !inkAsked.has(v.logo)) { inkAsked.add(v.logo); logoInfo(v.logo).then(() => { clearTimeout(metaT); metaT = setTimeout(softSoon, 80); }); }
 }
 function placeLines() {
   const box = mq.querySelector('.hf-lineup');
@@ -428,7 +429,13 @@ function applyPicture(spec) {
     };
     next.style.setProperty('--pos', spec.pos || '70% 40%');
     if (img.getAttribute('src') === spec.url && img.complete) swap();
-    else { img.onload = swap; img.onerror = () => { if (picKey === key) { showOnly('flat'); flat.innerHTML = ''; } }; img.src = spec.url; }
+    else {
+      // (decoded off the main thread before the fade: a 1280 px backdrop decoded in the fade's first frame stalled it)
+      const fail = () => { if (picKey === key) { showOnly('flat'); flat.innerHTML = ''; } };
+      img.onload = null; img.onerror = null; img.src = spec.url;
+      if (img.decode) img.decode().then(swap, () => { if (img.getAttribute('src') !== spec.url) return; if (img.complete && img.naturalWidth) swap(); else fail(); });
+      else { img.onload = swap; img.onerror = fail; }
+    }
     return;
   }
   if (spec.kind === 'game') {
@@ -578,13 +585,11 @@ function homeGameCard(g, i) {
 }
 const doorCard = (d, i) => `<div class="hf-w door fx" tabindex="-1" data-i="${i}" data-key="door:${esc(d.kind)}:${esc(d.shelf)}"><b>${esc(d.label)}</b><span>${d.kind === 'movie' ? 'Movies' : 'Series'}</span></div>`;
 const noteCard = (i) => `<div class="hf-w note fx" tabindex="-1" data-i="${i}" data-key="note:addons">${ic('plus')}<b>Add a Stremio add-on for films and series</b><span>OK opens Account &gt; Add-ons</span></div>`;
+const rowCard = (r, x, i, near) => (r.type === 'poster' ? posterCard(x, i, near) : r.type === 'game' ? homeGameCard(x, i) : r.type === 'channel' ? chCard(x, i) : r.type === 'door' ? doorCard(x, i) : r.type === 'note' ? noteCard(i) : wideCard(x, i, near));
 function cardsHtml(r, upto, near) {
   const n = Math.min(r.list.length, upto);
   let h = '';
-  for (let i = 0; i < n; i++) {
-    const x = r.list[i];
-    h += r.type === 'poster' ? posterCard(x, i, near) : r.type === 'game' ? homeGameCard(x, i) : r.type === 'channel' ? chCard(x, i) : r.type === 'door' ? doorCard(x, i) : r.type === 'note' ? noteCard(i) : wideCard(x, i, near);
-  }
+  for (let i = 0; i < n; i++) h += rowCard(r, r.list[i], i, near);
   if (r.more && n === r.list.length) h += seeAll(r, r.list.length);
   return h;
 }
@@ -610,8 +615,16 @@ function mountRows(force) {
     const at = mem[r.id] || 0;
     const want = at + MOUNT[r.type];   // (as many ahead of the focus as fit, and more: Right never reaches an unmounted card)
     if (!force && mounted[r.id] >= want && mounted[r.id] !== undefined) return;
-    const upto = Math.min(r.list.length, want);
-    setHtml(tr, cardsHtml(r, upto, Math.abs(i - fi) <= 1), false);
+    const upto = Math.min(r.list.length, want), near = Math.abs(i - fi) <= 1, had = mounted[r.id];
+    // (a Right that needs more cards adds them after the ones there: redrawing the whole row on every Right rebuilt
+    // its cards and the focused one, a style, layout and paint of the row per press)
+    if (!force && had !== undefined && upto > had && tr.children.length === had && tr._html) {
+      let h = '';
+      for (let k = had; k < upto; k++) h += rowCard(r, r.list[k], k, near);
+      if (r.more && upto === r.list.length) h += seeAll(r, r.list.length);
+      tr.insertAdjacentHTML('beforeend', h);
+      tr._html = cardsHtml(r, upto, near);
+    } else setHtml(tr, cardsHtml(r, upto, near), false);
     mounted[r.id] = upto;
   });
   paintImages();
@@ -660,11 +673,13 @@ function focusRow(i, j) {
   mountRows();
   if ((mem[r.id] || 0) >= (mounted[r.id] || 0) - 2 && mounted[r.id] < r.list.length) { mounted[r.id] = undefined; mountRows(true); }
   placeRows();
+  // (the column is written before the focus: focus() works out style and layout, and a write after it meant a second
+  // style and layout pass in the frame)
+  answerFocus();
   const c = cardEl();
   if (c) focusOwn(c);
   R.enteredRow(r.id);
   if (mem[r.id] >= r.list.length - 1) R.scrolledEnd(r.id);
-  answerFocus();
   return true;
 }
 // The column and the picture answer the focused card: the column at once (what is known), the picture after 600 ms
@@ -1025,6 +1040,7 @@ async function loadLineData() {
   softRedraw();
 }
 // a redraw that keeps the lit line and the row he is on; nothing under the TV player
+const softSoon = () => whenIdle(softRedraw);   // (data landing: once the remote is quiet)
 function softRedraw(full) {
   if (!el || el.hidden) return;
   if (watching()) { behind = true; return; }
@@ -1085,7 +1101,9 @@ export default {
     // once, the rest after the launch.
     let later = false;
     launchDone.then(() => { if (later) { later = false; redraw(); } warmRows(); });
-    const redraw = () => { if (current() !== 'home') return; if (!launchOpen()) { later = true; return; } softRedraw(); };
+    // (while the remote is busy it waits for a quiet moment: a poll or data landing never takes a frame from a press)
+    const redrawNow = () => { if (current() !== 'home') return; if (!launchOpen()) { later = true; return; } softRedraw(); };
+    const redraw = () => whenIdle(redrawNow);
     on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('progress', redraw); on('favs', redraw); on('replays', redraw);
     on('catalog', (k) => { if (k === 'live') { redraw(); warmRows(); } });
     on('league', (k) => { if (k.startsWith('schedule:') || k === 'standings') redraw(); });
