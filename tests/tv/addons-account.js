@@ -63,7 +63,7 @@ const flows = async ({ p, shot, key }) => {
   check('AfterCredits added', n >= 6, `${n} rows`);
   // the email fallback's errors
   await ev(() => window.__tunerTest.go('home')); await toAddons();
-  await key('Enter', 1, 600); await key('Enter', 1, 1500); await ok(p, 'signed in: found again', (w) => /Done|Add/.test(w)); await shot('found-again'); await key('Escape', 1, 500); await key('Escape', 1, 400);
+  await key('Enter', 1, 600); await key('Enter', 1, 1500); await ok(p, 'signed in: found again', (w) => /Done|Add/.test(w)); await shot('found-again'); await key('Escape', 1, 500); await key('Escape', 1, 400); await key('Escape', 1, 400);   // (Back: the sheet, the group on the left, the top bar)
   // sign out (Keep the add-ons)
   await key('ArrowDown', 12, 120); await ok(p, 'Stremio account row', 'ad:stremio'); await key('Enter', 1, 500); await shot('stremio-signout'); await key('Enter', 1, 1200);
   const st = await fetch(`${H}/_stremio/state`).then((r) => r.json());

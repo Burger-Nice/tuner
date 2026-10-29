@@ -347,12 +347,19 @@ function groupSheet() {
   });
   scrollList(ov.el);
 }
+// The number being typed, top right like a TV's own (a toast at the bottom covered a guide row)
+function numBadge(txt) {
+  let b = document.getElementById('chnum');
+  if (!b) { b = document.createElement('div'); b.id = 'chnum'; document.body.appendChild(b); }
+  b.textContent = txt;
+  b.hidden = !txt;
+}
 function digit(d) {
   digitBuf = (digitBuf + d).slice(-5);
-  toast(`Channel ${digitBuf}`, 1300);
+  numBadge(digitBuf);
   clearTimeout(digitT);
   digitT = setTimeout(() => {
-    const n = parseInt(digitBuf, 10); digitBuf = '';
+    const n = parseInt(digitBuf, 10); digitBuf = ''; numBadge('');
     let i = chans.findIndex((c) => c.num === n);
     if (i < 0 && catalog.live?.items.some((c) => c.num === n && !c._sep)) { group = 'all'; rebuild(); i = chans.findIndex((c) => c.num === n); }
     if (i < 0) return toast(`There is no channel ${n}.`);
@@ -432,11 +439,11 @@ const def = {
     if (k === 'digit') { digit(e.key); return true; }
     return false;
   },
-  leave() { clearTimeout(digitT); digitBuf = ''; },
+  leave() { clearTimeout(digitT); digitBuf = ''; numBadge(''); },
   toTop() { r = 0; top = 0; winStart = 0; inPast = false; draw(); },
   // Back in the past: the window returns to now, on the same channel's programme on now (catch-up 4.1)
   back() {
-    if (digitBuf) { clearTimeout(digitT); digitBuf = ''; }   // (a channel number still being typed: Back drops it)
+    if (digitBuf) { clearTimeout(digitT); digitBuf = ''; numBadge(''); }   // (a channel number still being typed: Back drops it)
     if ((!inPast && winStart <= nowFloor) || !el.querySelector('.g-grid').contains(document.activeElement)) return false;
     inPast = false; winStart = 0; at = Date.now();
     draw(() => focusCell(r, Date.now()));

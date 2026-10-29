@@ -12,7 +12,7 @@ permissions:
 env:
   # <stage>.<build>: the middle number goes up with each big release (0.3: catch-up, subtitles, add-ons); the last is
   # the build's run number, which also orders the updates (the TV compares the run number, never the name)
-  VERSION: 0.3.${{ github.run_number }}
+  VERSION: 0.4.${{ github.run_number }}
 
 jobs:
   windows:

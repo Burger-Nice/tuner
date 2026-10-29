@@ -178,6 +178,22 @@ CI 45/45 before the release:
   Stremio list comes over and stays in step), Stremio's list, a link from the phone, typing one; catalogs in
   Movies/Series, add-on copies next to the provider's, direct links only (no torrents; debrid add-ons work).
 
+## v0.3.71–0.3.81 and 0.4 (27–29 Oct)
+- **0.3.77:** skip intro / recap (TheIntroDB, design/ui-v1/skip/), Up next at the credits, search by type (All / Movies /
+  Series / Channels), Pick the channel for a rewatch, the add-on menu fix, episodes watched from an add-on copy counting.
+- **0.3.81:** the new Home (design/ui-v1/home-final/, A "Marquee" picked from six directions over two rounds; reviews
+  7 → 7.5): 3 big lines (4 on a game day) whose lit one opens in place, the browsing rows (personal genres, blends,
+  Because you watched, In Icelandic, Trending…), TMDB with the owner's key (Account > Provider), films and series from
+  add-ons only (the provider is live TV, the owner's call), the add-on library in Movies / Series.
+- **0.4 (this release):** his first-day Home report (14 items: the Continue card's picture, Down's motion, Right needing
+  several presses, hold OK playing, Back restarting, 3-line plots, the Channels row, curated rows and more of them, In
+  Icelandic, Stremio list names, the episode row shaking, no Add-on badge); bug hunt 3 (Live, Search/Account, NBA,
+  Home/library; about 40 bugs fixed); Up next for add-on episodes from Continue watching; the player controls v2
+  (design/ui-v1/player-v2/, reviews 7.4 → 8.1); the speed pass (Home was redrawing every 80 ms; now idle); Search's ▼
+  stays in the results, the channel number top right, Back in Account returns to the group first.
+- The owner said the spoiler shield matters less to him now; keep it, but don't spend much on it.
+- He wants usage kept low: Sonnet for cleanups and bug hunts, one emulator run only when he says "test".
+
 ## Things that are true but easy to miss
 
 - **Pushing `tv-redesign` to `main` = a release.** The release job does **not** wait for the emulator test, so run CI

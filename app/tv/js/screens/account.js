@@ -273,6 +273,13 @@ export default {
   },
   enter(root, params) { if (params?.group && GROUPS.some(([k]) => k === params.group)) { group = params.group; scroll = 0; } draw(); if (group === 'addons') addonsEnter(draw); },
   entry: (root) => (group === 'addons' && root.querySelector('.ad-row')) || root.querySelector('.arow') || root.querySelector('.gl.sel'),
+  // Back in a group's rows (the Add-ons list too) returns to that group on the left; from there, to the top bar
+  back(root) {
+    const a = document.activeElement, sel = root.querySelector('.gl.sel');
+    if (!sel || !root.contains(a) || a.closest('.gl') || a === sel) return false;
+    focus(sel);
+    return true;
+  },
 };
 
 // All 30 teams, and None (no hero game, no alert). Also opened from the first-run choices.

@@ -47,7 +47,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 - `app/core.js` providers (Xtream + M3U, with `catchup()` replay links), settings and storage. `app/nba.js` ESPN's public JSON. `app/titles.js` title matching.
 - `android/app/src/main/java/app/tuner/player/`: `PlayerActivity` (Media3 player and its overlays: channel list,
   game panel, options, quality, subtitles…), `TunerPlayerPlugin` (the JS bridge, updater, UI sounds), `ListPanel`,
-  `GamePanel`, `VodControls`, `Ui` (tokens, icons); the diagnosis `Diag`, `PathView`; catch-up `Timeline`, `Replay`, `Card`,
+  `GamePanel`, `VodControls`, `Ui` (tokens, icons), the player controls v2 (`design/ui-v1/player-v2/`: `Track` the one bar,
+  `Hud` the shared scrims, title block, buttons row and labels); the diagnosis `Diag`, `PathView`; catch-up `Timeline`, `Replay`, `Card`,
   `LivePause`; the copy check `Probe`, subtitles `Subs`, `SrtTrack`; add-ons `Handover` (hand a link to another app),
   `PhonePage` (the page a phone opens to type into the TV), `Launch`. Each feature's native side: its `PORT-NATIVE.md`. JS → native via `command` (meta, game, ring, tune, queue, versions…);
   native → JS via events (track, need, pick, version, progress, setting, exit…).
@@ -63,11 +64,11 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   bug-hunt scripts `tests/tv/hunt-*.js`. Home: `tests/tv/home-{marquee,gamenight,rows,cold,library,curate}.js` (a fake TMDB,
   `tests/mock-tmdb.js`, on the fake provider; `home-common.js` seeds an owner-like history).
 - CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign`) builds Windows, Android, iOS and runs
-  `tests/android-test-boot.js` on an Android TV emulator (45 checks; the run fails if a check fails or the test doesn't finish). Its screenshots and `reports.json` are uploaded
+  `tests/android-test-boot.js` on an Android TV emulator (about 57 checks; the run fails if a check fails or the test doesn't finish). Its screenshots and `reports.json` are uploaded
   to the `android-test` release as `android-test-shots.tgz`.
 - Local Android build: the SDK is at `/root/android-sdk`: `export ANDROID_HOME=/root/android-sdk; node scripts/build-web.js tv;
   npx cap sync android; cd android && ./gradlew assembleDebug --no-daemon -q` (Maven sometimes answers 429: retry).
-- Work on `tv-redesign`. Pushing it to `main` releases v0.3.<run> (bump the middle number in `build.yml`'s `VERSION` for
+- Work on `tv-redesign`. Pushing it to `main` releases v0.4.<run> (bump the middle number in `build.yml`'s `VERSION` for
   each big release, 1.0 once it's solid on the TV; the TV orders updates by the run number, not the name) and the TV updates itself from `android.json`.
   **The release job doesn't wait for the emulator test**, so run CI on `tv-redesign` and see it pass first.
 - On the owner's TV over adb (same network): see `NEXT.md`.
@@ -93,5 +94,6 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 
 - Some channels still say "No guide information" on the owner's provider; Account > Provider > Check the guide shows
   what the provider sends (the guide has a full-table fallback and a clock-offset fix, untested on the real provider).
-- Minor: Search's ▼ past the last result jumps to the keyboard; the channel-number toast can cover a guide row.
-- Built and passing CI, not yet on the TV: catch-up / rewatch, subtitles + real quality, add-ons. Unbuilt bits are in `NEXT.md`.
+- The Home rows' source on his TV: Account > Provider shows "TMDB: working · N of M Home rows from TMDB" (or the error).
+- The WebView draws just-off-screen content ahead (a memory cost): if the app reloads by itself on the TV, turn it off (`MainActivity`).
+- Built, not yet on the TV (0.4): the player controls v2, the speed pass, the bug-hunt-3 fixes. Unbuilt bits are in `NEXT.md`.

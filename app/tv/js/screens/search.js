@@ -150,8 +150,16 @@ function draw() {
     <div class="kbrow" data-row data-exit><span class="key wide fx" tabindex="-1" data-key=" ">Space</span><span class="key wide fx" tabindex="-1" data-key="del">Delete</span><span class="key wide fx" tabindex="-1" data-key="clr">Clear</span></div>`);
   setHtml(el.querySelector('[data-right] .s-in'), right);
   // ▼ past the last result stays on it (it never jumps back to the keyboard)
-  const col = el.querySelector('[data-right] .s-list');
-  if (col && !col.navHook) col.navHook = (dir, cur) => (dir === 'down' && cur === [...col.querySelectorAll('.fx')].pop() ? false : undefined);
+  // (every box in the results: the last one may be a section's "All N movies" row or a chip row, not the list)
+  const lastFx = () => [...el.querySelectorAll('[data-right] .s-in .fx')].pop();
+  for (const b of el.querySelectorAll('[data-right] .s-in [data-row], [data-right] .s-in [data-col], [data-right] .s-in [data-grid]')) {
+    if (!b.navHook) b.navHook = (dir, cur) => {
+      if (dir !== 'down' || lastFx()?.closest('[data-row], [data-col], [data-grid]') !== b) return undefined;
+      const fx = [...b.querySelectorAll('.fx')].filter((x) => x.closest('[data-row], [data-col], [data-grid]') === b), i = fx.indexOf(cur), cols = +b.dataset.cols || 1;
+      const leaving = b.hasAttribute('data-row') || (b.hasAttribute('data-grid') ? i >= fx.length - cols : i === fx.length - 1);
+      return leaving ? false : undefined;   // (moving inside it is the engine's)
+    };
+  }
   const nr = el.querySelector('[data-right] .s-none');   // (nor from the No results card's buttons)
   if (nr) nr.navHook = (dir) => (dir === 'down' ? false : undefined);
 }

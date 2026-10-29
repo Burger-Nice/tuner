@@ -22,7 +22,7 @@ per copy, add-ons (Stremio protocol, direct links only).
   4.3's series rules: "This episode's length is unusual for this series" (`episodeNote` unused) and a series made Sure by
   its episodes' lengths (`imdb.js` never passes `epLens`).
 - **Add-ons:** what `design/ui-v1/addons/SPEC.md` marks for later. Torrents stay out (direct links only). From bug hunt 2:
-  Up next after an add-on episode resumed from Continue watching (`resumeAddonItem` has no rows); Home asking ahead for
+  Home asking ahead for
   the first Continue watching add-on card (SPEC 5.4); the setup card without a Stremio sign-in (the phone page has no
   paste-the-setup state, SPEC 3.5/3.7); Search's "4K from Northlight" on a provider title (SPEC 6); "Only titles your
   provider has" counting add-ons that give no copies (S10); Back from the Add-ons list landing on the avatar (SPEC 2.2).
@@ -30,9 +30,7 @@ per copy, add-ons (Stremio protocol, direct links only).
 
 ## Next features
 
-0. **Skip intro** (the owner asked, 27 Oct). A "Skip intro" button on series episodes: from the file's chapters when it has
-   an "Intro"/"Opening" chapter; otherwise learnt per series (he skips the intro once, by hand, and the next episodes
-   offer the same skip at the same time). Needs a design pass first (the owner's process).
+The owner's pick list (29 Oct), in my suggested order:
 1. **Reminders.** Set from a guide programme or a game. In the app: a card at the right moment. Over other apps
    (PS5 on HDMI): an overlay card ("tips off in 5 min · OK to watch") using "Display over other apps", fired by an
    exact alarm even when airglow isn't open; OK switches to airglow and tunes. If the TV won't draw over HDMI,
@@ -40,7 +38,11 @@ per copy, add-ons (Stremio protocol, direct links only).
 2. **Google TV home screen.** Continue watching and "your team plays tonight" on the TV's own home screen (Watch
    Next via androidx.tvprovider, or whatever Google TV on this Philips actually shows).
 3. **Multiview.** Two games side by side (two ExoPlayers), if the TV's chip decodes two streams at once.
-4. **A web version** (a friend's VIDAA TV): needs a hosted server for the provider's streams; ask the owner first.
+4. **Skip intro backup.** When TheIntroDB doesn't know an episode: the file's "Intro"/"Credits" chapters, or learnt per
+   series (he skips once by hand; the next episodes offer the same skip). The owner still owes us: Options > Intros in
+   this show on an episode with no chip ("Not known for this episode" or not).
+5. **A simple mode for his mom's TV:** big text, fewer rows, Icelandic first, no NBA unless she wants it.
+6. **A web version** (a friend's VIDAA TV): needs a hosted server for the provider's streams; ask the owner first.
 
 Questions to answer on the real TV first: the OS / API level, whether an overlay draws over an HDMI input, whether
 "Display over other apps" can be switched on in Settings (or needs `adb shell appops set app.tuner

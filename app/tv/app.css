@@ -225,3 +225,7 @@ input.field[readonly]{caret-color:transparent}
 .s-scope small{margin-left:6px;font:600 13px/16px var(--a-font-text);color:var(--a-text-3)}
 .s-scope .chip.sel small{color:inherit;opacity:.8}
 .s-more{height:44px;color:var(--a-text-2)}
+
+/* the channel number being typed in the guide: top right, over the clock, like a TV's own */
+#chnum{position:fixed;top:27px;right:48px;z-index:60;min-width:64px;height:44px;padding:0 16px;border-radius:12px;background:var(--a-bg-1);border:1px solid var(--a-border);color:var(--a-text-1);font:700 26px/44px var(--a-font-display,var(--a-font-text));text-align:center;font-variant-numeric:tabular-nums}
+#chnum[hidden]{display:none}
