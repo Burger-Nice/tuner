@@ -14,7 +14,10 @@ import { myGame } from './games.js';
 import { videoMask } from './catchup.js';
 import { fromCinemeta, dkey, canon, plural, Plural, cinemeta, tmdbList, interleave, animeByMeta, firstCountry, notInterested, hiddenKey, GENRES } from './shelves.js';
 
-const H = 3600e3, DAY = 864e5, MAX_ROWS = 20, ROW_WAIT = 6000;
+// ROW_WAIT: how long a row's first page may take before this build leaves it out (the rows are drawn as they come, so
+// a slow row holds nothing up). PAGE_VER: the engine's version; a page an older version worked out is never shown (an
+// update would otherwise keep the old version's rows until the next day).
+const H = 3600e3, DAY = 864e5, MAX_ROWS = 20, ROW_WAIT = 25000, PAGE_VER = 2;
 // The day turns at 04:00 (the profile and the page are worked out once a day)
 export const dayNo = (t = Date.now()) => Math.floor((t - new Date(t).getTimezoneOffset() * 60e3 - 4 * H) / DAY);
 const hash = (s) => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
@@ -244,9 +247,12 @@ export function hintUsed(kind, keyName) { const m = store.get('hfHints', {}); m[
 export const resetHints = () => store.set('hfHints', {});
 export function resetRows() { store.set(k('hiddenRows'), {}); store.set(hiddenKey(), {}); store.set(k('rowStats'), {}); store.set(k('rowsOff'), {}); page = null; emit('rows-stale'); }
 // Account > Home rows: a kind of row switched off
-export const rowsOff = () => (S.acc ? store.get(k('rowsOff'), {}) : {});
-export function setRowOn(kind, on) { const m = rowsOff(); if (on) delete m[kind]; else m[kind] = true; store.set(k('rowsOff'), m); page = null; emit('rows-stale'); }
-export const ROW_KINDS = [['yourshows', 'Your shows'], ['nba', 'Tonight in the NBA'], ['genre', 'Your genres'], ['blend', 'Blends of two of your genres'], ['because', 'Because you watched'], ['different', 'Something different'], ['popular', 'Popular films and series'], ['trending', 'Trending this week'], ['services', 'New on the streaming services'], ['new', 'New this year'], ['top', 'Top rated'], ['gems', 'Hidden gems'], ['decades', 'A decade you like'], ['short', 'Films under 100 minutes'], ['family', 'Family night'], ['anime', 'Anime'], ['iceland', 'In Icelandic'], ['addon', 'Your add-ons\' catalogs'], ['saved', 'Saved'], ['library', 'Browse your library'], ['channels', 'Channels']];
+// (the add-ons' own lists start off: the owner chose TMDB's and his own rows for Home; his Stremio watchlist and an
+// Icelandic list stay. Stored: kind -> true (off) or false (switched on))
+const OFF_AT_FIRST = { addon: true };
+export const rowsOff = () => { const m = S.acc ? store.get(k('rowsOff'), {}) : {}; const out = {}; for (const [kk] of ROW_KINDS) if (kk in m ? m[kk] : OFF_AT_FIRST[kk]) out[kk] = true; return out; };
+export function setRowOn(kind, on) { const m = S.acc ? store.get(k('rowsOff'), {}) : {}; m[kind] = !on; store.set(k('rowsOff'), m); emit('rows-stale'); buildPage({ force: true }).catch(() => {}); }
+export const ROW_KINDS = [['yourshows', 'Your shows'], ['nba', 'Tonight in the NBA'], ['genre', 'Your genres'], ['blend', 'Blends of two of your genres'], ['because', 'Because you watched'], ['different', 'Something different'], ['popular', 'Popular films and series'], ['trending', 'Trending this week'], ['services', 'New on the streaming services'], ['new', 'New this year'], ['top', 'Top rated'], ['gems', 'Hidden gems'], ['decades', 'A decade you like'], ['short', 'Films under 100 minutes'], ['family', 'Family night'], ['anime', 'Anime'], ['iceland', 'In Icelandic'], ['stremio', 'Your Stremio watchlist'], ['addon', 'Lists from your add-ons'], ['saved', 'Saved'], ['library', 'Browse your library'], ['channels', 'Channels']];
 
 // ---------- the candidates (SPEC 6: Row candidates) ----------
 const BLENDS = { 'Anime+Comedy': 'Anime comedy', 'Action+Anime': 'Action anime', 'Crime+Drama': 'Crime dramas', 'Crime+Thriller': 'Crime thrillers', 'Sci-Fi+Thriller': 'Sci-fi thrillers', 'Comedy+Romance': 'Rom-coms', 'Comedy+Horror': 'Horror comedies', 'Comedy+Drama': 'Comedy dramas', 'Documentary+Sport': 'Sports documentaries', 'Mystery+Thriller': 'Mystery thrillers', 'Action+Comedy': 'Action comedies', 'Adventure+Fantasy': 'Fantasy adventures', 'Drama+History': 'Period dramas' };
@@ -304,6 +310,7 @@ async function recommended(seeds, share) {
 // Only lists made for browsing films and series make a row (an allow-list): his own Stremio lists, a streaming
 // service's list, and popular / new / top / a genre. Sports, racing, live events, channels and odd add-on lists never do.
 const DENY = /sport|\bf1\b|formula|racing|motor|\bnba\b|\bnfl\b|\bnhl\b|\bmlb\b|\bufc\b|\bmma\b|\bwwe\b|soccer|football|basket|boxing|tennis|golf|cricket|rugby|hockey|\blive\b|\bevents?\b|channels?\b|\biptv\b|tv guide|radio|youtube|podcast|\bxxx\b|adult|porn|18\+|hentai|torrent|\brss\b|calendar|upcoming|coming soon|trailers?|\bcams?\b|\btest\b|debug|\bother\b/i;
+const ICELANDIC = /[íi]slensk|iceland|[íi]sland\b|\bis[-_]is\b/i;
 const PERSONAL = /watch ?list|library|\bmy\b|history|watched|favou?rites?|collection|continue|trakt|\bliked?\b|for you|\blists?\b/i;
 const BROWSE = /popular|trending|\btop\b|\bnew\b|latest|recent|featured|\bbest\b|rated|imdb|release|\bhot\b|discover|classic|award|oscar|acclaim|\bgems?\b|binge|must[- ]watch|blockbuster|\bcult\b/i;
 const GENERIC = /^(movies?|films?|series|shows?|tv( shows| series)?|catalog(ue)?)$/i;
@@ -312,9 +319,12 @@ const allGenres = new Set([...GENRES.movie, ...GENRES.series, 'Anime', 'Sci-Fi',
 export function classifyCatalog(x) {
   const name = String(x.name || '').replace(/\s+/g, ' ').trim(), text = `${name} ${x.c?.id || ''}`, who = `${x.by || ''} ${x.a?.manifest?.name || ''} ${x.a?.manifest?.id || ''}`;
   if (!name || DENY.test(text) || DENY.test(who)) return null;
+  // an Icelandic list (Á íslensku…) goes into the one In Icelandic row, its titles first
+  if (ICELANDIC.test(text)) return { key: 'i:iceland', kind: 'iceland', name: 'In Icelandic', reason: 'Icelandic films and series' };
+  // his own Stremio lists: one row (the watchlist's name when he has one)
   if (PERSONAL.test(name)) {
     const wl = /watch ?list/i.test(name);
-    return wl ? { key: 'p:watchlist', kind: 'personal', name: 'Your Stremio watchlist', reason: 'What you saved in Stremio' } : { key: 'p:stremio', kind: 'personal', name: 'From your Stremio', reason: 'Your Stremio library' };
+    return { key: 'p:stremio', kind: 'personal', wl, name: wl ? 'Your Stremio watchlist' : 'From your Stremio', reason: wl ? 'What you saved in Stremio' : 'Your Stremio library' };
   }
   const sv = TM.serviceOf(text) || (GENERIC.test(name) ? TM.serviceOf(who) : null);
   if (sv) return { key: `s:${sv.key}`, kind: 'service', svc: sv.key, name: `On ${sv.name}`, reason: `Films and series on ${sv.name}` };
@@ -452,25 +462,33 @@ function candidates(p, { key, gameDay }) {
   if (key && fam && !off.family) d(16, { id: 'family', kind: 'family', name: 'Family night', reason: 'Films and series for everyone on the sofa', see: { kind: 'movie', shelf: 'g:Family' },
     get: () => mixed({ g: 'Family', minVotes: 200, minRating: 6.8, family: true }, share) });
   if (!off.anime && !(personal && p.share.Anime >= 0.12) && (p.share.Anime || 0) > 0) d(17, { id: 'anime', kind: 'anime', name: 'Anime', reason: because(p.heavy.Anime || []), see: { kind: 'series', shelf: 'anime' }, get: () => (key ? mixed({ g: 'Anime', minVotes: { movie: 150, series: 50 }, kindOpts: { series: { sort: 'vote_average.desc' } } }, share) : cinemetaMixed('top', { genre: 'Animation', share, pages: 3 }).then((l) => l.filter(animeByMeta))) });
-  if (!off.iceland && key) d(18, { id: 'iceland', kind: 'iceland', name: 'In Icelandic', reason: 'Icelandic films and series', see: { kind: filmsFirst ? 'movie' : 'series', shelf: 'iceland' }, get: () => mixed({ lang: 'is', minVotes: 10, family: true }, share) });
   // the add-ons' own catalogs, curated: his Stremio lists, a streaming service's list (once per service), and lists made
-  // for browsing (popular, new, top, a genre); sports, live events, channels and odd lists never make a row
-  if (!off.addon) {
-    const groups = new Map();
-    for (const x of cats) {
-      const c = classifyCatalog(x);
-      if (!c) continue;
-      const g = groups.get(c.key) || { ...c, cats: [] };
-      g.cats.push(x); groups.set(c.key, g);
-    }
-    [...groups.values()].sort((a, b) => (b.kind === 'personal') - (a.kind === 'personal')).forEach((g) => d(g.kind === 'personal' ? 20 : 21, {
-      id: `addon:${g.key}`, kind: 'addon', akind: g.kind, svc: g.svc, personal: g.kind === 'personal', drop: g.kind === 'personal' ? 0 : 1, name: g.name, reason: g.reason,
-      see: { kind: g.cats[0].c.type, shelf: g.cats[0].key },
-      get: async () => {
-        const lists = await Promise.all(g.cats.map((x) => AD.catalogPage(x.a, x.c, {}).then((v) => v.map((m) => fromCinemeta(m, x.c.type))).catch(() => [])));
-        return lists.length > 1 ? interleave(lists[0], lists.slice(1).flat(), 0.5) : lists[0] || [];
-      } }));
+  // for browsing (popular, new, top, a genre); sports, live events, channels and odd lists never make a row. Only his
+  // own Stremio lists (one row) and an Icelandic list (in In Icelandic) are on Home unless he switches the rest on.
+  const groups = new Map();
+  for (const x of cats) {
+    const c = classifyCatalog(x);
+    if (!c) continue;
+    const g = groups.get(c.key) || { ...c, cats: [] };
+    if (c.wl) Object.assign(g, { name: c.name, reason: c.reason });
+    g.cats.push(x); groups.set(c.key, g);
   }
+  const addonItems = async (g) => {
+    const lists = await Promise.all(g.cats.map((x) => AD.catalogPage(x.a, x.c, {}).then((v) => v.map((m) => fromCinemeta(m, x.c.type))).catch(() => [])));
+    return lists.length > 1 ? interleave(lists[0], lists.slice(1).flat(), 0.5) : lists[0] || [];
+  };
+  // In Icelandic: his add-ons' Icelandic lists first, then TMDB's
+  const isl = groups.get('i:iceland');
+  if (!off.iceland && (key || isl)) d(18, { id: 'iceland', kind: 'iceland', name: 'In Icelandic', reason: isl ? 'Icelandic films and series, from your add-ons first' : 'Icelandic films and series', see: isl ? { kind: isl.cats[0].c.type, shelf: isl.cats[0].key } : { kind: filmsFirst ? 'movie' : 'series', shelf: 'iceland' },
+    get: async () => {
+      const [a, t] = await Promise.all([isl ? addonItems(isl).catch(() => []) : [], key ? mixed({ lang: 'is', minVotes: 10, family: true }, share).catch(() => []) : []]);
+      const seen = new Set(), out = [];
+      for (const it of [...a.filter((x) => /^tt\d+$/.test(x.imdb || x.id)), ...t]) { const kk = it.imdb || dkey(it); if (seen.has(kk) || seen.has(dkey(it))) continue; seen.add(kk); seen.add(dkey(it)); out.push(it); }
+      return out;
+    } });
+  [...groups.values()].filter((g) => g.kind !== 'iceland' && (g.kind === 'personal' ? !off.stremio : !off.addon)).sort((a, b) => (b.kind === 'personal') - (a.kind === 'personal')).forEach((g) => d(g.kind === 'personal' ? 20 : 21, {
+    id: `addon:${g.key}`, kind: 'addon', akind: g.kind, svc: g.svc, personal: g.kind === 'personal', drop: g.kind === 'personal' ? 0 : 1, name: g.name, reason: g.reason,
+    see: { kind: g.cats[0].c.type, shelf: g.cats[0].key }, get: () => addonItems(g) }));
   D.sort((a, b) => a.ord - b.ord);
   return { P, B, D, S: out, gameDay };
 }
@@ -480,34 +498,43 @@ function candidates(p, { key, gameDay }) {
 // Saved, the doors, Channels) are drawn from what the app has at the time, not kept.
 let page = null, building = null;
 const PAGE = () => `a:${S.acc.id}:homePage`;
-const sig = () => `${TM.hasKey() ? 'k' : 'n'}|${anyStreamAddon() ? 'a' : '-'}|${store.get(k('finishes'), 0)}|${picked().join(',')}|${Object.keys(rowsOff()).join(',')}|${AD.chipCatalogs('movie').length + AD.chipCatalogs('series').length}`;
+const sig = () => `v${PAGE_VER}|${TM.hasKey() ? 'k' : 'n'}|${anyStreamAddon() ? 'a' : '-'}|${store.get(k('finishes'), 0)}|${picked().join(',')}|${Object.keys(rowsOff()).join(',')}|${AD.chipCatalogs('movie').length + AD.chipCatalogs('series').length}`;
 export async function cachedPage() {
   if (page && page.acc === S.acc?.id) return page;
   const v = S.acc ? await window.Core.cache.get(PAGE()) : null;
-  if (v && v.acc === S.acc?.id) page = v;
+  if (v && v.acc === S.acc?.id && v.ver === PAGE_VER) page = v;   // (an older version's page is never shown)
   return page;
 }
 export const pageNow = () => (page && page.acc === S.acc?.id ? page : null);
 export const pageStale = () => { const p = pageNow(); return !p || p.preview || p.day !== dayNo() || p.sig !== sig() || (p.partial && Date.now() - p.at > 5 * 60e3); };
 on('rows-stale', () => { if (page) page.sig = ''; });
+// A build asked for while one runs (a switch in Account, Refresh) is done right after it, so the page always ends up
+// with what he set; the newest page goes to Home ('rows')
+let again = false;
 export function buildPage({ force = false } = {}) {
   if (!S.acc) return Promise.resolve(null);
   if (!force && !pageStale()) return Promise.resolve(page);
-  if (!building) building = build().then((pg) => { building = null; return pg; }, (e) => { building = null; throw e; });
+  if (building) { if (force) again = true; return building; }
+  building = (async () => {
+    let pg = null;
+    for (let n = 0; n < 3; n++) { again = false; pg = await build(); if (!again && !(pg && pageNow() && pageNow().sig !== sig())) break; }
+    return pg;
+  })().finally(() => { building = null; });
   return building;
 }
+export const isBuilding = () => !!building;
 async function build() {
-  const acc = S.acc.id;
+  const acc = S.acc.id, t0 = Date.now();
   // nothing to show yet (a first start, a cleared cache): Your shows, the NBA, Saved and Channels at once, while the taste
   // and the rows' first pages come
   if (!pageNow() && anyStreamAddon()) {
-    const pv = { acc, day: dayNo(), at: Date.now(), sig: '', preview: true, rows: layout({ P: [], B: [], D: [], S: [] }, [], { key: TM.hasKey(), gameDay: !!myGame(), st: stats(), hiddenR: hiddenRows() }).rows };
+    const pv = { ver: PAGE_VER, acc, day: dayNo(), at: Date.now(), sig: '', preview: true, rows: layout({ P: [], B: [], D: [], S: [] }, [], { key: TM.hasKey(), gameDay: !!myGame(), st: stats(), hiddenR: hiddenRows() }).rows };
     page = pv; emit('rows', pv);
   }
   const p = await profile();
   const key = TM.hasKey(), gameDay = !!myGame();
   const st = stats(), today = dayNo(), firstBuild = !Object.keys(st).length;
-  const out = { acc, day: today, at: Date.now(), sig: sig(), rows: [], firstBuild, gameDay };
+  const out = { ver: PAGE_VER, acc, day: today, at: Date.now(), sig: sig(), rows: [], firstBuild, gameDay };
   const unw = unwanted(), hiddenR = hiddenRows();
   if (!anyStreamAddon()) {
     out.rows = [{ id: 'yourshows', type: 'wide', live: 'yourshows', kind: 'yourshows', group: 'A' }, { id: 'nba', type: 'game', live: 'nba', kind: 'nba' }, { id: 'channels', type: 'channel', live: 'channels', kind: 'channels' }, { id: 'noaddons', type: 'note', live: 'noaddons', kind: 'note', name: 'Films and series', reason: 'Add a Stremio add-on for films and series' }];
@@ -515,11 +542,13 @@ async function build() {
   }
   const c = candidates(p, { key, gameDay });
   const all = [...c.P, ...c.B, ...c.D, ...c.S].filter((r) => !hiddenR[r.id]);
-  // their first pages, 3 lanes at a time (TMDB answers in about 20 KB; Cinemeta's are kept 6 h by addons.js); a row that
-  // hasn't answered in 6 s is left out of this page (the page is built again in 5 minutes, its answer cached by then).
-  // With no page to show yet (a first start, a cleared cache), the rows that have come are drawn as they come.
+  // their first pages, 4 lanes at a time (TMDB answers in about 20 KB; Cinemeta's are kept 6 h by addons.js); a row that
+  // hasn't answered in 25 s is left out of this page (the page is built again in 5 minutes, its answer cached by then).
+  // With no page to show yet (a first start, an update, a cleared cache), the rows are drawn as they come.
   const fetchRow = async (r) => {
+    const t0 = Date.now();
     try { r.items = await Promise.race([r.get(r), new Promise((_, no) => setTimeout(() => no(new Error('slow')), ROW_WAIT))]); } catch (e) { r.items = []; if (e?.message === 'slow') out.partial = true; }
+    (out.ms ||= {})[r.id] = Date.now() - t0;
     if (S.acc?.id !== acc) return;
     // a row he scrolled to the end of yesterday starts further on today
     if (st[r.id]?.end === today - 1 && r.items.length > 12) r.items = [...r.items.slice(8), ...r.items.slice(0, 8)];
@@ -543,8 +572,11 @@ async function build() {
     page = pv;
     emit('rows', pv);
   };
-  const queue = [...all];
-  await Promise.all([0, 1, 2].map(async () => { while (queue.length && S.acc?.id === acc) await fetchRow(queue.shift()); }));
+  // (in the page's priority, so the rows that come first are the ones that keep their titles: a row drawn early is not
+  // moved or emptied by one that comes later)
+  const queue = all.map((r, i) => [r, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([r]) => r);
+  await Promise.all([0, 1, 2, 3].map(async () => { while (queue.length && S.acc?.id === acc) await fetchRow(queue.shift()); }));
+  out.took = Date.now() - t0;
   if (S.acc?.id !== acc) return null;
   const L = layout(c, all, { key, gameDay, st, hiddenR });
   out.dropped = L.dropped;
@@ -552,6 +584,9 @@ async function build() {
   out.rows = L.rows;
   return finish(out);
 }
+// A row's priority: each genre's own row, the blends, Because you watched, the genres' further rows, Something different,
+// then discovery; the add-ons' catalogs last (with a key TMDB's lists are the page, the add-ons' lists the extras)
+const rank = (r) => (r.kind === 'genre' && r.slot === 0 ? 0 : r.group === 'B' ? 1 : r.kind === 'because' && !r.slot ? 2 : r.group === 'P' ? 3 : r.group === 'S' ? 4 : r.kind === 'addon' && !r.personal ? 6 : 5);
 // The page's rows from the rows' first pages (SPEC 6): priority, diversity, the order, at most MAX_ROWS.
 function layout(c, all, { key, gameDay, st, hiddenR }) {
   // the personal rows in their slots: a blend takes a slot of its smaller genre (it outranks that genre's plain row);
@@ -570,10 +605,6 @@ function layout(c, all, { key, gameDay, st, hiddenR }) {
   // titles), so they lose only their duplicates. The page is laid out from the rows that survive, so the personal and
   // discovery rows still alternate.
   const placed = new Set(), kept = new Map(), dropped = [];
-  // (in priority: each genre's own row, the blends, Because you watched, the genres' further rows, Something
-  // different, then discovery)
-  // (the add-ons' catalogs come last: with a key TMDB's lists are the page, the add-ons' lists the extras)
-  const rank = (r) => (r.kind === 'genre' && r.slot === 0 ? 0 : r.group === 'B' ? 1 : r.kind === 'because' && !r.slot ? 2 : r.group === 'P' ? 3 : r.group === 'S' ? 4 : r.kind === 'addon' && !r.personal ? 6 : 5);
   const prio = [...Pc, ...c.S, ...c.D].map((r, i) => [r, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([r]) => r);
   // the 30 % test is for a row that is a variant of one placed (a genre's second and third rows, Top rated in a genre):
   // other rows only lose their duplicates

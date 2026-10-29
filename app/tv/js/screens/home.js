@@ -28,7 +28,7 @@ import * as R from '../rows.js';
 import * as SH from '../shelves.js';
 import * as TM from '../tmdb.js';
 import * as AD from '../addons.js';
-import { analyse, known, capFor, glowOf, logoInfo, logoHtml, logoFailed } from '../art.js';
+import { analyse, known, capFor, glowOf, logoInfo, logoHtml, logoFailed, logoKnown } from '../art.js';
 
 // ---------- geometry (SPEC 3) ----------
 const LINE_Y = 92, SLOT = 42, CARD_H = 192, OPEN = CARD_H + 8 - SLOT;   // the lit line opens 158 px in place
@@ -83,6 +83,22 @@ function plotLines(text, px = 500, n = 3, font = COL_F) {
 }
 const plotHtml = (text) => { const l = plotLines(text); return l.length ? `<div class="plot">${l.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''; };
 const D = '<span class="dot">·</span>';
+// A title's facts line that keeps its IMDb rating (the owner: the rating was the part cut off): parts are [text, d] (d:
+// the order in which it gives way, highest first; 0 never) or [[genres], 'g']; fitMeta then trims the drawn line to
+// its box: the genres from the last one, then "Ends …", then the country, never the rating.
+const fitParts = (list) => list.filter(([t]) => (Array.isArray(t) ? t.length : t)).map(([t, d]) => (Array.isArray(t) ? `<span data-g="${esc(t.join('|'))}" data-d="4">${esc(t.join(' · '))}</span>` : `<span${d ? ` data-d="${d}"` : ''}>${esc(t)}</span>`)).join(D);
+function fitMeta(root) {
+  for (const m of root?.querySelectorAll?.('.meta[data-fit]') || []) {
+    for (let n = 0; n < 8 && m.scrollWidth > m.clientWidth + 1; n++) {
+      const g = m.querySelector('[data-g]'), gs = g ? g.dataset.g.split('|') : [];
+      if (gs.length > 1) { gs.pop(); g.dataset.g = gs.join('|'); g.textContent = gs.join(' · '); continue; }
+      const c = [...m.querySelectorAll('[data-d]')].sort((a, b) => b.dataset.d - a.dataset.d)[0];
+      if (!c) break;
+      const dot = c.previousElementSibling?.classList.contains('dot') ? c.previousElementSibling : c.nextElementSibling?.classList.contains('dot') ? c.nextElementSibling : null;
+      dot?.remove(); c.remove();
+    }
+  }
+}
 const facts = (list) => list.filter(Boolean).map((x) => (typeof x === 'string' ? `<span>${esc(x)}</span>` : x.html)).join(D);
 const K = { right: '<span class="k"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>', ok: '<span class="k">OK</span>', hold: '<span class="k">Hold</span>', pm: '<span class="k">P−</span>', pp: '<span class="k">P+</span>' };
 const PLAY = '<svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg>';
@@ -106,12 +122,14 @@ const chShort = (n) => { let s = String(n || '').replace(/^[A-Z]{2,3}\s*[|:]\s*/
 // metas by IMDb id (logos, backdrops, episode names), asked once; a row or line that waits for one redraws when it lands
 const metas = new Map();
 let metaT = 0;
-// A title's logo, or '' when it didn't load (the name shows in text then): each is tried once, a failure redraws
+// A title's logo once it is known to load (its ink box measured), else '' (the name in text): the text shows until the
+// logo's checks pass, then the logo goes in once; a shown logo never turns back into text
 const logoAsked = new Set(), inkAsked = new Set();
 function okLogo(url) {
   if (!url || logoFailed(url)) return '';
-  if (!logoAsked.has(url)) { logoAsked.add(url); logoInfo(url).then((r) => { if (!r) { clearTimeout(metaT); metaT = setTimeout(softSoon, 80); } }); }
-  return url;
+  if (logoKnown(url)) return url;
+  if (!logoAsked.has(url)) { logoAsked.add(url); logoInfo(url).then((r) => { if (r) { clearTimeout(metaT); metaT = setTimeout(softSoon, 80); } }); }
+  return '';
 }
 function metaOf(type, imdb) {
   if (!imdb) return null;
@@ -256,7 +274,7 @@ function lineView(l) {
     v.name = it.name;
     v.facts = l.cold ? ['Popular now', 'a pick for tonight'] : ['A film for tonight', it.runtime ? `ends ${endsAt(it.runtime)}` : ''];
     v.ey = l.cold ? 'Popular now · a pick for tonight' : 'A film for tonight'; v.logo = it.logo || ''; v.big = it.name;
-    v.meta = [it.year ? String(it.year) : '', { html: `<span>${esc((it.genres || []).slice(0, 2).join('·'))}</span>` }, it.runtime ? dur(it.runtime) : '', it.runtime ? `Ends ${endsAt(it.runtime)}` : '', it.rating ? `IMDb ${it.rating.toFixed(1)}` : ''].filter((x) => x && (typeof x === 'string' || x.html !== '<span></span>'));
+    v.metaHtml = fitParts([[it.year ? String(it.year) : ''], [(it.genres || []).slice(0, 2), 'g'], [it.runtime ? dur(it.runtime) : ''], [it.runtime ? `Ends ${endsAt(it.runtime)}` : '', 3], [it.rating ? `IMDb ${it.rating.toFixed(1)}` : '']]);
     v.line = it.overview || '';
     v.verb = 'Details'; v.play = false; v.right = 'More popular films'; v.hold = 'Play now, Save';
     v.picture = it.background ? { kind: 'img', url: bgUrl(it.background), key: `i:${it.id}` } : it.poster ? { kind: 'poster', url: it.poster, key: `p:${it.id}` } : { kind: 'flat' };
@@ -332,7 +350,7 @@ function cardHtml(v) {
   if (v.hold && R.hintShown(v.kind, 'hold')) hints.push(`<span>${K.hold}${esc(v.hold)}</span>`);
   const off = S.offline ? '<div class="off">Needs a connection to play</div>' : '';
   return `<div class="ey">${esc(v.ey)}${v.live ? '<span class="a-live compact">Live</span>' : ''}</div>${title}
-    <div class="meta">${facts(v.meta)}</div>${v.line ? `<div class="line">${esc(fitWords(v.line, 434))}</div>` : ''}${v.bar != null ? `<div class="bar"><i style="width:${v.bar}%"></i></div>` : ''}${off}
+    <div class="meta" data-fit>${v.metaHtml || facts(v.meta || [])}</div>${v.line ? `<div class="line">${esc(fitWords(v.line, 434))}</div>` : ''}${v.bar != null ? `<div class="bar"><i style="width:${v.bar}%"></i></div>` : ''}${off}
     <div class="hint">${hints.join('')}</div>`;
 }
 function drawLineup(keepKey) {
@@ -361,7 +379,7 @@ function placeLines() {
   box.querySelectorAll('.hf-e').forEach((n, j) => {
     n.classList.toggle('on', j === lit);
     const cd = n.querySelector('.cd'), want = j === lit ? cards[j] || '' : '';
-    if (cd && cd._html !== want) { cd.innerHTML = want; cd._html = want; }
+    if (cd && cd._html !== want) { cd.innerHTML = want; cd._html = want; fitMeta(cd); }
     const y = LINE_Y + j * SLOT + (j > lit ? OPEN : 0) + (j === lit ? 4 : 0);
     n.style.transform = `translateY(${y}px)`;
   });
@@ -687,12 +705,12 @@ function answerFocus() {
   const r = rows[fi]; if (!r) return;
   const j = mem[r.id] || 0, x = r.list[j];
   clearTimeout(colT);
-  setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false);
+  if (setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false)) fitMeta(rw.querySelector('.hf-col'));
   if (!x) return;
   if (r.type === 'poster') {
     wantPicture(x.background ? { kind: 'img', url: bgUrl(x.background), key: `i:${x.id}` } : x.poster ? { kind: 'poster', url: x.poster, key: `p:${x.id}` } : { kind: 'flat', key: 'flat' });
     // the details (IMDb rating, runtime, logo) once he rests on it
-    if (!x._d) colT = setTimeout(() => enrich(x).then(() => { if (rows[fi] === r && r.list[mem[r.id] || 0] === x) setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false); }), 450);
+    if (!x._d) colT = setTimeout(() => enrich(x).then(() => { if (rows[fi] === r && r.list[mem[r.id] || 0] === x) { if (setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false)) fitMeta(rw.querySelector('.hf-col')); } }), 450);
   } else if (r.type === 'channel') wantPicture({ kind: 'flat', logo: x.logo, name: x.name, key: `c:${x.id}` });
   else if (r.type === 'game') wantPicture({ kind: 'flat', key: 'flat' });
   else if (r.type === 'wide' && x.cont) {
@@ -726,8 +744,8 @@ function colHtml(r, x) {
   if (r.type === 'poster') {
     const d = x._d || {}, logo = d.logo || x.logo, series = x.kind === 'series';
     const rt = d.runtime || x.runtime;
-    const meta = [series ? d.releaseInfo || (x.year ? `${x.year}–` : '') : x.year ? String(x.year) : '', { html: `<span>${esc((d.genres || x.genres || []).slice(0, 3).join(' · '))}</span>` }, rt ? (series ? `${rt} min` : dur(rt)) : '', !series && rt ? `Ends ${endsAt(rt)}` : '', d.rating || (x.src === 'cinemeta' && x.rating) ? `IMDb ${(d.rating || x.rating).toFixed(1)}` : '', series && (d.country || x.country) ? SH.firstCountry(d.country || x.country) : ''].filter((y) => y && (typeof y === 'string' || y.html !== '<span></span>'));
-    return `${okLogo(logo) ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta">${facts(meta)}</div>${plotHtml(x.overview)}${hint('Details', 'Play now, Save, Not interested')}`;
+    const meta = fitParts([[series ? d.releaseInfo || (x.year ? `${x.year}–` : '') : x.year ? String(x.year) : ''], [(d.genres || x.genres || []).slice(0, 3), 'g'], [rt ? (series ? `${rt} min` : dur(rt)) : ''], [!series && rt ? `Ends ${endsAt(rt)}` : '', 3], [d.rating || (x.src === 'cinemeta' && x.rating) ? `IMDb ${(d.rating || x.rating).toFixed(1)}` : ''], [series && (d.country || x.country) ? SH.firstCountry(d.country || x.country) : '', 2]]);
+    return `${okLogo(logo) ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta" data-fit>${meta}</div>${plotHtml(x.overview)}${hint('Details', 'Play now, Save, Not interested')}`;
   }
   if (r.type === 'wide' && x.cont) {
     const p = x.cont, it = p.item, ep = it.kind === 'episode', m = metaOf(ep ? 'series' : 'movie', imdbOfItem(it));

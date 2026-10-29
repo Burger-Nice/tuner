@@ -73,7 +73,7 @@ const ADDONS = {
   // catalog, live events, a "Popular" that is Cinemeta's again, a watchlist, a list with posterless and non-IMDb entries
   shelfie: { id: 'org.shelfie.catalogs', version: '1.0.0', name: 'Shelfie', description: 'Catalogs', resources: ['catalog'], types: ['movie', 'series'], idPrefixes: ['tt'],
     catalogs: [{ type: 'movie', id: 'nfx', name: 'Netflix' }, { type: 'series', id: 'nfx', name: 'Netflix' }, { type: 'movie', id: 'f1', name: 'Formula racing' }, { type: 'series', id: 'nba', name: 'Basketball' },
-      { type: 'movie', id: 'pop', name: 'Popular' }, { type: 'movie', id: 'trb', name: 'TRB watchlist' }, { type: 'movie', id: 'events', name: 'Live events' }, { type: 'movie', id: 'odd', name: 'Mixed bag' }] },
+      { type: 'movie', id: 'pop', name: 'Popular' }, { type: 'movie', id: 'trb', name: 'TRB watchlist' }, { type: 'movie', id: 'events', name: 'Live events' }, { type: 'movie', id: 'odd', name: 'Mixed bag' }, { type: 'series', id: 'isl', name: 'Á íslensku' }] },
   pdm: { id: 'org.publicdomainmovies', version: '1.2.0', name: 'Public Domain Movies', description: 'Films in the public domain', resources: ['catalog', 'stream'], types: ['movie'], idPrefixes: ['tt'], catalogs: [{ type: 'movie', id: 'pdm' }], behaviorHints: { p2p: true } },
   watchhub: { id: 'org.stremio.watchhub', version: '1.3.0', name: 'WatchHub', description: 'Where else to watch it', resources: ['stream'], types: ['movie', 'series'], idPrefixes: ['tt'], catalogs: [] },
   aftercredits: { id: 'org.aftercredits', version: '0.3.0', name: 'AfterCredits', description: 'Is there a scene after the credits?', resources: ['stream'], types: ['movie'], idPrefixes: ['tt'], catalogs: [] },
@@ -129,6 +129,7 @@ function shelfie(type, id, host) {
   if (id === 'pop') return catalogPage(type, 'top', {}, host).slice(0, 30);
   if (id === 'trb') return T((x) => /^(superbad|lebowski|inbruges|heat|departed|goodfellas|dune2|f1|hotfuzz)$/.test(x.slug));
   const ev = (n) => Array.from({ length: 12 }, (_, i) => ({ id: `${id}:${i}`, type, name: `${n} ${i + 1}`, poster: '' }));
+  if (id === 'isl') return [...T((x) => x.lang === 'is'), ...tmdb.TITLES.filter((x) => x.type === 'movie' && x.lang === 'is').map((x) => { const m = tmdb.cinemetaMeta(x.imdb, host); delete m.videos; return m; })].slice(0, 6);
   if (id === 'f1') return ev('Grand Prix');
   if (id === 'nba') return ev('Lakers at Celtics');
   if (id === 'events') return ev('Event');

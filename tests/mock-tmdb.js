@@ -4,7 +4,7 @@
 // answers metas for the same ids, so a TMDB row's title opens on its page and plays through the fake add-ons.
 // The app points at it with localStorage: tuner.tmdbBase -> <host>/tmdb/3, tuner.tmdbImg -> <host>/tmdb-img,
 // tuner.tmdbKey -> 'test-tmdb-token' (any other key is refused: 401).
-// Test helpers: GET /_tmdb/hits (how many requests, by path), /_tmdb/reset.
+// Test helpers: GET /_tmdb/hits (how many requests, by path), /_tmdb/reset, /_tmdb/slow?ms=N (every answer N ms late).
 const fs = require('fs');
 const path = require('path');
 const ART = path.join(__dirname, '../design/ui-v1/home-final/art');
@@ -224,7 +224,9 @@ const MEDIA = process.env.MEDIA_DIR || path.join(__dirname, 'media');
 module.exports = function tmdb(req, res, u) {
   const p = u.pathname;
   if (p === '/_tmdb/hits') { J(res, hits); return true; }
-  if (p === '/_tmdb/reset') { for (const k of Object.keys(hits)) delete hits[k]; J(res, { ok: true }); return true; }
+  if (p === '/_tmdb/reset') { for (const k of Object.keys(hits)) delete hits[k]; slow = 0; J(res, { ok: true }); return true; }
+  // a slow TMDB (a TV over a real network): every API answer takes this long (GET /_tmdb/slow?ms=900; reset clears it)
+  if (p === '/_tmdb/slow') { slow = +u.searchParams.get('ms') || 0; J(res, { ok: true, slow }); return true; }
   if (p.startsWith('/tmdb-img/')) {
     const f = path.basename(p);
     const file = has(f) ? path.join(ART, f) : path.join(MEDIA, 'img', fs.existsSync(path.join(MEDIA, 'img', f)) ? f : 'p0.jpg');
@@ -235,6 +237,11 @@ module.exports = function tmdb(req, res, u) {
   }
   if (!p.startsWith('/tmdb/3/')) return false;
   if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET' }); res.end(); return true; }
+  if (slow) { const ms = slow; setTimeout(() => answer(req, res, u, p), ms); return true; }
+  return answer(req, res, u, p);
+};
+let slow = 0;
+function answer(req, res, u, p) {
   const rest = p.slice('/tmdb/3'.length), q = u.searchParams;
   const key = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || q.get('api_key') || '';
   const pathKey = rest.replace(/\/\d+/g, '/:id');
@@ -254,7 +261,7 @@ module.exports = function tmdb(req, res, u) {
   if ((m = /^\/find\/(tt\d+)$/.exec(rest))) { const x = byImdb.get(m[1]); J(res, { movie_results: x?.type === 'movie' ? [result(x)] : [], tv_results: x?.type === 'series' ? [result(x)] : [] }); return true; }
   J(res, { success: false, status_code: 34, status_message: 'The resource you requested could not be found.' }, 404);
   return true;
-};
+}
 module.exports.TITLES = TITLES;
 module.exports.cinemetaMeta = cinemetaMeta;
 module.exports.TOKEN = TOKEN;

@@ -17,12 +17,21 @@ import { forgetReplays, keptWords, NOT_KEPT } from '../catchup.js';
 import { addonsPane, addonsAct, addonsHold, addonsEnter, addonsEntry, tmdbKeyScreen, tmdbTypeKey, phoneKeyReady } from './addons.js';
 import * as TMDB from '../tmdb.js';
 import * as R from '../rows.js';
+// When Home's rows were worked out and from what (Account > Home rows)
+function rowsLine() {
+  const pg = R.pageNow();
+  if (R.isBuilding()) return 'Working them out now · the new rows go in as they come';
+  if (!pg || pg.preview || !pg.src) return 'Not worked out yet · Home does it on its next visit';
+  const at = new Date(pg.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `Worked out at ${at}${pg.took ? ` in ${Math.round(pg.took / 1000)} s` : ''} · ${pg.src.rows} rows${pg.src.key ? `, ${pg.src.tmdb} from TMDB` : ''}`;
+}
 // How TMDB is doing on this TV, in words he can read out to us: working (and how many Home rows it made) or what failed
 function tmdbLine() {
   const st = TMDB.status, pg = R.pageNow()?.src;
   if (st.fail && st.lastAt > st.okAt) return `TMDB: not working right now · ${st.last}`;
   if (pg?.key) return `TMDB: working · ${pg.tmdb} of ${pg.rows} Home rows from TMDB${pg.addon ? ` · ${pg.addon} from your add-ons` : ''}`;
-  return st.ok ? 'TMDB: working' : 'TMDB: set · Home asks it on its next visit';
+  if (R.isBuilding()) return `TMDB: ${st.ok ? 'working' : 'set'} · Home rows are being worked out`;
+  return st.ok ? 'TMDB: working · Home rows not worked out yet' : 'TMDB: set · Home asks it on its next visit';
 }
 
 const GROUPS = [['provider', 'Provider'], ['addons', 'Add-ons'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
@@ -108,6 +117,7 @@ function body() {
       <div class="t-label" style="margin:14px 4px 6px">Start again</div>
       ${row('picks', 'Pick what you like', more(R.picked().join(', ') || 'Not picked'), 'Three genres that start your rows before airglow knows what you watch')}
       ${row('hints', 'Show the hints again', more('Show'), 'The key hints on Home fade after you have used them five times')}
+      ${row('rowsrefresh', 'Refresh Home rows', more(R.isBuilding() ? 'Working…' : 'Refresh'), rowsLine())}
       ${row('rowsreset', 'Reset Home rows', more('Reset'), 'Hidden rows and Not interested titles come back')}
       ${row('forget', 'Forget what you like', more('Forget'), 'Clears what the rows learnt. Continue watching and History stay')}`;
   }
@@ -245,6 +255,7 @@ function act(a) {
   }
   else if (a === 'picks') import('./home.js').then((H) => H.pickSheet(() => draw()));
   else if (a === 'hints') { R.resetHints(); toast('The hints show again on Home'); }
+  else if (a === 'rowsrefresh') { toast('Home rows are being worked out again'); R.buildPage({ force: true }).catch(() => {}).finally(() => { if (group === 'home') draw(); }); draw(); }
   else if (a === 'rowsreset') { R.resetRows(); toast('Home rows are reset'); draw(); }
   else if (a === 'forget') confirmMenu({ title: 'Forget what you like?', text: 'Your rows start again from popular titles. Continue watching and History stay.', yes: 'Forget', onYes: () => { R.forgetTaste(); toast('Forgotten · your rows start again'); draw(); } });
   else if (a === 'install') native?.updates.install();
@@ -270,6 +281,7 @@ export default {
     });
     native?.updates.onStatus(() => { if (current() === 'account') draw(); });
     on('info', () => { if (current() === 'account') draw(); });
+    on('rows', () => { if (current() === 'account' && (group === 'home' || group === 'provider')) draw(); });
   },
   enter(root, params) { if (params?.group && GROUPS.some(([k]) => k === params.group)) { group = params.group; scroll = 0; } draw(); if (group === 'addons') addonsEnter(draw); },
   entry: (root) => (group === 'addons' && root.querySelector('.ad-row')) || root.querySelector('.arow') || root.querySelector('.gl.sel'),

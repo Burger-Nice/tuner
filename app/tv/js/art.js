@@ -10,10 +10,10 @@ const LIN = Float64Array.from({ length: 256 }, (_, v) => { v /= 255; return v <=
 const lin = (v) => LIN[v];
 // the small copy of a backdrop: metahub's small size, TMDB's w300
 export const small = (u) => String(u || '').replace(/\/background\/(medium|large)\//, '/background/small/').replace(/(image\.tmdb\.org\/t\/p\/)(w\d+|original)\//, '$1w300/');
-function load(src, ms = 4000) {
+function load(src, ms = 4000, cors = true) {
   return new Promise((res) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (cors) img.crossOrigin = 'anonymous';
     const t = setTimeout(() => res(null), ms);
     img.onload = () => { clearTimeout(t); res(img); };
     img.onerror = () => { clearTimeout(t); res(null); };
@@ -59,8 +59,16 @@ export const glowOf = (a, alpha = 0.6) => { if (!a) return 'transparent'; const 
 export function logoInfo(url) {
   if (!url) return Promise.resolve(null);
   if (logos.has(url)) return logos.get(url);
-  const p = load(url, 6000).then((img) => {
-    if (!img || !img.naturalWidth) { failedLogos.add(url); return null; }
+  // (decided once, before a screen shows it: a logo is drawn only after this answers, so a shown logo never turns back
+  // into text. A host that sends no CORS header can't be measured but still shows: drawn plain. Slow is not failed: 20 s.)
+  const p = load(url, 20000).then(async (img) => {
+    if (!img || !img.naturalWidth) {
+      const plain = await load(url, 20000, false);
+      if (!plain || !plain.naturalWidth) { failedLogos.add(url); return null; }
+      const out = { plain: true };
+      ready.set(`logo:${url}`, out);
+      return out;
+    }
     try {
       const W = Math.min(240, img.naturalWidth), Hh = Math.max(1, Math.round((W * img.naturalHeight) / img.naturalWidth));
       const c = document.createElement('canvas'); c.width = W; c.height = Hh;
@@ -74,11 +82,11 @@ export function logoInfo(url) {
         if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; if (y > y1) y1 = y;
         lum += 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); n++;
       }
-      if (x1 < 0) return null;
+      if (x1 < 0) { failedLogos.add(url); return null; }   // (an empty picture is no logo)
       const out = { x0: x0 / W, y0: y0 / Hh, x1: (x1 + 1) / W, y1: (y1 + 1) / Hh, w: img.naturalWidth, h: img.naturalHeight, dark: n > 0 && lum / n < 0.04, lum: n > 0 ? lum / n : 0 };
       ready.set(`logo:${url}`, out);
       return out;
-    } catch { return { plain: true }; }
+    } catch { const out = { plain: true }; ready.set(`logo:${url}`, out); return out; }
   });
   logos.set(url, p);
   return p;
