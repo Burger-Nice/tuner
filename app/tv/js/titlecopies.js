@@ -14,6 +14,7 @@ import { rank, waitPlan, providerCopy, copyLine, sizeText, originalLang, pinNote
 import { checkFor, checkedFor } from './subs.js';
 import { soundOfCopy, uncheckedWords, lenWords } from './quality.js';
 import { native } from './native.js';
+import { playerArt } from './art.js';
 import { ctx as playing, playVod, playerCommand } from './player.js';
 import { openOverlay, toast, scrollList } from './ui.js';
 import { SPIN, PUZZLE, fieldKeys } from './screens/addons.js';
@@ -225,10 +226,16 @@ export function addonItem(t, c, tc, row) {
     copy: { source: c.source, addonKey: c.addonKey, key: c.key, binge: c.binge, filename: c.filename, size: c.size, title: t.name, kind: t.kind, tkey: t.key, tid: t.id, runtime: ep ? (c.providerLenSec || 0) : (tc.meta?.runtime || 0) * 60 },
   };
   const runtime = ep ? (c.providerLenSec || 0) : (tc.meta?.runtime || 0) * 60;
-  const entry = { headers: c.headers || null, mime: mimeOf(c), source: c.source, sourceKind: 'addon', key: id, binge: c.binge || '', runtime, copyKey: c.key, label: copyLine(c) };
+  const entry = { headers: c.headers || null, mime: mimeOf(c), source: c.source, sourceKind: 'addon', key: id, binge: c.binge || '', runtime, copyKey: c.key, label: copyLine(c), art: artOf(t, tc, row) };
   Object.defineProperty(it, 'url', { value: c.url, enumerable: false });
   Object.defineProperty(it, '_entry', { value: entry, enumerable: false });
   return it;
+}
+// the player's title block: the title's logo (when it reads on the art) and one line of the story (player-v2 SPEC 3)
+function artOf(t, tc, row) {
+  const v = row?.vid || row || {};
+  const story = row ? v.overview || v.description || row.overview || '' : t?.overview || tc?.meta?.description || '';
+  return playerArt(t?.logo || tc?.meta?.logo || '', t?.background || tc?.meta?.background || '', story);
 }
 const mimeOf = (c) => { const m = String(c.filename || c.url || '').toLowerCase().split('?')[0].match(/\.(mkv|mp4|m4v|ts|m3u8|webm|avi|mov)$/); return m ? { mkv: 'video/x-matroska', mp4: 'video/mp4', m4v: 'video/mp4', ts: 'video/mp2t', m3u8: 'application/x-mpegURL', webm: 'video/webm', avi: 'video/x-msvideo', mov: 'video/quicktime' }[m[1]] : ''; };
 // the next copies, as identities (never links): the player asks for one with need: copy (SPEC 8.1)
@@ -241,7 +248,7 @@ function playCopy(t, c, tc, opts = {}) {
   if (c.source === 'provider') {
     const v = c.v;
     lastPlay = { tc, list, t, item: v, playing: c.key };
-    return playVod(v, { restart: opts.restart, entry: { source: 'provider', sourceKind: 'provider', copyKey: c.key, copies: identities(rest) } });
+    return playVod(v, { restart: opts.restart, entry: { source: 'provider', sourceKind: 'provider', copyKey: c.key, copies: identities(rest), art: artOf(t, tc, opts.row) } });
   }
   const it = addonItem(t, c, tc, opts.row);
   it._entry.copies = identities(rest);

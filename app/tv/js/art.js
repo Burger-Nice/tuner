@@ -18,7 +18,7 @@ function load(src, ms = 4000) {
     img.src = src;
   });
 }
-// -> { mean (relative luminance of its right half, where the subject is), color 'r,g,b' } | null
+// -> { mean (relative luminance of its right half, where the subject is), tl (its top-left quarter), color 'r,g,b' } | null
 export function analyse(url) {
   if (!url) return Promise.resolve(null);
   if (memo.has(url)) return memo.get(url);
@@ -29,14 +29,16 @@ export function analyse(url) {
       const x = c.getContext('2d', { willReadFrequently: true });
       x.drawImage(img, 0, 0, 32, 18);
       const d = x.getImageData(0, 0, 32, 18).data;
-      let lum = 0, n = 0, r = 0, g = 0, b = 0;
+      let lum = 0, n = 0, r = 0, g = 0, b = 0, tl = 0, tn = 0;
       for (let i = 0; i < d.length; i += 4) {
-        const px = (i / 4) % 32;
+        const px = (i / 4) % 32, py = Math.floor(i / 4 / 32);
         r += d[i]; g += d[i + 1]; b += d[i + 2];
-        if (px >= 16) { lum += 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); n++; }
+        const L = 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]);
+        if (px >= 16) { lum += L; n++; }
+        if (px < 16 && py < 9) { tl += L; tn++; }   // (the top-left quarter: where the player's title block sits)
       }
       const m = d.length / 4;
-      const out = { mean: lum / n, color: `${Math.round(r / m)},${Math.round(g / m)},${Math.round(b / m)}` };
+      const out = { mean: lum / n, tl: tl / Math.max(1, tn), color: `${Math.round(r / m)},${Math.round(g / m)},${Math.round(b / m)}` };
       ready.set(url, out);
       return out;
     } catch { return null; }   // (a tainted canvas: the server doesn't allow it)
@@ -51,7 +53,7 @@ export const capFor = (a, target) => (a ? Math.max(0.1, Math.min(0.6, 1 - target
 export const glowOf = (a, alpha = 0.6) => { if (!a) return 'transparent'; const [r, g, b] = a.color.split(',').map(Number); const f = Math.min(1, 110 / Math.max(1, Math.max(r, g, b))); return `rgba(${Math.round(r * f)},${Math.round(g * f)},${Math.round(b * f)},${alpha})`; };
 
 // ---------- logos ----------
-// -> { x0, y0, x1, y1 (fractions of the image), w, h (natural), dark } | null
+// -> { x0, y0, x1, y1 (fractions of the image), w, h (natural), dark, lum (the ink's mean luminance) } | null
 export function logoInfo(url) {
   if (!url) return Promise.resolve(null);
   if (logos.has(url)) return logos.get(url);
@@ -71,7 +73,7 @@ export function logoInfo(url) {
         lum += 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); n++;
       }
       if (x1 < 0) return null;
-      const out = { x0: x0 / W, y0: y0 / Hh, x1: (x1 + 1) / W, y1: (y1 + 1) / Hh, w: img.naturalWidth, h: img.naturalHeight, dark: n > 0 && lum / n < 0.04 };
+      const out = { x0: x0 / W, y0: y0 / Hh, x1: (x1 + 1) / W, y1: (y1 + 1) / Hh, w: img.naturalWidth, h: img.naturalHeight, dark: n > 0 && lum / n < 0.04, lum: n > 0 ? lum / n : 0 };
       ready.set(`logo:${url}`, out);
       return out;
     } catch { return { plain: true }; }
@@ -96,4 +98,31 @@ export function logoHtml(url, alt, h, maxW, cls = 'lgo') {
     ? `<i style="position:absolute;${pos};background:var(--a-text-1);-webkit-mask:url('${esc(url)}') 0 0/100% 100% no-repeat;mask:url('${esc(url)}') 0 0/100% 100% no-repeat"></i>`
     : `<img src="${esc(url)}" alt="${esc(alt)}" style="position:absolute;${pos}" decoding="async">`;
   return `<span class="${cls} ink" style="width:${inkW.toFixed(1)}px;height:${inkH.toFixed(1)}px">${inner}</span>`;
+}
+
+// The player's title block (design/ui-v1/player-v2/SPEC.md 3): a title's logo, its ink box and whether it reads. The
+// player can't read its video frames, so the check is against the backdrop art's top-left as a proxy for the frame,
+// under the top scrim (bg-0 at about 78 % there): the ink must pass 3 : 1, or the player shows the text title. Dark ink is
+// drawn in chalk, as Home does. line: the first sentence of the story, for the pause screen.
+export function playerArt(logo, background, story) {
+  const out = { line: firstSentence(story) };
+  if (!logo) return out;
+  out.logo = logo;
+  const info = logoKnown(logo);
+  if (info && !info.plain) {
+    out.box = [info.x0, info.y0, info.x1, info.y1];
+    out.dark = !!info.dark;
+    const bg = known(background || '');
+    const under = 0.78 * 0.0068 + 0.22 * (bg ? bg.tl ?? bg.mean : 0.05);
+    const L = info.dark ? 0.86 : info.lum ?? 0.5;
+    out.ok = (Math.max(L, under) + 0.05) / (Math.min(L, under) + 0.05) >= 3;
+  }
+  return out;
+}
+function firstSentence(s) {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const m = t.match(/^.{20,}?[.!?](?=\s|$)/);
+  const one = m ? m[0] : t;
+  return one.length > 120 ? `${one.slice(0, 117).replace(/\s+\S*$/, '')}…` : one;
 }
