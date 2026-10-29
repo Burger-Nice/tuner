@@ -91,7 +91,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   for (let i = 1; i <= 8; i++) { await touch('touchMove', box.x + 300 - i * 18, box.y + 40); await p.waitForTimeout(16); }
   await touch('touchEnd');
   await p.waitForTimeout(600);
-  check('Live: swipe left favourites', await ev(() => /favourites/.test(document.querySelector('#toast')?.innerText || '')), await text('#toast'));
+  check('Live: swipe left favourites', await ev(() => Object.keys(localStorage).some((k) => /:favs$/.test(k) && /"kind":"live"/.test(localStorage.getItem(k)))), await text('#toast'));
   // the channel's day
   await tap('.lv-ch[data-i="0"] .chev');
   check('the channel\'s day opens', await wait(() => window.__tunerTest.state().screen === 'day' && document.querySelectorAll('.lv-day .p').length > 0, 8000));

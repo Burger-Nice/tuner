@@ -12,7 +12,10 @@ const start = Date.now();
       if (seen.has(i)) continue;
       seen.add(i);
       console.log(JSON.stringify(r));
-      if (r.step === 'shot') execFileSync('xcrun', ['simctl', 'io', 'booted', 'screenshot', `ios-shots/${String(seen.size).padStart(2, '0')}-${r.data.name}.png`]);
+      if (r.step === 'shot') {
+        try { execFileSync('xcrun', ['simctl', 'io', 'booted', 'screenshot', `ios-shots/${r.data.name}.png`], { timeout: 20000 }); } catch (e) { console.log(`screenshot ${r.data.name} failed: ${e.message}`); }
+        await fetch('http://127.0.0.1:8899/_report', { method: 'POST', body: JSON.stringify({ step: 'shot-done', data: { name: r.data.name } }) }).catch(() => {});
+      }
     }
     fs.writeFileSync('ios-shots/reports.json', JSON.stringify(reports, null, 1));
     if (reports.some((r) => r.step === 'done')) return;
