@@ -37,22 +37,36 @@ shows on the lock screen. The lock screen / Now Playing text comes from the `<vi
 (`navigator.mediaSession.metadata`): **title and artwork go through the shield** (`games.js` `namesOf` / the masked
 name), never ESPN's headline.
 
-## The streams
+## The streams (built: review 2, M1)
 
-1. **Live, Xtream:** ask for the HLS form first, `/live/<user>/<pass>/<id>.m3u8`; the `<video>` plays it natively
-   (`canPlayType('application/vnd.apple.mpegurl')`, app/player.js 67). **Check the owner's line answers `.m3u8` before
-   the build** (some panels have HLS output off). If it does not, the `.ts` form plays through `mpegts.js` 1.8.2 over
-   `ManagedMediaSource` (iOS 17.1+; mpegts.js has the MMS path, app/player.js 72) — same element, so PiP, AirPlay and
-   background audio still work for the element (AirPlay of an MSE stream mirrors; say so in Options › Connection).
-2. **Catch-up and replays:** the provider's `timeshift` / `streaming` URLs, HLS where offered, else as 1.
-3. **Add-on copies:** `copies.js` gains a **plays-here** term on iOS: MP4 / M4V / MOV (H.264 or HEVC, AAC) and HLS rank
-   first; MKV, AVI, DTS / TrueHD audio rank last and are marked `MKV` on the card. A title whose only copies are MKV
-   shows `Open in Infuse` (or VLC) on the title page: `infuse://x-callback-url/play?url=<encoded>` and
-   `vlc-x-callback://x-callback-url/stream?url=<encoded>` (the TV's `Handover` idea, as a URL scheme). Subtitles for a
-   handed-off copy are not carried.
-4. **The connection limit:** `core.js` reads the Xtream account info (`max_connections`, `active_cons`); the player's
-   diagnosis card has a named state `Your provider allows 1 stream · the TV is using it` when a stream fails and
-   `active_cons >= max_connections`.
+1. **HLS only.** Live is `/live/<user>/<pass>/<id>.m3u8` (core.js's hls source); the `<video>` plays it natively
+   (AVFoundation). **There is no MPEG-TS fallback**: CapacitorHttp buffers `fetch`, so mpegts.js never gets a live body,
+   and without the patch Xtream panels send no CORS headers; on ManagedMediaSource mpegts.js would also switch AirPlay
+   off. hls.js ships only for a desktop browser (the Playwright tests): the iPhone never loads it.
+2. **Catch-up and replays:** core.js `catchup()`'s first link, the `.m3u8` timeshift form; From tip-off is replay.js's
+   stand-in VOD mode (the first link, its progress on the window's scale), so the phone player draws the chapters, the
+   live point and `End hidden` from what replay.js announces (`replay-started`).
+3. **When a stream won't play:** a clear message on the video (`This stream won't play on this iPhone`, the provider's
+   answer when known) with `Try again` and **Open in VLC** (`vlc-x-callback://x-callback-url/stream?url=<encoded>`, the
+   `.ts` link for live); an MKV copy says `Only an MKV copy` with **Open in Infuse** (`infuse://x-callback-url/play?url=…`).
+   The provider's limit is a named state (`Your provider allows 1 stream · another device is using it`, from the
+   account info's `max_connections` / `active_cons`).
+4. **Account › Provider › Check streams on this iPhone** tries a live channel's `.m3u8` (a sports channel first) and a
+   catch-up `.m3u8` of a kept channel's finished programme the way the player does, and says plainly whether each
+   plays here (the result is kept on the phone). That is the owner's day-one test.
+5. **Add-on copies:** the plays-here term is `copies.js` key 3 (`playsNow`), given by the phone (`app/phone/detail.js`):
+   MP4 / M4V / MOV / HLS play; a copy whose link or file name is MKV / AVI / WebM doesn't. A title with only MKV copies
+   gets `Open in Infuse` as its pill and `Only MKV copies · Infuse or VLC plays them`.
+6. **Day-one device tests** (can't be proven in CI): background audio on lock, automatic PiP when leaving the app (the
+   PiP button always works), AirPlay to the TV.
+
+## Plugins (installed as packages, not core)
+
+`@capacitor/status-bar` (hides the bar in the landscape player; needs `UIViewControllerBasedStatusBarAppearance` true,
+set) and `@capacitor/screen-orientation` (the tabs locked to portrait, unlocked in the player), both 8.x in
+`package.json`; `npx cap sync ios` adds them to `CapApp-SPM`. `Remind me` is hidden in v1 (no local notifications yet).
+The WebView's media flags are set in `SceneDelegate.swift` (`AirglowViewController`), the audio session in
+`AppDelegate.swift`.
 
 ## The build and delivery
 
@@ -61,4 +75,3 @@ name), never ESPN's headline.
 - Delivery stays **AltStore** (CONTEXT.md): a side-loaded IPA re-signed every 7 days; no App Store review. The owner's
   Apple ID signs it. Updates: the phone shows the TV's version beside its own in Account › Updates and says "AltStore
   refreshes it".
-- `@capacitor/screen-orientation` and `@capacitor/status-bar` are the only plugins beyond the core (`App`, `Http`).

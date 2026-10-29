@@ -52,7 +52,13 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   `LivePause`; the copy check `Probe`, subtitles `Subs`, `SrtTrack`; add-ons `Handover` (hand a link to another app),
   `PhonePage` (the page a phone opens to type into the TV), `Launch`. Each feature's native side: its `PORT-NATIVE.md`. JS → native via `command` (meta, game, ring, tune, queue, versions…);
   native → JS via events (track, need, pick, version, progress, setting, exit…).
-- `scripts/build-web.js tv` builds `www/` for the TV APK.
+- The iPhone app (`design/ui-v1/phone-v1/`, PORT-NATIVE.md there): `app/phone.html` + `app/phone/` (the views: tab bar,
+  sheets, Home, Live, NBA, Library, title page, Search, Account, sign-in, and `player.js`, an HTML5 `<video>` with the v2
+  controls that stands in for the native player behind the TV's protocol: `bridge.js` sets `window.TUNER_NATIVE`, which
+  `app/tv/js/native.js` uses). It reuses `app/tv/js`'s data modules as they are. HLS only; VLC / Infuse hand-off.
+  Test: `node scripts/build-web.js phone`, serve `www/` on 8779, `node tests/phone/flows.js <outdir>`;
+  CI's simulator test is `tests/ios-test-boot.js`.
+- `scripts/build-web.js tv` builds `www/` for the TV APK (`phone` for the iPhone app).
 
 ## Build, test, release
 
