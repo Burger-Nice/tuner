@@ -468,6 +468,7 @@ window.TUNER_TEST = true;
         s = await sk('skip-e2-pill-skipped');
         await shot('player-back-pill');
         check('skip SK-7: ▲ lands on Skip intro, OK skips, focus on the seek thumb, Back to intro in the row', has(pillUp, /focus=Skip intro /) && pos(s) >= 105300 && pos(s) <= 108500 && has(s, /focus=seek /) && has(s, /pill=Back to intro:back /), { pillUp, s });
+        check('player v2: the name over the focused button is its name, none on the seek thumb', has(pillUp, /label=Skip intro$/) && has(s, /focus=seek .*label=$/), { pillUp, s });
         await hidden('skip-e2-controls-hidden');
         await wait(7000);   // (the way-back chip comes back with its 5 s, then goes)
         await resume('skip-e2-credits-playing');
