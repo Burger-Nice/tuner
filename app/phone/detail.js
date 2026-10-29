@@ -15,8 +15,50 @@ import * as SH from '../tv/js/shelves.js';
 import { toast } from '../tv/js/ui.js';
 import { ic, esc, push, back, isShown, menu, longPress, facts } from './ui.js';
 import { playsHere, handOff, infuseUrl, vlcUrl } from './streams.js';
+import { posterCard } from './cards.js';
+import * as TM from '../tv/js/tmdb.js';
 
-let el, t = null, info = null, tc = null, season = null, my = 0, open = false;
+// The version line in words (the design's: `4K · Dolby Vision · 5.1`): the best copy's quality, never its add-on or count
+function friendly(c) {
+  const k = c.checked, res = (k && k.res) || c.claim.res || '';
+  const range = k ? (k.dv ? 'Dolby Vision' : k.hdr ? 'HDR' : '') : c.claim.dv && !(c.claim.kind === 'bluray' || c.claim.remux) ? 'Dolby Vision' : c.claim.dv || c.claim.hdr ? 'HDR' : '';
+  const snd = k ? (k.ch >= 8 ? '7.1' : k.ch >= 6 ? '5.1' : '') : '';
+  const lang = (k && k.lang) || c.lang || '';
+  const out = [res, range, snd, lang && !['English', 'Multi'].includes(lang) ? lang : ''].filter(Boolean);
+  return out.length ? out : [c.source === 'provider' ? 'Your provider' : 'Ready to play'];
+}
+function creditsHtml() {
+  const d = info || {};
+  const rows = [d.director ? `<div><b>Directed by</b> ${esc(d.director)}</div>` : '', d.cast ? `<div><b>Cast</b> ${esc(String(d.cast).split(/,\s*/).slice(0, 6).join(', '))}</div>` : ''].filter(Boolean);
+  return rows.length ? `<div class="credits">${rows.join('')}</div>` : '';
+}
+function moreHtml() {
+  if (!more?.length) return '';
+  return `<div class="row dt-more-h"><div class="sec-h">More like this</div><div class="cards">${more.map((x, i) => posterCard(x, i).replace('class="poster"', `class="poster" data-more="${i}"`)).join('')}</div></div>`;
+}
+// More like this (the TV's row): TMDB's recommendations with the key, else Cinemeta's best of the same genre, and the
+// add-ons' own "watch next" links; never the title itself
+async function loadMore(tt, mine) {
+  const kind = tt.kind === 'series' ? 'series' : 'movie';
+  const imdb = tc?.match?.id || (String(tt.id).startsWith('tt') ? tt.id : '');
+  let list = [];
+  try {
+    if (TM.hasKey()) {
+      let id = info?.tmdb || tt.tmdb || '';
+      if (!id && imdb) id = (await TM.findByImdb(imdb).catch(() => null))?.tmdb || '';
+      if (id) list = await TM.recommendations(kind, id).catch(() => []);
+    }
+    if (!list.length) {
+      const g = (tt._genres || String(info?.genre || '').split(/,\s*/))[0];
+      if (g) list = await SH.cinemeta(kind, 'top', { genre: SH.canon(g) }).catch(() => []);
+    }
+  } catch { /* none */ }
+  if (mine !== my) return;
+  more = list.filter((x) => x && x.poster && (x.imdb || x.id) !== imdb && x.name !== tt.name).slice(0, 16);
+  if (more.length) draw();
+}
+
+let el, t = null, info = null, tc = null, season = null, my = 0, open = false, more = null;
 const linkOf = (c) => (c ? (c.source === 'provider' ? c.v?.url : c.url) : '');
 const here = (c) => playsHere({ url: linkOf(c), filename: c?.filename, mime: '' });
 // the iPhone's ranking: plays here first (the TV's key 3, playsNow), the TV's order after it
@@ -49,7 +91,7 @@ async function addonInfo(x) {
   if (m.genres?.length && !x._genres?.length) x._genres = m.genres;
   if (m.imdbRating && !x._ir) x._ir = parseFloat(m.imdbRating) || 0;
   const mins = m.runtime;
-  return { plot: m.description, genre: (m.genres || []).join(', '), year: m.year ? String(m.year) : '', duration: mins ? (mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins} min`) : '', rating: m.imdbRating, backdrop: m.background || m.poster, logo: m.logo, seasons: [] };
+  return { plot: m.description, genre: (m.genres || []).join(', '), cast: (m.cast || []).slice(0, 6).join(', '), director: (m.director || []).join(', '), tmdb: m.moviedb ? String(m.moviedb) : '', year: m.year ? String(m.year) : '', duration: mins ? (mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins} min`) : '', rating: m.imdbRating, backdrop: m.background || m.poster, logo: m.logo, seasons: [] };
 }
 // seasons as shown: the provider's, or the union with Cinemeta's when add-ons are on (titlecopies mergeEpisodes)
 const rowOf = new WeakMap();
@@ -105,7 +147,7 @@ function draw() {
     if (!tc?.active) return t.versions?.length ? `<div class="what"><span class="tick">${ic('tick')}</span>Your provider${t.versions.length > 1 ? ` · ${t.versions.length} copies` : ''}</div>` : '';
     if (noHere) return `<div class="what warn">${ic('film')}Only MKV copies · Infuse or VLC plays them</div>`;
     if (!best) return tc.asking().length ? `<div class="what warn"><span class="spin" style="width:14px;height:14px;border-width:2px"></span>Asking ${esc(tc.asking().join(', '))}…</div>` : tc.nothing() ? `<div class="what warn">${esc(tc.nothing())}</div>` : '';
-    const line = [copyLine(best) || (best.source === 'provider' ? 'Your provider' : ''), all.length > 1 ? `best of ${all.length}` : '', best.source !== 'provider' ? best.source : '', here(best) ? 'plays here' : ''].filter(Boolean);
+    const line = [...friendly(best), here(best) ? 'plays here' : ''].filter(Boolean);
     return `<div class="what">${here(best) ? `<span class="tick">${ic('tick')}</span>` : ''}${esc(line.join(' · '))}</div>`;
   })();
   if (!movie) season = season && seasons.some((s) => s.n === season) ? season : (seriesResume()?.e?.season ?? seasons[0]?.n ?? null);
@@ -123,7 +165,7 @@ function draw() {
     <button class="disc l" data-act="back" aria-label="Back">${ic('back')}</button><button class="disc r" data-act="more" aria-label="More">${ic('more')}</button>
     <div class="dt-head"><div class="ey">${esc([movie ? 'Film' : 'Series', ...genres].join(' · '))}</div>${logo ? `<img class="logo" src="${esc(logo)}" alt="${esc(t.name)}" onerror="this.outerHTML='<h1>${esc(t.name).replace(/'/g, '')}</h1>'">` : `<h1>${esc(t.name)}</h1>`}
     <div class="facts">${facts(fs)}</div>${info?.plot ? `<div class="plot${open ? ' open' : ''}" data-act="plot">${esc(info.plot)}</div>` : info?.error ? `<div class="note" style="margin:8px 0 0">${esc(info.error)}</div>` : ''}
-    <div class="act">${noHere ? `<button class="pill noicon" data-act="infuse">Open in Infuse</button>` : `<button class="pill" data-act="play">${ic('play')}${esc(verb)}</button>`}<button class="ghost" data-act="save">${ic('heart')}${isFav(t) ? 'Saved' : 'Save'}</button>${noHere ? '<button class="ghost" data-act="vlc">VLC</button>' : ''}</div>${copy}</div>${seasonsHtml}${loadingSeries}`;
+    <div class="act">${noHere ? `<button class="pill noicon" data-act="infuse">Open in Infuse</button>` : `<button class="pill" data-act="play">${ic('play')}${esc(verb)}</button>`}<button class="ghost" data-act="save">${ic('heart')}${isFav(t) ? 'Saved' : 'Save'}</button>${noHere ? '<button class="ghost" data-act="vlc">VLC</button>' : ''}</div>${copy}</div>${seasonsHtml}${loadingSeries}${creditsHtml()}${moreHtml()}`;
   el.scrollTop = y;
 }
 let soonT = 0;
@@ -158,6 +200,8 @@ export default {
     root.addEventListener('click', (e) => {
       const s = e.target.closest('[data-season]');
       if (s) { season = s.dataset.season; draw(); return; }
+      const mo = e.target.closest('[data-more]');
+      if (mo) { const x = more?.[+mo.dataset.more]; if (x) openTitle(x); return; }
       const ep = e.target.closest('[data-ep]');
       if (ep) { const sea = seasonsList().find((x) => x.n === season); const x = sea?.eps[+ep.dataset.ep]; if (x) playEpisode(x); return; }
       const b = e.target.closest('[data-act]');
@@ -175,7 +219,7 @@ export default {
   },
   async enter(root, params, { fresh }) {
     if (!params.title || (!fresh && params.title === t)) { draw(); return; }
-    t = params.title; info = null; season = null; open = false;
+    t = params.title; info = null; season = null; open = false; more = null;
     tc?.destroy();
     tc = phoneRanking(titleCopies(t, (x, why) => { if (x !== tc) return; if (why === 'tick') { const b = el.querySelector('[data-act="play"]'); const w = tc.waiting(); if (b && w) b.innerHTML = `${ic('play')}Playing in ${w.left()} s`; return; } soon(); }));
     const mine = ++my;
@@ -188,6 +232,7 @@ export default {
     } catch (e) { if (mine !== my) return; info = { error: e.message, seasons: [] }; }
     tc.start(info);
     draw();
+    loadMore(t, mine);
   },
   leave() { tc?.stopWait(); },
 };

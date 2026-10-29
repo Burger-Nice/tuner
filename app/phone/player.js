@@ -13,7 +13,7 @@ import { gameById, shielded, isSeen, hidden as gameHidden, chaptersOf } from '..
 import { replay as replayState } from '../tv/js/games.js';
 import { playLive } from '../tv/js/player.js';
 import { hm, leftText, fmtTime, keyOf } from '../tv/js/util.js';
-import { ic, esc, sheet, radio, menu, confirm, tileOf, facts, haptic } from './ui.js';
+import { ic, esc, sheet, radio, menu, confirm, tileOf, facts, haptic, cleanCh } from './ui.js';
 import { hlsOf, tsOf, vlcUrl, infuseUrl, handOff, playsHere, limitReached } from './streams.js';
 
 const $p = () => document.getElementById('ph-player');
@@ -238,7 +238,7 @@ function titleBlock() {
     const c = chNow(), m = meta[c.id] || {};
     const g = P.game;
     const name = g ? g.title : m.now || c.name;
-    const sub = [c.num ? String(c.num) : '', c.name, m.end ? `until ${hm(m.end)}` : '', resTag()].filter(Boolean);
+    const sub = [c.num ? String(c.num) : '', cleanCh(c.name), m.end ? `until ${hm(m.end)}` : '', resTag()].filter(Boolean);
     const what = g?.hidden ? `${ic('eyeOff')}Score hidden · the spoiler shield` : m.next ? `Next ${esc(m.next)}` : '';
     return { name, sub, what, live: true };
   }
@@ -408,7 +408,7 @@ function zapHtml() {
   if (want.length) emitEvent({ type: 'need-meta', session: P.s, ids: want });
   const rows = ids.map((x) => {
     const c = P.ring[x], m = meta[c.id] || {};
-    return `<button class="lv-ch${x === i ? ' cur' : ''}" data-tune="${x}"><span class="no">${c.num || ''}</span>${tileOf(c)}<span class="col"><span class="nm"><span class="n">${esc(c.name)}</span>${m.live ? '<span class="live sm">Live</span>' : ''}</span><span class="pg${m.now ? '' : ' dim'}">${esc(m.now || (m.start === undefined ? '' : 'No guide information'))}</span></span></button>`;
+    return `<button class="lv-ch${x === i ? ' cur' : ''}" data-tune="${x}"><span class="no">${c.num || ''}</span>${tileOf(c)}<span class="col"><span class="nm"><span class="n">${esc(cleanCh(c.name))}</span>${m.live ? '<span class="live sm">Live</span>' : ''}</span><span class="pg${m.now ? '' : ' dim'}">${esc(m.now || (m.start === undefined ? '' : 'No guide information'))}</span></span></button>`;
   }).join('');
   return `<div class="pv-zap"><div class="h">Channels<span>${esc(P.ringName)} · ${i + 1} of ${n}</span><button class="more" data-act="groups">Groups ${ic('chevR')}</button></div>${rows}</div>`;
 }

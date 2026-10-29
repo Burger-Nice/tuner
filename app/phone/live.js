@@ -12,7 +12,7 @@ import { programmeView, keptWords, NOT_KEPT } from '../tv/js/catchup.js';
 import { playProgramme, watchOnChannel } from '../tv/js/replay.js';
 import { playLive } from '../tv/js/player.js';
 import { toast } from '../tv/js/ui.js';
-import { avatar, ic, esc, push, isShown, menu, longPress, tileOf, sheet } from './ui.js';
+import { avatar, cleanCh, ic, esc, push, isShown, menu, longPress, tileOf, sheet } from './ui.js';
 
 let el, group = null, chans = [], shown = 60, q = '', searching = false;
 const realOf = (c) => c.items.filter((x) => !x._sep);
@@ -63,7 +63,7 @@ function rowHtml(ch, i) {
   const fav = isFav(ch) && group !== 'fav';
   const prog = !list ? `<span class="pg dim">${guideFailed(ch) ? 'Guide not answering' : '&nbsp;'}</span>` : now ? `<span class="pg">${esc(v.title)}</span>` : '<span class="pg dim">No guide information</span>';
   const nx = now && !S.offline ? `<span class="nx"><span class="bar4" style="--p:${p}%"><i></i></span><span class="tx">until ${hm(now.end)}${next ? ` · Next ${esc(programmeView(ch, next).title)}` : ''}</span></span>` : '';
-  return `<div class="lv-wrap" data-i="${i}"><div class="lv-swipe">${ic(isFav(ch) ? 'starO' : 'star')}${isFav(ch) ? 'Unfavourite' : 'Favourite'}</div><button class="lv-ch" data-i="${i}"><span class="no">${ch.num || ''}</span>${tileOf(ch)}<span class="col"><span class="nm"><span class="n">${esc(ch.name)}</span>${fav ? ic('star') : ''}${live ? '<span class="live sm">Live</span>' : ''}</span>${prog}${nx}</span><span class="chev" data-day="${i}">${ic('chevR')}</span></button></div>`;
+  return `<div class="lv-wrap" data-i="${i}"><div class="lv-swipe">${ic(isFav(ch) ? 'starO' : 'star')}${isFav(ch) ? 'Unfavourite' : 'Favourite'}</div><button class="lv-ch" data-i="${i}"><span class="no">${ch.num || ''}</span>${tileOf(ch)}<span class="col"><span class="nm"><span class="n">${esc(cleanCh(ch.name))}</span>${fav ? ic('star') : ''}${live ? '<span class="live sm">Live</span>' : ''}</span>${prog}${nx}</span><span class="chev" data-day="${i}">${ic('chevR')}</span></button></div>`;
 }
 function nowCard() {
   const ch = lastCh();
@@ -72,7 +72,7 @@ function nowCard() {
   if (!list) guideFor(ch).then(() => soon()).catch(() => {});
   const v = now ? programmeView(ch, now) : null;
   const p = now ? ((Date.now() - now.start) / (now.end - now.start)) * 100 : 0;
-  return `<div class="lv-now"><div class="th">${ch.logo ? `<img src="${esc(ch.logo)}" alt="">` : esc(ch.name.slice(0, 3))}</div><div class="col"><div class="ey">Last watched</div><div class="t">${esc(v?.title || ch.name)}</div><div class="m">${esc(ch.name)}${now ? ` · ${hm(now.start)}–${hm(now.end)} · ${leftText((now.end - Date.now()) / 1000)}` : ''}</div>${now ? `<div class="bar4" style="--p:${p}%"><i></i></div>` : ''}<div class="act"><button class="pill" data-act="tune-last">${ic('play')}Tune</button>${ch.archive > 0 ? '<button class="ghost" data-act="earlier">Earlier</button>' : ''}</div></div></div>`;
+  return `<div class="lv-now"><div class="th">${ch.logo ? `<img src="${esc(ch.logo)}" alt="">` : esc(ch.name.slice(0, 3))}</div><div class="col"><div class="ey">Last watched</div><div class="t">${esc(v?.title || ch.name)}</div><div class="m">${esc(cleanCh(ch.name))}${now ? ` · ${hm(now.start)}–${hm(now.end)} · ${leftText((now.end - Date.now()) / 1000)}` : ''}</div>${now ? `<div class="bar4" style="--p:${p}%"><i></i></div>` : ''}<div class="act"><button class="pill" data-act="tune-last">${ic('play')}Tune</button>${ch.archive > 0 ? '<button class="ghost" data-act="earlier">Earlier</button>' : ''}</div></div></div>`;
 }
 const HINTS = 'tuner.phLiveHint';
 function hint() { try { const n = +localStorage.getItem(HINTS) || 0; if (n >= 5) return ''; return 'Tap plays · swipe left to favourite'; } catch { return ''; } }

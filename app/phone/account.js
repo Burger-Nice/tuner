@@ -8,6 +8,7 @@ import { resetGuides } from '../tv/js/guide.js';
 import { shieldMode, favTeam } from '../tv/js/games.js';
 import * as AD from '../tv/js/addons.js';
 import * as TM from '../tv/js/tmdb.js';
+import * as R from '../tv/js/rows.js';
 import { toast } from '../tv/js/ui.js';
 import { phoneInfo } from './bridge.js';
 import { ic, esc, back, go, isShown, sheet, confirm, menu } from './ui.js';
@@ -30,7 +31,11 @@ function mainHtml() {
   const f = S.acc ? accountFacts() : null;
   const host = (() => { try { return new URL(S.acc?.server || S.acc?.url || '').host; } catch { return S.acc?.name || ''; } })();
   const exp = f?.exp ? `Expires ${f.exp.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${f.days != null ? ` · ${f.days} days left` : ''}` : S.acc?.type === 'm3u' ? 'M3U playlist' : '';
-  const tmdb = TM.hasKey() ? `Set · ${TM.status.fail && !TM.status.ok ? 'not answering' : 'working'}` : 'Not set';
+  const tmdb = TM.hasKey() ? 'Set' : 'Not set';
+  const st = TM.status, pg = R.pageNow()?.src;
+  const tmdbLine = !TM.hasKey() ? 'For the Home rows and Top rated: trending, the services, rows for what you like'
+    : st.fail && st.lastAt > st.okAt ? `TMDB: not working right now · ${st.last}`
+    : pg?.key ? `TMDB: working · ${pg.tmdb} of ${pg.rows} Home rows from TMDB` : st.ok ? 'TMDB: working · Home rows not worked out yet' : 'TMDB: set · Home asks it on its next visit';
   const ads = AD.addons();
   const team = window.NBA.team(favTeam());
   const info = phoneInfo();
@@ -52,7 +57,7 @@ function mainHtml() {
     ], 'This iPhone keeps its own list of games you\'ve seen: one you watched on the TV stays hidden here until you reveal it.')}
     ${group('Films and series', [
       row({ icon: 'film', t: 'Add-ons', s: esc(ads.length ? ads.map((a) => AD.label(a)).slice(0, 3).join(', ') : 'None yet'), v: String(ads.length), act: 'addons' }),
-      row({ icon: 'key', t: 'TMDB key', s: 'For the Home rows and Top rated', v: esc(tmdb), act: 'tmdb' }),
+      row({ icon: 'key', t: 'TMDB key', s: esc(tmdbLine), v: esc(tmdb), act: 'tmdb' }),
     ])}
     ${group('App', [
       row({ icon: 'phone', t: 'Version', s: 'AltStore refreshes it', v: esc(info.version || 'dev'), chev: false }),
@@ -141,6 +146,6 @@ export default {
     on('info', () => { if (isShown('account')) draw(); });
     on('addons', () => { if (isShown('account')) draw(); });
   },
-  enter(root, params) { sub = params.open === 'addons' ? 'addons' : null; draw(); },
+  enter(root, params) { sub = params.open === 'addons' ? 'addons' : null; draw(); if (params.open === 'tmdb') root.querySelector('[data-act="tmdb"]')?.click(); },
 };
 void settings;

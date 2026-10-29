@@ -16,18 +16,19 @@ import { anyStreamAddon } from '../tv/js/imdb.js';
 import * as R from '../tv/js/rows.js';
 import * as SH from '../tv/js/shelves.js';
 import * as AD from '../tv/js/addons.js';
+import * as TM from '../tv/js/tmdb.js';
 import { analyse, capFor, glowOf } from '../tv/js/art.js';
-import { avatar, ic, esc, push, go, isShown, menu, sheet, longPress, facts, crestImg, tileOf } from './ui.js';
+import { avatar, ic, esc, push, go, isShown, menu, sheet, longPress, facts, crestImg, tileOf, cleanCh } from './ui.js';
 import { gameCard, posterCard, contCard, dayWord } from './cards.js';
 import { openTitle } from './detail.js';
 import { tipsIn } from '../tv/js/nba/common.js';
 
-let el, lines = [], lit = 0, rows = [], page = null, film = null, shows = [], picT = 0, picKey = '';
+let el, lines = [], lit = 0, rows = [], page = null, film = null, shows = [], picT = 0, picKey = '', hist = null;
 const lastChannel = () => catalog.live?.byId.get(store.get(scoped('lastLive'), '')) || null;
 export const ringFor = (ch) => (isFav(ch) ? favList('live').map((f) => catalog.live?.byId.get(f.id) || f) : catalog.live?.items || [ch]);
 const tune = (ch) => ch && playLive(ch, ringFor(ch), isFav(ch) ? 'Favourites' : 'All channels');
 // a channel's name short enough for a line of facts (the TV's): "NBA 01: Memphis Grizzlies @ …" -> NBA 01
-const chShort = (n) => { let s = String(n || '').replace(/^[A-Z]{2,3}\s*[|:]\s*/, ''); const m = s.match(/^([^:]{2,10}):\s/); if (m && s.length > 22) s = m[1]; return s.length > 24 ? `${s.slice(0, 22).replace(/\s+\S*$/, '')}…` : s; };
+const chShort = (n) => { let s = cleanCh(n); const m = s.match(/^([^:]{2,10}):\s/); if (m && s.length > 22) s = m[1]; return s.length > 24 ? `${s.slice(0, 22).replace(/\s+\S*$/, '')}…` : s; };
 const short = (n) => ({ 'Trail Blazers': 'Blazers', Timberwolves: 'Wolves', Mavericks: 'Mavs', Cavaliers: 'Cavs' }[n] || n);
 const imdbOfItem = (it) => (it.kind === 'episode' ? it.imdbSeries || '' : /^tt\d+$/.test(it.id) ? it.id : '');
 const metas = new Map();
@@ -62,6 +63,8 @@ function buildLines() {
   if (nw) out.push({ kind: 'new', f: nw });
   if (anyStreamAddon() && film) out.push({ kind: 'film', it: film });
   if (out.length < 3) { const ch = lastChannel(); if (ch) out.push({ kind: 'ch', ch }); }
+  // a first evening (no history, no picks): Pick what you like starts the rows (the TV's cold start)
+  if (hist === false && !cont && !R.picked().length && anyStreamAddon()) out.splice(Math.min(out.length, 2), 0, { kind: 'pick' });
   const base = out.slice(0, 3);
   if (g) { if (lead) base.unshift({ kind: 'game', g }); else base.push({ kind: 'game', g }); }
   if (!base.length) base.push({ kind: 'browse' });
@@ -116,7 +119,7 @@ function lineView(l) {
     const live = g.state === 'in' || heldLive(g);
     v.name = `${short(g.away.name)} at ${short(g.home.name)}`; v.big = `${g.away.name} at ${g.home.name}`; v.sharp = true;
     v.ey = row?.kind === 'morning' || row?.kind === 'looking' ? 'Last night' : 'Game night'; v.live = live && row?.kind !== 'behind';
-    const chName = chShort(ch?.name || g.tv?.[0] || '');
+    const cc = ch ? cleanCh(ch.name) : '', chName = cc && cc.length <= 18 ? cc : g.tv?.[0] || chShort(ch?.name || '');
     if (g.state === 'pre') {
       v.facts = ['Tonight', hm(g.date)]; v.meta = [`Tip-off ${hm(g.date)}`, tipsIn(g.date), chName];
       v.verb = ch && g.date - Date.now() < 3 * 3600e3 ? 'Watch pre-game' : 'Game page'; v.noplay = v.verb === 'Game page'; v.right = ['guide', 'Guide'];
@@ -144,10 +147,17 @@ function lineView(l) {
   if (l.kind === 'ch') {
     const ch = l.ch, pr = onNow(guideNow(ch)), pv = pr ? programmeView(ch, pr) : null;
     if (!guideNow(ch)) guideFor(ch).then(soon).catch(() => {});
-    v.name = pv?.title || ch.name; v.facts = ['On now', ch.name, pr ? `until ${hm(pr.end)}` : ''];
-    v.ey = `On now · ${ch.name}`; v.big = v.name;
-    v.meta = [ch.name, pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''];
+    const cn = cleanCh(ch.name);
+    v.name = pv?.title ? cleanCh(pv.title) : cn; v.facts = [pr ? `until ${hm(pr.end)}` : 'On now', pv ? cn : ''];
+    v.ey = `On now · ${cn}`; v.big = v.name;
+    v.meta = [cn, pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''];
     v.verb = 'Tune'; v.right = ['guide', 'Guide']; v.pic = { kind: 'flat', logo: ch.logo };
+    return v;
+  }
+  if (l.kind === 'pick') {
+    v.name = 'Pick what you like'; v.facts = ['Your rows']; v.ey = 'Your rows'; v.big = 'Pick what you like';
+    v.meta = ['Three genres you like start your rows']; v.line = 'Comedy, anime, crime, sci-fi… airglow learns the rest from what you watch.';
+    v.verb = 'Pick genres'; v.noplay = true; v.right = null; v.pic = { kind: 'flat' };
     return v;
   }
   v.name = 'Browse'; v.facts = ['Live, the NBA, films and series']; v.ey = 'airglow'; v.big = 'What\'s on'; v.meta = ['Live TV, the NBA and your add-ons']; v.verb = 'Live TV'; v.right = ['nba', 'NBA']; v.pic = { kind: 'flat' };
@@ -263,7 +273,9 @@ function rowsMarkup() {
     const tmp = [{ id: 'yourshows', type: 'wide', live: 'yourshows' }, { id: 'nba', type: 'game', live: 'nba' }, { id: 'channels', type: 'channel', live: 'channels' }];
     rows = tmp.map((r) => { const items = rowItems(r); return items.length ? { ...r, name: NAMES[r.live], reason: reasonOf(r, items), list: items } : null; }).filter(Boolean);
   }
-  return rows.map((r, ri) => `<div class="row" data-ri="${ri}" data-id="${esc(r.id)}"><div class="sec-h"><span class="ellipsis">${esc(r.name)}</span>${r.isNew ? '<span class="badge">New row</span>' : ''}<span class="sp"></span>${ri === 0 ? `<button class="more" data-act="index">${rows.length} rows ${ic('chevD')}</button>` : ''}</div>${r.reason ? `<div class="why">${esc(r.reason)}</div>` : ''}<div class="cards">${r.list.slice(0, 30).map((x, i) => cardOf(r, x, i)).join('')}</div></div>`).join('') + (anyStreamAddon() ? '' : '<div class="state"><b>Films and series</b><p>Add a Stremio add-on for films and series.</p><button class="ghost" data-act="addons">Account › Add-ons</button></div>');
+  return rows.map((r, ri) => `<div class="row" data-ri="${ri}" data-id="${esc(r.id)}"><div class="sec-h"><span class="ellipsis">${esc(r.name)}</span>${r.isNew ? '<span class="badge">New row</span>' : ''}<span class="sp"></span>${ri === 0 ? `<button class="more" data-act="index">${rows.length} rows ${ic('chevD')}</button>` : ''}</div>${r.reason ? `<div class="why">${esc(r.reason)}</div>` : ''}<div class="cards">${r.list.slice(0, 30).map((x, i) => cardOf(r, x, i)).join('')}</div></div>`).join('') + (anyStreamAddon() ? '' : '<div class="state"><b>Films and series</b><p>Add a Stremio add-on for films and series.</p><button class="ghost" data-act="addons">Account › Add-ons</button></div>')
+    + (anyStreamAddon() && !TM.hasKey() ? '<div class="state"><b>More rows with your TMDB key</b><p>Trending, top rated, the streaming services and rows for what you like come from TMDB. Type the key from the TV here once.</p><button class="ghost" data-act="tmdb">Account › TMDB key</button></div>' : '')
+    + (anyStreamAddon() && hist === false && !R.picked().length ? '<div class="state"><b>Pick what you like</b><p>Three genres start your own rows.</p><button class="pill noicon" data-act="pick">Pick genres</button></div>' : '');
 }
 function cardOf(r, x, i) {
   if (x.cont) return contCard(x.cont, i);
@@ -332,6 +344,7 @@ function lineAct(act) {
   if (l.kind === 'film') { if (act === 'films') return go('lib', { seg: 'movie' }); return openTitle(l.it); }
   if (l.kind === 'ch') { if (act === 'guide') return go('live'); return tune(l.ch); }
   if (l.kind === 'browse') return act === 'nba' ? go('nba') : go('live');
+  if (l.kind === 'pick') return pickSheet();
 }
 const toastNoChannel = () => import('../tv/js/ui.js').then((u) => u.toast('No channel found for this game yet. Pick it in Live and it will be remembered.', 4500));
 function openTitleOf(it) {
@@ -357,6 +370,8 @@ export default {
         if (a === 'account') return push('account');
         if (a === 'index') return indexSheet();
         if (a === 'addons') return push('account', { open: 'addons' });
+        if (a === 'tmdb') return push('account', { open: 'tmdb' });
+        if (a === 'pick') return pickSheet();
         if (b.closest('.hm-card')) return lineAct(a);
       }
       const ln = e.target.closest('.hm-lines [data-line]');
@@ -369,7 +384,7 @@ export default {
     const redraw = () => { if (isShown('home')) soon(); };
     on('nba', redraw); on('progress', redraw); on('feeds', redraw); on('replays', redraw); on('favs', redraw);
     on('rows', (p) => { page = p; redraw(); });
-    on('session', () => { page = null; film = null; shows = []; lit = 0; metas.clear(); });
+    on('session', () => { page = null; film = null; shows = []; lit = 0; hist = null; metas.clear(); });
   },
   async enter(root, params, { fresh }) {
     if (!S.acc) return;
@@ -382,7 +397,32 @@ export default {
     if (!page) { const p = await R.cachedPage().catch(() => null); if (p) { page = p; soon(); } }
     R.buildPage().then((p) => { if (p) { page = p; soon(); } }).catch(() => {});
     if (!film && anyStreamAddon()) R.filmTonight().then((f) => { film = f; soon(); }).catch(() => {});
+    if (hist == null) R.hasHistory().then((h) => { hist = h; soon(); }).catch(() => {});
     if (!shows.length && anyStreamAddon()) R.followed().then((s) => { shows = s || []; soon(); }).catch(() => {});
   },
 };
 void progressOf; void inProgress;
+
+// Pick what you like (the TV's cold start, home.js pickSheet): up to three genres seed the rows
+const PICKABLE = ['Comedy', 'Drama', 'Crime', 'Anime', 'Action', 'Sci-Fi', 'Thriller', 'Horror', 'Romance', 'Documentary', 'Fantasy', 'Mystery', 'Animation', 'Family', 'Adventure', 'History', 'War', 'Western'];
+export function pickSheet() {
+  let sel = [...R.picked()];
+  const body = () => `<h3>Pick what you like</h3><div class="sub">Three genres start your rows. airglow learns the rest from what you watch.</div><div class="body"><div class="pick-g">${PICKABLE.map((g) => `<button class="chip${sel.includes(g) ? ' sel' : ''}" data-act="g" data-v="${esc(g)}">${esc(g)}</button>`).join('')}</div></div><div class="act2"><button class="pill noicon" data-act="done">${sel.length ? `Start my rows · ${sel.length} of 3` : 'Pick up to 3'}</button></div>`;
+  const ov = sheet(body(), {
+    onClick: (act, t, close) => {
+      if (act === 'g') {
+        const g = t.dataset.v;
+        sel = sel.includes(g) ? sel.filter((x) => x !== g) : sel.length < 3 ? [...sel, g] : sel;
+        ov.el.querySelectorAll('[data-act="g"]').forEach((c) => c.classList.toggle('sel', sel.includes(c.dataset.v)));
+        ov.el.querySelector('[data-act="done"]').textContent = sel.length ? `Start my rows · ${sel.length} of 3` : 'Pick up to 3';
+      } else if (act === 'done') {
+        if (!sel.length) return;
+        close();
+        R.setPicks(sel);
+        import('../tv/js/ui.js').then((u) => u.toast(`Your rows start from ${sel.join(', ')}`));
+        R.buildPage({ force: true }).then((p) => { if (p) { page = p; soon(); } }).catch(() => {});
+        soon();
+      }
+    },
+  });
+}

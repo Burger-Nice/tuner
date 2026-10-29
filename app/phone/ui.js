@@ -173,3 +173,27 @@ export const tileOf = (ch) => `<span class="tile">${ch?.logo ? `<img src="${esc(
 export const initialsOf = (n) => String(n || '').replace(/^[A-Z]{2,4}\s*[:|]\s*/, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase().slice(0, 3);
 // the avatar (34 pt gradient disc, 44 pt target): the account's first letter, else the person icon
 export const avatar = () => { const n = (window.__phAcc?.() || '').match(/\p{L}/u)?.[0]?.toUpperCase(); return `<button class="avatar" data-act="account" aria-label="Account"><i>${n ? esc(n) : ic('user')}</i></button>`; };
+// A channel's name as a person reads it (the TV's guide does the same): no provider prefix ("US: ", "PRIME: ",
+// "NEXT | "), no small-letter tags ("ᴿᴬᵂ", "ᴴᴰ"), no quality suffix
+const MODS = /[ʰ-˿ᴀ-ᶿ⁰-₟꜀-ꜟ²³¹]+/g;
+export function cleanCh(n) {
+  let s = String(n || '').replace(MODS, ' ').replace(/[|┃│]+/g, '|').replace(/\s+/g, ' ').trim();
+  s = s.replace(/^[A-Z0-9]{2,6}\s*[:|]\s*/, '').replace(/^\|\s*/, '');
+  s = s.replace(/[\s|:-]+(?:raw|hevc|h\.?265|fhd|uhd|hd|sd|4k|8k|50fps|60fps|backup|vip|\(?\d{3,4}p\)?)\b.*$/i, '').replace(/[\s|:-]+$/, '').trim();
+  return s || String(n || '').trim();
+}
+// Facts that wrap: the fact that starts a new line drops its separator (a line never starts or ends on "·")
+function fitFacts() {
+  for (const f of document.querySelectorAll('.facts')) {
+    let top = null;
+    for (const s of f.children) {
+      s.classList.remove('wrap');
+      const t = s.offsetTop;
+      if (top != null && t > top + 2) s.classList.add('wrap');
+      top = t;
+    }
+  }
+}
+let fitT = 0;
+new MutationObserver(() => { cancelAnimationFrame(fitT); fitT = requestAnimationFrame(fitFacts); }).observe(document.body, { childList: true, subtree: true });
+window.addEventListener('resize', () => requestAnimationFrame(fitFacts));
