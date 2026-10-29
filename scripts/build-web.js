@@ -38,6 +38,20 @@ if (target === 'tv') {
 const html = fs.readFileSync(index, 'utf8').replaceAll('../node_modules/', 'node_modules/');
 fs.writeFileSync(index, html
   .replace('<script src="core.js"></script>', `${head.join('\n')}\n<script src="core.js"></script>`));
+// The TV's modules: their whole static import graph is named up front (modulepreload), so the WebView asks for all 60
+// at once instead of finding them a level at a time (each import waits for the file that names it).
+if (target === 'tv') {
+  const seen = new Set();
+  const walk = (f) => {
+    if (seen.has(f)) return;
+    seen.add(f);
+    for (const m of fs.readFileSync(f, 'utf8').matchAll(/^\s*(?:import|export)\s[^'"]*?from\s*['"](\.[^'"]+)['"]|^\s*import\s*['"](\.[^'"]+)['"]/gm)) walk(path.resolve(path.dirname(f), m[1] || m[2]));
+  };
+  const main = path.join(root, 'app/tv/js/main.js');
+  walk(main);
+  const links = [...seen].filter((f) => f !== main && fs.existsSync(f)).map((f) => `<link rel="modulepreload" href="${path.relative(path.join(root, 'app'), f).split(path.sep).join('/')}">`);
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('<script type="module" src="tv/js/main.js"></script>', `${links.join('\n')}\n<script type="module" src="tv/js/main.js"></script>`));
+}
 if (process.env.TUNER_TEST) {
   fs.copyFileSync(path.resolve(root, process.env.TUNER_TEST), path.join(out, 'test-boot.js'));
   const api = process.env.TUNER_TEST_API || 'http://127.0.0.1:8899';

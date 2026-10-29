@@ -12,6 +12,11 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(TunerPlayerPlugin.class);
         super.onCreate(savedInstanceState);
+        // The page is full screen and always moving by transforms (rows sliding in, the guide scrolling): let the WebView
+        // raster the parts just outside the screen ahead of time, so a row that slides in is drawn already (Android's
+        // advice for a WebView that is visible and animating).
+        WebView wv = getBridge().getWebView();
+        if (wv != null) wv.getSettings().setOffscreenPreRaster(true);
         // If the TV runs low on memory and kills the web page, reload it instead of letting Android close the
         // whole app (and any game playing in the full-screen player).
         getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {
