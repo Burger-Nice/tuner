@@ -538,12 +538,13 @@ window.TUNER_TEST = true;
         check('next NX-2: an episode ending with nothing lined up shows the end card naming the next one; OK plays it', /end=true upTitle=Next episode upKeys=true .*upSub=S1_·_E4_·_Thaw/.test(endCard) && /index=2 /.test(s) && PL.ctx.cur?.items?.[2]?.id === 'tt9000020:1:4' && !!ST.progressOf(bear(3))?.done, { endCard, s });
         // NX-3: the row's Next episode on an add-on episode with nothing lined up (no copy of S1 E5 yet): on demand
         s = await poll('nx-e4-nocopy', (x) => /next=nocopy/.test(x), 20000);
-        await quick(['DPAD_UP'], 'nx-e4-buttons', 500);
-        await quick(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'nx-e4-to-next', 300);
-        const btn = await sk('nx-e4-next-focus');
-        await shot('player-next-button');
         await hold('tt9000020:1:5', true);
+        // (quick steps: the controls hide 4 s after a key)
+        await quick(['DPAD_UP'], 'nx-e4-buttons', 300);
+        await quick(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'nx-e4-to-next', 200);
+        const btn = await sk('nx-e4-next-focus');
         await quick(['DPAD_CENTER'], 'nx-e4-next-ok', 300);
+        await shot('player-next-button');
         s = await poll('nx-e5-playing', (x) => /index=3 /.test(x) && /playing=true/.test(x), 20000);
         check('next NX-3: Next episode is in the row with nothing lined up, and plays the next one on demand', /next=nocopy/.test(btn) && /focus=Next episode /.test(btn) && /index=3 /.test(s) && PL.ctx.cur?.items?.[3]?.id === 'tt9000020:1:5', { btn, s });
       } catch (e) { report('error', `next: ${(e && e.stack) || e}`); }
