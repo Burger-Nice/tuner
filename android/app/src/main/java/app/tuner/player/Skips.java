@@ -566,6 +566,11 @@ final class Skips {
         private float v = 1;
         Drain(Context c) { super(c); track.setColor(Ui.S3); fill.setColor(Ui.PINK); }
         void set(float x) { if (x != v) { v = x; invalidate(); } }
+        /** It takes the chip's width, never sets it: asked "as wide as you like", it says 0 (a View's default says
+         * all of it, and the chip stretched across the screen); the chip then gives it its own width. */
+        @Override protected void onMeasure(int w, int h) {
+            setMeasuredDimension(MeasureSpec.getMode(w) == MeasureSpec.EXACTLY ? MeasureSpec.getSize(w) : 0, getDefaultSize(0, h));
+        }
         @Override protected void onDraw(@NonNull Canvas c) {
             float h = getHeight(), rad = h / 2;
             r.set(0, 0, getWidth(), h);
