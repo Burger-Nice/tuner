@@ -33,7 +33,7 @@ svg.ic.f { fill: currentColor; stroke: none; }
 .ib svg { width: 22px; height: 22px; }
 .ph-back { width: 44px; height: 44px; margin-left: -10px; display: grid; place-items: center; color: var(--a-pink-text); flex: none; }
 .ph-back svg { width: 24px; height: 24px; stroke-width: 2.4; }
-.disc { position: absolute; z-index: 6; width: 44px; height: 44px; border-radius: 50%; background: rgba(21,19,29,.6); display: grid; place-items: center; color: var(--a-text-1); top: calc(var(--st) + 2px); }
+.disc { position: fixed; z-index: 6; width: 44px; height: 44px; border-radius: 50%; background: rgba(21,19,29,.6); display: grid; place-items: center; color: var(--a-text-1); top: calc(var(--st) + 2px); }
 .disc svg { width: 22px; height: 22px; stroke-width: 2.4; }
 .disc.l { left: 10px; } .disc.r { right: 10px; }
 
