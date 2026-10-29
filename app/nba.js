@@ -41,7 +41,10 @@
     }
   }
 
-  const logoFor = (abbr) => (abbr ? `https://a.espncdn.com/i/teamlogos/nba/500-dark/scoreboard/${abbr.toLowerCase()}.png` : '');
+  // ESPN's crests are 500 x 500 and drawn at 20 to 108 px: its own resizer (the one espn.com uses) sends them at 240 px,
+  // a fifth of the bytes and of the decoded memory per crest (a scoreboard has 30)
+  const crestSize = (u) => String(u || '').replace(/^https:\/\/a\.espncdn\.com(\/i\/teamlogos\/[^?]+\.png)$/, 'https://a.espncdn.com/combiner/i?img=$1&w=240&h=240&transparent=true');
+  const logoFor = (abbr) => (abbr ? crestSize(`https://a.espncdn.com/i/teamlogos/nba/500-dark/scoreboard/${abbr.toLowerCase()}.png`) : '');
 
   function side(c = {}) {
     const t = c.team || {};
@@ -53,7 +56,7 @@
       full: t.displayName || abbr,
       color: t.color ? '#' + t.color : '',
       alt: t.alternateColor ? '#' + t.alternateColor : '',
-      logo: t.logoDark || logoFor(abbr),
+      logo: crestSize(t.logoDark) || logoFor(abbr),
       score: c.score == null ? '' : String(c.score.displayValue ?? c.score),
       record: rec?.summary || rec?.displayValue || '',
       lines: (c.linescores || []).map((l) => String(l.displayValue ?? l.value ?? '')),
