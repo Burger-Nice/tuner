@@ -14,7 +14,7 @@ import { myGame } from './games.js';
 import { videoMask } from './catchup.js';
 import { fromCinemeta, dkey, canon, plural, Plural, cinemeta, tmdbList, interleave, animeByMeta, firstCountry, notInterested, hiddenKey, GENRES } from './shelves.js';
 
-const H = 3600e3, DAY = 864e5, MAX_ROWS = 20;
+const H = 3600e3, DAY = 864e5, MAX_ROWS = 20, ROW_WAIT = 6000;
 // The day turns at 04:00 (the profile and the page are worked out once a day)
 export const dayNo = (t = Date.now()) => Math.floor((t - new Date(t).getTimezoneOffset() * 60e3 - 4 * H) / DAY);
 const hash = (s) => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
@@ -136,7 +136,7 @@ const genresFor = (m, anime) => {
 // its genres so the shares add up to 100 %.
 let prof = null, profBusy = null;
 export async function profile() {
-  if (prof && prof.day === dayNo() && prof.acc === S.acc?.id) return prof;
+  if (prof && prof.day === dayNo() && prof.acc === S.acc?.id && !(prof.partial && Date.now() - prof.at > 5 * 60e3)) return prof;
   if (profBusy) return profBusy;
   profBusy = compute().finally(() => { profBusy = null; });
   return profBusy;
@@ -158,11 +158,16 @@ async function compute() {
     byTitle.set(p.imdb, t);
   }
   const titles = [...byTitle.values()].sort((a, b) => b.lastAt - a.lastAt).slice(0, 160);
-  // their metas (kept 7 days by addons.js), a few at a time
+  // their metas (kept 7 days by addons.js), a few at a time; on a slow network (a first start: nothing kept yet) the taste
+  // is worked out from what came in 8 s, and again in 5 minutes when the rest is kept (the page waits for it)
+  const until = Date.now() + 8000;
+  let partial = false;
+  const inTime = (pr) => Promise.race([pr, new Promise((_, no) => setTimeout(() => no(new Error('slow')), Math.max(0, until - Date.now())))]);
   for (let i = 0; i < titles.length; i += 6) {
+    if (Date.now() >= until) { partial = true; break; }
     await Promise.all(titles.slice(i, i + 6).map(async (t) => {
-      t.meta = await AD.meta(t.type, t.imdb).catch(() => null);
-      t.anime = await animeOf(t.type, t.meta);
+      t.meta = await inTime(AD.meta(t.type, t.imdb)).catch((e) => { if (e?.message === 'slow') partial = true; return null; });
+      t.anime = await inTime(animeOf(t.type, t.meta)).catch(() => false);
       t.genres = genresFor(t.meta, t.anime);
       t.name = t.meta?.name || t.name;
       t.country = firstCountry(t.meta?.country || '');
@@ -188,7 +193,7 @@ async function compute() {
   for (const g of Object.keys(heavy)) heavy[g].sort((a, b) => b.w - a.w);
   const finishedT = titles.filter((t) => t.finishedAt).sort((a, b) => b.finishedAt - a.finishedAt);
   prof = {
-    acc: S.acc?.id, day: dayNo(), W, share, pairs: P, heavy, picks, titles, monthG, monthW,
+    acc: S.acc?.id, day: dayNo(), at: Date.now(), partial, W, share, pairs: P, heavy, picks, titles, monthG, monthW,
     filmShare: type.movie + type.series ? type.movie / (type.movie + type.series) : 0.5,
     finished: finishedT.length, seeds: finishedT.slice(0, 10),
     seen: new Set(titles.map((t) => t.imdb)), seenKeys: new Set(titles.map((t) => dkey({ kind: t.type, name: t.name, year: t.meta?.year || t.year }))),
@@ -483,7 +488,7 @@ export async function cachedPage() {
   return page;
 }
 export const pageNow = () => (page && page.acc === S.acc?.id ? page : null);
-export const pageStale = () => { const p = pageNow(); return !p || p.day !== dayNo() || p.sig !== sig(); };
+export const pageStale = () => { const p = pageNow(); return !p || p.preview || p.day !== dayNo() || p.sig !== sig() || (p.partial && Date.now() - p.at > 5 * 60e3); };
 on('rows-stale', () => { if (page) page.sig = ''; });
 export function buildPage({ force = false } = {}) {
   if (!S.acc) return Promise.resolve(null);
@@ -493,6 +498,12 @@ export function buildPage({ force = false } = {}) {
 }
 async function build() {
   const acc = S.acc.id;
+  // nothing to show yet (a first start, a cleared cache): Your shows, the NBA, Saved and Channels at once, while the taste
+  // and the rows' first pages come
+  if (!pageNow() && anyStreamAddon()) {
+    const pv = { acc, day: dayNo(), at: Date.now(), sig: '', preview: true, rows: layout({ P: [], B: [], D: [], S: [] }, [], { key: TM.hasKey(), gameDay: !!myGame(), st: stats(), hiddenR: hiddenRows() }).rows };
+    page = pv; emit('rows', pv);
+  }
   const p = await profile();
   const key = TM.hasKey(), gameDay = !!myGame();
   const st = stats(), today = dayNo(), firstBuild = !Object.keys(st).length;
@@ -504,20 +515,45 @@ async function build() {
   }
   const c = candidates(p, { key, gameDay });
   const all = [...c.P, ...c.B, ...c.D, ...c.S].filter((r) => !hiddenR[r.id]);
-  // their first pages, 3 at a time (TMDB answers in about 20 KB; Cinemeta's are kept 6 h by addons.js)
-  for (let i = 0; i < all.length; i += 3) {
-    await Promise.all(all.slice(i, i + 3).map(async (r) => {
-      try { r.items = await r.get(r); } catch { r.items = []; }
-      if (S.acc?.id !== acc) return;
-      // a row he scrolled to the end of yesterday starts further on today
-      if (st[r.id]?.end === today - 1 && r.items.length > 12) r.items = [...r.items.slice(8), ...r.items.slice(0, 8)];
-      // a title without a poster never makes a row (it read as broken from the sofa); an add-on's entry without an IMDb
-      // id is not a film or a series (an event, a race, a channel); his own Stremio lists keep what he has seen
-      r.items = (r.items || []).filter((it) => it && it.name && it.poster && (r.kind !== 'addon' || /^tt\d+$/.test(it.imdb || it.id)) && !unw.has(it.imdb) && !unw.has(dkey(it)) && (r.personal || (!p.seen.has(it.imdb) && !p.seenKeys.has(dkey(it)))) && !videoMask({ kind: 'movie', id: it.id, name: it.name }) && !(it.year > new Date().getFullYear()));
-      if (r.group === 'P' || r.group === 'B') r.items = [...seeded(r.items.slice(0, 20), hash(`${today}:${r.id}`)), ...r.items.slice(20)];
-    }));
-    if (S.acc?.id !== acc) return null;
-  }
+  // their first pages, 3 lanes at a time (TMDB answers in about 20 KB; Cinemeta's are kept 6 h by addons.js); a row that
+  // hasn't answered in 6 s is left out of this page (the page is built again in 5 minutes, its answer cached by then).
+  // With no page to show yet (a first start, a cleared cache), the rows that have come are drawn as they come.
+  const fetchRow = async (r) => {
+    try { r.items = await Promise.race([r.get(r), new Promise((_, no) => setTimeout(() => no(new Error('slow')), ROW_WAIT))]); } catch (e) { r.items = []; if (e?.message === 'slow') out.partial = true; }
+    if (S.acc?.id !== acc) return;
+    // a row he scrolled to the end of yesterday starts further on today
+    if (st[r.id]?.end === today - 1 && r.items.length > 12) r.items = [...r.items.slice(8), ...r.items.slice(0, 8)];
+    // a title without a poster never makes a row (it read as broken from the sofa); an add-on's entry without an IMDb
+    // id is not a film or a series (an event, a race, a channel); his own Stremio lists keep what he has seen
+    r.items = (r.items || []).filter((it) => it && it.name && it.poster && (r.kind !== 'addon' || /^tt\d+$/.test(it.imdb || it.id)) && !unw.has(it.imdb) && !unw.has(dkey(it)) && (r.personal || (!p.seen.has(it.imdb) && !p.seenKeys.has(dkey(it)))) && !videoMask({ kind: 'movie', id: it.id, name: it.name }) && !(it.year > new Date().getFullYear()));
+    if (r.group === 'P' || r.group === 'B') r.items = [...seeded(r.items.slice(0, 20), hash(`${today}:${r.id}`)), ...r.items.slice(20)];
+    r.done = true;
+    preview();
+  };
+  let lastPv = 0;
+  const preview = () => {
+    if (pageNow() && !pageNow().preview) return;
+    const n = all.filter((r) => r.done).length;
+    if (n < 3 || n === all.length || Date.now() - lastPv < 1200) return;
+    lastPv = Date.now();
+    // (on copies: the layout renames a blend that falls back, and the real page is laid out from the rows themselves)
+    const m = new Map(), cl = (r) => { if (!m.has(r)) m.set(r, { ...r, items: r.done ? r.items : [] }); return m.get(r); };
+    const pc = { P: c.P.map(cl), B: c.B.map(cl), D: c.D.map(cl), S: c.S.map(cl) };
+    const pv = { ...out, rows: layout(pc, all.map(cl), { key, gameDay, st, hiddenR }).rows, preview: true };
+    page = pv;
+    emit('rows', pv);
+  };
+  const queue = [...all];
+  await Promise.all([0, 1, 2].map(async () => { while (queue.length && S.acc?.id === acc) await fetchRow(queue.shift()); }));
+  if (S.acc?.id !== acc) return null;
+  const L = layout(c, all, { key, gameDay, st, hiddenR });
+  out.dropped = L.dropped;
+  out.src = L.src;
+  out.rows = L.rows;
+  return finish(out);
+}
+// The page's rows from the rows' first pages (SPEC 6): priority, diversity, the order, at most MAX_ROWS.
+function layout(c, all, { key, gameDay, st, hiddenR }) {
   // the personal rows in their slots: a blend takes a slot of its smaller genre (it outranks that genre's plain row);
   // a blend whose smaller genre had no row of its own goes after the larger genre's first row
   const Pc = [], blends = [...c.B];
@@ -606,11 +642,10 @@ async function build() {
     const by = Math.floor((idle - 14) / 7) + 1, j = Math.min(rows.length - 1, i + by);
     rows.splice(j, 0, rows.splice(i, 1)[0]);
   }
-  out.dropped = dropped;   // (what the page left out and why: the tests and Why this row read it)
-  // what the rows came from (Account > Provider shows it, so a TV that can't reach TMDB says so)
-  out.src = { rows: rows.filter((r) => !r.live).length, tmdb: rows.filter((r) => !r.live && r.items?.some((it) => it.src === 'tmdb')).length, addon: rows.filter((r) => r.kind === 'addon').length, key, tmdbErr: TM.status.fail ? TM.status.last : '' };
-  out.rows = rows.map((r) => ({ id: r.id, kind: r.kind, type: r.type, live: r.live, name: r.name, reason: r.reason, genre: r.genre, other: r.other, see: r.see, group: r.group, items: r.items?.map(slim) }));
-  return finish(out);
+  // dropped: what the page left out and why (the tests and Why this row read it); src: what the rows came from (Account >
+  // Provider shows it, so a TV that can't reach TMDB says so)
+  const src = { rows: rows.filter((r) => !r.live).length, tmdb: rows.filter((r) => !r.live && r.items?.some((it) => it.src === 'tmdb')).length, addon: rows.filter((r) => r.kind === 'addon').length, key, tmdbErr: TM.status.fail ? TM.status.last : '' };
+  return { dropped, src, rows: rows.map((r) => ({ id: r.id, kind: r.kind, type: r.type, live: r.live, name: r.name, reason: r.reason, genre: r.genre, other: r.other, see: r.see, group: r.group, items: r.items?.map(slim) })) };
 }
 const slim = (it) => ({ kind: it.kind, id: it.id, imdb: it.imdb, tmdb: it.tmdb, name: it.name, year: it.year, poster: it.poster, background: it.background, logo: it.logo, genres: it.genres, rating: it.rating, overview: String(it.overview || '').slice(0, 420), country: it.country, lang: it.lang, runtime: it.runtime, anime: it.anime });
 function finish(out) {

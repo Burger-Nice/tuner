@@ -28,7 +28,7 @@ import * as R from '../rows.js';
 import * as SH from '../shelves.js';
 import * as TM from '../tmdb.js';
 import * as AD from '../addons.js';
-import { analyse, known, capFor, glowOf, logoInfo, logoHtml } from '../art.js';
+import { analyse, known, capFor, glowOf, logoInfo, logoHtml, logoFailed } from '../art.js';
 
 // ---------- geometry (SPEC 3) ----------
 const LINE_Y = 92, SLOT = 42, CARD_H = 192, OPEN = CARD_H + 8 - SLOT;   // the lit line opens 158 px in place
@@ -64,7 +64,13 @@ function fitWords(text, px, font = PLOT_F) {
 // word with an ellipsis on the last line. Each line is its own block, so the browser's wrap can't add a fourth.
 const COL_F = '500 14px "Inter Variable", Inter, sans-serif';
 function plotLines(text, px = 500, n = 3, font = COL_F) {
-  const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  // (a word wider than the line, as in Japanese text with no spaces or a long link, is cut into pieces that fit)
+  const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean).flatMap((w) => {
+    if (width(w, font) <= px) return [w];
+    const parts = []; let cur = '';
+    for (const ch of w) { if (cur && width(cur + ch, font) > px) { parts.push(cur); cur = ''; } cur += ch; }
+    return cur ? [...parts, cur] : parts;
+  });
   const out = [];
   let i = 0;
   while (i < words.length && out.length < n) {
@@ -100,6 +106,13 @@ const chShort = (n) => { let s = String(n || '').replace(/^[A-Z]{2,3}\s*[|:]\s*/
 // metas by IMDb id (logos, backdrops, episode names), asked once; a row or line that waits for one redraws when it lands
 const metas = new Map();
 let metaT = 0;
+// A title's logo, or '' when it didn't load (the name shows in text then): each is tried once, a failure redraws
+const logoAsked = new Set();
+function okLogo(url) {
+  if (!url || logoFailed(url)) return '';
+  if (!logoAsked.has(url)) { logoAsked.add(url); logoInfo(url).then((r) => { if (!r) { clearTimeout(metaT); metaT = setTimeout(softRedraw, 80); } }); }
+  return url;
+}
 function metaOf(type, imdb) {
   if (!imdb) return null;
   const k = `${type}:${imdb}`;
@@ -313,7 +326,7 @@ function compactHtml(v) {
   return `<div class="t"><span class="nm">${esc(v.name)}</span><small>${fs.map((x) => (typeof x === 'string' ? `<span>${esc(x)}</span>` : x.html)).join(D).replace(`${D}<span class="count">`, '<span class="count">')}</small></div>`;
 }
 function cardHtml(v) {
-  const title = v.logo ? logoHtml(v.logo, v.big, 56, 340, 'hf-lg') : `<div class="big${String(v.big).length > 18 ? ' long' : ''}">${esc(v.big)}</div>`;
+  const title = okLogo(v.logo) ? logoHtml(v.logo, v.big, 56, 340, 'hf-lg') : `<div class="big${String(v.big).length > 18 ? ' long' : ''}">${esc(v.big)}</div>`;
   const hints = [pill(v.verb, v.play)];
   if (v.right && R.hintShown(v.kind, 'right')) hints.push(`<span>${K.right}${esc(v.right)}</span>`);
   if (v.hold && R.hintShown(v.kind, 'hold')) hints.push(`<span>${K.hold}${esc(v.hold)}</span>`);
@@ -544,11 +557,11 @@ function wideCard(x, i, near) {
     const art = (ep && p.t > 30 ? it.still : '') || m?.background || (loading ? '' : backdropFor(ep ? 'series' : 'movie', imdbOfItem(it), ep ? it.seriesName || it._title : it._title || it.name, +it.year || 0, it.tmdb)) || it.poster;   // (an episode not started: the show's backdrop)
     const title = ep ? it.seriesName || m?.name || '' : it._title || it.name;
     return `<div class="hf-w fx" tabindex="-1" data-i="${i}" data-key="p:${esc(it.kind)}:${esc(it.id)}" data-hold>${art ? `<img ${near ? 'src' : 'data-src'}="${esc(sized(String(art).replace('/background/medium/', '/background/small/'), 500))}" alt="">` : ''}<div class="sy"></div>
-      ${m?.logo ? `<img class="lg" src="${esc(m.logo)}" alt="">` : `<b class="nm">${esc(title)}</b>`}<div class="ln">${ep ? `S${it.season} · E${it.ep}` : 'Film'}<span> · ${esc(leftText(p.d - p.t))}</span></div><div class="pb"><i style="width:${pct(p)}%"></i></div></div>`;
+      ${okLogo(m?.logo) ? `<img class="lg" src="${esc(m.logo)}" alt="">` : `<b class="nm">${esc(title)}</b>`}<div class="ln">${ep ? `S${it.season} · E${it.ep}` : 'Film'}<span> · ${esc(leftText(p.d - p.t))}</span></div><div class="pb"><i style="width:${pct(p)}%"></i></div></div>`;
   }
   const f = x.show, m = f.meta;
   return `<div class="hf-w fx" tabindex="-1" data-i="${i}" data-key="n:${esc(f.imdb)}" data-hold>${m?.background ? `<img ${near ? 'src' : 'data-src'}="${esc(String(m.background).replace('/background/medium/', '/background/small/'))}" alt="">` : ''}<div class="sy"></div>
-    ${m?.logo ? `<img class="lg" src="${esc(m.logo)}" alt="">` : `<b class="nm">${esc(f.name)}</b>`}<div class="ln">S${f.next.season} · E${f.next.episode}<span> · ${f.fresh ? `${f.count} new` : 'Up next'}</span></div></div>`;
+    ${okLogo(m?.logo) ? `<img class="lg" src="${esc(m.logo)}" alt="">` : `<b class="nm">${esc(f.name)}</b>`}<div class="ln">S${f.next.season} · E${f.next.episode}<span> · ${f.fresh ? `${f.count} new` : 'Up next'}</span></div></div>`;
 }
 function chCard(ch, i) {
   const pr = onNow(guideNow(ch)), pv = pr ? programmeView(ch, pr) : null;
@@ -699,18 +712,18 @@ function colHtml(r, x) {
     const d = x._d || {}, logo = d.logo || x.logo, series = x.kind === 'series';
     const rt = d.runtime || x.runtime;
     const meta = [series ? d.releaseInfo || (x.year ? `${x.year}–` : '') : x.year ? String(x.year) : '', { html: `<span>${esc((d.genres || x.genres || []).slice(0, 3).join(' · '))}</span>` }, rt ? (series ? `${rt} min` : dur(rt)) : '', !series && rt ? `Ends ${endsAt(rt)}` : '', d.rating || (x.src === 'cinemeta' && x.rating) ? `IMDb ${(d.rating || x.rating).toFixed(1)}` : '', series && (d.country || x.country) ? SH.firstCountry(d.country || x.country) : ''].filter((y) => y && (typeof y === 'string' || y.html !== '<span></span>'));
-    return `${logo ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta">${facts(meta)}</div>${plotHtml(x.overview)}${hint('Details', 'Play now, Save, Not interested')}`;
+    return `${okLogo(logo) ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta">${facts(meta)}</div>${plotHtml(x.overview)}${hint('Details', 'Play now, Save, Not interested')}`;
   }
   if (r.type === 'wide' && x.cont) {
     const p = x.cont, it = p.item, ep = it.kind === 'episode', m = metaOf(ep ? 'series' : 'movie', imdbOfItem(it));
     if (it.kind === 'rp') return `<div class="title">${esc(it.game ? `${it.game.away.name} at ${it.game.home.name}` : it.title || it.name)}</div><div class="meta">${facts(['Replay', it.pos?.chapter ? `Stopped in ${it.pos.chapter}` : 'Started'])}</div>${hint('Resume', 'From tip-off, Game page, Remove')}`;
     const vid = ep ? m?.videos?.find((v) => v.season === +it.season && v.episode === +it.ep) : null;
     const name = ep ? it.seriesName || m?.name : it._title || it.name;
-    return `${m?.logo ? logoHtml(m.logo, name, 48, 320, 'hf-lg') : `<div class="title">${esc(name)}</div>`}<div class="meta">${facts([...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || ''] : []), leftText(p.d - p.t), `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`].filter(Boolean))}</div>${plotHtml(vid?.overview || m?.description)}${hint('Resume', 'Start over, Details, Mark watched, Remove from Home')}`;
+    return `${okLogo(m?.logo) ? logoHtml(m.logo, name, 48, 320, 'hf-lg') : `<div class="title">${esc(name)}</div>`}<div class="meta">${facts([...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || ''] : []), leftText(p.d - p.t), `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`].filter(Boolean))}</div>${plotHtml(vid?.overview || m?.description)}${hint('Resume', 'Start over, Details, Mark watched, Remove from Home')}`;
   }
   if (r.type === 'wide' && x.show) {
     const f = x.show, m = f.meta;
-    return `${m?.logo ? logoHtml(m.logo, f.name, 48, 320, 'hf-lg') : `<div class="title">${esc(f.name)}</div>`}<div class="meta">${facts([`S${f.next.season} · E${f.next.episode}`, f.next.name, f.fresh ? `${f.count} new` : 'Up next'])}</div>${plotHtml(f.next.overview || m?.description)}${hint('Play', 'Details')}`;
+    return `${okLogo(m?.logo) ? logoHtml(m.logo, f.name, 48, 320, 'hf-lg') : `<div class="title">${esc(f.name)}</div>`}<div class="meta">${facts([`S${f.next.season} · E${f.next.episode}`, f.next.name, f.fresh ? `${f.count} new` : 'Up next'])}</div>${plotHtml(f.next.overview || m?.description)}${hint('Play', 'Details')}`;
   }
   if (r.type === 'channel') {
     const pr = onNow(guideNow(x)), pv = pr ? programmeView(x, pr) : null;
@@ -992,7 +1005,7 @@ function applyPage(p) {
   }
 }
 function refreshRows(force) {
-  R.buildPage({ force }).then((p) => { if (!p || !el) return; if (mode !== 'rows' || !page || el.hidden) applyPage(p); else pendingPage = p; }).catch(() => {});
+  R.buildPage({ force }).then((p) => { if (!p || !el) return; if (mode !== 'rows' || !page || page.preview || el.hidden) applyPage(p); else pendingPage = p; }).catch(() => {});
 }
 let pendingPage = null;
 // The lineup's slow parts (what is new in his shows, the film for tonight), kept for the next start
@@ -1077,7 +1090,8 @@ export default {
     on('catalog', (k) => { if (k === 'live') { redraw(); warmRows(); } });
     on('league', (k) => { if (k.startsWith('schedule:') || k === 'standings') redraw(); });
     on('player-closed', () => { if (behind) { behind = false; draw(); } });
-    on('rows', (p) => { if (!el) return; if (el.hidden || mode !== 'rows' || !page) applyPage(p); else pendingPage = p; });
+    // (a page drawn from the rows come so far, on a first start: the next one goes in at once, focus kept by row)
+    on('rows', (p) => { if (!el) return; if (el.hidden || mode !== 'rows' || !page || page.preview) applyPage(p); else pendingPage = p; });
     on('rows-stale', () => { if (current() !== 'home') refreshRows(); });
     on('tmdb', () => refreshRows(true));
     on('addons', () => { if (current() !== 'home') refreshRows(); });

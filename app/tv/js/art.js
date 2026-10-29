@@ -56,7 +56,7 @@ export function logoInfo(url) {
   if (!url) return Promise.resolve(null);
   if (logos.has(url)) return logos.get(url);
   const p = load(url, 6000).then((img) => {
-    if (!img || !img.naturalWidth) return null;
+    if (!img || !img.naturalWidth) { failedLogos.add(url); return null; }
     try {
       const W = Math.min(240, img.naturalWidth), Hh = Math.max(1, Math.round((W * img.naturalHeight) / img.naturalWidth));
       const c = document.createElement('canvas'); c.width = W; c.height = Hh;
@@ -80,6 +80,9 @@ export function logoInfo(url) {
   return p;
 }
 export const logoKnown = (url) => ready.get(`logo:${url}`) || null;
+// a logo that didn't load (404, offline, too slow): the screens show the name in text instead
+const failedLogos = new Set();
+export const logoFailed = (url) => failedLogos.has(url);
 // A logo whose ink is h px tall and at most maxW wide; before its ink box is known, the image fitted to h.
 export function logoHtml(url, alt, h, maxW, cls = 'lgo') {
   const info = logoKnown(url);
