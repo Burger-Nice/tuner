@@ -1,5 +1,19 @@
 import UIKit
+import WebKit
 import Capacitor
+
+// The WebView's media settings for the HTML5 player (phone-v1 PORT-NATIVE.md): inline playback, Picture in Picture,
+// AirPlay, and play() from the app's own taps without a further gesture.
+class AirglowViewController: CAPBridgeViewController {
+    override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
+        let c = super.webViewConfiguration(for: instanceConfiguration)
+        c.allowsInlineMediaPlayback = true
+        c.allowsPictureInPictureMediaPlayback = true
+        c.allowsAirPlayForMediaPlayback = true
+        c.mediaTypesRequiringUserActionForPlayback = []
+        return c
+    }
+}
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -8,7 +22,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+        window?.rootViewController = AirglowViewController()
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)

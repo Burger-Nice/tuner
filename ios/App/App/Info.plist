@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Tuner</string>
+        <string>airglow</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -64,8 +64,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- true: the status bar plugin hides the bar while the player is in landscape (phone-v1 PORT-NATIVE.md) -->
 	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
+	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- IPTV servers mostly use plain http -->
@@ -80,7 +81,14 @@
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleLightContent</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Tuner connects to IPTV servers that may be on your local network.</string>
+	<string>airglow talks to your provider and to your TV on this network.</string>
+	<!-- the hand-off for what the iPhone can't play (MKV, a channel that isn't HLS): Infuse and VLC -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>infuse</string>
+		<string>vlc-x-callback</string>
+		<string>vlc</string>
+	</array>
 
 </dict>
 </plist>
