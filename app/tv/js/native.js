@@ -82,5 +82,6 @@ function bridge() {
   };
 }
 
-export const native = bridge();
+// The iPhone app (app/phone/bridge.js) sets its own: the HTML player behind the same player protocol.
+export const native = window.TUNER_NATIVE || bridge();
 if (ANDROID && !native) console.error('airglow: the Android plugin bridge is missing, so the native player and updates are off.');
