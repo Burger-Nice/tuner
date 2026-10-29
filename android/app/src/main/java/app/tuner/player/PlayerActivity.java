@@ -301,6 +301,8 @@ public class PlayerActivity extends AppCompatActivity {
             if (player != null && !live && rp == null) {
                 long d = player.getDuration();
                 if (ho != null && d != C.TIME_UNSET) ho.tick(player.getCurrentPosition(), d);
+                // (the next episode came after the end, then a seek took him back into this one: it follows as usual)
+                if (pendingNext != null && !endCard && player.getPlaybackState() != Player.STATE_ENDED) { Entry e = pendingNext; pendingNext = null; addNext(e); }
                 if (d != C.TIME_UNSET && d > 0 && (ho == null || ho.progressAllowed())) {
                     JSObject e = event("progress");
                     e.put("t", player.getCurrentPosition() / 1000.0);
@@ -436,7 +438,8 @@ public class PlayerActivity extends AppCompatActivity {
                     if (skips != null) skips.ready();
                 }
                 if (s == Player.STATE_ENDED && rp != null) { rp.onEnded(); return; }
-                if (s == Player.STATE_ENDED && !live && !player.hasNextMediaItem()) finish();
+                // (an add-on episode whose next one isn't lined up yet: the end card, and OK gets it; only the last one closes)
+                if (s == Player.STATE_ENDED && !live && !player.hasNextMediaItem()) { if (ho != null && ho.mayHaveNext()) showEndCardSoon(); else finish(); }
                 // A live stream the server closed, or one stuck buffering: reconnect instead of freezing.
                 if (live && s == Player.STATE_ENDED) { quietTry = true; reconnect(); }   // (the puck covers a routine one; the card only if it doesn't come back)
                 if (live && s == Player.STATE_BUFFERING && played) handler.postDelayed(stall, 12000);
@@ -1110,19 +1113,15 @@ public class PlayerActivity extends AppCompatActivity {
     }
     /** The card for Up next (a count) or the end card (no count, the next glyph, Back close). */
     private void upNextCard(boolean end) {
-        Entry n = ring.get(index + 1);
         chipIsUpNext = true;
         chipKind = CHIP_UPNEXT;
         chipStyle(!end, false);
         chipGlyph.setVisibility(View.GONE);
         nextDisc.setVisibility(end ? View.VISIBLE : View.GONE);
         if (end) chipTitle.setText("Next episode");
-        chipSub.setText(n.sub == null || n.sub.isEmpty() ? n.title : n.sub);
+        upNextText();
         chipSub.setMinWidth(Ui.dp(180));   // (the name takes what is left, at least 180, with an ellipsis)
         chipSub.setMaxWidth(Ui.dp(220));
-        String say = ho != null ? ho.upNextSay : "";
-        chipSay.setText(say);
-        chipSay.setVisibility(say.isEmpty() ? View.GONE : View.VISIBLE);
         upBackWord.setText(end ? "close" : "stay here");
         upNextShownAt = SystemClock.uptimeMillis();
         upHintAsked = upHintOn = false;
@@ -1132,6 +1131,35 @@ public class PlayerActivity extends AppCompatActivity {
         handler.removeCallbacks(chipTick);
         handler.post(chipTick);
         hintsChanged();
+    }
+    /** The card's lines: the next episode's (lined up, or what the app said comes next before its copy is in) and the
+     * source line (Same source…, Getting the next episode…). */
+    private void upNextText() {
+        Entry n = nextEntry();
+        String sub = n != null ? (n.sub == null || n.sub.isEmpty() ? n.title : n.sub) : ho != null && !ho.nextSub.isEmpty() ? ho.nextSub : "The next episode";
+        chipSub.setText(sub);
+        String say = ho != null ? ho.upNextSay : "";
+        chipSay.setText(say);
+        chipSay.setVisibility(say.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+    /** The next episode: the ring's next entry, or the one that came after the end (added when he moves on). */
+    private Entry nextEntry() { return index + 1 < ring.size() ? ring.get(index + 1) : pendingNext; }
+    private Entry pendingNext;
+    boolean endCardUp() { return chipUp && chipIsUpNext && endCard; }
+    /** Whether the row's Next episode can ask for one (an add-on episode before the app said it's the last). */
+    boolean mayAskNext() { return ho != null && ho.mayHaveNext(); }
+    /** The app has no next episode to give: the last one (the end card closes as Back would), or no copy yet. */
+    private boolean watchOnNext;
+    void nextNone(boolean last, String say) {
+        watchOnNext = false;
+        if (endCardUp()) {
+            if (last) { finish(); return; }
+            if (ho != null) ho.upNextSay = (say.isEmpty() ? "No copy of it yet" : say) + " · OK tries again";
+            upNextText();
+            return;
+        }
+        showText(last ? "That was the last episode" : say.isEmpty() ? "No copy of the next episode yet" : say, 3000);
+        if (vod != null) vod.nextChanged();
     }
     /** The key column with the controls hidden only; the OK cap at 40% until OK binds (0.7 s); the hint bar from then. */
     private void upNextKeys() {
@@ -1148,7 +1176,7 @@ public class PlayerActivity extends AppCompatActivity {
         long now = SystemClock.uptimeMillis();
         if (!(chipUp && chipIsUpNext)) return now - upNextGoneAt < 700;
         if (!upNextBound()) return false;
-        watched(index);
+        if (hasNext()) watched(index); else watchOnNext = true;   // (asked for now: marked when it comes and plays)
         nextEpisode();
         return true;
     }
@@ -1163,7 +1191,8 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView upOkCap, upBackWord;
     private final Runnable endClose = () -> { getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); if (view != null) view.setKeepScreenOn(false); finish(); };
     private void showEndCardSoon() {
-        if (isFinishing() || player == null || index + 1 >= ring.size() || player.getPlayWhenReady()) return;
+        boolean ended = player != null && player.getPlaybackState() == Player.STATE_ENDED;
+        if (isFinishing() || player == null || (nextEntry() == null && !(ho != null && ho.mayHaveNext())) || (player.getPlayWhenReady() && !ended)) return;
         long quiet = SystemClock.uptimeMillis() - lastKeyAt;
         if (quiet < 1500 || open != null) { handler.postDelayed(this::showEndCardSoon, open != null ? 500 : 1500 - quiet); return; }
         if (chipUp) hideChip();
@@ -2143,6 +2172,14 @@ public class PlayerActivity extends AppCompatActivity {
 
     void nextEpisode() {
         if (player == null || live) return;
+        if (pendingNext != null) { Entry e = pendingNext; pendingNext = null; addNext(e); }
+        // an add-on episode with nothing lined up: ask now, it plays when it comes (the end card stays up meanwhile)
+        if (!player.hasNextMediaItem() && ho != null && ho.mayHaveNext()) {
+            ho.askNext(true);
+            if (endCardUp()) { ho.upNextSay = "Getting the next episode…"; upNextText(); }
+            else showText("Getting the next episode…", 6000);
+            return;
+        }
         hideChip();
         player.setPauseAtEndOfMediaItems(false);   // (CH+ and Next episode clear Back's pause at the end)
         if (!player.getPlayWhenReady()) player.play();
@@ -2346,6 +2383,7 @@ public class PlayerActivity extends AppCompatActivity {
                 case "segments": if (skips != null) skips.command(arg); break;   // an item's intro, recap and credits (skip SPEC 9.5)
                 case "copy": if (ho != null) ho.copy(new JSONObject(arg)); break;   // a copy's link, asked for with need: copy
                 case "queue-next": queueNext(new JSONObject(arg)); break;
+                case "next-info": if (ho != null) { ho.nextInfo(new JSONObject(arg)); if (vod != null) vod.nextChanged(); if (endCardUp()) upNextText(); } break;   // what comes after an add-on episode
                 case "pinned": pinned = arg == null || arg.isEmpty() ? null : new JSONObject(arg); break;
                 case "games": liveGames = new JSONArray(arg); if (banner.getVisibility() == View.VISIBLE) hintsChanged(); break;
                 case "groups": groups = new JSONArray(arg); if (wantGroups) { wantGroups = false; openGroups(); } break;
@@ -3478,7 +3516,7 @@ public class PlayerActivity extends AppCompatActivity {
     Entry entryNow() { return cur; }
     long durationMs() { return player == null ? C.TIME_UNSET : player.getDuration(); }
     long positionMs() { return player == null ? 0 : player.getCurrentPosition(); }
-    boolean hasNext() { return player != null && player.hasNextMediaItem(); }
+    boolean hasNext() { return player != null && (player.hasNextMediaItem() || pendingNext != null); }
     void pausePlayer() { if (player != null) player.pause(); }
     /** Once more from where it stopped (after the player's own retries), before handing over. */
     void retryHere() { if (player == null) return; player.prepare(); player.play(); }
@@ -3512,13 +3550,20 @@ public class PlayerActivity extends AppCompatActivity {
     private void queueNext(JSONObject o) {
         if (live || player == null || vod == null) return;
         JSONObject ej = o.optJSONObject("entry");
-        if (ej == null) return;
+        if (ej == null) { if (ho != null) ho.answered(o); vod.nextChanged(); return; }   // (none: the last one, or no copy yet)
         Entry e;
-        try { e = Entry.from(ej); } catch (Exception x) { return; }
-        if (index + 1 < ring.size()) return;   // (something is queued already)
+        try { e = Entry.from(ej); } catch (Exception x) { try { if (ho != null) ho.answered(new JSONObject().put("none", "unknown")); } catch (Exception ignored) {} return; }
+        if (index + 1 < ring.size() || pendingNext != null) return;   // (something is queued already)
+        boolean play = ho != null && ho.answered(o);
+        // after the end, with the end card up: kept until OK (added now, the ended player could move on by itself)
+        if (player.getPlaybackState() == Player.STATE_ENDED && !play) { pendingNext = e; if (endCardUp()) upNextText(); return; }
+        addNext(e);
+        if (play) { if (watchOnNext) { watchOnNext = false; watched(index); } nextEpisode(); }
+        else if (endCardUp()) upNextText();
+    }
+    private void addNext(Entry e) {
         ring.add(e);
         player.addMediaSource(source(e));
-        if (ho != null) ho.upNextSay = o.optString("say", "");
         vod.setItem(cur, true);
     }
 
@@ -3574,6 +3619,7 @@ public class PlayerActivity extends AppCompatActivity {
         String s = skips == null ? "no-skips" : skips.describe();
         return s + " upnext=" + (chipUp && chipIsUpNext) + " end=" + endCard + " upTitle=" + (chipUp && chipIsUpNext ? chipTitle.getText() : "") + " upKeys=" + (upKeys != null && upKeys.getVisibility() == View.VISIBLE)
                 + " upBound=" + upNextBound() + " stay=" + (stayIndex == index) + " index=" + index + " of=" + ring.size() + " pauseAtEnd=" + (player != null && player.getPauseAtEndOfMediaItems())
+                + " next=" + (ho == null ? "" : ho.nextState()) + " upSub=" + (chipUp && chipIsUpNext ? chipSub.getText().toString().replace(' ', '_') : "")
                 + " playing=" + (player != null && player.isPlaying()) + " controls=" + controlsUp() + " focus=" + (vod == null ? "" : vod.focusName()) + " subLift=" + liftNow + " label=" + (vod == null ? "" : vod.labelText());
     }
     // Subtitles and the chips (skip SPEC 2.1): when a chip is up and the subtitle text's box would touch it, the text steps

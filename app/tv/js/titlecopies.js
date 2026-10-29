@@ -167,6 +167,8 @@ export function titleCopies(t, onChange) {
     return rank([...prov, ...ad], { langs: prefLangs() });
   };
   tc.episodeAsking = (row) => AD.stillAsking(row?.vid ? tc.epQ.get(row.vid.id) : null);
+  // (an ask that found nothing is asked again: Up next's retries, SPEC 8.4)
+  tc.forgetEpisode = (row) => { if (!row?.vid) return; tc.epQ.delete(row.vid.id); AD.forgetStreams('series', row.vid.id); };
   tc.playEpisode = (row, queueRows, opts = {}) => {
     const c = tc.episodeCopies(row)[0];
     if (!c) return false;
@@ -207,6 +209,8 @@ function mergeEpisodes(seasons, vids, match) {
   return rows;
 }
 
+// An add-on episode's series (its IMDb id): saved with it, else the episode's own id says it ("tt0472954:1:2")
+function seriesImdb(it) { const own = String(it?.imdbSeries || ''); if (/^tt\d+$/.test(own)) return own; const m = /^(tt\d+):\d+:\d+$/.exec(String(it?.id || '')); return m ? m[1] : own; }
 // A series' episodes from its Cinemeta entry alone, in order (Specials last): for a play that didn't start on its page.
 async function seriesRows(imdb) {
   const m = await AD.meta('series', imdb);
@@ -240,7 +244,11 @@ function artOf(t, tc, row) {
 const mimeOf = (c) => { const m = String(c.filename || c.url || '').toLowerCase().split('?')[0].match(/\.(mkv|mp4|m4v|ts|m3u8|webm|avi|mov)$/); return m ? { mkv: 'video/x-matroska', mp4: 'video/mp4', m4v: 'video/mp4', ts: 'video/mp2t', m3u8: 'application/x-mpegURL', webm: 'video/webm', avi: 'video/x-msvideo', mov: 'video/quicktime' }[m[1]] : ''; };
 // the next copies, as identities (never links): the player asks for one with need: copy (SPEC 8.1)
 const identities = (list) => list.slice(0, 5).map((c) => ({ key: c.key, source: c.source === 'provider' ? 'provider' : c.source, label: copyLine(c) || 'Copy', provider: c.source === 'provider' }));
-let lastPlay = null;   // { tc, list (ranked at the press), t, row, rows, item (what was played), playing (the copy's key now) }
+// lastPlay: { tc, t, item (what was played first), playing (the copy's key now), rows (the series' episodes) or rowsP
+// (their promise), eps: Map(item -> { row, list }) for each episode of this play (the first one and every one Up next
+// added), list / row: the first item's }
+let lastPlay = null;
+const epInfo = (lp, it) => lp.eps?.get(it) || { row: lp.row, list: lp.list };
 function playCopy(t, c, tc, opts = {}) {
   if (!c) return false;
   const list = opts.row ? tc.episodeCopies(opts.row) : tc.copies();
@@ -252,7 +260,9 @@ function playCopy(t, c, tc, opts = {}) {
   }
   const it = addonItem(t, c, tc, opts.row);
   it._entry.copies = identities(rest);
-  lastPlay = { tc, list, t, row: opts.row, rows: opts.rows, item: it, playing: c.key };
+  // (an episode: the page's rows, or the series' Cinemeta episodes when there are none)
+  const rows = opts.row ? (opts.rows?.length ? opts.rows : null) : null, imdb = opts.row ? tc.match?.id || seriesImdb(it) : '';
+  lastPlay = { tc, list, t, row: opts.row, rows, imdb, rowsP: opts.row && !rows && imdb ? seriesRows(imdb).catch(() => null) : null, item: it, playing: c.key, eps: new Map([[it, { row: opts.row, list }]]) };
   const p = progressOf(it);
   playVod(it, { restart: opts.restart || !inProgress(p) ? !!opts.restart : false });
   return true;
@@ -283,23 +293,21 @@ async function resumeAddonItem0(it, { restart } = {}) {
   const same = ready.find((c) => c.key === cp.key) || ready.find((c) => cp.binge && c.binge === cp.binge) || ready[0] || all[0];
   if (!same) { toast('None of your add-ons has a copy of this right now', 4000); return; }
   const t = { kind: cp.kind || 'movie', key: cp.tkey || it.id, id: cp.tid || it.id, name: cp.title || it._title || it.name, poster: it.poster, year: it.year, versions: [] };
-  const tc = { match: { id: it.kind === 'episode' ? it.imdbSeries : it.id, level: 'sure' }, meta: cp.runtime ? { runtime: cp.runtime / 60 } : null, episodeCopies: () => all, copies: () => all };   // (its runtime: the placeholder rule)
+  const imdb = it.kind === 'episode' ? seriesImdb(it) : '';
+  const tc = { match: { id: it.kind === 'episode' ? imdb : it.id, level: 'sure' }, meta: cp.runtime ? { runtime: cp.runtime / 60 } : null, episodeCopies: () => all, copies: () => all };   // (its runtime: the placeholder rule)
   const row = it.kind === 'episode' ? { vid: { id: it.id }, season: it.season, ep: it.ep, name: it.name } : null;
   if (row) {
-    // Up next from Continue watching: the next episode's copies, asked the same way (SPEC 8.4)
+    // Up next from Continue watching, Home's cards and rows: the next episode's copies, asked the same way (SPEC 8.4)
     const epQ = new Map();
     tc.askEpisode = (r) => { if (!r?.vid) return null; if (!epQ.has(r.vid.id)) epQ.set(r.vid.id, AD.askStreams('series', r.vid.id, { match: 'sure' })); return epQ.get(r.vid.id); };
-    tc.episodeCopies = (r) => { const q = r?.vid ? epQ.get(r.vid.id) : null; return q ? rank(AD.copiesOf(q).map((c) => Object.assign(c, { match: 'sure', notReady: c.claim.notReady, providerLenSec: cp.runtime || 0 })), { langs: prefLangs() }) : all; };
+    tc.episodeCopies = (r) => { if (!r?.vid || r.vid.id === it.id) return all; const q = epQ.get(r.vid.id); return q ? rank(AD.copiesOf(q).map((c) => Object.assign(c, { match: 'sure', notReady: c.claim.notReady || failed.get(c.key) === 'notready', failed: failed.get(c.key) === 'failed', providerLenSec: cp.runtime || 0 })), { langs: prefLangs() }) : []; };
+    tc.forgetEpisode = (r) => { if (!r?.vid) return; epQ.delete(r.vid.id); AD.forgetStreams('series', r.vid.id); };
   }
   const item = addonItem(t, same, tc, row);
   item._entry.copies = identities(all.filter((c) => c !== same));
   if (cp.key && same.key !== cp.key) toast(`That copy has gone · playing ${copyLine(same)} · ${same.source}`, 4000);   // (no key: Home's Play now, the best copy)
-  lastPlay = { tc, list: all, t, row, item, playing: same.key };
-  // the series' episodes (Cinemeta's), so Up next knows what comes after this one
-  if (row && it.imdbSeries) seriesRows(it.imdbSeries).then((rows) => {
-    const r = rows.find((x) => +x.season === +it.season && +x.ep === +it.ep);
-    if (r && lastPlay?.item === item) lastPlay = { ...lastPlay, row: r, rows };
-  }).catch(() => {});
+  // the series' episodes (Cinemeta's, by the series' IMDb id), so Up next knows what comes after this one
+  lastPlay = { tc, list: all, t, row, item, playing: same.key, imdb, rowsP: row && imdb ? seriesRows(imdb).catch(() => null) : null, eps: new Map([[item, { row, list: all }]]) };
   // another copy: 10 s earlier, so nothing is missed where the cuts differ (8.3)
   const p = progressOf(item);
   playVod(item, { restart, entry: cp.key && same.key !== cp.key && !restart && inProgress(p) ? { ...item._entry, startAt: Math.max(0, p.t - 10) } : undefined });
@@ -311,41 +319,91 @@ native?.player.onEvent((e) => {
   const c = playing.cur;
   if (!c || e.session !== c.session || !lastPlay || c.items[0] !== lastPlay.item) return;   // (another title played since)
   if (e.type === 'need' && e.what === 'copy') {
+    // (the episode playing now: the first one, or one Up next added, each with its own copies)
+    const info = epInfo(lastPlay, c.items[e.index] || c.items[c.index]), list = info.list || [];
+    const now = info.playing || lastPlay.playing;
     // key null with speedMbps: Diag just measured the Wi-Fi or internet; re-rank with it (band b) and take the best that fits
-    const x = e.key ? lastPlay.list.find((y) => y.key === e.key)
-      : rank(lastPlay.list.filter((y) => y.key !== lastPlay.playing && !failed.has(y.key)), { langs: prefLangs(), runtime: (lastPlay.tc.meta?.runtime || 0) * 60, speedMbps: +e.speedMbps || 0 })[0];
+    const x = e.key ? list.find((y) => y.key === e.key)
+      : rank(list.filter((y) => y.key !== now && !failed.has(y.key)), { langs: prefLangs(), runtime: (lastPlay.tc.meta?.runtime || 0) * 60, speedMbps: +e.speedMbps || 0 })[0];
     if (!x) { playerCommand('copy', { key: e.key, error: 'gone' }); return; }
-    lastPlay.playing = x.key;
+    info.playing = x.key;
+    if (info.list === lastPlay.list) lastPlay.playing = x.key;
     if (x.source === 'provider') {
       const v = x.v, ep = v.kind === 'episode';   // (an episode hands over as an episode: its id, the series' name, its line)
       playerCommand('copy', { key: x.key, entry: { id: `${ep ? 'episode' : 'movie'}:${v.id}`, url: v.url, title: ep ? v.seriesName || lastPlay.t.name : v._title || v.name, sub: ep ? `S${v.season} · E${v.ep} · ${v.name}` : '', source: 'provider', sourceKind: 'provider' } });
       return;
     }
-    const it = addonItem(lastPlay.t, x, lastPlay.tc, lastPlay.row);
+    const it = addonItem(lastPlay.t, x, lastPlay.tc, info.row);
     playerCommand('copy', { key: x.key, entry: { id: `${it.kind}:${it.id}`, url: it.url, title: lastPlay.t.name, ...it._entry } });
   } else if (e.type === 'copy-failed' || e.type === 'copy-notready') {
     failed.set(e.key, e.type === 'copy-notready' ? 'notready' : 'failed');
     emit('copies');
-  } else if (e.type === 'need' && e.what === 'next' && lastPlay.row && lastPlay.rows) {
-    const rows = lastPlay.rows, i = rows.findIndex((r) => r === lastPlay.row || (r.vid && lastPlay.row.vid && r.vid.id === lastPlay.row.vid.id));
-    const next = i < 0 ? null : rows.slice(i + 1).find((r) => !r.soon);   // (not one that isn't out yet)
-    if (!next) return;
-    const tc = lastPlay.tc;
-    const q = tc.askEpisode?.(next);
-    Promise.resolve(q?.done).then(() => {
-      const list = tc.episodeCopies(next);
-      const binge = e.binge || '';
-      const same = list.find((x) => binge && x.binge === binge) || (binge === 'provider' ? list.find((x) => x.source === 'provider') : null);
-      const pick = same || list[0];
-      if (!pick) return;
-      const item = pick.source === 'provider' ? next.prov : addonItem(lastPlay.t, pick, tc, next);
-      const entry = pick.source === 'provider' ? { id: `episode:${next.prov.id}`, url: next.prov.url, title: lastPlay.t.name, sub: `S${next.season} · E${next.ep} · ${next.name}`, source: 'provider', binge: 'provider' } : { id: `episode:${item.id}`, url: item.url, title: lastPlay.t.name, sub: `S${next.season} · E${next.ep} · ${next.name}`, ...item._entry };
-      playerCommand('queue-next', { entry, same: !!same, say: same ? `Same source: ${pick.source === 'provider' ? 'Your provider' : pick.source} ${pick.claim.res || ''}`.trim() : `Best copy: ${copyLine(pick)} · ${pick.source === 'provider' ? 'Your provider' : pick.source}` });
-      playing.cur?.items?.push(item);   // (the player's next item: its progress is saved under it, PORT-NATIVE.md 3)
-      lastPlay = { ...lastPlay, row: next };
-    });
+  } else if (e.type === 'need' && e.what === 'next') {
+    answerNext(e, c, lastPlay).catch((er) => { console.error(er); playerCommand('queue-next', { none: 'unknown' }); });
   }
 });
+
+// ---------- Up next for an add-on episode (skip SPEC 5.1, SPEC 8.4) ----------
+// The player asks soon after an episode starts, again while nothing is lined up (slow add-ons, no copy yet), and at
+// once when he asks for the next one (the end card's OK, Next episode, CH+: now). The answer: next-info (what comes
+// next, or that this is the last one) and queue-next with the next episode's best copy, the same binge group when one
+// plays; or queue-next { none: 'last' | 'nocopy' | 'unknown' }.
+const epLine = (r) => `S${r.season} · E${r.ep} · ${r.name || `Episode ${r.ep}`}`;
+// the row after this episode: undefined when the list doesn't say (no list, not in it), null after the last one
+// (one that isn't out yet ends the list; Specials only after a special)
+function rowAfter(rows, row, it) {
+  let i = row ? rows.indexOf(row) : -1;
+  if (i < 0 && row?.vid) i = rows.findIndex((r) => r.vid && r.vid.id === row.vid.id);
+  if (i < 0) i = rows.findIndex((r) => +r.season === +it.season && +r.ep === +it.ep);
+  if (i < 0) return undefined;
+  const r = rows.slice(i + 1).find((x) => (x.vid || x.prov) && (+x.season > 0 || +it.season === 0));
+  return r && !r.soon ? r : null;
+}
+async function answerNext(e, c, lp) {
+  const at = Number.isInteger(e.index) ? e.index : c.index, it = c.items[at];
+  if (!it || it.kind !== 'episode') { playerCommand('queue-next', { none: 'last' }); return; }
+  if (at < c.items.length - 1) return;   // (the next one is lined up already)
+  lp.asking ||= new Map();
+  lp.eps ||= new Map();
+  if (lp.asking.has(it)) return lp.asking.get(it);   // (one ask at a time: its answer comes)
+  const p = (async () => {
+    let rows = lp.rows || (lp.rowsP ? await lp.rowsP : null);
+    if (!rows?.length && lp.imdb) { lp.rowsP = seriesRows(lp.imdb).catch(() => null); rows = await lp.rowsP; }   // (Cinemeta didn't answer before)
+    if (rows?.length && !lp.rows) lp.rows = rows;
+    const live = () => playing.cur === c && lastPlay === lp && c.items.length - 1 === at;
+    if (!live()) return;
+    const info = epInfo(lp, it);
+    const next = rows?.length ? rowAfter(rows, info.row, it) : undefined;
+    if (next === null) { playerCommand('next-info', { last: true }); playerCommand('queue-next', { none: 'last' }); return; }
+    if (!next) { playerCommand('queue-next', { none: 'unknown', say: 'airglow couldn\'t get the series\' episodes' }); return; }
+    playerCommand('next-info', { title: lp.t.name, sub: epLine(next) });
+    const tc = lp.tc;
+    lp.nocopy ||= new Set();
+    const nk = next.vid?.id || `p:${next.prov?.id}`;
+    if (lp.nocopy.has(nk)) tc.forgetEpisode?.(next);   // (it found nothing before: asked again)
+    const q = tc.askEpisode?.(next);
+    if (q) await q.done;
+    if (!live()) return;
+    const list = tc.episodeCopies(next) || [];
+    const usable = list.filter((x) => !x.failed && !x.notReady), pool = usable.length ? usable : list;
+    const binge = e.binge || '';
+    const same = binge ? pool.find((x) => x.binge === binge) || (binge === 'provider' ? pool.find((x) => x.source === 'provider') : null) : null;
+    const pick = same || pool[0];
+    if (!pick) { lp.nocopy.add(nk); playerCommand('queue-next', { none: 'nocopy', say: 'None of your add-ons has a copy of it yet' }); return; }
+    lp.nocopy.delete(nk);
+    const prov = pick.source === 'provider';
+    const item = prov ? next.prov : addonItem(lp.t, pick, tc, next);
+    const rest = identities(list.filter((x) => x !== pick && x.key !== pick.key));
+    const entry = prov ? { id: `episode:${next.prov.id}`, url: next.prov.url, title: lp.t.name, sub: epLine(next), source: 'provider', sourceKind: 'provider', binge: 'provider', copyKey: pick.key, copies: rest }
+      : { id: `episode:${item.id}`, url: item.url, title: lp.t.name, sub: epLine(next), ...item._entry, copies: rest };
+    const src = prov ? 'Your provider' : pick.source;
+    playerCommand('queue-next', { entry, same: !!same, say: same ? `Same source: ${src} ${pick.claim.res || ''}`.trim() : `Best copy: ${copyLine(pick)} · ${src}` });
+    c.items.push(item);   // (the player's next item: its progress is saved under it, PORT-NATIVE.md 3)
+    lp.eps.set(item, { row: next, list, playing: pick.key });
+  })();
+  lp.asking.set(it, p);
+  try { await p; } finally { lp.asking.delete(it); }
+}
 
 // ---------- the Copies menu (SPEC 5.2; subtitles 4.3) ----------
 export function copiesMenu(tc, { title, onDone, row, which }) {

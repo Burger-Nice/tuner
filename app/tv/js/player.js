@@ -283,7 +283,8 @@ async function playVod0(item, { queue, restart, entry } = {}) {
   sendSegments(item);
   versionsNow().then((v) => { if (v && ctx.cur?.session === r.session) cmd('versions', v); });
   // an episode played on its own (Search, a poster, Saved…): the ones after it join for Up next once the series' list is in
-  if (item.kind === 'episode' && list.length === 1) import('./actions.js').then((A) => A.episodesOf(item)).then((eps) => { const i = eps.findIndex((e) => String(e.id) === String(item.id)); if (i >= 0 && ctx.cur?.session === r.session) queueAfter(item, eps.slice(i + 1)); }).catch(() => {});
+  // (an add-on episode's next one is asked for by the player: need: next, titlecopies.js)
+  if (item.kind === 'episode' && list.length === 1 && item._entry?.sourceKind !== 'addon') import('./actions.js').then((A) => A.episodesOf(item)).then((eps) => { const i = eps.findIndex((e) => String(e.id) === String(item.id)); if (i >= 0 && ctx.cur?.session === r.session) queueAfter(item, eps.slice(i + 1)); }).catch(() => {});
 }
 
 // ---------- subtitles in the player (design/ui-v1/subtitles/PORT-NATIVE.md 2) ----------

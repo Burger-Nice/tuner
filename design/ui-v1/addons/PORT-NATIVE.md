@@ -91,8 +91,10 @@ the app keeps its fields; add `source`.
 
 | Direction | Message | Fields |
 |---|---|---|
-| player → app | event `need` | `{ what: 'next', binge }`, **2 minutes before the end** of an episode whose entry has `sourceKind: 'addon'` (today's `queue` of provider episodes stays as it is) |
-| app → player | command `queue-next` | `{ entry, same, say }`: the next episode's entry (1). `same` is true when it has the same `binge` (a provider episode's group is `provider`); `say` is the card's line: `Same source: Northlight 1080p`, or `Best copy: 1080p · Your provider` |
+| player → app | event `need` | `{ what: 'next', binge, now? }` for an episode whose entry has `sourceKind: 'addon'` and nothing after it (today's `queue` of provider episodes stays as it is): **5 s after its first frame**; again while nothing is lined up (no answer in 30 s, or no copy: after 1, 2, 4, then every 5 min, and once in the last 3 min); and with `now: true` when he asks for the next one (the end card's OK, the row's `Next episode`, CH+), which then plays as soon as it comes |
+| app → player | command `next-info` | `{ title, sub }`: what comes next (`S1 · E4 · Thaw`), sent before its copies are asked, so the end card can name it; or `{ last: true }`: this is the series' last episode out (the row's `Next episode` goes, the end closes the player) |
+| app → player | command `queue-next` | `{ entry, same, say }`: the next episode's entry (1), the best copy that plays (not failed, not a "still downloading" one), the same `binge` when one does. `same` is true when it has the same `binge` (a provider episode's group is `provider`); `say` is the card's line: `Same source: Northlight 1080p`, or `Best copy: 1080p · Your provider`. Or `{ none: 'last' \| 'nocopy' \| 'unknown', say }`: nothing to line up (a later ask tries again; an ask that found nothing is asked of the add-ons afresh) |
+| player | the end | an add-on episode that ends with nothing lined up and not `last` doesn't close: the end card (skip SPEC 5.1) names the next one from `next-info`; OK asks with `now` and plays it when it comes (`Getting the next episode…`, or `No copy of it yet · OK tries again`); Back, 5 min with no key, or `last` closes. A copy that comes while the card is up waits for OK |
 
 ## 4. Options > Quality (SPEC 8.5)
 

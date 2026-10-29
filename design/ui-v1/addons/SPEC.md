@@ -885,8 +885,13 @@ widens "OpenSubtitles" to **every subtitle add-on**.
 
 ### 8.4 Up next keeps the source (`player-upnext`)
 
-- **2 minutes before the end** of an episode, the player sends **`need: next`** (S6). The app asks for the next
-  episode's copies and answers with `queue-next {entry}`.
+- **Soon after an episode starts** (5 s after its first frame; it was 2 minutes before the end, then halfway, and the
+  credits' Up next came too late or not at all), the player sends **`need: next`** (S6), again while nothing is lined
+  up, and at once when he asks for the next one. The app asks for the next episode's copies and answers with
+  `queue-next {entry}` (PORT-NATIVE.md 3). Every add-on episode knows its series' episodes: the series page's, or
+  Cinemeta's by the series' IMDb id (Continue watching, Home's cards and rows).
+- **Nothing lined up at the end** (slow add-ons, no copy yet): the end card names the next episode and OK gets it;
+  only the series' last episode (or Back) closes the player.
 - **The pick:** the copy with **the same `bingeGroup`**; a provider episode's group is `provider`.
 - **The card** says `Same source: Northlight 4K`; with no match it takes the best and says `Best copy: 1080p · Your
   provider`.

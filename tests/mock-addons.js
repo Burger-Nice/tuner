@@ -8,7 +8,9 @@
 // never for Northern Lights), Public Domain Movies (torrents only), WatchHub (other apps), AfterCredits (info only),
 // OpenSubtitles v3 (subtitles), Archivio (its manifest is a web page now).
 // Test helpers: POST /_stremio/approve (the phone signed in), GET /_stremio/state, POST /_stremio/reset,
-// /_addons/fail?what=catalog|page2 (Cinemeta's catalogs stop answering) and /_addons/ok.
+// /_addons/fail?what=catalog|page2 (Cinemeta's catalogs stop answering) and /_addons/ok; /_addons/hold?id=<video id>
+// (Northlight has no copy of that episode yet, as a slow debrid cache) and /_addons/hold?id=<id>&off=1.
+// The Bear's episodes are 22:01 clips (the skip tests' episode.mp4), so Up next and the end can be reached by a seek.
 const fs = require('fs');
 const path = require('path');
 const tmdb = require('./mock-tmdb.js');   // (Home's and the library's titles: their Cinemeta metas and Northlight copies)
@@ -16,7 +18,7 @@ const tmdb = require('./mock-tmdb.js');   // (Home's and the library's titles: t
 const MEDIA = process.env.MEDIA_DIR || path.join(__dirname, 'media');
 const J = (res, obj, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' }); res.end(JSON.stringify(obj)); };
 const P = (id, c) => `/img/p${c % 8}.jpg`;
-const st = { approved: false, reads: 0, logouts: 0, created: 0, fail: '', streamAsks: [], code: 'R2T3' };
+const st = { approved: false, reads: 0, logouts: 0, created: 0, fail: '', streamAsks: [], code: 'R2T3', held: [] };
 
 // ---------- the titles (IMDb ids are made up, tt9 + 6 digits) ----------
 // The provider (tests/mock-provider.js) has "The Long Night (2000)" (TMDB 4401 agrees: Sure), "Northern Lights (2001)"
@@ -105,6 +107,7 @@ function streams(k, type, id, host) {
       { name: 'Northlight\n4K', title: 'Tenzing.2026.2160p.WEB-DL.HDR\n💾 11.2 GB', url: media(host, 'tenzing.mp4'), behaviorHints: { filename: 'Tenzing.2026.2160p.WEB-DL.HDR.mkv', videoSize: 11.2e9 } },
       { name: 'Northlight\n1080p', title: 'Tenzing.2026.1080p.WEB-DL\n💾 4.0 GB', url: media(host, 'tenzing2.mp4'), behaviorHints: { filename: 'Tenzing.2026.1080p.WEB-DL.mkv', videoSize: 4e9 } },
     ];
+    if (st.held.includes(id)) return [];
     if (id.startsWith('tt9000020:')) { const [, s, e] = id.split(':'); return [{ name: 'Northlight\n1080p', title: `The.Bear.S0${s}E0${e}.1080p.WEB-DL\n💾 1.6 GB`, url: media(host, `bear-${s}-${e}.mp4`), behaviorHints: { filename: `The.Bear.S0${s}E0${e}.1080p.WEB-DL.mkv`, videoSize: 1.6e9, bingeGroup: 'northlight|1080p|web' } }]; }
     // Home's and the library's titles: one 1080p copy each (a film, or any episode)
     if (/^tt9[15]\d{5}(:\d+:\d+)?$/.test(id)) return [{ name: 'Northlight\n1080p', title: `${(tmdb.cinemetaMeta(id, host)?.name || 'Title').replace(/\W+/g, '.')}.1080p.WEB-DL\n💾 2.4 GB`, url: media(host, `h-${id.replace(/:/g, '-')}.mp4`), behaviorHints: { filename: `${id}.1080p.WEB-DL.mkv`, videoSize: 2.4e9, bingeGroup: 'northlight|1080p|web' } }];
@@ -200,9 +203,10 @@ module.exports = function addons(req, res, u) {
   // test helpers
   if (p === '/_stremio/approve') { st.approved = true; J(res, { ok: true }); return true; }
   if (p === '/_stremio/state') { J(res, st); return true; }
-  if (p === '/_stremio/reset') { Object.assign(st, { approved: false, reads: 0, logouts: 0, created: 0, fail: '', streamAsks: [] }); J(res, { ok: true }); return true; }
+  if (p === '/_stremio/reset') { Object.assign(st, { approved: false, reads: 0, logouts: 0, created: 0, fail: '', streamAsks: [], held: [] }); J(res, { ok: true }); return true; }
   if (p === '/_addons/fail') { st.fail = u.searchParams.get('what') || 'catalog'; J(res, { ok: true }); return true; }
   if (p === '/_addons/ok') { st.fail = ''; J(res, { ok: true }); return true; }
+  if (p === '/_addons/hold') { const id = u.searchParams.get('id') || ''; st.held = st.held.filter((x) => x !== id); if (!u.searchParams.get('off')) st.held.push(id); J(res, { ok: true, held: st.held }); return true; }
   // ---------- Stremio's link codes and API ----------
   if (p === '/stremio-link/api/v2/create') { st.created++; st.approved = false; st.code = st.created > 1 ? 'K7QX' : 'R2T3'; J(res, { result: { success: true, code: st.code, link: `https://link.stremio.com/${st.code}`, qrcode: '' } }); return true; }
   if (p === '/stremio-link/api/v2/read') { st.reads++; J(res, st.approved && u.searchParams.get('code') === st.code ? { result: { success: true, authKey: 'AK-test-1' } } : { error: { code: 101, message: 'Invalid or expired token' } }); return true; }
@@ -225,7 +229,7 @@ module.exports = function addons(req, res, u) {
   }
   // ---------- the add-ons ----------
   let m;
-  if ((m = /^\/addon-media\/[^/]+\/([\w.-]+)$/.exec(p))) { sendMedia(req, res, m[1] === 'short.mp4' ? 'short.mp4' : 'movie.mp4'); return true; }
+  if ((m = /^\/addon-media\/[^/]+\/([\w.-]+)$/.exec(p))) { sendMedia(req, res, m[1] === 'short.mp4' ? 'short.mp4' : /^bear-/.test(m[1]) ? 'episode.mp4' : 'movie.mp4'); return true; }
   if (p === '/addon/archivio/manifest.json') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<!doctype html><title>Archivio docs</title><p>This add-on moved.</p>'); return true; }
   if ((m = /^\/addon\/(cinemeta|northlight|kestrel|shelfie|pdm|watchhub|aftercredits|opensubtitles|setmeup|legendas|jump)(?:\/(eyJ[\w-]+))?\/(.*)$/.exec(p))) {
     const [, k, , rest] = m;

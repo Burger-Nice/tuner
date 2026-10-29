@@ -495,6 +495,60 @@ window.TUNER_TEST = true;
       } catch (e) { report('error', `skip: ${(e && e.stack) || e}`); }
       for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-skip-closed-${k + 1}`, 1500);
 
+      // The next episode of an add-on series (skip SPEC 5.1, add-ons SPEC 8.4): The Bear from the fake Northlight, its
+      // episodes 22:01 clips. NX-1: S1 E2 from Continue watching (as Home's card plays it) lines up S1 E3 soon after it
+      // starts; Up next comes at the end and OK plays it, S1 E2 marked watched. NX-2: S1 E4 has no copy yet (held at the
+      // fake add-on), so S1 E3 ends with the end card naming it; OK, once it has one, plays it. NX-3: S1 E5 held too: the
+      // row's Next episode is there all the same and gets it on demand.
+      try {
+        const mod = (m) => import(`./tv/js/${m}.js`);
+        const [PL, ST, AC] = await Promise.all(['player', 'state', 'actions'].map(mod));
+        const bc = ['am', 'broadcast', '-a', 'app.tuner.player.DIAG', '-p', 'app.tuner.player', '--es', 'skip'];
+        const sk = async (name, arg = 'state', after = 200) => { window.__skip = null; await step({ keys: [], adb: [...bc, arg], name, quick: true }, after); await until(() => window.__skip, 3000); return window.__skip?.state || ''; };
+        const quick = (keys, name, after = 0) => step({ keys, name, quick: true }, after);
+        const poll = async (name, ok, ms) => { let s = ''; for (let t0 = Date.now(), k = 0; Date.now() - t0 < ms; k++) { s = await sk(`${name}-${k}`); if (ok(s)) break; await wait(300); } return s; };
+        const hold = (id, off) => fetch(`${API}/_addons/hold?id=${id}${off ? '&off=1' : ''}`).catch(() => {});
+        const bear = (e) => ({ kind: 'episode', id: `tt9000020:1:${e}`, name: ['Arrival', 'The Storm', 'Whiteout', 'Thaw', 'Aftershock'][e - 1], season: 1, ep: e, seriesId: 'tt9000020', seriesName: 'The Bear', imdbSeries: 'tt9000020', poster: '', year: '2022',
+          copy: { source: 'Northlight', addonKey: '', key: '', binge: 'northlight|1080p|web', kind: 'series', tkey: 'tt9000020', tid: 'tt9000020', title: 'The Bear', runtime: 2100 } });
+        await hold('tt9000020:1:4'); await hold('tt9000020:1:5');
+        const e2 = bear(2);
+        ST.recordProgress(e2, 1200, 1321, true);   // (Continue watching: S1 E2 at 20:00)
+        await AC.resumeItem(ST.progressOf(e2).item);
+        await until(() => state()?.watching, 15000);
+        let s = await poll('nx-e2-queued', (x) => /next=queued/.test(x) && /of=2 /.test(x), 20000);
+        check('next NX-1a: an add-on episode from Continue watching has the next one lined up soon after it starts', /next=queued/.test(s) && /of=2 /.test(s) && PL.ctx.cur?.items?.[1]?.id === 'tt9000020:1:3', { s, items: (PL.ctx.cur?.items || []).map((x) => x.id).join(' ') });
+        await poll('nx-e2-controls', (x) => /controls=false/.test(x), 7000);
+        await sk('nx-e2-near-end', 'seek:1286000', 1500);   // (its credits aren't known: Up next in the last 40 s)
+        const up = await poll('nx-e2-upnext', (x) => /upnext=true /.test(x), 8000);
+        await shot('player-next-upnext');
+        await wait(900);
+        await quick(['DPAD_CENTER'], 'nx-e2-upnext-ok', 300);
+        s = await poll('nx-e3-playing', (x) => /index=1 /.test(x) && /playing=true/.test(x), 15000);
+        check('next NX-1: Up next at the end of the add-on episode, OK plays S1 E3, S1 E2 marked watched', /upnext=true .*upSub=S1_·_E3/.test(up) && /index=1 /.test(s) && !!ST.progressOf(e2)?.done, { up, s, e2: JSON.stringify(ST.progressOf(e2) || null) });
+        // NX-2: nothing lined up when S1 E3 ends (no copy of S1 E4 yet): the end card, and OK gets it
+        s = await poll('nx-e3-nocopy', (x) => /next=nocopy/.test(x) && /controls=false/.test(x), 20000);
+        await sk('nx-e3-near-end', 'seek:1313000', 1500);
+        s = await poll('nx-e3-end', (x) => /end=true /.test(x), 20000);
+        await shot('player-next-endcard');
+        const endCard = s;
+        await hold('tt9000020:1:4', true);
+        await wait(900);
+        await quick(['DPAD_CENTER'], 'nx-e3-end-ok', 300);
+        s = await poll('nx-e4-playing', (x) => /index=2 /.test(x) && /playing=true/.test(x), 20000);
+        check('next NX-2: an episode ending with nothing lined up shows the end card naming the next one; OK plays it', /end=true upTitle=Next episode upKeys=true .*upSub=S1_·_E4_·_Thaw/.test(endCard) && /index=2 /.test(s) && PL.ctx.cur?.items?.[2]?.id === 'tt9000020:1:4' && !!ST.progressOf(bear(3))?.done, { endCard, s });
+        // NX-3: the row's Next episode on an add-on episode with nothing lined up (no copy of S1 E5 yet): on demand
+        s = await poll('nx-e4-nocopy', (x) => /next=nocopy/.test(x), 20000);
+        await quick(['DPAD_UP'], 'nx-e4-buttons', 500);
+        await quick(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'nx-e4-to-next', 300);
+        const btn = await sk('nx-e4-next-focus');
+        await shot('player-next-button');
+        await hold('tt9000020:1:5', true);
+        await quick(['DPAD_CENTER'], 'nx-e4-next-ok', 300);
+        s = await poll('nx-e5-playing', (x) => /index=3 /.test(x) && /playing=true/.test(x), 20000);
+        check('next NX-3: Next episode is in the row with nothing lined up, and plays the next one on demand', /next=nocopy/.test(btn) && /focus=Next episode /.test(btn) && /index=3 /.test(s) && PL.ctx.cur?.items?.[3]?.id === 'tt9000020:1:5', { btn, s });
+      } catch (e) { report('error', `next: ${(e && e.stack) || e}`); }
+      for (let k = 0; k < 3 && state()?.watching; k++) await press(['BACK'], `player-next-closed-${k + 1}`, 1500);
+
       // Series detail with episodes
       await tab('series');
       await wait(1500);

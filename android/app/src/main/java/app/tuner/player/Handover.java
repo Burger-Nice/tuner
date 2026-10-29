@@ -38,7 +38,8 @@ final class Handover {
     private String bestKey = "";      // the top copy of the play (Quality's Always the best copy)
     private boolean chosen;           // he picked a copy in Quality: Always the best copy is off
     // the copy playing now
-    private boolean frames, decided, notReady, retried, nextAsked;
+    private boolean frames, decided, notReady, retried;
+    private long framesAt;            // when its first frame showed (uptime ms)
     private long startMs;             // where the play began (a placeholder's hand-over starts the next copy there)
     // asking for a link
     private String waitKey;           // the key asked for; "" while asking with a speed (key null)
@@ -73,7 +74,7 @@ final class Handover {
         }
         bestKey = chain.isEmpty() ? "" : chain.get(0).optString("key");
         copyStarted();
-        nextAsked = false;
+        nx = NX_NONE; nextAskedAt = 0; nextWait = 0; playWhenQueued = false; lateAsked = false; nextSub = ""; nextTitle = "";
         upNextSay = "";
     }
     private static JSONObject identity(PlayerActivity.Entry e) {
@@ -86,7 +87,7 @@ final class Handover {
         } catch (Exception ignored) {}
         return o;
     }
-    private void copyStarted() { frames = false; decided = false; notReady = false; retried = false; }
+    private void copyStarted() { frames = false; framesAt = 0; decided = false; notReady = false; retried = false; }
 
     /** There are copies to hand over to, or the not-ready rule applies (an add-on copy). */
     boolean active() {
@@ -138,7 +139,7 @@ final class Handover {
 
     // ---------- the player's hooks ----------
 
-    void firstFrame() { frames = true; }
+    void firstFrame() { if (!frames) framesAt = SystemClock.uptimeMillis(); frames = true; }
     /** The player is ready: once the duration is known, the not-ready rule (RANKING.md 2.2). */
     void readyNow() {
         retried = false;
@@ -453,20 +454,73 @@ final class Handover {
         ask(key, false, () -> { a.releasePlayback(); start(at); }, true);
     }
 
-    // ---------- Up next keeps the source (SPEC 8.4) ----------
+    // ---------- Up next keeps the source (SPEC 8.4; skip SPEC 5.1) ----------
+    // An add-on episode has no queue up front: the app is asked what comes next (need: next) 5 s after the first frame,
+    // so it is lined up long before the credits; asked again while nothing is (no answer, no copy yet: after 1 min, then
+    // 2, 4, at most 5; and once more in the last 3 min), and at once when he asks for the next one (now: it plays when it
+    // comes). The answers: next-info (its line, or that this is the last one) and queue-next (an entry, or none).
+    static final int NX_NONE = 0, NX_ASKING = 1, NX_QUEUED = 2, NX_NOCOPY = 3, NX_LAST = 4;
+    private static final String[] NX_NAMES = { "none", "asking", "queued", "nocopy", "last" };
+    private int nx;
+    private long nextAskedAt, nextWait;
+    private boolean playWhenQueued, lateAsked;
+    String nextSub = "", nextTitle = "";
 
-    /** Halfway through an add-on episode (or 2 minutes before its end, a short one): the app answers with queue-next,
-     * so the next one is there when the credits start (Up next at the credits, skip SPEC 5.1). */
+    /** An add-on episode with nothing after it in the ring yet, and the app hasn't said it is the last one. */
+    boolean mayHaveNext() {
+        PlayerActivity.Entry e = a.entryNow();
+        return e != null && e.addon() && e.id.startsWith("episode:") && nx != NX_LAST;
+    }
+    String nextState() { return a.hasNext() ? "queued" : NX_NAMES[nx]; }
+
     void tick(long pos, long dur) {
         decide();
+        if (!mayHaveNext() || dur <= 0 || notReady || !decided) return;
+        if (a.hasNext()) { nx = NX_QUEUED; return; }
+        long now = SystemClock.uptimeMillis();
+        // (asked for now and no answer in 30 s: say so, OK or Next episode asks again)
+        if (playWhenQueued && nx == NX_ASKING && now - nextAskedAt >= 30000) { playWhenQueued = false; nx = NX_NOCOPY; a.nextNone(false, "No answer from your add-ons"); return; }
+        if (nx == NX_NONE) { if (frames && now - framesAt >= 5000) askNext(false); return; }
+        boolean late = dur - pos <= 180000 && !lateAsked;
+        if (nx == NX_ASKING && now - nextAskedAt < 30000) return;   // (an answer is on its way)
+        if (late || now - nextAskedAt >= nextWait) { if (late) lateAsked = true; askNext(false); }
+    }
+    /** Ask the app for the next episode; now: it plays as soon as it comes (the end card's OK, Next episode, CH+). */
+    void askNext(boolean now) {
         PlayerActivity.Entry e = a.entryNow();
-        if (e == null || nextAsked || !e.addon() || !e.id.startsWith("episode:") || dur <= 0 || notReady || a.hasNext()) return;
-        if ((pos < dur / 2 && dur - pos > 120000) || dur - pos <= 0) return;
-        nextAsked = true;
+        if (e == null || !mayHaveNext()) return;
+        if (now) playWhenQueued = true;
+        if (nx == NX_ASKING && !now && SystemClock.uptimeMillis() - nextAskedAt < 30000) return;
+        nx = NX_ASKING;
+        nextAskedAt = SystemClock.uptimeMillis();
+        nextWait = nextWait == 0 ? 60000 : Math.min(300000, nextWait * 2);
         JSObject ev = a.event("need");
         ev.put("what", "next");
         ev.put("binge", e.binge);
+        if (now) ev.put("now", true);
         TunerPlayerPlugin.emit(ev);
+    }
+    /** next-info: the next episode's line (for the end card before its copy is in), or that this is the last one. */
+    void nextInfo(JSONObject o) {
+        if (o.optBoolean("last")) { nx = NX_LAST; return; }
+        nextTitle = o.optString("title", "");
+        nextSub = o.optString("sub", "");
+    }
+    /** queue-next answered: none (last, nocopy, unknown) or an entry (the player adds it). True: play it now. */
+    boolean answered(JSONObject o) {
+        String none = o.optString("none", "");
+        if (!none.isEmpty()) {
+            nx = "last".equals(none) ? NX_LAST : NX_NOCOPY;
+            boolean asked = playWhenQueued;
+            playWhenQueued = false;
+            if (asked || a.endCardUp()) a.nextNone(nx == NX_LAST, o.optString("say", ""));
+            return false;
+        }
+        nx = NX_QUEUED;
+        upNextSay = o.optString("say", "");
+        boolean play = playWhenQueued;
+        playWhenQueued = false;
+        return play;
     }
 
     /** For the emulator test: what the copies are doing (never a link or a header's value). */

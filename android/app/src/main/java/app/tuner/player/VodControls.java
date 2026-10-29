@@ -58,8 +58,11 @@ final class VodControls {
 
     boolean visible() { return hud.up(); }
 
-    /** New title: rebuild the buttons (Next episode only when there is one). */
+    private PlayerActivity.Entry item;
+    /** New title: rebuild the buttons (Next episode when there is one, or an add-on episode's that can be asked for). */
     void setItem(PlayerActivity.Entry e, boolean hasNext) {
+        item = e;
+        hasNext = hasNext || a.mayAskNext();
         hud.title(e.title, e.artLogo, e.artBox, e.artDark);
         hud.sub(e.sub);
         hud.story(e.line);
@@ -81,6 +84,16 @@ final class VodControls {
         btn = 0;
         if (skipLabel != null) addSkip();
         draw();
+    }
+
+    /** The app said what comes next (or that nothing does): the Next episode pill comes or goes. */
+    void nextChanged() {
+        if (item == null) return;
+        boolean want = a.hasNext() || a.mayAskNext();
+        if (want == (nextBtn != null)) return;
+        boolean onBtns = row == 1;
+        setItem(item, want);
+        if (onBtns) { row = 1; btn = 0; draw(); }
     }
 
     // ---------- the Skip intro / Back to intro pill (design/ui-v1/skip SPEC 3.3): the last of the left group ----------

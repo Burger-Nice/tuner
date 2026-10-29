@@ -393,6 +393,10 @@ count: `Next episode` · the episode · `OK play now` · `Back close`, the next 
 - **With the controls up:** no key column, as above.
 - **After 5 min with no key:** the player clears keep-screen-on and closes as Back would (an OLED shouldn't hold a
   still frame).
+- **An add-on episode that ends with nothing lined up** (its add-ons slow, no copy yet) gets the same card instead of
+  closing: the next episode's line from the app (add-ons PORT-NATIVE.md 3), and OK asks for it and plays it when it
+  comes (the say line: `Getting the next episode…`, or `No copy of it yet · OK tries again`). Only the series' last
+  episode out closes at the end. The row's `Next episode` is there on every add-on episode and asks the same way.
 
 **Marked watched:** when Up next moves on (OK, the count, or OK on the end card), the episode it leaves is marked
 watched (`markWatched`). Reaching the credits alone marks nothing.
