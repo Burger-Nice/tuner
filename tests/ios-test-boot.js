@@ -120,6 +120,12 @@ window.TUNER_TEST = true;
       await wait(2000);
       const g = [...document.querySelectorAll('.lb-grid .poster[data-i]')].slice(0, 6).map((p) => p.getBoundingClientRect());
       check('Library: an even grid, 3 across, inside the screen', g.length === 6 && Math.abs(g[0].width - g[1].width) < 1 && Math.abs(g[0].top - g[2].top) < 1 && g[3].top > g[0].bottom && g[2].right <= innerWidth, JSON.stringify(g.map((r) => [Math.round(r.left), Math.round(r.top), Math.round(r.width)])));
+      // (the owner's phone: long one-line titles widened the whole grid past the screen in WebKit, worse as pages came)
+      const cap = document.querySelector('.lb-grid .poster[data-i="1"] .cap');
+      if (cap?.firstChild) cap.firstChild.textContent = 'The Lord of the Rings: The Fellowship of the Ring (Extended Edition)';
+      await wait(300);
+      const gw = document.querySelector('.lb-grid').getBoundingClientRect(), g2 = [...document.querySelectorAll('.lb-grid .poster[data-i]')].slice(0, 3).map((p) => p.getBoundingClientRect());
+      check('Library: a very long title keeps the grid inside the screen, 3 even columns', gw.right <= innerWidth + 0.5 && Math.abs(g2[0].width - g2[1].width) < 1 && g2[2].right <= innerWidth, JSON.stringify({ grid: [Math.round(gw.left), Math.round(gw.width)], cols: g2.map((r) => [Math.round(r.left), Math.round(r.width)]), w: innerWidth }));
       await shot('library');
       document.querySelector('.lb-grid .poster[data-i="0"]').click();
       await until(() => T().state().screen === 'detail' && document.querySelector('.dt-head .what'), 15000);

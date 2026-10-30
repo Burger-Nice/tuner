@@ -281,10 +281,13 @@ body.playing #toast { bottom: calc(var(--sb) + 20px); }
 .lb-ctx b { font: var(--ph-title); color: var(--a-text-1); }
 .lb-grid { margin: 12px 16px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; align-items: start; }
 /* an even grid on WebKit: the button never takes its poster's natural size, the box is 2:3 by its padding */
-.lb-grid .poster { width: 100%; }
+/* never wider than the screen: WebKit sized the grid by its titles' one-line width (long names made it 2x the screen) */
+.lb-grid { width: calc(100% - 32px); max-width: calc(100vw - 32px); min-width: 0; box-sizing: border-box; }
+.lb-grid > * { min-width: 0; max-width: 100%; overflow: hidden; }
+.lb-grid .poster { width: 100%; display: block; }
 .lb-grid .poster .box { width: 100%; height: 0; padding-top: 150%; }
 .lb-grid .poster .box img, .lb-grid .poster .box .noart { position: absolute; inset: 0; width: 100%; height: 100%; }
-.lb-grid .poster .cap { width: 100%; }
+.lb-grid .poster .cap { width: 100%; max-width: 100%; min-width: 0; display: block; }
 .lb-more { display: flex; justify-content: center; margin: 18px 0; }
 
 /* ---- the title page ---- */
