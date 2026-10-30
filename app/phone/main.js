@@ -14,7 +14,7 @@ import { ic, esc, register, go, push, back, current, onNav, nav } from './ui.js'
 import { playerOpen } from './player.js';
 import home from './home.js';
 import live, { dayPage } from './live.js';
-import nbaTab, { gamePage } from './nba.js';
+import nbaTab, { gamePage, teamScreen } from './nba.js';
 import lib from './library.js';
 import detail from './detail.js';
 import search from './search.js';
@@ -22,10 +22,10 @@ import account from './account.js';
 import signin from './signin.js';
 
 window.__phAcc = () => S.acc?.name || '';
-[home, live, dayPage, nbaTab, gamePage, lib, detail, search, account, signin].forEach(register);
+[home, live, dayPage, nbaTab, gamePage, teamScreen, lib, detail, search, account, signin].forEach(register);
 // The TV's own code pushes its pages by name (replay.js: the game page; actions.js: a title's page): its router's
 // screens are stand-ins that open the phone's page instead.
-const FORWARD = { detail: (p) => push('detail', { title: p.title }), game: (p) => push('game', { id: p.id }), team: () => go('nba'), account: () => push('account'), first: () => go('signin'),
+const FORWARD = { detail: (p) => push('detail', { title: p.title }), game: (p) => push('game', { id: p.id }), team: (p) => (p.abbr ? push('team', { abbr: p.abbr }) : go('nba')), account: () => push('account'), first: () => go('signin'),
   home: () => go('home'), live: () => go('live'), nba: () => go('nba'), movie: () => go('lib', { seg: 'movie' }), series: () => go('lib', { seg: 'series' }), saved: () => go('lib', { seg: 'saved' }), search: () => go('search') };
 for (const [name, f] of Object.entries(FORWARD)) tvRegister({ name, enter: (el, params) => f(params || {}) });
 
@@ -39,7 +39,8 @@ function drawTabs() {
   document.getElementById('ph-fade').hidden = !show;
   if (!show) return;
   const lv = liveShown(myGame());
-  tabsEl.innerHTML = `<div class="bar">${TABS.map(([k, l, i]) => `<button class="t${cur === k ? ' sel' : ''}" data-tab="${k}" aria-label="${l}">${ic(i)}<span>${l}</span>${k === 'nba' && lv ? '<span class="live">Live</span>' : ''}</button>`).join('')}</div><button class="srch${cur === 'search' ? ' sel' : ''}" data-tab="search" aria-label="Search">${ic('search')}</button>`;
+  const html = `<div class="bar">${TABS.map(([k, l, i]) => `<button class="t${cur === k ? ' sel' : ''}" data-tab="${k}" aria-label="${l}">${ic(i)}<span>${l}</span>${k === 'nba' && lv ? '<span class="live">Live</span>' : ''}</button>`).join('')}</div><button class="srch${cur === 'search' ? ' sel' : ''}" data-tab="search" aria-label="Search">${ic('search')}</button>`;
+  if (tabsEl._html !== html) { tabsEl.innerHTML = html; tabsEl._html = html; }   // (a redraw under a finger would lose its tap)
 }
 tabsEl.addEventListener('click', (e) => { if (tabsEl.classList.contains('mini') && e.target.closest('.bar')) { tabsEl.classList.remove('mini'); return; } const b = e.target.closest('[data-tab]'); if (b) go(b.dataset.tab); });
 onNav(drawTabs);

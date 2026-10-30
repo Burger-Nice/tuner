@@ -1,7 +1,8 @@
 // The iPhone app's main flows in Chromium at 393 x 852 (touch, 3x) against the fake provider and fake ESPN
 // (design/ui-v1/phone-v1/SPEC.md): sign in, Home, Live and a channel (the player opens and plays HLS), the NBA hub,
 // a game page and From tip-off (the replay plays its .m3u8), Library and a title page, Search, Account and Check
-// streams on this iPhone, the player in landscape. Screenshots go to <outdir>.
+// streams on this iPhone, the player in landscape, then the NBA tab in depth (every section, team pages, the player
+// sheet, the game page's tabs, the shield; every screen inside the phone's width). Screenshots go to <outdir>.
 // Run: tests/tv/serve.sh (the fake servers), node scripts/build-web.js phone, then serve www/ on 8779
 // (python3 -m http.server 8779 --directory www), then: node tests/phone/flows.js <outdir>
 const { chromium } = require('playwright');
@@ -12,6 +13,22 @@ const H = 'http://127.0.0.1:8899';
 fs.mkdirSync(out, { recursive: true });
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'OK  ' : 'FAIL'} ${name.padEnd(44)} ${detail}`); return ok; };
+
+// Every element of the screen (or the sheets) inside the phone's width: it may only reach past it inside a box that
+// scrolls or clips sideways and is itself inside the screen (WebKit sized the Library grid by its titles once).
+const OVERFLOW = (sel) => {
+  const root = document.querySelector(sel), W = innerWidth, bad = [];
+  if (!root) return { n: -1, bad: ['no ' + sel] };
+  const inside = (r) => r.right <= W + 0.5 && r.left >= -0.5;
+  // clipped by a box (scrolling or overflow hidden) that is inside the screen
+  const clipped = (e) => { for (let a = e.parentElement; a && a !== root; a = a.parentElement) { if (getComputedStyle(a).overflowX !== 'visible' && inside(a.getBoundingClientRect())) return true; } return false; };
+  for (const e of root.querySelectorAll('*')) {
+    const r = e.getBoundingClientRect();
+    if (!r.width || !r.height || inside(r) || clipped(e)) continue;
+    bad.push(`${e.tagName.toLowerCase()}.${String(e.className?.baseVal ?? e.className).split(' ')[0]} ${Math.round(r.left)}..${Math.round(r.right)}`);
+  }
+  return { n: bad.length, bad: bad.slice(0, 4), sw: root.scrollWidth, cw: root.clientWidth };
+};
 (async () => {
   const b = await chromium.launch({ args: ['--disable-web-security', '--autoplay-policy=no-user-gesture-required'] });
   const ctx = await b.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Mobile Safari/537.36' });
@@ -28,9 +45,204 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const shot = async (name) => { await p.waitForTimeout(500); await p.screenshot({ path: `${out}/${String(++n).padStart(2, '0')}-${name}.png` }); };
   const ev = (f, a) => p.evaluate(f, a);
   const state = () => ev(() => window.__tunerTest?.state());
-  const tap = async (sel) => { if (/data-tab/.test(sel)) await ev(() => document.querySelector('#ph-tabs').classList.remove('mini')); const el = await p.waitForSelector(sel, { timeout: 8000 }); await el.tap(); await p.waitForTimeout(400); };
+  const tap = async (sel) => { if (/data-tab/.test(sel)) await ev(() => document.querySelector('#ph-tabs').classList.remove('mini')); for (let i = 0; ; i++) { try { const el = await p.waitForSelector(sel, { timeout: 8000 }); await el.tap(); break; } catch (e) { if (i >= 2 || !/not attached/.test(e.message)) throw e; } } await p.waitForTimeout(400); };
   const wait = async (f, ms = 10000, a) => { const t = Date.now(); while (Date.now() - t < ms) { if (await ev(f, a).catch(() => false)) return true; await p.waitForTimeout(250); } return false; };
   const text = (sel) => ev((s) => document.querySelector(s)?.innerText || '', sel);
+
+  async function nbaDeep() {
+    const F = require('path').resolve(__dirname, '../fixtures/espn');
+    const sched = JSON.parse(fs.readFileSync(`${F}/schedule-29.json`, 'utf8')), sb = JSON.parse(fs.readFileSync(`${F}/scoreboard.json`, 'utf8'));
+    const jazz = sched.events.find((e) => e.id === '401909875');
+    const board = { ...sb, day: { date: '2026-10-26' }, events: [jazz, ...sb.events.filter((e) => e.id !== '401909850')] };
+    await p.close();   // (its own seen store and clock would prune the copy kept for the shield below)
+    const q = await ctx.newPage();
+    q.on('pageerror', (e) => errs.push(`PAGEERROR(nba) ${e.message}`));
+    q.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|net::ERR|404|favicon/.test(m.text())) errs.push(`CONSOLE(nba) ${m.text()}`); });
+    await q.addInitScript(() => { window.TUNER_TEST = 1; });
+    const hdr = { 'Access-Control-Allow-Origin': '*' };
+    await q.route('**/espn/scoreboard*', (r) => r.fulfill({ contentType: 'application/json', headers: hdr, body: JSON.stringify(board) }));
+    // the Kings final has no box score in the fixtures: the Warriors one stands in
+    await q.route('**/espn/summary?event=401909867', (r) => r.fulfill({ contentType: 'application/json', headers: hdr, body: fs.readFileSync(`${F}/summary-401909850.json`, 'utf8') }));
+    await q.clock.install({ time: new Date('2026-10-26T23:40:00Z') });
+    const qe = (f, a) => q.evaluate(f, a);
+    const qwait = async (f, ms = 10000, a) => { const t = Date.now(); while (Date.now() - t < ms) { if (await qe(f, a).catch(() => false)) return true; await q.waitForTimeout(250); } return false; };
+    const qshot = async (name) => { await q.waitForTimeout(500); await q.screenshot({ path: `${out}/${String(++n).padStart(2, '0')}-${name}.png` }); };
+    const qtap = async (sel) => { const e = await q.waitForSelector(sel, { timeout: 8000 }); await e.scrollIntoViewIfNeeded(); await e.tap(); await q.waitForTimeout(450); };
+    const sec = async (k) => { await qe((k) => document.querySelector(`[data-screen="nba"] [data-sec="${k}"]`).click(), k); await q.waitForTimeout(600); };
+    const fits = async (name, sel = '#ph-screens > section:not([hidden])') => { const o = await qe(OVERFLOW, sel); check(`${name}: inside the screen's width`, o.n === 0, o.n ? o.bad.join(' | ') : `${o.cw} wide`); };
+    const scr = () => qe(() => window.__tunerTest.state().screen);
+    const closeSheets = async () => { for (let i = 0; i < 3 && await qe(() => document.querySelectorAll('#ph-sheets .sh-ov').length); i++) { await qe(() => document.querySelector('#ph-sheets .sh-ov:last-child .scrim').click()); await q.waitForTimeout(400); } };
+    const setShield = (on) => qe((on) => {
+      const k = 'tuner.settings', v = JSON.parse(localStorage.getItem(k) || '{}');
+      v.shield = on ? 'mine' : 'off'; v.nbaTeam = 'MEM';
+      localStorage.setItem(k, JSON.stringify(v));
+      // the Kings final (Sun 25 Oct, late) is the one he hasn't seen; the two before it he has
+      localStorage.setItem('tuner.nbaSeen', JSON.stringify({ upTo: Date.parse('2026-10-25T12:00:00Z'), ids: [] }));
+    }, on);
+    const start = async (on) => {
+      await setShield(on);
+      if (on) await qe(async () => { const t = Date.parse('2026-10-26T01:00:00Z'); await window.Core.cache.set(`nba:pin:${t}`, { at: t, standings: await window.NBA.standings(), teamStats: await window.NBA.teamStats(), leaders: {} }); localStorage.setItem('tuner.nbaPins', JSON.stringify([t])); });
+      await q.reload(); await q.waitForTimeout(2500);
+      await qe(() => window.__tunerTest.go('nba')); await q.waitForTimeout(1500);
+    };
+    await q.goto(APP); await q.waitForTimeout(2000);
+    await start(false);
+
+    // the section row
+    const secs = await qe(() => [...document.querySelectorAll('[data-screen="nba"] [data-sec]')].map((c) => c.textContent.trim()));
+    check('NBA: the TV\'s sections', secs.join(',') === 'Games,Grizzlies,Standings,Leaders,Team stats,News', secs.join(' · '));
+    await fits('NBA Games');
+
+    // your team's page
+    await sec('team');
+    check('Team: header, schedule, ranks, roster', await qwait(() => /Grizzlies/.test(document.querySelector('.tp-head')?.innerText || '') && document.querySelectorAll('.tp-sched .tp-gt[data-g]').length > 10 && document.querySelectorAll('.tp-ranks .tp-rk').length >= 4 && document.querySelectorAll('.tp-ro tr[data-pl]').length >= 10, 12000),
+      await qe(() => `${document.querySelectorAll('.tp-sched .tp-gt[data-g]').length} tiles · ${document.querySelectorAll('.tp-rk[data-cat]').length} ranks · ${document.querySelectorAll('.tp-ro tr[data-pl]').length} players`));
+    const head = await qe(() => document.querySelector('.tp-head').innerText.replace(/\s+/g, ' '));
+    check('Team: record, place and the next game', /\d+-\d+/.test(head) && /in the West/.test(head) && /next/i.test(head) && /Jazz/.test(head), head.slice(0, 120));
+    check('Team: the schedule opens on the game that matters (in view)', await qe(() => { const r = document.querySelector('.tp-sched'), t = r.querySelector('.tp-gt.next') || r.querySelector('[data-g="401909875"]'); const a = t.getBoundingClientRect(); return a.left >= 0 && a.right <= innerWidth; }));
+    check('Team: injuries listed', await qe(() => document.querySelectorAll('.tp-inj .tp-ij').length >= 1));
+    check('Team: news cards', await qwait(() => document.querySelectorAll('.tp-news .tp-nc[data-story]').length >= 1, 8000));
+    await qshot('nba-team');
+    await fits('Team page (your team)');
+    await qe(() => document.querySelector('[data-screen="nba"]').scrollTo({ top: 1100 })); await q.waitForTimeout(400);
+    await qshot('nba-team-roster');
+    // the roster's sort, then a player
+    await qtap('[data-tact="sort"]');
+    check('Roster: the sort sheet', await qwait(() => /Sort the roster/.test(document.querySelector('#ph-sheets')?.innerText || '')));
+    await qe(() => [...document.querySelectorAll('#ph-sheets .lr')].find((b) => /Jersey/.test(b.innerText)).click()); await q.waitForTimeout(600);
+    check('Roster: sorted by jersey', await qe(() => { const n = [...document.querySelectorAll('.tp-ro tr[data-pl] .no')].map((x) => (x.textContent === '' ? 999 : +x.textContent)); return n.length > 3 && n.every((x, i) => !i || x >= n[i - 1]); }));
+    await qtap('.tp-ro tr[data-pl]');
+    check('Player sheet: averages, last games', await qwait(() => { const t = document.querySelector('.pl-b')?.innerText || ''; return /PTS/.test(t) && /Last games/i.test(t) && /REB/.test(t); }, 8000), await qe(() => document.querySelector('.pl-b')?.innerText.replace(/\s+/g, ' ').slice(0, 140)));
+    await q.waitForTimeout(1500);
+    check('Player sheet: his line in a seen game', await qwait(() => document.querySelectorAll('.pl-g').length > 0, 6000), await qe(() => document.querySelector('.pl-last')?.innerText.replace(/\s+/g, ' ').slice(0, 100) || document.querySelector('.pl-b')?.innerText.slice(-80)));
+    await qshot('nba-player');
+    await fits('Player sheet', '#ph-sheets');
+    await closeSheets();
+    // Season ranks -> Team stats on that category
+    await qe(() => document.querySelector('.tp-rk[data-cat]').click()); await q.waitForTimeout(800);
+    check('Season ranks open Team stats on the category', await qe(() => document.querySelector('[data-screen="nba"] [data-sec="teamstats"]').classList.contains('sel') && document.querySelectorAll('.ts-row[data-team]').length === 30));
+
+    // Team stats
+    await sec('teamstats');
+    check('Team stats: 30 teams, yours marked', await qwait(() => document.querySelectorAll('.ts-row[data-team]').length === 30 && !!document.querySelector('.ts-row.mine[data-team="MEM"]')));
+    check('Team stats: your rank on the chips', await qe(() => /\d/.test(document.querySelector('[data-tcat] small')?.textContent || '')), await qe(() => document.querySelector('[data-tcat]')?.textContent));
+    await qe(() => document.querySelectorAll('[data-tcat]')[2].click()); await q.waitForTimeout(500);
+    check('Team stats: another category', await qe(() => document.querySelectorAll('[data-tcat]')[2].classList.contains('sel') && document.querySelectorAll('.ts-row').length === 30));
+    await qshot('nba-teamstats');
+    await fits('Team stats');
+
+    // Leaders
+    await sec('leaders');
+    check('Leaders: the categories, the leader\'s card, rows 2 to 10', await qwait(() => document.querySelectorAll('[data-lcat]').length === 7 && !!document.querySelector('.ld-card') && document.querySelectorAll('.ld-row').length >= 3, 8000), await qe(() => `${document.querySelectorAll('.ld-row').length} rows`));
+    await qshot('nba-leaders');
+    await fits('Leaders');
+    await qe(() => document.querySelectorAll('[data-lcat]')[1].click()); await q.waitForTimeout(600);
+    check('Leaders: another category', await qe(() => document.querySelectorAll('[data-lcat]')[1].classList.contains('sel') && !!document.querySelector('.ld-card')));
+    await qtap('.ld-card');
+    check('Leaders: the player sheet with his team\'s page', await qwait(() => !!document.querySelector('.pl-b [data-act="team"]')));
+    const lteam = await qe(() => document.querySelector('.pl-b [data-act="team"]').innerText.trim());
+    await qtap('.pl-b [data-act="team"]');
+    check('a team page from Leaders (pushed)', await qwait(() => window.__tunerTest.state().screen === 'team' && !!document.querySelector('[data-screen="team"] .tp-head')), lteam);
+    await qe(() => window.__tunerTest.back()); await q.waitForTimeout(500);
+
+    // Standings -> another team's page, All teams, Back
+    await sec('standings');
+    check('Standings: 15 teams with their pages', await qwait(() => document.querySelectorAll('.box-t.st tr[data-team]').length === 15));
+    await qshot('nba-standings');
+    await fits('Standings');
+    await qtap('.box-t.st tr[data-team="SAC"]');
+    check('Standings: a team\'s page pushed', await qwait(() => window.__tunerTest.state().screen === 'team' && /Kings/.test(document.querySelector('[data-screen="team"] .ph-top')?.innerText || '')));
+    check('Team page: Make the Kings my team', await qe(() => /Make the Kings my team/.test(document.querySelector('[data-screen="team"] .nb-tools')?.innerText || '')));
+    await qshot('team-kings');
+    await fits('Team page (pushed)');
+    await qtap('[data-screen="team"] [data-tact="all"]');
+    check('All teams: 30 crests', await qwait(() => document.querySelectorAll('#ph-sheets .tp-pk[data-pick]').length === 30));
+    await fits('All teams', '#ph-sheets');
+    await qe(() => document.querySelector('#ph-sheets .tp-pk[data-pick="BOS"]').click()); await q.waitForTimeout(800);
+    check('All teams: a tap opens that team', /Celtics/.test(await qe(() => document.querySelector('[data-screen="team"] .ph-top')?.innerText || '')));
+    await qe(() => window.__tunerTest.back()); await q.waitForTimeout(500);
+    check('Back: the Kings page again', /Kings/.test(await qe(() => document.querySelector('[data-screen="team"] .ph-top')?.innerText || '')));
+    await qe(() => window.__tunerTest.back()); await q.waitForTimeout(500);
+    check('Back: the NBA tab', (await scr()) === 'nba');
+
+    // News and the reader
+    await sec('news');
+    check('News: the lead story and the list', await qwait(() => !!document.querySelector('.nw-lead') && document.querySelectorAll('.nw-row').length >= 3, 8000));
+    await qshot('nba-news');
+    await fits('News');
+    await qtap('.nw-lead');
+    check('News: the reader', await qwait(() => document.querySelectorAll('.rd-in p').length >= 2, 8000), await qe(() => document.querySelector('.rd-in h2')?.textContent || ''));
+    await qshot('nba-story');
+    await fits('Story reader', '#ph-sheets');
+    await closeSheets();
+
+    // the game page's tabs (Lakers at Clippers, live)
+    await qe(() => window.__tunerTest.push('game', { id: '401909851' }));
+    check('Game page: tabs Summary, Box score, Plays, Replays', await qwait(() => [...document.querySelectorAll('[data-screen="game"] [data-gtab]')].map((t) => t.textContent).join() === 'Summary,Box score,Plays,Replays'));
+    check('Game: summary (top performers, team stats)', await qwait(() => document.querySelectorAll('.gm-ts .r').length >= 4 && document.querySelectorAll('.gm-tp').length >= 3, 8000));
+    await qshot('game-summary');
+    await fits('Game summary');
+    await qtap('[data-gtab="box"]');
+    check('Game: box score', await qwait(() => document.querySelectorAll('.gm-box tbody tr').length >= 5));
+    await qtap('[data-gside="home"]');
+    check('Game: the other team\'s box', await qwait(() => document.querySelector('[data-gside="home"]').classList.contains('sel') && document.querySelectorAll('.gm-box tbody tr').length >= 5));
+    await qshot('game-box');
+    await fits('Game box score');
+    await qtap('[data-gtab="plays"]');
+    check('Game: plays', await qwait(() => document.querySelectorAll('.gm-plays > div').length >= 5));
+    await qtap('[data-gtab="replays"]');
+    check('Game: replays (sources, pick the channel, choose a video, look again)', await qwait(() => !!document.querySelector('[data-gact="pickch"]') && !!document.querySelector('[data-gact="choose"]') && !!document.querySelector('[data-gact="look"]')));
+    await qshot('game-replays');
+    await fits('Game replays');
+    await qe(() => window.__tunerTest.back()); await q.waitForTimeout(500);
+
+    // ---------- the shield: My team, the Kings final unseen ----------
+    await start(true);
+    await sec('team');
+    await qwait(() => !!document.querySelector('.tp-gt[data-g="401909867"]'), 10000);
+    const kt = await qe(() => document.querySelector('.tp-gt[data-g="401909867"]')?.innerText.replace(/\s+/g, ' ') || '');
+    check('Shield: the Kings tile says Result hidden, no score', /Result hidden/.test(kt) && !/\d{2,3}\s*[-–]\s*\d{2,3}/.test(kt), kt);
+    const sh = await qe(() => document.querySelector('.tp-rec')?.innerText.replace(/\s+/g, ' ') || '');
+    check('Shield: the record counts seen finals, 1 result hidden', /1 result hidden/.test(sh) && /Kings/.test(sh), sh);
+    check('Shield: the roster hides points and shooting', await qe(() => document.querySelectorAll('.tp-ro .hidc').length >= 10 && /Points and shooting hidden/.test(document.querySelector('.tp-sm')?.innerText || '')));
+    check('Shield: Season ranks are the copy from before tip-off', /as of tip-off/i.test(await qe(() => [...document.querySelectorAll('.tp-h')].find((h) => /Season ranks/.test(h.innerText))?.innerText || '')));
+    await qshot('team-shield');
+    await fits('Team page under the shield');
+    await qtap('.tp-ro tr[data-pl]');
+    await qwait(() => /seen game|Season averages/.test(document.querySelector('.pl-b')?.innerText || ''), 8000);
+    const pls = await qe(() => document.querySelector('.pl-b')?.innerText.replace(/\s+/g, ' ') || '');
+    check('Shield: the player sheet shows MIN, REB, AST only', /MIN/.test(pls) && !/\bPTS\b/.test(pls.split(/Last games/i)[0]) && /Points and shooting are hidden/.test(pls) && !/in the NBA in/.test(pls), pls.slice(0, 160));
+    check('Shield: his last games are seen ones (not the Kings)', !/Kings/.test(pls.split(/Last games/i)[1] || ''), (pls.split(/Last games/i)[1] || '').slice(0, 100));
+    await qshot('player-shield');
+    await closeSheets();
+    await sec('leaders');
+    check('Shield: Leaders covered (no copy kept)', await qwait(() => /Leaders are hidden/.test(document.querySelector('.nb-cov')?.innerText || '')));
+    await sec('standings');
+    check('Shield: Standings are the copy as of tip-off', await qwait(() => /As of tip-off, Grizzlies at Kings/.test(document.querySelector('.nb-pin')?.innerText || '') && document.querySelectorAll('.box-t.st tr[data-team]').length === 15));
+    await qshot('standings-shield');
+    await sec('teamstats');
+    check('Shield: Team stats are the copy as of tip-off', await qwait(() => /As of tip-off/.test(document.querySelector('.nb-pin')?.innerText || '')));
+    // the game page: the shield card, no Plays tab, Reveal behind a confirm
+    await qe(() => window.__tunerTest.push('game', { id: '401909867' }));
+    await qwait(() => !!document.querySelector('.gm-cov'), 8000);
+    const gp = await qe(() => document.querySelector('[data-screen="game"]').innerText.replace(/\s+/g, ' '));
+    check('Shield: the game page hides the score, no Plays tab', /Score hidden/.test(gp) && !(await qe(() => !!document.querySelector('[data-gtab="plays"]'))) && !/\b1\d\d\s*–\s*1\d\d\b/.test(gp), gp.slice(0, 140));
+    await qshot('game-shield');
+    await qtap('.gm-cov [data-gact="reveal"]');
+    check('Shield: Reveal asks first', await qwait(() => /Reveal Grizzlies at Kings\?|Reveal Kings|Reveal .*Kings.*\?/.test(document.querySelector('#ph-sheets')?.innerText || '')), await qe(() => document.querySelector('#ph-sheets h3')?.textContent || ''));
+    await qshot('reveal-confirm');
+    await qe(() => document.querySelector('#ph-sheets [data-act="no"]').click()); await q.waitForTimeout(600);
+    check('Shield: Keep it hidden keeps it hidden', await qe(() => !!document.querySelector('.gm-cov') && /Score hidden/.test(document.querySelector('[data-screen="game"]').innerText)));
+    await qtap('.gm-cov [data-gact="reveal"]');
+    await qe(() => document.querySelector('#ph-sheets [data-act="yes"]').click()); await q.waitForTimeout(1200);
+    check('Shield: Reveal shows the score and the box score', await qwait(() => !document.querySelector('.gm-cov') && !!document.querySelector('.gm-sc') && !!document.querySelector('[data-gtab="plays"]'), 8000), await qe(() => document.querySelector('.gm-head')?.innerText.replace(/\s+/g, ' ') || ''));
+    await qshot('game-revealed');
+    await qe(() => window.__tunerTest.back()); await q.waitForTimeout(600);
+    await sec('team');
+    check('Shield: after Reveal the Kings tile shows its result', await qwait(() => /[WL]\s*\d{2,3}/.test(document.querySelector('.tp-gt[data-g="401909867"]')?.innerText || ''), 6000), await qe(() => document.querySelector('.tp-gt[data-g="401909867"]')?.innerText.replace(/\s+/g, ' ')));
+    await setShield(false);
+    await q.close();
+  }
 
   await p.goto(APP);
   await p.waitForTimeout(1500);
@@ -208,6 +420,10 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('Check streams on this iPhone: live and replay answered', done, chk.replace(/\s+/g, ' '));
   check('Check streams: both play here (fake provider)', /Live · Live channels play here/.test(chk) && /Replays play here/.test(chk));
   await shot('account-check');
+
+  // ---------- the NBA tab in depth (the TV's sections, the team page, Leaders, Team stats, News, the player sheet, the
+  // game page's tabs, the shield), at the TV test's moment: Mon 26 Oct 2026 23:40, the Grizzlies at the Jazz at 01:00 ----------
+  await nbaDeep();
 
   check('no page errors', !errs.length, errs.slice(0, 5).join(' | '));
   fs.writeFileSync(`${out}/results.json`, JSON.stringify({ results, errs }, null, 1));
