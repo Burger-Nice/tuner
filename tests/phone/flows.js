@@ -403,6 +403,68 @@ const OVERFLOW = (sel) => {
   }
   await ev(() => window.__tunerTest.back());
 
+  // ---------- the player: subtitles inside the picture, and switching copies while watching ----------
+  // (the owner's iPhone drew the subtitles off the picture, bottom right; and he couldn't pick another copy mid-film)
+  await ev(async () => { const C = await import('./tv/js/catalog.js'); await C.ensure('movie'); window.__tunerTest.push('detail', { title: C.catalog.movie.titles.find((x) => x.name === 'The Long Night') }); });
+  await wait(() => !!document.querySelector('.dt-head [data-act="play"]') && /Kestrel|plays here/.test(document.querySelector('.dt-head')?.innerText || ''), 15000);
+  await p.waitForTimeout(2500);
+  await tap('.dt-head [data-act="play"]');
+  check('The Long Night plays', await wait(() => window.__phonePlayer?.state()?.playing, 15000), JSON.stringify(await ev(() => window.__phonePlayer?.state())));
+  // a subtitle track the way WebKit turns one on (showing): the app takes it over and draws the cue itself
+  await ev(() => { const v = document.querySelector('#ph-player video'); v.currentTime = 20; const tr = v.addTextTrack('subtitles', 'English', 'en'); tr.mode = 'showing'; tr.addCue(new VTTCue(0, 600, 'A subtitle line for the test\nand its second line')); });
+  // the cue's box against the picture's own rect (object-fit contain: the bars left out), the window and the controls
+  const SUBGEO = () => {
+    const v = document.querySelector('#ph-player video'), vr = v.getBoundingClientRect(), s = Math.min(vr.width / v.videoWidth, vr.height / v.videoHeight);
+    const pic = { l: vr.left + (vr.width - v.videoWidth * s) / 2, t: vr.top + (vr.height - v.videoHeight * s) / 2 };
+    pic.r = pic.l + v.videoWidth * s; pic.b = pic.t + v.videoHeight * s;
+    const sp = document.querySelector('.pv-subs:not([hidden]) span')?.getBoundingClientRect();
+    const ctl = [...document.querySelectorAll('.ov:not(.away) .lbar, .ov:not(.away) .pv-corner')].filter((e) => e.textContent.trim()).map((e) => e.getBoundingClientRect().top);
+    if (!sp) return { ok: false, why: 'no cue on screen', modes: [...v.textTracks].map((t) => t.mode) };
+    const inPic = sp.left >= pic.l - 0.5 && sp.right <= pic.r + 0.5 && sp.top >= pic.t - 0.5 && sp.bottom <= pic.b + 0.5;
+    const inWin = sp.left >= 0 && sp.right <= innerWidth && sp.top >= 0 && sp.bottom <= innerHeight;
+    const centred = Math.abs((sp.left + sp.right) / 2 - (pic.l + pic.r) / 2) < 2;
+    const above = ctl.every((t) => sp.bottom <= t + 0.5);
+    const native = [...v.textTracks].some((t) => t.mode === 'showing');   // (WebKit's own drawing is off inline)
+    return { ok: inPic && inWin && centred && above && !native, inPic, inWin, centred, above, native, sp: [sp.left, sp.top, sp.right, sp.bottom].map(Math.round), pic: [pic.l, pic.t, pic.r, pic.b].map(Math.round), fs: getComputedStyle(document.querySelector('.pv-subs')).fontSize };
+  };
+  await wait(() => !!document.querySelector('.pv-subs:not([hidden]) span'), 5000);
+  await p.waitForTimeout(600);   // (the lift above the controls glides in 0.25 s)
+  let g = await ev(SUBGEO);
+  check('subtitles: portrait, inside the picture, centred, above the controls', g.ok, JSON.stringify(g));
+  await shot('player-subs-portrait');
+  await p.setViewportSize({ width: 852, height: 393 });
+  await p.waitForTimeout(900);
+  g = await ev(SUBGEO);
+  check('subtitles: landscape, inside the picture and the window', g.ok, JSON.stringify(g));
+  await shot('player-subs-landscape');
+  await p.setViewportSize({ width: 393, height: 852 });
+  await p.waitForTimeout(700);
+  // Options > Copies: the title's copies, ranked, with which play here
+  await tap('#ph-player [data-act="options"]');
+  await ev(() => [...document.querySelectorAll('#ph-sheets .sh-ov:last-child .lr')].find((x) => /^Copies/.test(x.innerText))?.click());
+  await p.waitForTimeout(700);
+  const rows = await ev(() => [...document.querySelectorAll('#ph-sheets .sh-ov:last-child .lr')].map((x) => x.innerText.replace(/\s+/g, ' ')));
+  check('Copies opens from the player: provider and add-on copies', rows.length >= 3 && rows.some((r) => /Your provider/.test(r)) && rows.some((r) => /Kestrel|Northlight/.test(r)) && rows.some((r) => /playing/.test(r)), rows.join(' | '));
+  check('Copies: MKV ones say Infuse or VLC', rows.some((r) => /MKV · Infuse or VLC/.test(r)), rows.filter((r) => /MKV/.test(r))[0] || '');
+  await shot('player-copies');
+  const before = await ev(() => window.__phonePlayer.state());
+  await ev(() => [...document.querySelectorAll('#ph-sheets .sh-ov:last-child .lr')].find((x) => /plays here/.test(x.innerText))?.click());
+  await p.waitForTimeout(300);
+  const note = await text('.pv-tag');
+  await wait((k) => { const s = window.__phonePlayer.state(); return s && s.copy !== k && s.playing && s.t > 1; }, 15000, before.copy);
+  const after = await ev(() => window.__phonePlayer.state());
+  check('switching copies: "Switching to …"', /^Switching to /.test(note), note);
+  check('switching copies plays the other one from the same place', after.copy !== before.copy && after.playing && after.t > before.t - 9 && after.t < before.t + 3, `${before.copy} ${before.t.toFixed(1)} s -> ${after.copy} ${after.t.toFixed(1)} s · ${after.url}`);
+  // a copy that fails: the next one is offered, as on the TV
+  await ev(() => { document.querySelector('#ph-player video').src = 'http://127.0.0.1:8899/no-such-copy.mp4'; });
+  check('a failed copy offers the next one', await wait(() => !!document.querySelector('.pv-msg [data-act="nextcopy"]'), 10000), await text('.pv-msg'));
+  await shot('player-copy-failed');
+  await tap('.pv-msg [data-act="nextcopy"]');
+  check('Try the next copy plays', await wait(() => window.__phonePlayer.state()?.playing && !window.__phonePlayer.state()?.err, 15000), JSON.stringify(await ev(() => window.__phonePlayer.state())));
+  await ev(() => window.__phonePlayer?.close());
+  await p.waitForTimeout(500);
+  await ev(() => window.__tunerTest.back());
+
   // ---------- Search ----------
   await tap('[data-tab="search"]');
   await p.fill('#sr-q', 'nba');

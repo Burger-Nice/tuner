@@ -243,7 +243,8 @@ function artOf(t, tc, row) {
 }
 const mimeOf = (c) => { const m = String(c.filename || c.url || '').toLowerCase().split('?')[0].match(/\.(mkv|mp4|m4v|ts|m3u8|webm|avi|mov)$/); return m ? { mkv: 'video/x-matroska', mp4: 'video/mp4', m4v: 'video/mp4', ts: 'video/mp2t', m3u8: 'application/x-mpegURL', webm: 'video/webm', avi: 'video/x-msvideo', mov: 'video/quicktime' }[m[1]] : ''; };
 // the next copies, as identities (never links): the player asks for one with need: copy (SPEC 8.1)
-const identities = (list) => list.slice(0, 5).map((c) => ({ key: c.key, source: c.source === 'provider' ? 'provider' : c.source, label: copyLine(c) || 'Copy', provider: c.source === 'provider' }));
+// (mime: the file's kind from its name, never its link: the iPhone's Copies says which ones play there)
+const identities = (list) => list.slice(0, 5).map((c) => ({ key: c.key, source: c.source === 'provider' ? 'provider' : c.source, label: copyLine(c) || 'Copy', provider: c.source === 'provider', mime: mimeOf(c) }));
 // lastPlay: { tc, t, item (what was played first), playing (the copy's key now), rows (the series' episodes) or rowsP
 // (their promise), eps: Map(item -> { row, list }) for each episode of this play (the first one and every one Up next
 // added), list / row: the first item's }

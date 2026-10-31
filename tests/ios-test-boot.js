@@ -192,6 +192,51 @@ window.TUNER_TEST = true;
       await wait(800);
       await shot('title-more');
       T().back();
+
+      // the player in WebKit: the film's own subtitle track (movie.mp4 carries an English one) drawn inside the
+      // picture, not off it (the owner's iPhone: bottom right, off screen); then Options > Copies switches in place
+      try {
+        const C = await import('./tv/js/catalog.js');
+        await C.ensure('movie');
+        T().push('detail', { title: C.catalog.movie.titles.find((x) => x.name === 'The Long Night') });
+        await until(() => $('.dt-head [data-act="play"]') && /Kestrel|plays here/.test($('.dt-head')?.innerText || ''), 20000);
+        await wait(2500);
+        $('.dt-head [data-act="play"]').click();
+        const vp = await until(() => player()?.playing, 25000);
+        check('a film plays in the iPhone player', vp, JSON.stringify(player()));
+        const v = $('#ph-player video');
+        const kinds = (t) => t.kind === 'subtitles' || t.kind === 'captions';
+        const inband = await until(() => [...v.textTracks].some(kinds), 8000);
+        if (!inband) { const tr = v.addTextTrack('subtitles', 'English', 'en'); tr.addCue(new VTTCue(0, 3600, 'A subtitle line for the test')); }
+        window.__phonePlayer.subs();
+        await wait(600);
+        [...document.querySelectorAll('#ph-sheets .sh-ov:last-child .lr')].find((x) => /English|eng|Subtitles/i.test(x.innerText) && !/off|size/i.test(x.innerText))?.click();
+        const shown = await until(() => $('.pv-subs:not([hidden]) span'), 12000);
+        await wait(500);
+        const vr = v.getBoundingClientRect(), s = Math.min(vr.width / v.videoWidth, vr.height / v.videoHeight);
+        const pic = { l: vr.left + (vr.width - v.videoWidth * s) / 2, t: vr.top + (vr.height - v.videoHeight * s) / 2 };
+        pic.r = pic.l + v.videoWidth * s; pic.b = pic.t + v.videoHeight * s;
+        const sp = $('.pv-subs:not([hidden]) span')?.getBoundingClientRect();
+        const ok = sp && sp.left >= pic.l - 0.5 && sp.right <= pic.r + 0.5 && sp.top >= pic.t - 0.5 && sp.bottom <= pic.b + 0.5 && sp.left >= 0 && sp.right <= innerWidth && sp.top >= 0 && sp.bottom <= innerHeight;
+        const modes = [...v.textTracks].filter(kinds).map((t) => t.mode).join();
+        check('subtitles: the cue inside the video\'s picture and the window', shown && ok, JSON.stringify({ inband, sp: sp && [sp.left, sp.top, sp.right, sp.bottom].map(Math.round), pic: [pic.l, pic.t, pic.r, pic.b].map(Math.round), video: [vr.left, vr.top, vr.right, vr.bottom].map(Math.round), win: [innerWidth, innerHeight], text: $('.pv-subs')?.textContent, modes }));
+        check('subtitles: WebKit\'s own drawing is off inline (the track hidden, its cues ours)', !/showing/.test(modes), modes);
+        await shot('player-subs');
+        window.__phonePlayer.copies();
+        await wait(800);
+        const rows = [...document.querySelectorAll('#ph-sheets .sh-ov:last-child .lr')].map((x) => x.innerText.replace(/\s+/g, ' '));
+        check('Copies opens from the player', rows.length >= 3 && rows.some((r) => /playing/.test(r)) && rows.some((r) => /plays here/.test(r)), rows.join(' | '));
+        await shot('player-copies');
+        const before = player();
+        [...document.querySelectorAll('#ph-sheets .sh-ov:last-child .lr')].find((x) => /plays here/.test(x.innerText))?.click();
+        const sw = await until(() => { const st = player(); return st && st.copy !== before.copy && st.playing && st.t > 1; }, 25000);
+        const after = player();
+        check('switching copies plays the other one from about the same time', sw && after.t > before.t - 9 && after.t < before.t + 4, `${before.copy} ${before.t.toFixed(1)} s -> ${after?.copy} ${after?.t.toFixed(1)} s`);
+        await shot('player-switched');
+        window.__phonePlayer?.close();
+        await wait(800);
+        T().back();
+      } catch (e) { check('the player\'s subtitles and copies', false, String(e && e.stack || e)); }
       T().go('search');
       await wait(800);
       const q = $('#sr-q');

@@ -6,6 +6,8 @@
 // Streams (review 2, M1): HLS only. Live is /live/u/p/<id>.m3u8; a replay is core.js catchup()'s .m3u8 link; a film or
 // an episode its MP4 / M4V / MOV / HLS link. An MKV (or anything AVFoundation refuses) gets a clear message and the
 // hand-off to VLC or Infuse. hls.js is only loaded in a desktop browser (tests): the iPhone plays HLS itself.
+// Subtitles are drawn by the app inside the picture (WebKit's own drawing landed off it on the iPhone); Options >
+// Copies (films, episodes) and Feeds (live) switch to another copy from the same place, as the TV's Copies does.
 import { host, emitEvent } from './bridge.js';
 import { S, on, emit } from '../tv/js/state.js';
 import { catalog } from '../tv/js/catalog.js';
@@ -15,6 +17,8 @@ import { playLive } from '../tv/js/player.js';
 import { hm, leftText, fmtTime, keyOf } from '../tv/js/util.js';
 import { ic, esc, sheet, radio, menu, confirm, tileOf, facts, haptic, cleanCh } from './ui.js';
 import { hlsOf, tsOf, vlcUrl, infuseUrl, handOff, playsHere, limitReached } from './streams.js';
+import { subSettings } from '../tv/js/subs.js';
+import { langName } from '../tv/js/subs/lang.js';
 
 const $p = () => document.getElementById('ph-player');
 const MIN = 60e3;
@@ -38,12 +42,16 @@ host.impl = {
       lastRing = ring;
       P = { s, mode: 'live', ring, ringName: o.ring || 'All channels', index: Math.max(0, Math.min(ring.length - 1, o.index || 0)), game: null };
     } else if (o.mode === 'vod') {
+      // another copy picked in Copies (the TV plays it as a new play): from where he was, a few seconds back
+      if (pending && Date.now() - pending.at < 15000 && pending.id && o.entries?.[0]?.id === pending.id) o.entries[0].startAt = pending.t;
       const R = lastR && Date.now() - lastR.at < 15000 && o.entries?.[0]?.id === lastR.R.id ? lastR.R : null;
       lastR = null;
       P = { s, mode: 'vod', entries: o.entries || [], index: o.index || 0, R, kind: R ? R.kind : 'vod', game: null };
     } else return { ok: false, error: 'The phone player plays live channels, films, episodes and replays.' };
     open();
     load();
+    if (pending && Date.now() - pending.at < 15000) say(pending.say);
+    pending = null;
     return { ok: true };
   },
   command(what, arg) {
@@ -57,6 +65,8 @@ host.impl = {
     else if (what === 'queue') { const q = j(); if (q?.entries && P.mode === 'vod') P.entries.push(...q.entries); draw(); }
     else if (what === 'groups') { const g = j(); if (Array.isArray(g)) groupsSheet(g); }
     else if (what === 'chip') { const c = j(); if (c?.title) say(`${c.title} · ${c.sub || ''}`); }
+    else if (what === 'versions') { P.versions = j(); if (P.openCopies) { P.openCopies = false; copiesSheet(); } if (P.err) drawMsg(); }
+    else if (what === 'copy') gotCopy(j());
   },
   stop: () => end({}),
 };
@@ -78,11 +88,17 @@ function open() {
   video.addEventListener('waiting', () => { if (P) { P.waiting = true; drawMsg(); } });
   video.addEventListener('pause', () => draw());
   video.addEventListener('play', () => draw());
-  video.addEventListener('loadedmetadata', () => { if (P?.startAt && isFinite(video.duration) && video.duration > P.startAt) { try { video.currentTime = P.startAt; } catch { /* (seeks after) */ } } P && (P.startAt = 0); draw(); });
+  video.addEventListener('loadedmetadata', () => { if (P?.startAt && isFinite(video.duration) && video.duration > P.startAt) { try { video.currentTime = P.startAt; } catch { /* (seeks after) */ } } P && (P.startAt = 0); draw(); syncSubs(); });
   video.addEventListener('error', () => fail(video.error?.code === 4 ? 'This iPhone can\'t play this stream\'s format.' : 'The stream stopped.'));
   video.addEventListener('ended', onEnded);
   video.addEventListener('timeupdate', () => { if (!dragging) drawTrack(); });
-  video.addEventListener('webkitpresentationmodechanged', () => draw());
+  video.addEventListener('webkitpresentationmodechanged', () => { draw(); syncSubs(); });
+  // subtitles: drawn by the app over the picture inline; WebKit's own only where the app can't draw (PiP, AirPlay)
+  for (const ev of ['enterpictureinpicture', 'leavepictureinpicture', 'webkitcurrentplaybacktargetiswirelesschanged', 'webkitbeginfullscreen', 'webkitendfullscreen']) video.addEventListener(ev, () => syncSubs());
+  video.addEventListener('resize', placeSubs);
+  video.textTracks?.addEventListener?.('addtrack', () => syncSubs());
+  video.textTracks?.addEventListener?.('change', () => syncSubs());
+  if (!document.getElementById('ph-safe')) document.body.insertAdjacentHTML('beforeend', '<div id="ph-safe" aria-hidden="true"></div>');
   gestures(el.querySelector('.pv-video'));
   orient(true);
   clearInterval(progT);
@@ -107,6 +123,7 @@ function load() {
   destroyHls();
   const src = sourceNow();
   P.src = src;
+  drawSubs();
   draw();
   if (!src?.url) { fail('There is no link to play.'); return; }
   if (src.mkv) { fail('mkv'); return; }
@@ -154,6 +171,7 @@ function fail(why) {
   // a live channel's HLS answer that fails once is asked again before giving up (some panels need a second ask)
   if (why !== 'mkv' && P.mode === 'live' && !failedOnce && !P.playing) { failedOnce = true; setTimeout(() => { if (P && !P.playing) load(); }, 1200); return; }
   P.err = why; P.waiting = false;
+  if (why !== 'mkv') copyFailed();
   draw();
   if (why !== 'mkv') limitReached().then((lim) => { if (lim && P?.err === why) { P.err = lim; draw(); } });
 }
@@ -303,12 +321,13 @@ function draw() {
   }
   root.style.setProperty('--vh', `${root.querySelector('.pv-video').offsetHeight}px`);
   drawMsg();
+  placeSubs();
 }
 function netChip() {
   const t = navigator.connection?.type;
   return t === 'cellular' ? `<span class="pv-chip">${ic('data')}Mobile data${resTag() ? ` · ${resTag()}` : ''}</span>` : '';
 }
-function drawCorner() { const c = $p()?.querySelector('.pv-corner, .pv-corner2'); if (c && P) c.innerHTML = cornerHtml(); }
+function drawCorner() { const c = $p()?.querySelector('.pv-corner, .pv-corner2'); if (c && P) { c.innerHTML = cornerHtml(); placeSubs(); } }
 function drawMsg() {
   const box = $p()?.querySelector('.pv-msgbox');
   if (!box || !P) return;
@@ -318,7 +337,11 @@ function drawMsg() {
     const lim = typeof P.err === 'object' && P.err.limit;
     const title = mkv ? 'Only an MKV copy · this iPhone can\'t play MKV' : lim ? P.err.text : 'This stream won\'t play on this iPhone';
     const text = mkv ? 'Infuse or VLC plays it. Subtitles don\'t go with it.' : lim ? 'Stop it on the other device, then try again.' : `${esc(P.err)} ${P.mode === 'live' ? 'The provider may not send this channel as HLS. VLC plays it as it is.' : 'VLC or Infuse may play it.'}`;
-    box.innerHTML = `<div class="pv-msg"><b>${esc(title)}</b><p>${text}</p><div class="act">${mkv ? '<button class="pill noicon" data-act="infuse">Open in Infuse</button>' : '<button class="pill noicon" data-act="retry">Try again</button>'}<button class="ghost" data-act="vlc">Open in VLC</button>${mkv ? '' : ''}</div></div>`;
+    // a copy that fails (or is MKV): the next copy that plays here, as the TV offers it (SPEC 7.6)
+    const nx = lim ? null : nextCopy();
+    const next = nx ? `<button class="pill noicon" data-act="nextcopy">Try the next copy</button>` : '';
+    const nxLine = nx ? `<p class="nx">Next: ${esc(nx.line)}</p>` : '';
+    box.innerHTML = `<div class="pv-msg"><b>${esc(title)}</b><p>${text}</p>${nxLine}<div class="act">${next}${mkv ? `<button class="${next ? 'ghost' : 'pill noicon'}" data-act="infuse">Open in Infuse</button>` : `<button class="${next ? 'ghost' : 'pill noicon'}" data-act="retry">Try again</button>`}<button class="ghost" data-act="vlc">Open in VLC</button></div></div>`;
     return;
   }
   const slow = P.waiting && Date.now() - (P.startedAt || 0) > 2000;
@@ -438,6 +461,7 @@ function act(a) {
   if (a === 'vlc') return handOff(vlcUrl(P.src?.vlc || P.src?.url), 'VLC');
   if (a === 'infuse') return handOff(infuseUrl(P.src?.url), 'Infuse');
   if (a === 'options') return options();
+  if (a === 'nextcopy') { const nx = nextCopy(); if (nx) nx.go(); return; }
   if (a === 'subs') return subsSheet();
   if (a === 'groups') return emitEvent({ type: 'need', session: P.s, what: 'groups' });
   if (a === 'next') { sendProgress(true); emitEvent({ type: 'watched', session: P.s, index: P.index }); P.index++; emitEvent({ type: 'track', session: P.s, index: P.index }); return load(); }
@@ -487,6 +511,7 @@ function options() {
   const rows = [
     { label: fill ? 'Picture: fill the screen' : 'Picture: fit', sub: 'Pinch the video to switch', icon: 'tv', run: () => { fill = !fill; draw(); } },
   ];
+  if (!P.R) rows.push(P.mode === 'live' ? { label: 'Feeds', sub: 'This channel at another quality', icon: 'tv', run: copiesSheet } : { label: 'Copies', sub: copiesSub(), icon: 'film', run: copiesSheet });
   if (P.mode === 'vod' && !P.R) rows.push({ label: `Speed: ${video.playbackRate}×`, icon: 'fwd', run: () => radio('Speed', [0.75, 1, 1.25, 1.5, 2].map((x) => ({ v: x, l: `${x}×` })), video.playbackRate, (x) => { video.playbackRate = +x; }) });
   const u = P.src?.url || '';
   rows.push({ label: 'Connection', sub: `${/\.m3u8/i.test(u) ? 'HLS' : u.split('?')[0].split('.').pop().toUpperCase()} · ${resTag() || 'quality not known yet'} · ${(() => { try { return new URL(u).host; } catch { return ''; } })()}`, icon: 'globe', run: () => {} });
@@ -495,12 +520,221 @@ function options() {
   menu('Options', rows);
 }
 function subsSheet() {
-  const v = video, tt = [...(v.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions'), at = [...(v.audioTracks || [])];
+  const v = video, tt = textTracks(), at = [...(v.audioTracks || [])], cur = chosenTrack(tt);
   const rows = [];
-  rows.push({ label: 'Subtitles off', icon: tt.some((t) => t.mode === 'showing') ? '' : 'tick', run: () => tt.forEach((t) => { t.mode = 'disabled'; }) });
-  tt.forEach((t) => rows.push({ label: t.label || t.language || 'Subtitles', sub: t.language || '', icon: t.mode === 'showing' ? 'tick' : '', run: () => tt.forEach((x) => { x.mode = x === t ? 'showing' : 'disabled'; }) }));
+  rows.push({ label: 'Subtitles off', icon: cur ? '' : 'tick', run: () => { subWant = { off: true }; syncSubs(); } });
+  tt.forEach((t) => rows.push({ label: t.label || langName(t.language) || t.language || 'Subtitles', sub: t.label ? langName(t.language) || t.language || '' : '', icon: t === cur ? 'tick' : '', run: () => { subWant = { lang: t.language, label: t.label }; syncSubs(); } }));
+  if (tt.length) rows.push({ label: `Subtitle size: ${SUBSIZE[subSize()].l}`, icon: 'cc', run: () => radio('Subtitle size', Object.entries(SUBSIZE).map(([k, x]) => ({ v: k, l: x.l })), subSize(), (k) => { try { localStorage.setItem(SIZEKEY, k); } catch { /* none */ } placeSubs(true); }) });
   at.forEach((t) => rows.push({ label: `Sound: ${t.label || t.language || 'Track'}`, icon: t.enabled ? 'tick' : '', run: () => at.forEach((x) => { x.enabled = x === t; }) }));
   menu('Subs & audio', rows, { sub: tt.length || at.length > 1 ? '' : 'This stream has no other tracks' });
+}
+
+// ---------- subtitles: the app draws them over the picture ----------
+// The owner's iPhone drew the stream's own subtitle track (WebKit's rendering) off the picture, down at the bottom
+// right. So inline the chosen track is 'hidden' (its cues still come) and the app draws the cues itself, in the
+// picture's own box (the video's content rect: object-fit contain, the black bars left out), centred, above the
+// controls while they're up and inside the safe areas. Picture in picture, AirPlay and WebKit's full screen draw
+// outside the page: there the track is 'showing' and iOS draws it.
+let subWant = null;   // null: what the stream / WebKit shows by default; { off: true }; { lang, label } (his pick)
+const SIZEKEY = 'tuner.phSubSize';
+const SUBSIZE = { small: { l: 'Small', f: 0.82 }, standard: { l: 'Standard', f: 1 }, large: { l: 'Large', f: 1.22 }, larger: { l: 'Larger', f: 1.45 } };
+const subSize = () => { try { const k = localStorage.getItem(SIZEKEY); return SUBSIZE[k] ? k : 'standard'; } catch { return 'standard'; } };
+const textTracks = () => [...(video?.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions');
+function chosenTrack(tt) {
+  if (!subWant || subWant.off) return null;
+  return tt.find((t) => t.language === subWant.lang && t.label === subWant.label) || tt.find((t) => t.language === subWant.lang) || null;
+}
+// where iOS draws (not the page): picture in picture, AirPlay, WebKit's own full screen
+const nativeView = () => !!video && (video.webkitPresentationMode === 'picture-in-picture' || video.webkitPresentationMode === 'fullscreen' || document.pictureInPictureElement === video || !!video.webkitDisplayingFullscreen || !!video.webkitCurrentPlaybackTargetIsWireless);
+function syncSubs() {
+  if (!video) return;
+  const tt = textTracks();
+  // a track WebKit turned on by itself (the stream's default, the iPhone's caption setting) is adopted as the pick
+  if (!subWant) { const sh = tt.find((t) => t.mode === 'showing'); if (sh) subWant = subSettings().mode === 'off' ? { off: true } : { lang: sh.language, label: sh.label, auto: true }; }
+  const pick = chosenTrack(tt), nat = nativeView();
+  for (const t of tt) {
+    const want = t === pick ? (nat ? 'showing' : 'hidden') : 'disabled';
+    if (t.mode !== want) t.mode = want;
+    t.oncuechange = drawSubs;
+  }
+  drawSubs();
+}
+const cueText = (c) => {
+  const raw = c.text != null ? String(c.text) : c.getCueAsHTML ? c.getCueAsHTML().textContent || '' : '';
+  return raw.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\{\\[^}]*\}/g, '').trim();
+};
+function drawSubs() {
+  const el = $p()?.querySelector('.pv-subs');
+  if (!el) return;
+  const pick = video && !nativeView() && P?.src ? chosenTrack(textTracks()) : null;
+  const lines = pick ? [...(pick.activeCues || [])].map(cueText).filter(Boolean) : [];
+  const html = lines.map((x) => esc(x).replace(/\n/g, '<br>')).join('<br>');
+  if (!html) { if (!el.hidden) { el.hidden = true; el.innerHTML = ''; el.dataset.h = ''; } return; }
+  if (el.dataset.h !== html) { el.innerHTML = `<span>${html}</span>`; el.dataset.h = html; }
+  if (el.hidden) { el.hidden = false; placeSubs(true); } else placeSubs();
+}
+// the picture's own rect inside the video element (object-fit contain: the bars left out; fill: the whole box)
+function pictureRect() {
+  const W = video.clientWidth, H = video.clientHeight, vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh || !W || !H) return { x: 0, y: 0, w: W, h: H };
+  const s = (fill ? Math.max : Math.min)(W / vw, H / vh), w = vw * s, h = vh * s;
+  return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+}
+function safeInsets() {
+  const g = document.getElementById('ph-safe');
+  if (!g) return { t: 0, r: 0, b: 0, l: 0 };
+  const cs = getComputedStyle(g);
+  return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+}
+let placed = '';
+function placeSubs(force) {
+  const box = $p()?.querySelector('.pv-video'), el = box?.querySelector('.pv-subs');
+  if (!el || !video || el.hidden) return;
+  const br = box.getBoundingClientRect(), r = pictureRect(), s = safeInsets();
+  const vr = video.getBoundingClientRect(), ox = vr.left - br.left, oy = vr.top - br.top;
+  // the part of the picture that is on screen: inside the box, the window and its safe areas (notch, home indicator)
+  const l = Math.max(ox + r.x, 0, s.l - br.left), t = Math.max(oy + r.y, 0, s.t - br.top);
+  const rr = Math.min(ox + r.x + r.w, br.width, innerWidth - s.r - br.left), b = Math.min(oy + r.y + r.h, br.height, innerHeight - s.b - br.top);
+  const w = Math.max(0, rr - l), h = Math.max(0, b - t);
+  // the controls while they're up: the subtitles sit just above them
+  let lift = 0;
+  const ov = box.querySelector('.ov');
+  if (ov && !ov.classList.contains('away')) {
+    for (const c of ov.querySelectorAll('.lbar, .pv-corner, .pv-chip')) {
+      const cr = c.getBoundingClientRect();
+      if (cr.height && c.textContent.trim()) lift = Math.max(lift, b - (cr.top - br.top));
+    }
+  }
+  const fs = Math.round(Math.max(14, Math.min(30, h * 0.052)) * SUBSIZE[subSize()].f);
+  const pad = Math.round(Math.max(h * 0.06, lift + 6, 6));
+  const key = [l, t, w, h, fs, pad].map(Math.round).join();
+  if (key === placed && !force) return;
+  placed = key;
+  Object.assign(el.style, { left: `${l}px`, top: `${t}px`, width: `${w}px`, height: `${h}px`, fontSize: `${fs}px`, paddingBottom: `${Math.min(pad, Math.max(0, h - fs * 2.6))}px` });
+}
+
+// ---------- other copies while watching (the TV's Copies / Options > Quality; addons/PORT-NATIVE.md 2 to 4) ----------
+// A film or an episode: the copies the play started with (entry.copies, identities in rank order; the link is asked for
+// with need: copy) or the provider's versions (the versions command; picking one is a version event). Live: the
+// channel's other feeds (the same name at another quality). Picking one switches here, from the same place.
+let pending = null;   // { id, t, say, at }: a copy the TV plays as a new play (a version, a feed): its time and its note
+const copyName = (c) => (c.label && c.label !== 'Copy' ? c.label : c.provider || !c.source || c.source === 'provider' ? 'Your provider' : c.source);
+const srcName = (c) => (c.provider || !c.source || c.source === 'provider' ? 'Your provider' : c.source);
+const hereC = (c) => playsHere({ url: c.url || '', mime: c.mime || '', filename: c.filename || '' });
+function chainOf(e) {
+  if (!e) return [];
+  if (!e._chain) {
+    const first = { key: e.copyKey || e.id, source: e.source || 'provider', provider: !e.source || e.source === 'provider', label: e.label || '', mime: e.mime || '', url: e.url };
+    e._chain = e.copies?.length ? [first, ...e.copies.filter((c) => c.key !== first.key).map((c) => ({ ...c }))] : [];
+  }
+  return e._chain;
+}
+const playingKey = (e) => e?._playing || chainOf(e)[0]?.key || '';
+function copiesSub() {
+  const e = P.entries[P.index], ch = chainOf(e);
+  if (ch.length > 1) return `${ch.length} copies · playing ${copyName(ch.find((c) => c.key === playingKey(e)) || ch[0])}`;
+  const n = P.versions?.list?.length || 0;
+  return n > 1 ? `${n} copies` : 'Another copy of this';
+}
+const vodTime = () => Math.max(0, (video?.currentTime || 0) - 5);   // (a few seconds back: the cuts differ)
+function copiesSheet() {
+  if (!P) return;
+  if (P.mode === 'live') return feedsSheet();
+  const e = P.entries[P.index], ch = chainOf(e);
+  if (ch.length > 1) {
+    const now = playingKey(e);
+    return menu('Copies', ch.map((c, i) => ({
+      label: copyName(c),
+      sub: [srcName(c) !== copyName(c) ? srcName(c) : '', i === 0 ? 'Best' : '', c.key === now ? 'playing' : hereC(c) ? 'plays here' : 'MKV · Infuse or VLC', c.failed ? 'didn\'t play' : ''].filter(Boolean).join(' · '),
+      icon: c.key === now ? 'tick' : hereC(c) ? 'film' : 'ext', run: () => switchCopy(c),
+    })), { sub: 'Switching keeps your place' });
+  }
+  const v = P.versions;
+  if (!v) { askVersions(); return; }
+  const list = v.list || [];
+  if (list.length < 2) return menu('Copies', [{ label: 'This is the only copy', sub: 'Your provider has one copy of this', icon: 'film' }]);
+  menu('Copies', list.map((x) => ({
+    label: x.line1 || x.name, sub: [x.line1 && x.name !== x.line1 ? x.name : x.label, x.line2 || (x.id === v.id ? 'playing' : '')].filter(Boolean).join(' · '),
+    icon: x.id === v.id ? 'tick' : 'film', run: () => { if (x.id !== v.id) pickVersion(x); },
+  })), { sub: 'Switching keeps your place' });
+}
+function askVersions() {
+  P.openCopies = true;
+  emitEvent({ type: 'need', session: P.s, what: 'versions' });
+  const me = P;
+  setTimeout(() => { if (P === me && P.openCopies) { P.openCopies = false; say('No other copies came'); } }, 6000);
+}
+function feedsSheet() {
+  const v = P.versions, c = chNow();
+  if (!v || v.id !== String(c.id)) { askVersions(); return; }
+  const list = v.list || [];
+  if (list.length < 2) return menu('Feeds', [{ label: 'This channel has one feed', sub: 'No other channel in your list has its name', icon: 'tv' }]);
+  menu('Feeds', list.map((x) => ({
+    label: x.name, sub: [x.label, x.id === v.id ? 'playing' : ''].filter(Boolean).join(' · '), icon: x.id === v.id ? 'tick' : 'tv',
+    run: () => {
+      if (x.id === v.id) return;
+      const i = P.ring.findIndex((r) => r.id === x.id);
+      if (i >= 0) { tune(i); say(`Switching to ${cleanCh(x.name)}`); return; }
+      pending = { t: 0, say: `Switching to ${cleanCh(x.name)}`, at: Date.now() };
+      emitEvent({ type: 'pick', session: P.s, id: x.id, from: 'version' });
+    },
+  })), { sub: 'The same channel at another quality' });
+}
+function pickVersion(x, next) {
+  const t = vodTime(), d = video?.duration || 0;
+  pending = { id: x.id, t, say: `Switching to ${x.line1 || x.name}`, at: Date.now() };
+  say(`${pending.say}…`);
+  emitEvent({ type: 'version', session: P.s, id: x.id, index: P.index, t, d: isFinite(d) ? d : 0, ...(next ? { next: true } : {}) });
+}
+function switchCopy(c) {
+  const e = P.entries[P.index];
+  if (c.key === playingKey(e)) { say('This copy is playing'); return; }
+  const w = { key: c.key, t: vodTime(), label: copyName(c), index: P.index };
+  P.switching = w;
+  say(`Switching to ${w.label}…`);
+  emitEvent({ type: 'need', session: P.s, what: 'copy', key: c.key, index: P.index });
+  const me = P;
+  setTimeout(() => { if (P === me && P.switching === w) { P.switching = null; say('That copy didn\'t answer · try another'); } }, 10000);
+}
+// the link for a copy asked for (need: copy): it plays here, from where he was; an MKV goes to Infuse or VLC
+function gotCopy(x) {
+  const w = P.switching;
+  if (!w || !x || x.key !== w.key) return;
+  P.switching = null;
+  const e = P.entries[w.index], ch = chainOf(e), c = ch.find((y) => y.key === x.key);
+  if (x.error || !x.entry?.url) { if (c) c.failed = true; say('That copy has gone · try another'); return; }
+  const u = x.entry.url;
+  if (!playsHere({ url: u, mime: x.entry.mime, filename: x.entry.filename })) {
+    menu(`${w.label}: an MKV copy`, [
+      { label: 'Open in Infuse', icon: 'ext', run: () => handOff(infuseUrl(u), 'Infuse') },
+      { label: 'Open in VLC', icon: 'ext', run: () => handOff(vlcUrl(u), 'VLC') },
+    ], { sub: 'This iPhone can\'t play MKV. Subtitles don\'t go with it.' });
+    return;
+  }
+  P.entries[w.index] = { ...x.entry, title: x.entry.title || e.title, sub: x.entry.sub || e.sub, copies: e.copies, startAt: w.t, _chain: ch, _playing: x.key };
+  if (w.index !== P.index) return;
+  failedOnce = false;
+  load();
+  say(`Switching to ${w.label}`);
+}
+// the copy playing failed: the TV marks it (band e) and the next one is offered
+function copyFailed() {
+  if (P.mode !== 'vod' || P.R) return;
+  const e = P.entries[P.index], ch = chainOf(e);
+  if (ch.length > 1) {
+    const k = playingKey(e), c = ch.find((y) => y.key === k);
+    if (c && !c.failed) { c.failed = true; emitEvent({ type: 'copy-failed', session: P.s, key: k }); }
+  } else emitEvent({ type: 'failed', session: P.s, index: P.index });   // (player.js answers with the versions and the next one)
+}
+function nextCopy() {
+  if (!P || P.mode !== 'vod' || P.R) return null;
+  const e = P.entries[P.index], ch = chainOf(e);
+  if (ch.length > 1) {
+    const k = playingKey(e), c = ch.find((y) => y.key !== k && !y.failed && hereC(y));
+    return c ? { line: [copyName(c), srcName(c) !== copyName(c) ? srcName(c) : ''].filter(Boolean).join(' · '), go: () => switchCopy(c) } : null;
+  }
+  const nx = P.versions?.next;
+  return nx ? { line: nx.line || 'Another copy', go: () => pickVersion({ id: nx.id, name: nx.line }, true) } : null;
 }
 // the game panel as a sheet (quarters, plays, the box) from the game data the TV sends (shield applied there)
 function gameSheet() {
@@ -600,8 +834,9 @@ function showOverlay() {
   const ov = $p()?.querySelector('.ov');
   if (!ov) return;
   ov.classList.remove('away');
+  placeSubs();
   clearTimeout(hideT);
-  hideT = setTimeout(() => { if (video && !video.paused && !dragging && P && !P.err) ov.classList.add('away'); }, 4000);
+  hideT = setTimeout(() => { if (video && !video.paused && !dragging && P && !P.err) { ov.classList.add('away'); placeSubs(); } }, 4000);
 }
 
 // ---------- the lock screen (Now Playing): the masked name only (SPEC 0.9) ----------
@@ -615,5 +850,5 @@ function mediaSession() {
   } catch { /* older WebKit */ }
 }
 on('nba', () => { if (P?.R) { drawCorner(); } });
-if (window.TUNER_TEST) window.__phonePlayer = { state: () => (P ? { mode: P.mode, replay: !!P.R, url: P.src?.url ? P.src.url.replace(/\/\/[^/]+/, '//host') : '', playing: !!P.playing, err: P.err ? String(P.err.text || P.err) : '', t: video?.currentTime || 0, h: video?.videoHeight || 0 } : null), close: () => end({}), act };
+if (window.TUNER_TEST) window.__phonePlayer = { state: () => (P ? { mode: P.mode, replay: !!P.R, url: P.src?.url ? P.src.url.replace(/\/\/[^/]+/, '//host') : '', playing: !!P.playing, err: P.err ? String(P.err.text || P.err) : '', t: video?.currentTime || 0, h: video?.videoHeight || 0, copy: P.mode === 'vod' ? playingKey(P.entries[P.index]) : '', copies: P.mode === 'vod' ? chainOf(P.entries[P.index]).length : 0, versions: P.versions?.list?.length || 0, subs: $p()?.querySelector('.pv-subs')?.hidden === false ? $p().querySelector('.pv-subs').textContent : '' } : null), close: () => end({}), act, copies: () => copiesSheet(), subs: () => subsSheet(), sync: () => syncSubs() };
 void keyOf; void gameHidden; void replayState; void S;
