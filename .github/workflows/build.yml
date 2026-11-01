@@ -5,6 +5,12 @@ on:
     branches: [main]
     paths-ignore: ['scripts/nba-probe.js', '.github/workflows/nba-probe.yml', 'design/**']
   workflow_dispatch:
+    inputs:
+      tests:
+        description: 'Which device tests to run (the builds always run): both, tv (the Android TV emulator) or phone (the iPhone simulator)'
+        type: choice
+        options: [both, tv, phone]
+        default: both
 
 permissions:
   contents: write
@@ -84,6 +90,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: test-media, path: tests/media }
       - name: Test in the iPhone simulator
+        if: inputs.tests != 'tv'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -106,6 +113,7 @@ jobs:
           gh release create ios-test ios-test-shots.tgz --prerelease --latest=false --title "iPhone simulator test" --notes "Screenshots from the iPhone simulator test of $GITHUB_SHA. Not an app release."
       # The simulator test's own verdict (the step above always looks green): it finished, and every check passed.
       - name: Check the simulator test's results
+        if: inputs.tests != 'tv'
         run: |
           node -e "
             const fs = require('fs');
@@ -180,7 +188,8 @@ jobs:
 
 
   android-test:
-    # Separate from the release so a stuck emulator can never hold up the TV app.
+    # Separate from the release so a stuck emulator can never hold up the TV app. Skipped when only the phone is tested.
+    if: inputs.tests != 'phone'
     runs-on: ubuntu-latest
     needs: test-media
     timeout-minutes: 47

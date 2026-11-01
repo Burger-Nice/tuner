@@ -71,7 +71,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   between walkthrough runs, it keeps the reports). NBA page scripts: `tests/tv/nba-{host,league,news,team}.js`, and the
   bug-hunt scripts `tests/tv/hunt-*.js`. Home: `tests/tv/home-{marquee,gamenight,rows,cold,library,curate}.js` (a fake TMDB,
   `tests/mock-tmdb.js`, on the fake provider; `home-common.js` seeds an owner-like history).
-- CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign`) builds Windows, Android, iOS and runs
+- CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign [-f tests=tv|phone]`; `tests=phone` skips the
+  40-minute TV emulator for iPhone-only changes, `tv` skips the simulator; a change in `app/tv/js` or `app/core.js` needs both) builds Windows, Android, iOS and runs
   `tests/android-test-boot.js` on an Android TV emulator (about 57 checks; the run fails if a check fails or the test doesn't finish). Its screenshots and `reports.json` are uploaded
   to the `android-test` release as `android-test-shots.tgz`.
 - Local Android build: the SDK is at `/root/android-sdk`: `export ANDROID_HOME=/root/android-sdk; node scripts/build-web.js tv;
