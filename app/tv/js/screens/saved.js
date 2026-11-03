@@ -1,4 +1,4 @@
-// Saved: your channels (in the order that drives On now, the Favourites guide group and the zap ring), movies, series,
+// Saved: your channels (in the order that drives On now, the guide's Saved group and the zap ring), movies, series,
 // and history. On Channels, hold OK lifts a row; ▲▼ move it, OK drops it, Back puts it back.
 import { esc, ic, dot, logo, setHtml, leftText } from '../util.js';
 import { S, on, favList, setFavOrder, toggleFav, continueRows } from '../state.js';
@@ -14,8 +14,9 @@ import { focus } from '../focus.js';
 import { contextMenu, toast } from '../ui.js';
 import { resumeItem, openTitle, openDetail } from '../actions.js';
 import { videoMask, programmeView } from '../catchup.js';
+import { chName } from '../names.js';
 
-let el, tab = 'channels', lift = null, liftFrom = 0, order = [], gridTop = 0;
+let el, tab = 'channels', picked = false, lift = null, liftFrom = 0, order = [], gridTop = 0;
 const keyOf = (f) => `${f.kind}:${f.id}`;
 
 function chans() { const c = catalog.live; return favList('live').map((f) => c?.byId.get(f.id) || f); }
@@ -38,13 +39,13 @@ function draw() {
     const rows = order.map((c, i) => {
       const p = onNow(guideNow(c)), g = p && gameOn(c, [p]);
       const lifted = lift === i;
-      return `<div class="srow fx${lifted ? ' lift' : ''}" tabindex="-1" data-hold data-ci="${i}"><span class="grip">${lifted ? ic('chevU', 'sm') + ic('chevD', 'sm') : '<i></i><i></i><i></i>'}</span><span class="num">${i + 1}</span>${logo(c.logo, c.name)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(c.name)}</div><div class="t-cap ellipsis">${esc((p && programmeView(c, p).title) || (guideNow(c) ? 'No guide information' : 'Loading guide…'))}</div></div>${g?.state === 'in' ? '<span class="a-live">Live</span>' : ''}</div>`;
+      return `<div class="srow fx${lifted ? ' lift' : ''}" tabindex="-1" data-hold data-ci="${i}"><span class="grip">${lifted ? ic('chevU', 'sm') + ic('chevD', 'sm') : '<i></i><i></i><i></i>'}</span><span class="num">${i + 1}</span>${logo(c.logo, chName(c))}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(chName(c))}</div><div class="t-cap ellipsis">${esc((p && programmeView(c, p).title) || (guideNow(c) ? 'No guide information' : 'Loading guide…'))}</div></div>${g?.state === 'in' ? '<span class="a-live">Live</span>' : ''}</div>`;
     }).join('');
     body = order.length
       // (the instructions stay put above the list; the list's clip leaves room for the focus ring and a lifted row)
       ? `<div class="abs t-cap" style="left:48px;top:134px">${lift != null ? '<b style="color:var(--a-text-1)">Move with Up and Down. OK drops it.</b> Back puts it back.' : 'OK plays. Hold OK to reorder.'}</div><div class="abs" style="left:36px;top:158px;width:584px;height:355px;padding:6px 12px 0;box-sizing:border-box;overflow:hidden"><div class="inner" data-col style="transform:translateY(${-gridTop}px);transition:transform 200ms var(--a-ease)">${rows}</div></div>
-         <div class="abs card" style="left:640px;top:134px;width:272px;padding:16px"><b style="font:700 18px/24px var(--a-font-display)">This order is used by</b><ul class="ul"><li>On now on Home</li><li>The Favourites guide group</li><li>Up and Down in the player when you tune from Favourites</li></ul></div>`
-      : `<div class="center-col" style="top:180px"><div class="state big"><div class="ico">${ic('star')}</div><b>No saved channels yet</b><p>In the guide, hold OK on a channel to save it. Saved channels lead On now and the Favourites group.</p></div></div>`;
+         <div class="abs card" style="left:640px;top:134px;width:272px;padding:16px"><b style="font:700 18px/24px var(--a-font-display)">This order is used by</b><ul class="ul"><li>On now on Home</li><li>The guide's Saved group</li><li>Up and Down in the player when you tune from Saved</li></ul></div>`
+      : `<div class="center-col" style="top:180px"><div class="state big"><div class="ico">${ic('star')}</div><b>No saved channels yet</b><p>In the guide, hold OK on a channel to save it. Saved channels lead On now on Home and the guide's Saved group.</p></div></div>`;
   } else if (tab === 'movie' || tab === 'series') {
     const list = titles(tab);
     el._list = list;
@@ -83,12 +84,12 @@ export default {
     el = root;
     root.addEventListener('click', (e) => {
       const t = e.target.closest('[data-tab-s]');
-      if (t) { tab = t.dataset.tabS; lift = null; gridTop = 0; draw(); focus(el.querySelector(`[data-tab-s="${tab}"]`)); return; }
+      if (t) { tab = t.dataset.tabS; picked = true; lift = null; gridTop = 0; draw(); focus(el.querySelector(`[data-tab-s="${tab}"]`)); return; }
       const r = e.target.closest('[data-ci]');
       if (r) {
         const i = +r.dataset.ci;
         if (lift != null) { setFavOrder(order.map((c) => `live:${c.id}`).concat(Object.keys(S.favs).filter((k) => !k.startsWith('live:')))); lift = null; draw(); focus(el.querySelector(`[data-ci="${i}"]`)); return; }
-        const ch = order[i]; if (ch) playLive(ch, order, 'Favourites');
+        const ch = order[i]; if (ch) playLive(ch, order, 'Saved');
         return;
       }
       const p = e.target.closest('.pc'); if (p) { const x = el._list?.[+p.dataset.i]; if (x) openDetail(x); return; }
@@ -100,13 +101,17 @@ export default {
       const p = e.target.closest('.pc');
       if (p) { const x = el._list?.[+p.dataset.i], i = +p.dataset.i; if (x) contextMenu(p, [{ icon: 'saved', label: 'Remove from Saved', run: () => { toggleFav(x); draw(); place(); focus(el.querySelector(`.lib-grid [data-i="${Math.min(i, (el._list?.length || 1) - 1)}"]`) || el.querySelector(`[data-tab-s="${tab}"]`)); } }, { icon: 'info', label: 'Details', run: () => openDetail(x) }]); }
     });
-    root.addEventListener('tvfocus', (e) => { place(); const t = e.target.dataset.tabS; if (t && t !== tab) { tab = t; lift = null; gridTop = 0; draw(); } });
+    root.addEventListener('tvfocus', (e) => { place(); const t = e.target.dataset.tabS; if (t && t !== tab) { tab = t; picked = true; lift = null; gridTop = 0; draw(); } });
     on('favs', () => { if (current() === 'saved' && lift == null) draw(); });
     on('progress', () => { if (current() === 'saved') draw(); });
     on('probed', () => { if (current() === 'saved' && (tab === 'movie' || tab === 'series') && lift == null) draw(); });   // (the posters' real quality fills in)
   },
   enter(root) {
     lift = null; gridTop = 0;
+    // open on a tab that has something (an empty Channels beside "Movies 1" reads as nothing saved)
+    // (a tab you moved to yourself stays while it has something)
+    const n = { channels: favList('live').length, movie: favList('movie').length, series: favList('series').length, history: history().length };
+    if (!picked || !n[tab]) tab = ['channels', 'movie', 'series', 'history'].find((k) => n[k]) || 'channels';
     ensure('live').then(() => { if (current() === 'saved') { draw(); warm(chans(), { still: () => current() === 'saved' }).then((n) => { if (n) draw(); }); } }).catch(() => {});
     draw();
   },

@@ -15,7 +15,7 @@ import { watchFromTipoff, resumeGame } from '../tv/js/replay.js';
 import { playLive } from '../tv/js/player.js';
 import { tipsIn, gameName } from '../tv/js/nba/common.js';
 import { toast } from '../tv/js/ui.js';
-import { avatar, ic, esc, push, go, current, isShown, menu, radio, longPress, crestImg } from './ui.js';
+import { avatar, ic, esc, push, go, current, isShown, menu, radio, longPress, crestImg, cleanCh } from './ui.js';
 import { gameCard, recText } from './cards.js';
 import { ringFor } from './home.js';
 import { paint, onReveal, revealIds, downState } from './nbakit.js';
@@ -72,7 +72,7 @@ function heroModel(g0) {
     m.acts = [['live', 'Watch live', true]];
     if (row?.kind === 'live-tipoff' || replaysOf(g0)?.length) m.acts.push(['tipoff', 'From tip-off', false]);
     m.acts.push(shield ? ['reveal', 'Reveal', false] : ['game', 'Box score', false]);
-    m.cap = ch ? `On ${ch.name.replace(/^([^:]{2,10}):\s.{12,}$/, '$1')}${feedsNow(g0).length > 1 ? ` · ${feedsNow(g0).length - 1} more channel${feedsNow(g0).length > 2 ? 's' : ''}` : ''}` : 'Looking for the channel…';
+    m.cap = ch ? `On ${cleanCh(ch.name).replace(/^([^:]{2,10}):\s.{12,}$/, '$1')}${feedsNow(g0).length > 1 ? ` · ${feedsNow(g0).length - 1} more channel${feedsNow(g0).length > 2 ? 's' : ''}` : ''}` : 'Looking for the channel…';
     return m;
   }
   m.ey = ['Your team', `NBA · ${shield ? 'Ended' : 'Final'}`];
@@ -116,7 +116,7 @@ function gamesHtml() {
   if (mine && mine.state !== 'pre' && !replaysOf(mine)) findReplays(mine);
   const rest = games.filter((g) => g.id !== mine?.id);
   const d = (o) => dayLabel(o).split(' · ').pop();
-  const count = loading ? 'Loading…' : rest.length ? `${rest.length} game${rest.length === 1 ? '' : 's'}${mine ? ' · yours above' : ''}` : '';
+  const count = loading ? 'Loading…' : rest.length ? `${rest.length} game${rest.length === 1 ? '' : 's'}` : '';
   const days = `<div class="nb-days nbz"><button class="chip" data-day="-1">${ic('chevL')}${esc(dayLabel(offset - 1).split(' · ').pop().split(' ')[0])}</button><button class="chip sel">${esc(offset === 0 ? `Today · ${d(0).replace(/^\w+ /, '')}` : dayLabel(offset))}</button><button class="chip" data-day="1">${esc(dayLabel(offset + 1).split(' · ').pop().split(' ')[0])}${ic('chevR')}</button><span class="cap">${esc(count)}</span></div>`;
   const body = err && !games.length ? downState()
     : loading && !games.length ? Array.from({ length: 4 }, () => '<div class="sk" style="height:96px;border-radius:14px"></div>').join('')
@@ -169,7 +169,7 @@ export function openSection(k, params) {
   select(k, params);
 }
 export function teamSheet(then) {
-  const rows = [{ v: 'none', l: 'No team' }, ...(NBA.TEAMS || []).map(([abbr, city, name]) => ({ v: abbr, l: `${city} ${name}` })).sort((a, b) => a.l.localeCompare(b.l))];
+  const rows = [{ v: 'none', l: 'No team' }, ...(NBA.TEAMS || []).map((t) => ({ v: t.abbr, l: `${t.city} ${t.name}` })).sort((a, b) => a.l.localeCompare(b.l))];
   radio('Your team', rows, settings().nbaTeam || 'MEM', (v) => { saveSettings({ nbaTeam: v }); import('../tv/js/state.js').then((s) => s.emit('nba')); then?.(); }, { full: true });
 }
 export function shieldSheet(then) {

@@ -28,14 +28,14 @@ module.exports = async (ctx) => {
   console.log('line:', await line(), '| kind', await kind(), '| focus', await focused());
   ok('morning after: the game line lit, LAST NIGHT, Watch from tip-off', (await kind()) === 'morning' && /line:game/.test(await focused()) && /LAST NIGHT/i.test(await line()) && /Watch from tip-off/.test(await line()));
   ok('Score hidden, → Game page', /Score hidden/.test(await line()) && /Game page/.test(await line()));
-  ok('the replay: the channel and until when', /US: ESPN HD.*replays until Thu 29( Oct)? · late/.test(await line()), await line());
+  ok('the replay: the channel and until when', /ESPN.*replays until Thu 29( Oct)? · late/.test(await line()), await line());
   ok('the picture: REPLAY / Score hidden', /REPLAY/.test(await field()) && /Score hidden/.test(await field()), await field());
   await sweep('home, the morning after');
   await shot('home-replay');
   // ---------- 2. the sources sheet, play, stop in Q3 ----------
   await hold();
   console.log('sheet:', await ev(() => document.querySelector('.cu-srcs')?.innerText.replace(/\s+/g, ' ')));
-  ok('Hold: the sources sheet, on the best', (await focused()).includes('US: ESPN HD'));
+  ok('Hold: the sources sheet, on the best', (await focused()).includes('ESPN'));
   await shot('sources-sheet');
   await key('Enter', 1, 2500);
   const R = await ev(() => window.__replay?.R);

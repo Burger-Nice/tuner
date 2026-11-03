@@ -2,7 +2,8 @@
 // edge goes into them, ◀ from them comes back). After two letters a row of
 // completed titles sits between the field and the keyboard (▲ from the top key row), so most searches end there.
 // Matching is word-prefix only and ignores accents and punctuation ("spiderman" finds Spider-Man).
-import { esc, ic, dot, logo, setHtml, hm, sized } from '../util.js';
+import { esc, ic, dot, logo, setHtml, hm, sized, initials } from '../util.js';
+import { chName } from '../names.js';
 import { S, on, store } from '../state.js';
 import { catalog, ensure, searchAll, defaultVersion, browse } from '../catalog.js';
 import { guideNow, onNow } from '../guide.js';
@@ -93,10 +94,12 @@ function results() {
   const many = (k) => (n[k] >= 100 ? '99+' : String(n[k]));
   // the chips: what the results show (◀ ▶ on them; Down goes into the list)
   const chips = `<div class="chips s-scope" data-row data-exit>${SCOPES.map(([k, l]) => `<span class="chip fx${k === scope ? ' sel' : ''}" tabindex="-1" data-scope="${k}">${l}${k === 'all' ? '' : `<small>${many(k)}</small>`}</span>`).join('')}</div>`;
-  const mini = (t) => `<div class="mini2" style="height:40px;width:28px"><div class="art">${t.poster ? `<img src="${esc(sized(t.poster, 92))}" alt="">` : ''}</div></div>`;
+  // (no poster: the title's initials on a lighter tile, never an empty gap)
+  const noArt = (t, px) => `<div class="art" style="background:var(--a-surface-3);display:grid;place-items:center;color:var(--a-text-2);font:700 ${px}px/1 var(--a-font-display)">${esc(initials(t.name || ''))}</div>`;
+  const mini = (t) => `<div class="mini2" style="height:40px;width:28px">${t.poster ? `<div class="art"><img src="${esc(sized(t.poster, 92))}" alt=""></div>` : noArt(t, 11)}</div>`;
   const titleRow = (t) => `<div class="rrow fx" tabindex="-1" data-res="t:${t.kind}:${t.id}">${mini(t)}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(t.name)}</div><div class="t-cap">${t.kind === 'movie' ? 'Movie' : 'Series'}${t.year ? dot + esc(t.year) : ''}${t._genres?.[0] ? dot + esc(t._genres[0]) : ''}</div></div></div>`;
-  const progRow = ({ ch, p }) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(programmeView(ch, p).title)}</div><div class="t-cap ellipsis">${esc(ch.name)}${dot}${hm(p.start)} to ${hm(p.end)}</div></div></div>`;
-  const chRow = (ch) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, ch.name, 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(ch.name)}</div><div class="t-cap">Channel ${ch.num}</div></div></div>`;
+  const progRow = ({ ch, p }) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, chName(ch), 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(programmeView(ch, p).title)}</div><div class="t-cap ellipsis">${esc(chName(ch))}${dot}${hm(p.start)} to ${hm(p.end)}</div></div></div>`;
+  const chRow = (ch) => `<div class="rrow fx" tabindex="-1" data-res="c:${ch.id}">${logo(ch.logo, chName(ch), 'sm')}<div class="grow" style="min-width:0"><div class="t-sub ellipsis">${esc(chName(ch))}</div><div class="t-cap">Channel ${ch.num}</div></div></div>`;
   const moreRow = (k, label) => `<div class="rrow fx s-more" tabindex="-1" data-scope="${k}"><span class="grow t-sub">${label}</span>${ic('chevR')}</div>`;
   const head = (t, top = 14) => `<div class="t-label" style="margin:${top}px 0 8px">${t}</div>`;
   const waiting = (scope === 'live' ? [] : scope === 'all' ? ['movie', 'series'] : [scope]).filter((k) => !catalog[k]);
@@ -119,7 +122,7 @@ function results() {
   const top = res.movie[0] || res.series[0] || null;
   const chans = res.live.slice(0, 3);
   if (!top && !onTv.length && !chans.length && !adb) return `${chips}${none('results')}`;
-  if (top) html += `${head('Top result', 4)}<div class="rrow fx" tabindex="-1" data-res="${top.kind === 'movie' ? 'p' : 't'}:${top.kind}:${top.id}" style="height:84px"><div class="mini2"><div class="art">${top.poster ? `<img src="${esc(sized(top.poster, 154))}" alt="">` : ''}</div></div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
+  if (top) html += `${head('Top result', 4)}<div class="rrow fx" tabindex="-1" data-res="${top.kind === 'movie' ? 'p' : 't'}:${top.kind}:${top.id}" style="height:84px"><div class="mini2">${top.poster ? `<div class="art"><img src="${esc(sized(top.poster, 154))}" alt=""></div>` : noArt(top, 18)}</div><div class="grow" style="min-width:0"><div class="t-sub ellipsis" style="font-size:18px;line-height:24px">${esc(top.name)}</div><div class="t-cap">${top.kind === 'movie' ? 'Movie' : 'Series'}${top.year ? dot + esc(top.year) : ''}${top._q === '4K' ? `${dot}4K` : ''}${top.versions.length > 1 ? ` +${top.versions.length - 1} versions` : ''}</div></div><span class="btn sm">${ic('play')}${top.kind === 'movie' ? 'Play' : 'Open'}</span></div>`;
   if (onTv.length || chans.length) {
     html += head('On TV');
     html += onTv.slice(0, 2).map(progRow).join('');

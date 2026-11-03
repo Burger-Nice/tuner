@@ -7,6 +7,7 @@ import { tipsIn } from './nba/common.js';
 import { heroRow, replaysOf, sourceCaption, nightLabel, videoMask, programmeView } from './catchup.js';
 import { catalog } from './catalog.js';
 import { posterTag } from './quality.js';
+import { chName } from './names.js';
 
 const img = (url, w = 342) => (url ? `<img src="${esc(sized(url, w))}" alt="" decoding="async" loading="lazy">` : '');
 const pct = (p) => (p && p.d ? Math.min(100, (p.t / p.d) * 100) : 0);
@@ -44,10 +45,10 @@ export function liveCard(ch, prog, { i, live, pending } = {}) {   // pending: it
   const pg = prog ? Math.max(0, Math.min(100, ((Date.now() - prog.start) / (prog.end - prog.start)) * 100)) : 0;
   // under the shield (catch-up 4.3): a studio show the morning after says it may show results, in place of the channel
   const v = prog ? programmeView(ch, prog) : null;
-  const sub = v && (v.studio || v.mask === 'results') ? `<span class="cu-may">${ic('eyeOff')}May show results</span>` : esc(prog ? ch.name : pending ? '' : 'No guide information');
+  const sub = v && (v.studio || v.mask === 'results') ? `<span class="cu-may">${ic('eyeOff')}May show results</span>` : esc(prog ? chName(ch) : pending ? '' : 'No guide information');
   return `<div class="hc fx" tabindex="-1" data-i="${i}" data-key="ch:${esc(ch.id)}" data-hold><div class="art noimg-bg"></div><div class="hs"></div>
-    <div class="tp">${logo(ch.logo, ch.name, 'sm')}${live ? liveP() : ''}<span class="n">${ch.num}</span></div>
-    <div class="bt"><b>${esc(v?.title || ch.name)}</b><span>${sub}</span></div>${prog ? `<div class="prog flush"><i style="width:${pg}%"></i></div>` : ''}</div>`;
+    <div class="tp">${logo(ch.logo, chName(ch), 'sm')}${live ? liveP() : ''}<span class="n">${ch.num}</span></div>
+    <div class="bt"><b>${esc(v?.title || chName(ch))}</b><span>${sub}</span></div>${prog ? `<div class="prog flush"><i style="width:${pg}%"></i></div>` : ''}</div>`;
 }
 export function contCard(p, i) {
   const it = p.item;
@@ -103,7 +104,7 @@ export function gameCard(g0, i) {
   else if (g.state === 'post') st = v.hidden ? '<span>Ended</span>' : `<span>Final${g.period > 4 ? ' / OT' : ''}</span>`;
   else { const d = Math.round((g.date - Date.now()) / 60000); st = `<span>${d <= 0 ? 'Tip-off' : d >= 60 ? `In ${Math.floor(d / 60)}h ${String(d % 60).padStart(2, '0')}m` : `In ${d} min`}</span>`; }
   const rp = g.state !== 'pre' && replaysOf(g0)?.length;
-  const tv = rp ? `<span class="cu-rpl">${ic('hist')}Replay</span>` : `<span class="tvn">${esc(g.tv[0] || '')}</span>`;
+  const tv = rp ? `<span class="cu-rpl">${ic('hist')}Replay</span>` : `<span class="tvn">${esc(String(g.tv[0] || '').replace(/^NBA\s+(?=League Pass)/i, ''))}</span>`;
   const aw = +g.away.score, hw = +g.home.score;
   const awWin = !v.hidden && g.state === 'post' && aw > hw, hwWin = !v.hidden && g.state === 'post' && hw > aw;
   if (g.state === 'pre') plate = `<span class="plate"><span class="x"><span class="score sm">${hm(g.date)}</span><span class="t-cap">tip-off</span></span></span>`;
@@ -140,9 +141,9 @@ export function gameHero(g0, { channel, feeds = 0, top, hub = false, focusPrimar
   const secondary = far ? null : shield ? ['reveal', 'Reveal score'] : choose ? ['guide', 'Open guide'] : post ? null : pre ? ['box', 'Game page'] : ['box', 'Box score'];
   const leaders = () => { const l = (t) => t.leaders?.find((x) => x.stat === 'PTS'); const a = l(g.away), h = l(g.home); return [a, h].filter(Boolean).map((x) => `<b style="color:var(--a-text-1);font-weight:650">${esc(x.who)}</b> ${esc(x.value)} pts`).join('<br>'); };
   const cap = choose ? (searching ? 'Looking for the channel…' : 'No channel found yet<br>Your pick is remembered')
-    : pre ? `${esc(tipsIn(g.date))}${channel || g.tv[0] ? `<br>${esc(channel?.name || g.tv[0])}` : ''}`
+    : pre ? `${esc(tipsIn(g.date))}${channel || g.tv[0] ? `<br>${esc(channel ? chName(channel) : g.tv[0])}` : ''}`
     : hub && !shield ? leaders()
-    : channel ? `On ${esc(channel.name)}${feeds > 1 ? `<br>Hold OK for ${feeds - 1} more channel${feeds > 2 ? 's' : ''}` : ''}` : '';
+    : channel ? `On ${esc(chName(channel))}${feeds > 1 ? `<br>Hold OK for ${feeds - 1} more channel${feeds > 2 ? 's' : ''}` : ''}` : '';
   let slab;
   const d = Math.round((g.date - Date.now()) / 60000);
   if (pre) slab = `<div class="slabfill"></div><div class="slabcontent ink"><span class="big">${d > 0 && d < 600 ? `${d} MIN` : hm(g.date)}</span><span class="cap">${nba.stale ? 'Scores unavailable' : `Tip-off ${hm(g.date)}`}</span></div>`;
@@ -231,7 +232,7 @@ export function resumeHero(p) {
 export function channelHero(ch, prog) {
   return `<div class="hero-plate">
   <div class="abs t-label" style="left:24px;top:18px">Last channel</div>
-  <div class="abs row-flex" style="left:24px;top:44px;gap:16px">${logo(ch.logo, ch.name, 'lg')}<div><div class="t-head ellipsis" style="width:560px">${esc((prog && programmeView(ch, prog).title) || ch.name)}</div><div class="metaline" style="margin-top:4px;width:560px;white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span>${prog ? `${dot}<span style="flex:none">${hm(prog.start)} to ${hm(prog.end)}</span>` : ''}</div></div></div>
+  <div class="abs row-flex" style="left:24px;top:44px;gap:16px">${logo(ch.logo, chName(ch), 'lg')}<div><div class="t-head ellipsis" style="width:560px">${esc((prog && programmeView(ch, prog).title) || chName(ch))}</div><div class="metaline" style="margin-top:4px;width:560px;white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(chName(ch))}</span>${prog ? `${dot}<span style="flex:none">${hm(prog.start)} to ${hm(prog.end)}</span>` : ''}</div></div></div>
   <div class="abs row-flex hero-btns" data-row style="left:24px;top:132px;gap:20px"><span class="btn fx" tabindex="-1" data-act="tune">${ic('play')}Watch</span><span class="btn2 fx" tabindex="-1" data-act="guide">Open guide</span></div>
 </div>`;
 }

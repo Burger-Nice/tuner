@@ -6,6 +6,7 @@ import { S, settings, emit, on } from './state.js';
 import { catalog, ensure, qualityOf, langOf, prefLangs, prettyCat } from './catalog.js';
 import { pastFor, pastNow } from './guide.js';
 import { launchDone } from './launch.js';
+import { chName, cleanProg } from './names.js';
 import {
   nba, gameById, knownGames, unseenFor, hidden, shielded, isMine, mySide, favTeam, teamChannel, watchedOn, replayPick,
   quality, telling, namesOf, behindReplay, liveByClock, replayProgress, isSporty, shieldMode,
@@ -166,7 +167,7 @@ const STUDIO = /sportscenter|first take|nba today|gametime|inside the nba|the ju
 // last night's results), studio (an NBA studio show: On now says May show results), game (the hidden game it is) }.
 export function programmeView(ch, p) {
   if (!p) return { title: '', desc: '', mask: '' };
-  const out = { title: p.title, desc: p.desc || '', mask: '', studio: false, game: null, held: false };
+  const out = { title: cleanProg(p.title), desc: p.desc || '', mask: '', studio: false, game: null, held: false };
   const un = unseenFor();
   if (!un.length) return out;
   const sporty = isSporty(ch), now = Date.now();
@@ -177,7 +178,7 @@ export function programmeView(ch, p) {
       out.game = out.game || g; out.desc = ''; out.mask = out.mask || 'desc';
       // a title naming both teams can still tell ("Grizzlies beat Jazz in OT: reaction"): the studio show's name then
       const names = namesOf(g), t = stripDates(out.title);
-      if (telling(t, names) || SCORE2.test(t) || RESULT2.test(t)) { out.title = `${ch.name} · studio show`; out.mask = 'results'; }
+      if (telling(t, names) || SCORE2.test(t) || RESULT2.test(t)) { out.title = `${chName(ch)} · studio show`; out.mask = 'results'; }
       continue;
     }
     if (!sporty) continue;
@@ -247,7 +248,7 @@ async function scan(g) {
     const ws = prog ? prog.start : tip - 15 * MIN;
     if (!inArchive(ch, ws)) return;
     seen.add(String(ch.id));
-    chans.push({ kind: 'channel', id: String(ch.id), ch, prog, windowStart: ws, days: ch.archive, name: ch.name, why, confirmed, q: quality(ch.name), detail: confirmed ? 'Channel replay · quarter skips' : 'Your team\'s channel', badge: confirmed ? '' : 'Not confirmed' });
+    chans.push({ kind: 'channel', id: String(ch.id), ch, prog, windowStart: ws, days: ch.archive, name: chName(ch), why, confirmed, q: quality(ch.name), detail: confirmed ? 'Channel replay · quarter skips' : 'Your team\'s channel', badge: confirmed ? '' : 'Not confirmed' });
   };
   const kept = (live?.items || []).filter((ch) => ch.archive > 0 && !ch._sep);
   const named = kept.filter((ch) => NBA.matchScore(ch.name, g) >= 10);
@@ -276,7 +277,7 @@ async function scan(g) {
     const p = progAt(list);
     if (p && NBA.matchScore(p.title, g) >= 10) addCh(tch, p, 'Your team\'s channel');
     else if (list.length && p && !NBA.matchGame(p.title, knownGames())) addCh(tch, null, 'Your team\'s channel');
-    else if (!list.length && inArchive(tch, tip - 15 * MIN)) unconfirmed = { kind: 'channel', id: String(tch.id), ch: tch, prog: null, windowStart: tip - 15 * MIN, days: tch.archive, name: tch.name, why: 'Your team\'s channel', confirmed: false, q: quality(tch.name), detail: 'Your team\'s channel · no guide to check', badge: 'Not confirmed' };
+    else if (!list.length && inArchive(tch, tip - 15 * MIN)) unconfirmed = { kind: 'channel', id: String(tch.id), ch: tch, prog: null, windowStart: tip - 15 * MIN, days: tch.archive, name: chName(tch), why: 'Your team\'s channel', confirmed: false, q: quality(tch.name), detail: 'Your team\'s channel · no guide to check', badge: 'Not confirmed' };
   }
   // his own pick of a channel for this game (Pick the channel: the guide couldn't tell which one carried it)
   const pk = replayPick(g.id);

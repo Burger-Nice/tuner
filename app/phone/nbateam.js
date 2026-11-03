@@ -18,7 +18,7 @@ import { confOf } from '../tv/js/nba/picker.js';
 import { TEAM_CATS } from '../tv/js/nba/teamstats.js';
 import { heroRow, findReplays, replaysOf, sourceCaption } from '../tv/js/catchup.js';
 import { watchFromTipoff, resumeGame } from '../tv/js/replay.js';
-import { esc, ic, push, back, isShown, menu, radio, confirm, sheet, longPress, nav } from './ui.js';
+import { esc, ic, push, back, isShown, menu, radio, confirm, sheet, longPress, nav, cleanCh } from './ui.js';
 import { crest, revealIds, revealBtn, onReveal, paint } from './nbakit.js';
 import { openPlayer } from './nbaplayer.js';
 import { storyCard, openStory, storyById } from './nbanews.js';
@@ -105,7 +105,7 @@ function heroParts(abbr, g) {
   }
   if (g.state === 'pre') {
     const ch = bestChannel(g), soon = g.date - Date.now() <= 3 * 3600e3;
-    if (soon && ch) return { btns: [['watch', `${ic('play')}Watch pre-game`], ['game', 'Game page']], cap: `${esc(tipsIn(g.date))} · On ${esc(ch.name)}` };
+    if (soon && ch) return { btns: [['watch', `${ic('play')}Watch pre-game`], ['game', 'Game page']], cap: `${esc(tipsIn(g.date))} · On ${esc(cleanCh(ch.name).replace(/^([^:]{2,10}):\s.{12,}$/, '$1'))}` };
     return { btns: [['game', 'Game page']], cap: `${esc(tipsIn(g.date))}${g.tv?.[0] ? ` · ${esc(g.tv[0])}` : ''}` };
   }
   if (g.state === 'in') {
@@ -186,7 +186,7 @@ function ranksHtml(abbr) {
   }
   if (failedNow && !v) small = 'Couldn’t load from ESPN · trying again';
   if (!body) {
-    const tiles = stats ? rankCats().map((c) => { const r = rankIn(stats, abbr, c); return r ? `<button class="tp-rk" data-cat="${esc(c.key)}"><span class="k ellipsis">${esc(c.label)}</span><b>${esc(r.rank)}</b><span class="v ellipsis">${esc(statText(c, r.value))}</span></button>` : ''; }).join('')
+    const tiles = stats ? rankCats().map((c) => { const r = rankIn(stats, abbr, c); return r ? `<button class="tp-rk" data-cat="${esc(c.key)}"><span class="k ellipsis">${esc(c.label.replace(/^Points allowed$/, 'Pts allowed'))}</span><b>${esc(r.rank)}</b><span class="v ellipsis">${esc(statText(c, r.value))}</span></button>` : ''; }).join('')
       : failedNow ? '' : Array.from({ length: 4 }, () => '<div class="tp-rk sk"></div>').join('');
     body = tiles ? `<div class="rail tp-ranks" data-x="ranks:${esc(abbr)}">${tiles}</div>` : '';
   }

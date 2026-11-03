@@ -3,6 +3,7 @@
 // Choose a video). This is the app's side of the replay protocol; the player's side is written down in
 // design/ui-v1/catchup/PORT-NATIVE.md. Until the native player speaks it (player.js replayNative()), a replay plays its
 // first link through the native VOD mode as a stand-in, so the flows can be tried end to end.
+import { chName } from './names.js';
 import { esc, ic, dot, hm, teamPalette } from './util.js';
 import { S, on, emit, settings, recordProgress, store, scoped } from './state.js';
 import { catalog, ensure, prefLangs } from './catalog.js';
@@ -55,7 +56,7 @@ const sourceRow = (g, x, windowMs) => ({
   id: `${x.kind}:${x.id}`, kind: x.kind, name: x.name, detail: x.detail, badge: x.best ? 'Best' : x.badge || '',
   links: x.kind === 'channel' ? linksOf(x, windowMs) : [{ url: x.video.url, engine: 'native' }],
   windowStart: x.kind === 'channel' ? x.windowStart : 0, windowMs: x.kind === 'channel' ? windowMs : 0,
-  chId: x.kind === 'channel' ? String(x.ch.id) : '', channel: x.kind === 'channel' ? { name: x.ch.name, num: x.ch.num || 0, logo: x.ch.logo || '' } : null,
+  chId: x.kind === 'channel' ? String(x.ch.id) : '', channel: x.kind === 'channel' ? { name: chName(x.ch), num: x.ch.num || 0, logo: x.ch.logo || '' } : null,
   delay: x.kind === 'channel' ? replayDelay(x.ch.id) : 0, days: x.kind === 'channel' ? x.days || x.ch.archive || 0 : 0,
 });
 // The game as it aired, in the shape of the player's game data (player.js gameData), for the score bug, the game panel
@@ -140,12 +141,12 @@ async function start(what) {
   const index = Math.max(0, what.sources.indexOf(src));
   const R = {
     id: progKey(item), kind: g ? (src.kind === 'channel' ? 'game' : 'video') : 'programme',
-    title: g ? gameName(g) : programmeView(what.ch, what.prog).title, sub: g ? `${src.kind === 'channel' ? src.name : 'Full game in Movies'} · ${nightLabel(g.date)}` : `${what.ch.name} · ${hm(what.prog.start)} to ${hm(what.prog.end)}`,
+    title: g ? gameName(g) : programmeView(what.ch, what.prog).title, sub: g ? `${src.kind === 'channel' ? src.name : 'Full game in Movies'} · ${nightLabel(g.date)}` : `${chName(what.ch)} · ${hm(what.prog.start)} to ${hm(what.prog.end)}`,
     hidden: !!g && shielded(g) && !isSeen(g),
     sources, source: index, startAt: Math.max(0, Math.round(what.startAt || 0)), windowMs,
     tipoffAt: g ? tipoffAt(g, src) : 0, chapters: g ? chapterMarks(g, src) : [],
     margin: MARGIN, extensions: g ? 2 : 0,
-    live: src.kind === 'channel' ? { id: String(src.ch.id), name: src.ch.name, num: src.ch.num || 0 } : null,
+    live: src.kind === 'channel' ? { id: String(src.ch.id), name: chName(src.ch), num: src.ch.num || 0 } : null,
     gameId: g?.id || '', programme: !g ? { title: programmeView(what.ch, what.prog).title, start: what.prog.start, end: what.prog.end, next: nextAfter(what.ch, what.prog) } : null,
     check: null,
   };
@@ -193,8 +194,8 @@ async function firstCheck() {
   const { ch, p } = best, at = p.start + 5 * MIN;
   const links = (h) => S.src.catchup(ch, at, at + MIN, { shift: h, raw: p.raw, plus: p.raw ? 5 * MIN : 0 });
   return {
-    chId: String(ch.id), channel: ch.name, logo: ch.logo || '', title: p.title, desc: p.desc,
-    line: `${ch.name} · ${nightLabel(p.start).replace(' · late', '')} · ${hm(p.start)} to ${hm(p.end)}`,
+    chId: String(ch.id), channel: chName(ch), logo: ch.logo || '', title: p.title, desc: p.desc,
+    line: `${chName(ch)} · ${nightLabel(p.start).replace(' · late', '')} · ${hm(p.start)} to ${hm(p.end)}`,
     playMs: 10e3, tries: { 0: links(0), '-1': links(-1), 1: links(1) },
   };
 }
@@ -328,7 +329,7 @@ export const resumeGame = (g) => watchFromTipoff(g, { resume: true });
 export async function watchOnChannel(g, ch, p) {
   const list = await findReplays(g);
   const src = list.find((x) => x.kind === 'channel' && x.id === String(ch.id))
-    || { kind: 'channel', id: String(ch.id), ch, prog: p, windowStart: p.start, days: ch.archive, name: ch.name, detail: 'Channel replay · quarter skips', confirmed: true };
+    || { kind: 'channel', id: String(ch.id), ch, prog: p, windowStart: p.start, days: ch.archive, name: chName(ch), detail: 'Channel replay · quarter skips', confirmed: true };
   return watchFromTipoff(g, { source: src });
 }
 // Back to live from the Home hero (5.1, S9): under the shield the same copy as the player's card, Stay focused.
@@ -340,8 +341,8 @@ export function backToLive(g) {
 }
 // A kept programme from its start (or where you stopped), from the guide (4.2); at: from that moment (rewinding live TV, 6.8).
 export function playProgramme(ch, p, { restart = false, at = 0 } = {}) {
-  const src = { kind: 'channel', id: String(ch.id), ch, prog: p, windowStart: p.start, days: ch.archive, name: ch.name, detail: 'Replay' };
-  const item = { kind: 'rp', id: `${ch.id}:${p.start}`, ch: String(ch.id), name: p.title, title: p.title, start: p.start, end: p.end, channel: ch.name, logo: ch.logo || '' };
+  const src = { kind: 'channel', id: String(ch.id), ch, prog: p, windowStart: p.start, days: ch.archive, name: chName(ch), detail: 'Replay' };
+  const item = { kind: 'rp', id: `${ch.id}:${p.start}`, ch: String(ch.id), name: p.title, title: p.title, start: p.start, end: p.end, channel: chName(ch), logo: ch.logo || '' };
   const was = S.progress[`rp:${item.id}`];
   const startAt = at ? Math.max(0, at - p.start) : !restart && was && !was.done && was.t > 30 ? was.t * 1000 : 0;
   return start({ ch, prog: p, src, sources: [src], startAt, item: { ...(was?.item || {}), ...item } });
@@ -414,7 +415,7 @@ export function pickChannel(g) {
   const { list, kept, days } = keptFor(g);
   if (!kept) { toast('Your provider keeps no channels for replays, so there\'s nothing to rewatch from. Account › Provider › Check the guide shows it.', 7000); return; }
   if (!list.length) { toast(`Your provider keeps replays for ${days} day${days === 1 ? '' : 's'}: this game is older than that.`, 6000); return; }
-  const row = (ch, i) => `<div class="lr fx" tabindex="-1" data-act="${i}" style="height:56px"><span class="logo sm">${ch.logo ? `<img src="${esc(ch.logo)}" alt="">` : esc(ch.name.slice(0, 2).toUpperCase())}</span><span class="grow"><span class="a ellipsis">${esc(ch.name)}</span><span class="b">${esc(keptWords(ch.archive))}</span></span></div>`;
+  const row = (ch, i) => `<div class="lr fx" tabindex="-1" data-act="${i}" style="height:56px"><span class="logo sm">${ch.logo ? `<img src="${esc(ch.logo)}" alt="">` : esc(chName(ch).slice(0, 2).toUpperCase())}</span><span class="grow"><span class="a ellipsis">${esc(chName(ch))}</span><span class="b">${esc(keptWords(ch.archive))}</span></span></div>`;
   const ov = openOverlay(`<div class="sheet cu-srcs"><h3>Which channel showed ${esc(gameName(g))}?</h3><div class="t-cap" style="margin-top:-6px">${esc(nightLabel(g.date))}${dot}channels with replays</div>
     <div class="sheet-body"><div class="inner" data-col style="display:flex;flex-direction:column;gap:2px">${list.map(row).join('')}</div></div>
     <div class="t-cap">Your pick is remembered for this game. It starts a little before tip-off.</div></div>`, {
@@ -426,7 +427,7 @@ export function pickChannel(g) {
       const l = await findReplays(g, { force: true });
       const src = l.find((x) => x.kind === 'channel' && x.id === String(ch.id));
       if (src) watchFromTipoff(g, { source: src });
-      else toast(`${ch.name}'s replays don't reach back to this game`, 5000);
+      else toast(`${chName(ch)}'s replays don't reach back to this game`, 5000);
     },
   });
   scrollList(ov.el);

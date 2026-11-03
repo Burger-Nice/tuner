@@ -96,7 +96,7 @@ export default function lib(kind) {
     if (!pager) return '';
     if (fCount()) return `${list.length.toLocaleString()} so far${pager.end ? '' : ' · still looking'}`;
     if (view.order === 'az') return `${list.length.toLocaleString()} loaded, A–Z`;
-    return `${pager.totalLabel()} titles`;
+    { const t = pager.totalLabel(); return `${t} title${t === '1' ? '' : 's'}`; }
   };
   function header() {
     const ctx = [shelfName(), orderName()].filter(Boolean).join(' · ');

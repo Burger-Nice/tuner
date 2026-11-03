@@ -484,6 +484,13 @@ const OVERFLOW = (sel) => {
   check('Check streams on this iPhone: live and replay answered', done, chk.replace(/\s+/g, ' '));
   check('Check streams: both play here (fake provider)', /Live · Live channels play here/.test(chk) && /Replays play here/.test(chk));
   await shot('account-check');
+  // Your team: the sheet opens with all 30 teams (it once threw on NBA.TEAMS' objects and opened nothing)
+  await tap('[data-act="team"]');
+  const teams = await ev(() => [...document.querySelectorAll('#ph-sheets .sh-ov:last-child .lr')].map((x) => x.innerText.replace(/\s+/g, ' ')));
+  check('Account > Your team: the picker opens with every team', teams.length === 31 && teams.some((t) => /Memphis Grizzlies/.test(t)), `${teams.length} rows`);
+  await ev(() => document.querySelector('#ph-sheets .sh-ov:last-child .scrim')?.click()); await p.waitForTimeout(400);
+  // the names are the cleaned ones (app/tv/js/names.js): no provider prefix in the check's result
+  check('Check streams: the channel named without its provider prefix', !/US: |\bHD\b/.test(chk), chk.replace(/\s+/g, ' '));
 
   // ---------- the NBA tab in depth (the TV's sections, the team page, Leaders, Team stats, News, the player sheet, the
   // game page's tabs, the shield), at the TV test's moment: Mon 26 Oct 2026 23:40, the Grizzlies at the Jazz at 01:00 ----------

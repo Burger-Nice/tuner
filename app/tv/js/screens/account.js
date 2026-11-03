@@ -23,7 +23,7 @@ function rowsLine() {
   if (R.isBuilding()) return 'Working them out now · the new rows go in as they come';
   if (!pg || pg.preview || !pg.src) return 'Not worked out yet · Home does it on its next visit';
   const at = new Date(pg.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `Worked out at ${at}${pg.took ? ` in ${Math.round(pg.took / 1000)} s` : ''} · ${pg.src.rows} rows${pg.src.key ? `, ${pg.src.tmdb} from TMDB` : ''}`;
+  return `Worked out at ${at}${pg.took ? ` in ${Math.round(pg.took / 1000)} s` : ''} · ${pg.src.rows} row${pg.src.rows === 1 ? '' : 's'}${pg.src.key ? `, ${pg.src.tmdb} from TMDB` : ''}`;
 }
 // How TMDB is doing on this TV, in words he can read out to us: working (and how many Home rows it made) or what failed
 function tmdbLine() {
@@ -135,7 +135,7 @@ function body() {
     ${row('info', 'Ratings', 'IMDb', 'From IMDb\'s free datasets, updated weekly')}
     ${row('info', 'Catalogs and details', 'Cinemeta', 'Stremio\'s catalog of films and series, and your add-ons')}
     <div class="arow fx tmdb-credit" tabindex="-1" data-act="info"><span class="tmdb-mark" aria-label="TMDB"></span><span class="grow" style="min-width:0">Lists of films and series<div class="t-cap" style="margin-top:0">This product uses the TMDB API but is not endorsed or certified by TMDB.</div></span></div>
-    ${row('info', 'Channels', esc(catalog.live ? catalog.live.items.length.toLocaleString() : '…'), esc(catalog.movie ? `${catalog.movie.titles?.length.toLocaleString()} movies${catalog.series ? ` · ${catalog.series.titles?.length.toLocaleString()} series` : ''}` : ''))}`;
+    ${row('info', 'Channels from your provider', esc(catalog.live ? catalog.live.items.length.toLocaleString() : '…'), 'Live TV and replays. Movies and Series come from your add-ons')}`;
 }
 function draw() {
   if (!el || el.hidden) return;

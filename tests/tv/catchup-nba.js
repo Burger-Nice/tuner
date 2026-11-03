@@ -53,7 +53,7 @@ module.exports = async (ctx) => {
   await key('Enter', 1, 2500);
   console.log('game page:', await ev(() => document.querySelector('[data-screen="game"]')?.innerText.replace(/\s+/g, ' ')));
   ok('game page: the entry is Watch from tip-off', (await focused()).includes('Watch from tip-off'));
-  ok('game page: the caption names the replay', /US: ESPN HD.*replays until Thu 29 Oct · late.*hold OK: other sources/.test(await ev(() => document.querySelector('.cu-state')?.innerText.replace(/\s+/g, ' '))));
+  ok('game page: the caption names the replay', /ESPN.*replays until Thu 29 Oct · late.*hold OK: other sources/.test(await ev(() => document.querySelector('.cu-state')?.innerText.replace(/\s+/g, ' '))));
   await sweep('game page');
   await shot('game-replay-shield');
   // Choose a video from the sources sheet

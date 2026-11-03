@@ -26,7 +26,7 @@ import { tipsIn } from '../tv/js/nba/common.js';
 let el, lines = [], lit = 0, rows = [], page = null, film = null, shows = [], picT = 0, picKey = '', hist = null;
 const lastChannel = () => catalog.live?.byId.get(store.get(scoped('lastLive'), '')) || null;
 export const ringFor = (ch) => (isFav(ch) ? favList('live').map((f) => catalog.live?.byId.get(f.id) || f) : catalog.live?.items || [ch]);
-const tune = (ch) => ch && playLive(ch, ringFor(ch), isFav(ch) ? 'Favourites' : 'All channels');
+const tune = (ch) => ch && playLive(ch, ringFor(ch), isFav(ch) ? 'Saved' : 'All channels');
 // a channel's name short enough for a line of facts (the TV's): "NBA 01: Memphis Grizzlies @ …" -> NBA 01
 const chShort = (n) => { let s = cleanCh(n); const m = s.match(/^([^:]{2,10}):\s/); if (m && s.length > 22) s = m[1]; return s.length > 24 ? `${s.slice(0, 22).replace(/\s+\S*$/, '')}…` : s; };
 const short = (n) => ({ 'Trail Blazers': 'Blazers', Timberwolves: 'Wolves', Mavericks: 'Mavs', Cavaliers: 'Cavs' }[n] || n);
@@ -261,7 +261,7 @@ function reasonOf(r, items) {
   if (r.live === 'yourshows') return `Where you are · ${items.length}`;
   if (r.live === 'nba') { const n = items.length, lv = items.filter((g) => g.state === 'in').length, fin = items.filter((g) => g.state === 'post').length, pre = items.filter((g) => g.state === 'pre').length; return [`${n} game${n === 1 ? '' : 's'}`, lv && `${lv} live`, fin && `${fin} final`, pre && `${pre} later`].filter(Boolean).join(' · '); }
   if (r.live === 'saved') return `${items.length} title${items.length === 1 ? '' : 's'}`;
-  if (r.live === 'channels') return 'Favourites and recent';
+  if (r.live === 'channels') return 'Saved and recent';
   if (r.live === 'noaddons') return 'Add a Stremio add-on in Account › Add-ons';
   return r.reason || '';
 }
@@ -282,7 +282,7 @@ function cardOf(r, x, i) {
   if (r.live === 'nba' || r.type === 'game') return gameCard(x, { wide: false }).replace('class="gcard', `data-i="${i}" class="gcard`);
   if (r.live === 'channels' || r.type === 'channel') {
     const pr = onNow(guideNow(x));
-    return `<button class="wide" data-i="${i}"><div class="box" style="display:flex;align-items:center;justify-content:center;background:var(--a-surface-1)">${tileOf(x)}<div class="bt"><b>${esc(pr ? programmeView(x, pr).title : x.name)}</b><span>${esc(x.name)}</span></div></div></button>`;
+    return `<button class="wide" data-i="${i}"><div class="box" style="display:flex;align-items:center;justify-content:center;background:var(--a-surface-1)">${tileOf(x)}<div class="bt"><b>${esc(pr ? programmeView(x, pr).title : cleanCh(x.name))}</b><span>${esc(cleanCh(x.name))}</span></div></div></button>`;
   }
   if (x.note) return '';
   return posterCard(x, i);
@@ -300,7 +300,7 @@ function rowMenu(r, x) {
     const g = x, ch = bestChannel(g);
     return menu(`${g.away.name} at ${g.home.name}`, [g.state === 'in' && ch ? { label: 'Watch live', icon: 'play', run: () => tune(ch) } : null, g.state !== 'pre' ? { label: 'Watch from tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null, { label: 'Open the game', icon: 'chevR', run: () => push('game', { id: g.id }) }]);
   }
-  if (r.live === 'channels' || r.type === 'channel') return menu(x.name, [{ label: 'Tune', icon: 'play', run: () => tune(x) }, { label: isFav(x) ? 'Remove from favourites' : 'Add to favourites', icon: 'star', run: () => toggleFav(x) }]);
+  if (r.live === 'channels' || r.type === 'channel') return menu(cleanCh(x.name), [{ label: 'Tune', icon: 'play', run: () => tune(x) }, { label: isFav(x) ? 'Remove from Saved' : 'Save', icon: 'star', run: () => toggleFav(x) }]);
   const t = SH.asTitle(x, x.imdb || x.id);
   menu(x.name, [
     { label: 'Details', icon: 'chevR', run: () => openTitle(x) },
@@ -354,7 +354,7 @@ function openTitleOf(it) {
 function lineMenu(l) {
   if (l.kind === 'game') { const g = l.g; return menu(`${g.away.name} at ${g.home.name}`, [{ label: 'Game page', icon: 'chevR', run: () => push('game', { id: g.id }) }, g.state !== 'pre' ? { label: 'Watch from tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null, { label: 'NBA', icon: 'ball', run: () => go('nba') }]); }
   if (l.kind === 'cont') { const it = l.p.item; return menu(it.seriesName || it._title || it.name || 'Continue', [{ label: 'Start over', icon: 'rew', run: () => resumeItem(it, { restart: true }) }, it.kind !== 'rp' ? { label: 'Details', icon: 'chevR', run: () => openTitleOf(it) } : null]); }
-  if (l.kind === 'ch') return menu(l.ch.name, [{ label: isFav(l.ch) ? 'Remove from favourites' : 'Add to favourites', icon: 'star', run: () => toggleFav(l.ch) }, { label: 'Open the guide', icon: 'chevR', run: () => go('live') }]);
+  if (l.kind === 'ch') return menu(cleanCh(l.ch.name), [{ label: isFav(l.ch) ? 'Remove from Saved' : 'Save', icon: 'star', run: () => toggleFav(l.ch) }, { label: 'Open the guide', icon: 'chevR', run: () => go('live') }]);
   if (l.kind === 'film') return menu(l.it.name, [{ label: 'Details', icon: 'chevR', run: () => openTitle(l.it) }, { label: 'Save', icon: 'heart', run: () => toggleFav(SH.asTitle(l.it, l.it.imdb || l.it.id)) }]);
   return null;
 }

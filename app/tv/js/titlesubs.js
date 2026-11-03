@@ -131,7 +131,8 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
     if (unsure) pill = 'Subtitles: which film is it?';
     else if (sel.lang) pill = `Subtitles: ${sel.lang}`;
     else if (sel.why) pill = 'Subtitles: Off';
-    else if (s === 'looking') { pill = 'Subtitles: looking…'; dashed = true; }
+    // (copies still coming in can bring subtitles in their files: not "none found" beside "Still asking …")
+    else if (s === 'looking' || (s !== 'down' && tc.asking?.().length)) { pill = 'Subtitles: looking…'; dashed = true; }
     else if (s === 'down') { pill = 'Subtitles: none yet'; dashed = true; }
     else if (none) pill = 'Subtitles: none';
     else pill = 'Subtitles: none found';
@@ -182,7 +183,7 @@ export function titleSubs(t, tc, { playEp = () => null, onChange } = {}) {
     if (v.sel.why) return v.sel.why === 'dub' ? 'Subtitles off for a dubbed copy' : 'Subtitles off';
     if (s === 'looking') return 'Looking for subtitles…';
     if (s === 'down') return 'OpenSubtitles isn\'t answering';
-    if (s === 'none') return 'No subtitles in your languages';
+    if (s === 'none') return 'No subtitles found in your languages';
     return '';
   };
 

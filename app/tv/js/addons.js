@@ -557,7 +557,7 @@ export async function stremioSync({ force = false, toast } = {}) {
   for (let i = l.length - 1; i >= 0; i--) if (l[i].from === 'stremio' && !keys.has(l[i].key)) l.splice(i, 1);
   setStremio({ ...stremioState(), syncedAt: Date.now() });
   saveList();
-  if (toast) for (const n of added) toast(`${n} came from your Stremio account`);
+  if (toast) for (const n of added) toast(`${n} added from your Stremio account`);
   return { added, got };
 }
 const newer = (a, b) => { const p = (v) => String(v || '0').split('.').map((x) => +x || 0); const x = p(a), y = p(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };

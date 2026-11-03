@@ -31,7 +31,7 @@ module.exports = async (ctx) => {
   const s = spoilers(txt);
   check('shield sweep: no score, no result', !s.length, s.join(' ; '));
   check('no quarter and no clock anywhere on Home', !/\b(Q[1-4]|1ST|2ND|3RD|4TH|HALF)\b|\b6:41\b/i.test(txt), (txt.match(/\b(Q[1-4]|1ST|2ND|3RD|4TH|HALF)\b|\b6:41\b/i) || [])[0]);
-  check('the NBA tab has no LIVE pill while the game is lit', await ev(() => !document.querySelector('#topbar [data-tab="nba"] .a-live')));
+  check('the NBA tab shows no LIVE pill while the game is lit (its room kept)', await ev(() => { const p = document.querySelector('#topbar [data-tab="nba"] .a-live'); return !p || getComputedStyle(p).visibility === 'hidden'; }));
   await shot('gamenight');
   // Hold OK: Reveal score, then its confirm with Keep hidden focused
   await HC.hold(p);

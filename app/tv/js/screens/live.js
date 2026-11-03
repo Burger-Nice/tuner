@@ -13,6 +13,7 @@ import { playLive, watching } from '../player.js';
 import { current, mayFocus } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, toast, scrollList } from '../ui.js';
+import { chName, cleanGroup } from '../names.js';
 
 const ROWS = 6, PITCH = 52, AXIS = 656, SPAN = 150 * 60e3, PX = AXIS / SPAN;
 let el, group = 'fav', chans = [], top = 0, r = 0, at = Date.now(), winStart = 0, nowFloor = 0, toastT = 0, toastCh = '', digitBuf = '', digitT = 0;
@@ -37,11 +38,11 @@ function countGroups(c) {
   for (const it of items) counts.set(it.cat, (counts.get(it.cat) || 0) + 1);
   const fav = favList('live').length;
   const out = [];
-  if (fav) out.push(['fav', 'Favourites, then all', `${fav} saved`, 'star']);
+  if (fav) out.push(['fav', 'Saved, then all', `${fav} saved`, 'star']);
   const lg = liveGames().length;
   if (lg) out.push(['games', 'Live games', lg, 'live']);
   out.push(['all', 'All channels', items.length, 'tv']);
-  for (const k of c.cats) if (counts.get(k.id)) out.push([k.id, k.name, counts.get(k.id), 'tv']);
+  for (const k of c.cats) if (counts.get(k.id)) out.push([k.id, cleanGroup(k.name), counts.get(k.id), 'tv']);
   return out;
 }
 export const groupName = (g = group) => groups().find((x) => x[0] === g)?.[1] || 'All channels';
@@ -78,7 +79,6 @@ function rebuildKeep() {
 
 const x = (t) => Math.round((t - winStart) * PX);
 const DAY = 864e5;
-const shortName = (ch) => ch.name.replace(/^[A-Z]{2,4}\s*[:|]\s*/, '').replace(/\s+(HD|FHD|UHD|4K|SD)\b.*$/i, '').trim() || ch.name;
 const keptFrom = (ch) => Date.now() - ch.archive * DAY;
 // The programmes of a row: the full table before the short guide's first one (kept channels, catch-up 4.6), then the
 // short guide. past: 'loading' | 'failed' | null.
@@ -94,7 +94,7 @@ function rowList(ch) {
 function pastCell(ch, ri, kind, until) {
   const w = x(Math.min(until, winStart + SPAN)) - 4;
   if (w < 52) return '';
-  const t = { gone: [NOT_KEPT, `OK watches ${esc(shortName(ch))} live`], none: ['No guide this far back', 'OK watches it live'], loading: ['Loading earlier programmes…', ''], failed: ['Earlier programmes didn’t load · OK still tunes', ''] }[kind];
+  const t = { gone: [NOT_KEPT, `OK watches ${esc(chName(ch))} live`], none: ['No guide this far back', 'OK watches it live'], loading: ['Loading earlier programmes…', ''], failed: ['Earlier programmes didn’t load · OK still tunes', ''] }[kind];
   return `<div class="g-cell fx ${kind === 'gone' || kind === 'none' ? 'cu-gone' : 'cu-load'}" tabindex="-1" data-hold data-r="${ri}" data-s="${winStart}" data-e="${until}" data-gone="${kind}" style="left:0;width:${w}px"><b>${t[0]}</b>${t[1] ? `<div class="sb">${t[1]}</div>` : ''}</div>`;
 }
 function cells(ch, ri) {
@@ -146,7 +146,7 @@ function cells(ch, ri) {
 function row(ch, ri) {
   const pin = ri === top && chans._pin && ch.id === chans._pin.id;
   const mark = pin ? `<span class="fv">${ic('pin')}</span>` : isFav(ch) ? `<span class="fv">${ic('star')}</span>` : '';
-  return `<div class="g-row" data-row data-ri="${ri}"><div class="g-ch fx${ri === r ? ' sel' : ''}" tabindex="-1" data-hold data-ch data-r="${ri}">${ch.archive ? `<span class="num cu-n">${ch.num}<span class="cu-arc">${ic('hist')}</span></span>` : `<span class="num">${ch.num}</span>`}${logo(ch.logo, ch.name, 'sm')}<div class="nm">${esc(ch.name)}</div>${mark}</div><div class="g-cells">${cells(ch, ri)}</div></div>`;
+  return `<div class="g-row" data-row data-ri="${ri}"><div class="g-ch fx${ri === r ? ' sel' : ''}" tabindex="-1" data-hold data-ch data-r="${ri}">${ch.archive ? `<span class="num cu-n">${ch.num}<span class="cu-arc">${ic('hist')}</span></span>` : `<span class="num">${ch.num}</span>`}${logo(ch.logo, chName(ch), 'sm')}<div class="nm">${esc(chName(ch))}</div>${mark}</div><div class="g-cells">${cells(ch, ri)}</div></div>`;
 }
 function ruler() {
   const ticks = [];
@@ -167,14 +167,14 @@ function ruler() {
   return `<div class="g-ruler"><div class="g-corner" data-row><span class="chip lg fx" tabindex="-1" data-act="group">${ic(group === 'fav' ? 'star' : 'tv')}<span class="ellipsis" style="max-width:104px">${esc(groupName())}</span><span class="t-3" style="font-weight:500">${chans.length}</span></span></div><div class="g-time">${day}${flag}${ticks.join('')}</div></div>`;
 }
 function pastPanel(ch, f) {
-  const tile = (glyph) => `<div class="pvtile" style="display:grid;place-items:center">${logo(ch.logo, ch.name, 'lg')}${glyph ? `<span class="cu-cor">${ic('hist')}</span>` : ''}</div>`;
+  const tile = (glyph) => `<div class="pvtile" style="display:grid;place-items:center">${logo(ch.logo, chName(ch), 'lg')}${glyph ? `<span class="cu-cor">${ic('hist')}</span>` : ''}</div>`;
   const hint = (a) => `<div class="t-cap cu-hint">${a}<br>Back returns to now</div>`;
-  const line = (a, b) => `<div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(ch.name)}</span><span style="flex:none;display:flex;align-items:center">${a}</span></div>${b}`;
+  const line = (a, b) => `<div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${esc(chName(ch))}</span><span style="flex:none;display:flex;align-items:center">${a}</span></div>${b}`;
   const third = (t, dim) => `<div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${dim ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${t}</span></div>`;
   const kind = f.dataset.gone;
   if (kind === 'gone' || (!f.dataset.past && kind)) {
     const what = kind === 'gone' ? 'no replays on this channel' : kind === 'none' ? 'no guide this far back' : kind === 'old' ? 'not in the replays any more' : kind === 'failed' ? 'earlier programmes didn’t load' : 'loading earlier programmes';
-    return `${tile(false)}<div class="grow"><div class="row-flex" style="gap:12px"><span class="t-title ellipsis">Earlier on ${esc(shortName(ch))}</span></div>${line(`${dot}${what}`, third(kind === 'gone' ? 'Channels with replays show the history mark under their number.' : ''))}</div>${hint(`OK watch ${esc(shortName(ch))} live`)}`;
+    return `${tile(false)}<div class="grow"><div class="row-flex" style="gap:12px"><span class="t-title ellipsis">Earlier on ${esc(chName(ch))}</span></div>${line(`${dot}${what}`, third(kind === 'gone' ? 'Channels with replays show the history mark under their number.' : ''))}</div>${hint(`OK watch ${esc(chName(ch))} live`)}`;
   }
   const p = (rowList(ch).list || []).find((q) => q.start === +f.dataset.s);
   if (!p) return `${tile(true)}<div class="grow"></div>`;
@@ -205,14 +205,14 @@ function nowPanel() {
   const hide = g && hidden(g);
   const nowish = p && p.start <= Date.now() && p.end > Date.now();
   const left = p && nowish ? Math.max(1, Math.round((p.end - Date.now()) / 60000)) : 0;
-  const pv = hide ? `<div class="pvtile off">${ic('eyeOff', 'sm')}<span>Preview off<br>for your game</span></div>` : `<div class="pvtile" style="display:grid;place-items:center">${logo(ch.logo, ch.name, 'lg')}</div>`;
+  const pv = hide ? `<div class="pvtile off">${ic('eyeOff', 'sm')}<span>Preview off<br>for your game</span></div>` : `<div class="pvtile" style="display:grid;place-items:center">${logo(ch.logo, chName(ch), 'lg')}</div>`;
   const pvw = p ? programmeView(ch, p) : null;
   const desc = hide || pvw?.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : pvw?.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : esc(pvw?.desc || '');
   const kept = ch.archive && nowish ? `<br>◀ earlier${dot}${keptWords(ch.archive)}` : '';
-  const right = toastT > Date.now() && toastCh === ch.id ? `<span class="toast"><b>${isFav(ch) ? 'Added to Favourites' : 'Removed from Favourites'}</b><span class="t-cap">Hold OK to undo</span></span>` : `<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune${kept ? dot : '<br>'}Hold OK favourite${kept}</div>`;
+  const right = toastT > Date.now() && toastCh === ch.id ? `<span class="toast"><b>${isFav(ch) ? 'Saved' : 'Removed from Saved'}</b><span class="t-cap">Hold OK to undo</span></span>` : `<div class="t-cap" style="text-align:right;line-height:20px;white-space:nowrap">OK tune${kept ? dot : '<br>'}Hold OK save${kept}</div>`;
   return `${pv}<div class="grow">
-    <div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(pvw?.title || p?.title || ch.name)}</span>${g?.state === 'in' ? liveP() : ''}</div>
-    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${p ? esc(ch.name) : `Channel ${ch.num}`}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${reairOf(ch, p) ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
+    <div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(pvw?.title || p?.title || chName(ch))}</span>${g?.state === 'in' ? liveP() : ''}</div>
+    <div class="row-flex" style="color:var(--a-text-2);font:500 15px/22px var(--a-font-text);white-space:nowrap"><span class="ellipsis" style="min-width:0">${p ? esc(chName(ch)) : `Channel ${ch.num}`}</span><span style="flex:none;display:flex;align-items:center">${p ? `${dot}${reairOf(ch, p) ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}${left ? `${dot}${left >= 60 ? `${Math.floor(left / 60)}h ${left % 60}m` : left + ' min'} left<span class="prog" style="width:90px;margin-left:14px"><i style="width:${Math.min(100, ((Date.now() - p.start) / (p.end - p.start)) * 100)}%"></i></span>` : ''}</span></div>
     <div class="row-flex" style="gap:6px;font:500 15px/22px var(--a-font-text);color:${hide || pvw?.mask ? 'var(--a-text-3)' : 'var(--a-text-2)'}"><span class="ellipsis" style="min-width:0">${desc}</span></div>
   </div>${right}`;
 }
@@ -326,7 +326,7 @@ function cellOk(cell) {
   const p = (guideNow(ch) || []).find((q) => q.start === s);
   const pv = p ? programmeView(ch, p) : null, re = p && reairOf(ch, p);   // (the shield: its title, its description; a re-air shows its start only)
   const pdesc = pv?.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : pv?.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : esc(pv?.desc || '');
-  const ov = openOverlay(`<div class="menu" style="left:48px;top:120px;width:520px"><h3>${esc(pv?.title || 'Later')}</h3><div class="t-cap" style="padding:0 8px 8px">${esc(ch.name)}${p ? `${dot}${re ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}</div>${pdesc ? `<p class="t-body clamp3" style="margin:0 8px 12px">${pdesc}</p>` : ''}<div data-row class="row-flex" style="gap:12px;padding:4px 8px"><span class="btn fx" tabindex="-1" data-act="tune" style="max-width:480px;transform-origin:0 50%">${ic('play')}<span class="ellipsis" style="min-width:0">Watch ${esc(ch.name)} now</span></span></div></div>`, {
+  const ov = openOverlay(`<div class="menu" style="left:48px;top:120px;width:520px"><h3>${esc(pv?.title || 'Later')}</h3><div class="t-cap" style="padding:0 8px 8px">${esc(chName(ch))}${p ? `${dot}${re ? hm(p.start) : `${hm(p.start)} to ${hm(p.end)}`}` : ''}</div>${pdesc ? `<p class="t-body clamp3" style="margin:0 8px 12px">${pdesc}</p>` : ''}<div data-row class="row-flex" style="gap:12px;padding:4px 8px"><span class="btn fx" tabindex="-1" data-act="tune" style="max-width:480px;transform-origin:0 50%">${ic('play')}<span class="ellipsis" style="min-width:0">Watch ${esc(chName(ch))} now</span></span></div></div>`, {
     onClick: (act) => { ov.close(); if (act === 'tune') tune(ch); },   // (focus back on the cell, for when the player closes)
   });
 }

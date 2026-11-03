@@ -65,6 +65,7 @@ let offT = 0;
 function offline(onOff) {
   const el = document.getElementById('ph-offline');
   el.hidden = !onOff;
+  document.body.classList.toggle('offline', !!onOff);   // (the toasts sit above the pill)
   if (onOff) el.innerHTML = `${ic('globe')}Offline · showing what airglow remembers`;
 }
 on('offline', () => {

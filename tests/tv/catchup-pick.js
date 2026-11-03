@@ -29,7 +29,7 @@ module.exports = async (ctx) => {
   const rows = await ev(() => [...document.querySelectorAll('#overlays .lr')].map((r) => r.innerText.replace(/\s+/g, ' ')));
   console.log('channels:', rows.slice(0, 6).join(' | '));
   ok('the sheet lists kept channels', rows.length > 0 && rows.some((r) => /ESPN/.test(r)), `${rows.length} rows`);
-  const i = rows.findIndex((r) => /US: ESPN HD/.test(r));
+  const i = rows.findIndex((r) => /ESPN/.test(r));
   for (let k = 0; k < i; k++) await key('ArrowDown', 1, 120);
   await key('Enter', 1, 3000);
   const played = await ev(() => JSON.stringify(window.__replay || window.__lastReplay || null)?.slice(0, 300));

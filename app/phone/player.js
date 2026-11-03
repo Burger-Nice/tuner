@@ -231,7 +231,7 @@ function tune(i) {
   load();
 }
 function groupsSheet(list) {
-  radio('Channels', list.map((g) => ({ v: g.key, l: g.name, sub: `${g.count} channels` })), list.find((g) => g.name === P?.ringName)?.key, (k) => { if (P) emitEvent({ type: 'group', session: P.s, key: k }); });
+  radio('Channels', list.map((g) => ({ v: g.key, l: g.name, sub: `${g.count} channel${g.count === '1' || g.count === 1 ? '' : 's'}` })), list.find((g) => g.name === P?.ringName)?.key, (k) => { if (P) emitEvent({ type: 'group', session: P.s, key: k }); });
 }
 
 // ---------- what the screen says ----------
@@ -263,7 +263,7 @@ function titleBlock() {
   const e = P.entries[P.index] || {};
   if (P.R) {
     const R = P.R, ch = R.sources?.[R.source]?.channel;
-    return { name: R.title, sub: [ch?.name || '', R.kind === 'game' ? 'From tip-off' : 'Replay', resTag()].filter(Boolean), what: `<span class="tick">${ic('tick')}</span>${R.kind === 'programme' ? 'From the start' : 'From tip-off'} · the archive copy · HLS`, live: false };
+    return { name: R.title, sub: [cleanCh(ch?.name || ''), R.kind === 'game' ? 'From tip-off' : 'Replay', resTag()].filter(Boolean), what: `<span class="tick">${ic('tick')}</span>${R.kind === 'programme' ? 'From the start' : 'From tip-off'} · the archive copy · HLS`, live: false };
   }
   return { name: e.title || '', sub: [e.sub || '', resTag()].filter(Boolean), what: e.label ? `<span class="tick">${ic('tick')}</span>${esc(e.label)}${e.source && e.source !== 'provider' ? ` · ${esc(e.source)}` : ''}` : '' };
 }
@@ -402,7 +402,8 @@ function btnsHtml(land, pip = '', air = '') {
   const fwd = seekable ? `<button class="pv-k" data-act="fwd" aria-label="Forward ${s} seconds">${ic('fwd')}<small>${s === 60 ? '1m' : '10'}</small></button>` : '';
   const subs = `<button class="pv-k" data-act="subs" aria-label="Subtitles and audio">${ic('cc')}</button>`;
   const opts = `<button class="pv-k" data-act="options" aria-label="Options">${ic('sliders')}</button>`;
-  if (!land) return `<div class="pv-btns">${subs}${rew || '<span style="width:48px"></span>'}${pp}${fwd || '<span style="width:48px"></span>'}${opts}</div>`;
+  // (portrait: the two side buttons carry their words, as in the mock: Subs & audio, Options)
+  if (!land) return `<div class="pv-btns capd">${subs.replace('</button>', '<span class="cap l">Subs &amp; audio</span></button>')}${rew || '<span style="width:48px"></span>'}${pp}${fwd || '<span style="width:48px"></span>'}${opts.replace('</button>', '<span class="cap r">Options</span></button>')}</div>`;
   return `<div class="pv-btns">${rew}${pp}${fwd}${actsInline()}<span class="sp"></span>${subs}${air.replace('pv-ovb', 'pv-k sm')}${pip.replace('pv-ovb', 'pv-k sm')}${opts}</div>`;
 }
 // the game's actions (Skip to Q3, Back to live, Game) and an episode's Next episode
@@ -495,7 +496,7 @@ function toLive() {
   if (!ch) { say('No live channel for this game'); return; }
   const go = () => { const ring = catalog.live?.items || [ch]; end({ quiet: true }); playLive(ch, ring, 'All channels'); };
   const g = gameOfR();
-  if (g && shielded(g) && !isSeen(g)) confirm({ title: 'Going live may show the score', text: `${ch.name} is live now. Your replay stays where you left it.`, no: 'Stay in the replay', yes: 'Go live', onYes: go });
+  if (g && shielded(g) && !isSeen(g)) confirm({ title: 'Going live may show the score', text: `${cleanCh(ch.name)} is live now. Your replay stays where you left it.`, no: 'Stay in the replay', yes: 'Go live', onYes: go });
   else go();
 }
 function say(text) {
@@ -514,7 +515,7 @@ function options() {
   if (!P.R) rows.push(P.mode === 'live' ? { label: 'Feeds', sub: 'This channel at another quality', icon: 'tv', run: copiesSheet } : { label: 'Copies', sub: copiesSub(), icon: 'film', run: copiesSheet });
   if (P.mode === 'vod' && !P.R) rows.push({ label: `Speed: ${video.playbackRate}×`, icon: 'fwd', run: () => radio('Speed', [0.75, 1, 1.25, 1.5, 2].map((x) => ({ v: x, l: `${x}×` })), video.playbackRate, (x) => { video.playbackRate = +x; }) });
   const u = P.src?.url || '';
-  rows.push({ label: 'Connection', sub: `${/\.m3u8/i.test(u) ? 'HLS' : u.split('?')[0].split('.').pop().toUpperCase()} · ${resTag() || 'quality not known yet'} · ${(() => { try { return new URL(u).host; } catch { return ''; } })()}`, icon: 'globe', run: () => {} });
+  rows.push({ label: 'Connection', sub: `${/\.m3u8/i.test(u) ? 'HLS' : u.split('?')[0].split('.').pop().toUpperCase()} · ${resTag() || 'quality not known yet'} · ${(() => { try { return new URL(u).host; } catch { return ''; } })()}`, icon: 'globe', info: true });   // (information only: it doesn't look tappable or close the sheet)
   rows.push({ label: 'Open in VLC', sub: 'Plays it in VLC, if this iPhone has it', icon: 'ext', run: () => handOff(vlcUrl(P.src?.vlc || u), 'VLC') });
   if (P.mode === 'vod') rows.push({ label: 'Open in Infuse', icon: 'ext', run: () => handOff(infuseUrl(u), 'Infuse') });
   menu('Options', rows);
@@ -525,7 +526,7 @@ function subsSheet() {
   rows.push({ label: 'Subtitles off', icon: cur ? '' : 'tick', run: () => { subWant = { off: true }; syncSubs(); } });
   tt.forEach((t) => rows.push({ label: t.label || langName(t.language) || t.language || 'Subtitles', sub: t.label ? langName(t.language) || t.language || '' : '', icon: t === cur ? 'tick' : '', run: () => { subWant = { lang: t.language, label: t.label }; syncSubs(); } }));
   if (tt.length) rows.push({ label: `Subtitle size: ${SUBSIZE[subSize()].l}`, icon: 'cc', run: () => radio('Subtitle size', Object.entries(SUBSIZE).map(([k, x]) => ({ v: k, l: x.l })), subSize(), (k) => { try { localStorage.setItem(SIZEKEY, k); } catch { /* none */ } placeSubs(true); }) });
-  at.forEach((t) => rows.push({ label: `Sound: ${t.label || t.language || 'Track'}`, icon: t.enabled ? 'tick' : '', run: () => at.forEach((x) => { x.enabled = x === t; }) }));
+  at.forEach((t, i) => rows.push({ label: `Sound: ${t.label || langName(t.language) || t.language || `Track ${i + 1}`}`, icon: t.enabled ? 'tick' : '', run: () => at.forEach((x) => { x.enabled = x === t; }) }));
   menu('Subs & audio', rows, { sub: tt.length || at.length > 1 ? '' : 'This stream has no other tracks' });
 }
 

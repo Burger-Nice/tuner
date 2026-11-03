@@ -13,6 +13,7 @@ import { showStore, introMode, offerDue, doubtful, episodeKey, afterSkip, afterC
 import { keyOf } from './util.js';
 import { native } from './native.js';
 import { programmeView } from './catchup.js';
+import { chName, cleanGroup } from './names.js';
 import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress, chaptersOf, boxTable, teamStatsOf } from './games.js';
 import { guideFor, guideNow, onNow, nextUp, resetGuides } from './guide.js';
 import { go } from './router.js';
@@ -40,7 +41,7 @@ function pack(list) {
   const [pre, post] = tpl ? tpl.split('{id}') : ['', ''];
   const rows = list.map((c) => {
     const id = String(c.id), u = urlOf(c);
-    const row = [id, c.name, c.num || 0, c.logo || ''];
+    const row = [id, chName(c), c.num || 0, c.logo || ''];
     if (!tpl || u.length !== pre.length + id.length + post.length || !u.startsWith(pre) || !u.endsWith(post) || u.slice(pre.length, u.length - post.length) !== id) row.push(u);
     return row;
   });
@@ -60,7 +61,7 @@ export async function playLive(ch, ring, ringName = 'All channels') {
   if (index < 0) { list.unshift(ch); index = 0; }
   addRecent(ch);
   emit('tuned', ch);
-  if (!native) { toast(`Playing ${ch.name} (the TV player is only on the TV)`); linkChannel(ch); return; }
+  if (!native) { toast(`Playing ${chName(ch)} (the TV player is only on the TV)`); linkChannel(ch); return; }
   cancelChecks();   // (a quality check in flight closes its socket first: SPEC 5.3)
   const key = `${S.epoch}:${list.length}:${list[0].id}:${list[list.length - 1].id}:${ringName}`;
   const opts = { mode: 'live', index, ua: settings().ua, key, ring: ringName, upNext: settings().zapUp !== 'prev', ...playerSettings() };
@@ -130,11 +131,11 @@ function ringGroups() {
   for (const it of c.items) counts.set(it.cat, (counts.get(it.cat) || 0) + 1);
   const out = [];
   const fav = favList('live').length;
-  if (fav) out.push({ key: 'fav', name: 'Favourites', count: fav });
+  if (fav) out.push({ key: 'fav', name: 'Saved', count: fav });
   const lg = gameRing().length;
   if (lg) out.push({ key: 'games', name: 'Live games', count: lg });
   out.push({ key: 'all', name: 'All channels', count: c.items.length });
-  for (const k of c.cats) if (counts.get(k.id)) out.push({ key: String(k.id), name: k.name, count: counts.get(k.id) });
+  for (const k of c.cats) if (counts.get(k.id)) out.push({ key: String(k.id), name: cleanGroup(k.name), count: counts.get(k.id) });
   return out.map((g) => ({ ...g, count: g.count.toLocaleString('en') }));
 }
 function ringOf(key) {
@@ -213,12 +214,12 @@ function push() {
   const mine = myGame();
   const feed = mine?.state === 'in' ? feedsNow(mine)[0]?.ch : null;
   const playing = c.items[c.index];
-  const pin = feed && String(feed.id) !== String(playing?.id) ? JSON.stringify({ id: String(feed.id), title: `${mine.away.name} at ${mine.home.name}`, sub: `${feed.name} · Your team`, name: feed.name, logo: feed.logo || '' }) : '';
+  const pin = feed && String(feed.id) !== String(playing?.id) ? JSON.stringify({ id: String(feed.id), title: `${mine.away.name} at ${mine.home.name}`, sub: `${chName(feed)} · Your team`, name: chName(feed), logo: feed.logo || '' }) : '';
   if (pin !== sent.pinned) { sent.pinned = pin; cmd('pinned', pin); }
   // Your team just went live on another channel: offer it once.
   if (feed && pin && watch.gameId !== mine.id && !chipped.has(mine.id) && settings().liveAlert !== false) {
     chipped.add(mine.id);
-    cmd('chip', { title: `${mySide(mine).name} are live`, sub: feed.name, id: String(feed.id) });
+    cmd('chip', { title: `${mySide(mine).name} are live`, sub: chName(feed), id: String(feed.id) });
   }
 }
 setInterval(push, 1000);
@@ -427,7 +428,7 @@ async function versionsNow() {
   const it = c.items[c.index];
   if (!it) return null;
   if (c.kind === 'live') {
-    const list = channelTwins(it).slice(0, 8).map((x) => ({ id: String(x.id), name: x.name, label: [qTag(x.name), `Channel ${x.num}`].filter(Boolean).join(' · ') }));
+    const list = channelTwins(it).slice(0, 8).map((x) => ({ id: String(x.id), name: chName(x), label: [qTag(x.name), `Channel ${x.num}`].filter(Boolean).join(' · ') }));
     return { id: String(it.id), list };
   }
   const fc = it.kind === 'movie' ? await filmCopies(it).catch(() => null) : null;
@@ -533,7 +534,7 @@ native?.player.onEvent((e) => {
     const on = !isFav(ch);
     toggleFav(ch, on);
     cmd('meta', { [String(ch.id)]: metaFor(ch, guideNow(ch) || []) });
-    cmd('show-text', on ? `${ch.name} added to favourites` : `${ch.name} removed from favourites`);
+    cmd('show-text', on ? `Saved ${chName(ch)}` : `Removed ${chName(ch)} from Saved`);
   } else if (e.type === 'reveal') {
     reveal(e.gameId);
     sent.game = '';

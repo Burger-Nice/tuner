@@ -15,6 +15,7 @@ import { playLive, watching } from '../player.js';
 import { push, go, current, setBar, focusTab } from '../router.js';
 import { focus } from '../focus.js';
 import { openOverlay, contextMenu, toast, scrollList, confirmMenu } from '../ui.js';
+import { cleanCh, chName } from '../names.js';
 import { resumeItem, openTitle } from '../actions.js';
 import { launchOpen, launchDone } from '../launch.js';
 import { gameMenu } from '../nba/hub.js';
@@ -114,10 +115,10 @@ const posterUrl = (u) => sized(String(u || '').replace(/\/poster\/(medium|large)
 const bgUrl = (u) => sized(String(u || '').replace(/\/background\/large\//, '/background/medium/'), 1280);
 // The zap ring is the group you tuned from: favourites when it's a favourite, else every channel.
 export const ringFor = (ch) => (isFav(ch) ? favList('live').map((f) => catalog.live?.byId.get(f.id) || f) : catalog.live?.items || [ch]);
-export const ringName = (ch) => (isFav(ch) ? 'Favourites' : 'All channels');
+export const ringName = (ch) => (isFav(ch) ? 'Saved' : 'All channels');
 const tune = (ch) => ch && playLive(ch, ringFor(ch), ringName(ch));
 // a channel's name short enough for a line of facts: "US: ESPN HD" -> ESPN HD, "NBA 01: Memphis Grizzlies @ …" -> NBA 01
-const chShort = (n) => { let s = String(n || '').replace(/^[A-Z]{2,3}\s*[|:]\s*/, ''); const m = s.match(/^([^:]{2,10}):\s/); if (m && s.length > 22) s = m[1]; return s.length > 24 ? `${s.slice(0, 22).replace(/\s+\S*$/, '')}…` : s; };
+const chShort = (n) => { let s = cleanCh(n); const m = s.match(/^([^:]{2,10}):\s/); if (m && s.length > 22) s = m[1]; return s.length > 24 ? `${s.slice(0, 22).replace(/\s+\S*$/, '')}…` : s; };
 
 // metas by IMDb id (logos, backdrops, episode names), asked once; a row or line that waits for one redraws when it lands
 const metas = new Map();
@@ -317,14 +318,14 @@ function lineView(l) {
   }
   if (l.kind === 'ch') {
     const ch = l.ch, pr = onNow(guideNow(ch)), pv = pr ? programmeView(ch, pr) : null;
-    v.name = pv?.title || ch.name;
-    v.facts = ['On now', ch.name, pr ? `until ${hm(pr.end)}` : ''];
-    v.ey = `On now · ${ch.name} · channel ${ch.num}`; v.big = v.name;
-    v.meta = [ch.name, pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''].filter(Boolean);
+    v.name = pv?.title || chName(ch);
+    v.facts = ['On now', chShort(ch.name), pr ? `until ${hm(pr.end)}` : ''];
+    v.ey = `On now · ${chName(ch)} · channel ${ch.num}`; v.big = v.name;
+    v.meta = [chName(ch), pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''].filter(Boolean);
     const next = (guideNow(ch) || []).filter((x) => pr && x.start >= pr.end).slice(0, 3);
     v.line = next.length ? `Next · ${next.map((x) => `${programmeView(ch, x).title} ${hm(x.start)}`).join(' · ')}` : '';
     v.verb = 'Tune'; v.play = true; v.right = 'Guide'; v.hold = 'Save channel, Open in the guide';
-    v.picture = { kind: 'flat', logo: ch.logo, name: ch.name, key: `c:${ch.id}` };
+    v.picture = { kind: 'flat', logo: ch.logo, name: chName(ch), key: `c:${ch.id}` };
     return v;
   }
   v.name = 'Pick what you like'; v.facts = ['3 genres start your rows']; v.ey = 'Your rows'; v.big = 'Pick what you like';
@@ -389,7 +390,7 @@ function placeLines() {
 }
 // the NBA tab drops its LIVE pill while the game is the lit line (two pills at most, SPEC 8)
 export const gameLit = () => !!el && !el.hidden && mode === 'mq' && lines[lit]?.kind === 'game';
-function barPill() { setBar({ live: liveShown(myGame()) && !gameLit() }); }
+function barPill() { setBar({ live: liveShown(myGame()), liveQuiet: gameLit() }); }
 // The first browsing row peeks at the bottom of the Marquee (its title, reason, P− and the tops of its cards)
 function drawPeek() {
   const r0 = rows[0];
@@ -490,7 +491,7 @@ function fieldHtml(g, quiet) {
   const sv = show(g), hid = sv.hidden || (shielded(g) && behindReplay(g)), row = heroRow(g);
   const live = g.state === 'in' || heldLive(g);
   let chip, plate;
-  if (g.state === 'pre') { chip = hm(g.date); plate = `Tip-off${bestChannel(g) ? ` · ${esc(bestChannel(g).name)}` : g.tv[0] ? ` · ${esc(g.tv[0])}` : ''}`; }
+  if (g.state === 'pre') { chip = hm(g.date); plate = `Tip-off${bestChannel(g) ? ` · ${esc(chShort(bestChannel(g).name))}` : g.tv[0] ? ` · ${esc(g.tv[0])}` : ''}`; }
   else if (row?.kind === 'behind' || row?.kind === 'resume') { chip = esc(row.pos?.chapter || 'REPLAY'); plate = 'You stopped here'; }
   else if (live && hid) { chip = 'ON NOW'; plate = `${ic('eyeOff', 'xs')}Score hidden`; }
   else if (live) { chip = /half/i.test(g.detail) ? 'HALF' : `${ordinal(g.period)} ${esc(g.clock || '')}`; plate = `${esc(g.away.abbr)} ${esc(g.away.score)} – ${esc(g.home.score)} ${esc(g.home.abbr)}`; }
@@ -541,7 +542,7 @@ function doors() {
   ];
 }
 function liveReason(r, items) {
-  if (r.live === 'yourshows') return `Where you are, and what is new · ${items.length}`;
+  if (r.live === 'yourshows') return `Where you are, and what is new · ${items.length} show${items.length === 1 ? '' : 's'}`;
   if (r.live === 'nba') {
     const gs = items, n = gs.length, lv = gs.filter((g) => g.state === 'in' || heldLive(g)).length, fin = gs.filter((g) => g.state === 'post').length, pre = gs.filter((g) => g.state === 'pre');
     if (!lv && !fin && pre.length) { const t0 = Math.min(...pre.map((g) => g.date)), first = pre.filter((g) => g.date === t0).length; return `${n} game${n > 1 ? 's' : ''} · ${first} at ${hm(t0)} · ${n - first} later · none started`; }
@@ -549,7 +550,7 @@ function liveReason(r, items) {
   }
   if (r.live === 'saved') return `${items.length} title${items.length === 1 ? '' : 's'} you have not started`;
   if (r.live === 'library') return 'OK opens the shelf';
-  if (r.live === 'channels') return 'Favourites and recent';
+  if (r.live === 'channels') return 'Saved and recent';
   if (r.live === 'noaddons') return 'Add a Stremio add-on for films and series';
   return r.reason || '';
 }
@@ -592,7 +593,7 @@ function chCard(ch, i) {
   const pr = onNow(guideNow(ch)), pv = pr ? programmeView(ch, pr) : null;
   const pg = pr ? Math.max(0, Math.min(100, ((Date.now() - pr.start) / (pr.end - pr.start)) * 100)) : 0;
   const tc = '#3D3B45';
-  return `<div class="hf-w chn fx" tabindex="-1" data-i="${i}" data-key="ch:${esc(ch.id)}" data-hold style="--tc:${tc}"><span class="tile">${ch.logo ? `<img src="${esc(ch.logo)}" alt="" data-ini="${esc(initials(ch.name))}">` : esc(initials(ch.name))}</span><span class="n">${esc(ch.num)}</span>
+  return `<div class="hf-w chn fx" tabindex="-1" data-i="${i}" data-key="ch:${esc(ch.id)}" data-hold style="--tc:${tc}"><span class="tile">${ch.logo ? `<img src="${esc(ch.logo)}" alt="" data-ini="${esc(initials(chName(ch)))}">` : esc(initials(chName(ch)))}</span><span class="n">${esc(ch.num)}</span>
     <div class="ln">${esc(pv?.title || chShort(ch.name))}</div><div class="u">${pr ? `until ${hm(pr.end)}` : pv ? esc(chShort(ch.name)) : 'No guide information'}</div>${pr ? `<div class="pb"><i style="width:${pg}%"></i></div>` : ''}</div>`;
 }
 // the hub's game card; a hidden game that is on says so and nothing more (no quarter, no clock: SPEC 8)
@@ -711,7 +712,7 @@ function answerFocus() {
     wantPicture(x.background ? { kind: 'img', url: bgUrl(x.background), key: `i:${x.id}` } : x.poster ? { kind: 'poster', url: x.poster, key: `p:${x.id}` } : { kind: 'flat', key: 'flat' });
     // the details (IMDb rating, runtime, logo) once he rests on it
     if (!x._d) colT = setTimeout(() => enrich(x).then(() => { if (rows[fi] === r && r.list[mem[r.id] || 0] === x) { if (setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false)) fitMeta(rw.querySelector('.hf-col')); } }), 450);
-  } else if (r.type === 'channel') wantPicture({ kind: 'flat', logo: x.logo, name: x.name, key: `c:${x.id}` });
+  } else if (r.type === 'channel') wantPicture({ kind: 'flat', logo: x.logo, name: chName(x), key: `c:${x.id}` });
   else if (r.type === 'game') wantPicture({ kind: 'flat', key: 'flat' });
   else if (r.type === 'wide' && x.cont) {
     const it = x.cont.item, ep = it.kind === 'episode', m = metaOf(ep ? 'series' : 'movie', imdbOfItem(it));
@@ -744,7 +745,7 @@ function colHtml(r, x) {
   if (r.type === 'poster') {
     const d = x._d || {}, logo = d.logo || x.logo, series = x.kind === 'series';
     const rt = d.runtime || x.runtime;
-    const meta = fitParts([[series ? d.releaseInfo || (x.year ? `${x.year}–` : '') : x.year ? String(x.year) : ''], [(d.genres || x.genres || []).slice(0, 3), 'g'], [rt ? (series ? `${rt} min` : dur(rt)) : ''], [!series && rt ? `Ends ${endsAt(rt)}` : '', 3], [d.rating || (x.src === 'cinemeta' && x.rating) ? `IMDb ${(d.rating || x.rating).toFixed(1)}` : ''], [series && (d.country || x.country) ? SH.firstCountry(d.country || x.country) : '', 2]]);
+    const meta = fitParts([[series ? String(d.releaseInfo || x.year || '').replace(/[–-]\s*$/, '') : x.year ? String(x.year) : ''], [(d.genres || x.genres || []).slice(0, 3), 'g'], [rt ? (series ? `${rt} min` : dur(rt)) : ''], [!series && rt ? `Ends ${endsAt(rt)}` : '', 3], [d.rating || (x.src === 'cinemeta' && x.rating) ? `IMDb ${(d.rating || x.rating).toFixed(1)}` : ''], [series && (d.country || x.country) ? SH.firstCountry(d.country || x.country) : '', 2]]);
     return `${okLogo(logo) ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta" data-fit>${meta}</div>${plotHtml(x.overview)}${hint('Details', 'Play now, Save, Not interested')}`;
   }
   if (r.type === 'wide' && x.cont) {
@@ -761,11 +762,11 @@ function colHtml(r, x) {
   if (r.type === 'channel') {
     const pr = onNow(guideNow(x)), pv = pr ? programmeView(x, pr) : null;
     const next = (guideNow(x) || []).filter((p) => pr && p.start >= pr.end).slice(0, 3);
-    return `<div class="title">${esc(pv?.title || x.name)}</div><div class="meta">${facts([`${chShort(x.name)} · ${x.num}`, pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''].filter(Boolean))}</div>${next.length ? plotHtml(`Next · ${next.map((p) => `${programmeView(x, p).title} ${hm(p.start)}`).join(' · ')}`) : ''}${hint('Tune', 'Save channel, Open in the guide')}`;
+    return `<div class="title">${esc(pv?.title || chName(x))}</div><div class="meta">${facts([`${chShort(x.name)} · ${x.num}`, pr ? `${hm(pr.start)} – ${hm(pr.end)}` : '', pr ? leftText((pr.end - Date.now()) / 1000) : ''].filter(Boolean))}</div>${next.length ? plotHtml(`Next · ${next.map((p) => `${programmeView(x, p).title} ${hm(p.start)}`).join(' · ')}`) : ''}${hint('Tune', 'Save channel, Open in the guide')}`;
   }
   if (r.type === 'game') {
     const g = x, hid = show(g).hidden || (shielded(g) && behindReplay(g));
-    const st = g.state === 'pre' ? [`Tip-off ${hm(g.date)}`, tipsIn(g.date), bestChannel(g)?.name || g.tv[0] || ''] : g.state === 'in' || heldLive(g) ? ['On now', bestChannel(g)?.name || g.tv[0] || '', hid ? 'Score hidden' : `${g.away.score} – ${g.home.score}`] : [hid ? 'Ended' : 'Final', hid ? 'Score hidden' : `${g.away.score} – ${g.home.score}`];
+    const st = g.state === 'pre' ? [`Tip-off ${hm(g.date)}`, tipsIn(g.date), chShort(bestChannel(g)?.name || g.tv[0] || '')] : g.state === 'in' || heldLive(g) ? ['On now', chShort(bestChannel(g)?.name || g.tv[0] || ''), hid ? 'Score hidden' : `${g.away.score} – ${g.home.score}`] : [hid ? 'Ended' : 'Final', hid ? 'Score hidden' : `${g.away.score} – ${g.home.score}`];
     const recs = `${g.away.name} ${recordFor(g.away).text || '–'} · ${g.home.name} ${recordFor(g.home).text || '–'}${g.state !== 'pre' && (hid || g.state === 'in') ? ' · as of tip-off' : ''}`;
     return `<div class="title">${esc(`${g.away.name} at ${g.home.name}`)}</div><div class="meta">${facts(st.filter(Boolean))}</div>${plotHtml(recs)}${hint('Game page', g.state === 'in' ? 'Watch live, From tip-off' : 'Teams, more')}`;
   }
@@ -935,7 +936,7 @@ function contMenu(node, p) {
 }
 function chMenu(node, ch) {
   return contextMenu(node, [
-    { icon: 'saved', label: isFav(ch) ? 'Remove from Saved' : 'Save channel', run: () => { toast(toggleFav(ch) ? `Saved ${ch.name}` : `Removed ${ch.name}`); } },
+    { icon: 'saved', label: isFav(ch) ? 'Remove from Saved' : 'Save channel', run: () => { toast(toggleFav(ch) ? `Saved ${chName(ch)}` : `Removed ${chName(ch)} from Saved`); } },
     { icon: 'live', label: 'Open in the guide', run: () => go('live', { ch: ch.id }) },
   ]);
 }
@@ -943,7 +944,7 @@ function posterMenu(node, x, r) {
   const fav = { kind: x.kind, id: x.imdb || x.id, key: x.imdb || x.id, name: x.name, poster: x.poster, year: x.year ? String(x.year) : '', addon: { type: x.kind }, _genres: x.genres };
   const list = [
     { icon: 'play', label: 'Play now', run: () => playNow(x) },
-    { icon: 'saved', label: isFav(fav) ? 'Remove from Saved' : 'Save', run: async () => { const id = await SH.imdbOfItem(x); if (!id) return toast('airglow couldn\'t find this title\'s details'); fav.id = fav.key = id; toast(toggleFav(fav) ? `Saved ${x.name}` : `Removed ${x.name}`); } },
+    { icon: 'saved', label: isFav(fav) ? 'Remove from Saved' : 'Save', run: async () => { const id = await SH.imdbOfItem(x); if (!id) return toast('airglow couldn\'t find this title\'s details'); fav.id = fav.key = id; toast(toggleFav(fav) ? `Saved ${x.name}` : `Removed ${x.name} from Saved`); } },
     { icon: 'info', label: 'Details', run: () => SH.openItem(x) },
     { icon: 'close', label: 'Not interested', run: () => { R.notWanted(x); toast(`${x.name} won't be suggested for 30 days`); } },
   ];
@@ -991,7 +992,7 @@ async function chooseChannel(g) {
   if (!list.length) { toast('No sports channels found. Pick the channel in Live and it will be remembered.', 5000); return go('live'); }
   const ov = openOverlay(`<div class="menu" style="left:48px;top:60px;width:560px;max-height:440px;overflow:hidden"><h3>Where is ${esc(name)}?</h3><div class="sheet-body" style="max-height:360px"><div data-col class="inner">${list.map((x, i) => {
     const p = onNow(guideNow(x.ch));
-    return `<div class="lr fx" tabindex="-1" data-act="${i}" style="height:60px"><span class="logo sm">${x.ch.logo ? `<img src="${esc(x.ch.logo)}" alt="">` : esc(x.ch.name.slice(0, 2).toUpperCase())}</span><span class="grow ellipsis">${esc(x.ch.name)}<div class="t-cap ellipsis" style="margin-top:0">${esc(p ? programmeView(x.ch, p).title : '')}</div></span><small>${esc(x.why)}</small></div>`;
+    return `<div class="lr fx" tabindex="-1" data-act="${i}" style="height:60px"><span class="logo sm">${x.ch.logo ? `<img src="${esc(x.ch.logo)}" alt="">` : esc(initials(chName(x.ch)))}</span><span class="grow ellipsis">${esc(chName(x.ch))}<div class="t-cap ellipsis" style="margin-top:0">${esc(p ? programmeView(x.ch, p).title : '')}</div></span><small>${esc(x.why)}</small></div>`;
   }).join('')}</div></div><div class="t-cap" style="padding:8px 8px 2px">Your pick is remembered for this team.</div></div>`, {
     onClick: (act) => { const x = list[+act]; if (!x) return; ov.close(false); setTeamChannel(mySide(g).abbr, x.ch.id); tune(x.ch); },
   });
@@ -1000,7 +1001,7 @@ async function chooseChannel(g) {
 async function otherFeeds(g) {
   const feeds = await findFeeds(g);
   if (feeds.length < 2) return chooseChannel(g);
-  const ov = openOverlay(`<div class="menu" style="left:48px;top:150px;width:480px"><h3>Other channels for this game</h3><div data-col>${feeds.map((f, i) => `<div class="lr fx" tabindex="-1" data-act="${i}"><span class="grow ellipsis">${esc(f.ch.name)}</span><small>Feed ${i + 1} of ${feeds.length}</small></div>`).join('')}<div class="lr fx" tabindex="-1" data-act="choose"><span class="grow">Choose another channel</span></div></div></div>`, {
+  const ov = openOverlay(`<div class="menu" style="left:48px;top:150px;width:480px"><h3>Other channels for this game</h3><div data-col>${feeds.map((f, i) => `<div class="lr fx" tabindex="-1" data-act="${i}"><span class="grow ellipsis">${esc(chName(f.ch))}</span><small>Feed ${i + 1} of ${feeds.length}</small></div>`).join('')}<div class="lr fx" tabindex="-1" data-act="choose"><span class="grow">Choose another channel</span></div></div></div>`, {
     onClick: (act) => { ov.close(false); if (act === 'choose') return chooseChannel(g); const f = feeds[+act]; setTeamChannel(mySide(g).abbr, f.ch.id); tune(f.ch); },
   });
 }
@@ -1147,7 +1148,7 @@ export default {
   entry: (root) => (mode === 'rows' ? cardEl() : null) || root.querySelector(`.hf-e[data-li="${lit}"]`) || root.querySelector('.hf-e'),
   key: onKey,
   back: onBack,
-  leave() { setBar({ live: liveShown(myGame()) }); },
+  leave() { setBar({ live: liveShown(myGame()), liveQuiet: false }); },
   toTop() { if (mode === 'rows') setMode('mq'); lit = 0; placeLines(); },
 };
 // What's on now on the Channels row and the channel line: a couple at a time, after the launch

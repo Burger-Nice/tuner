@@ -24,7 +24,9 @@ module.exports = async (ctx) => {
   check('every name and its facts fit the 470 px lineup', g.every((x) => x.w <= 438), g.map((x) => x.w).join(' '));
   const peek = await ev(() => document.querySelector('[data-screen="home"] .hf-peek').innerText.replace(/\s+/g, ' '));
   check('the peek: the first row, its reason and P− Browse', /^Comedy for you Because you watch .* P− Browse · \d+ rows/.test(peek), peek);
-  check('the NBA tab has no LIVE pill while the game is lit', await ev(() => !document.querySelector('#topbar [data-tab="nba"] .a-live')));
+  const pill = () => ev(() => { const p = document.querySelector('#topbar [data-tab="nba"] .a-live'); return { seen: !!p && getComputedStyle(p).visibility !== 'hidden', movies: Math.round(document.querySelector('#topbar [data-tab="movie"]')?.getBoundingClientRect().x || 0) }; });
+  const p0 = await pill();
+  check('the NBA tab shows no LIVE pill while the game is lit', !p0.seen, JSON.stringify(p0));
   await shot('marquee-game');
   // Down: the card closes on the game and opens on Severance; the line above (the game) doesn't move
   const pic = () => ev(() => document.querySelector('[data-screen="home"] .hf-bd.vis img')?.getAttribute('src') || (document.querySelector('[data-screen="home"] .hf-field.vis') ? 'field' : ''));
@@ -33,6 +35,8 @@ module.exports = async (ctx) => {
   const at200 = await pic();
   await p.waitForTimeout(900);
   const at900 = await pic();
+  const p1 = await pill();
+  check('Down: the LIVE pill shows in the room it kept (the tabs after it do not move)', p1.seen && p1.movies === p0.movies, `${JSON.stringify(p0)} → ${JSON.stringify(p1)}`);
   g = await geo();
   check('Down: Severance lit at y 138, the game stays at 92', g[1].on && g[1].y === 138 && g[0].y === 92, g.map((x) => x.y).join(' '));
   check('Continue watching: the full picture behind, no poster box', !(await ev(() => document.querySelector('[data-screen="home"] .hf-flat.vis .pst'))), at900);

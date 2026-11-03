@@ -12,7 +12,7 @@ import { programmeView, keptWords, NOT_KEPT } from '../tv/js/catchup.js';
 import { playProgramme, watchOnChannel } from '../tv/js/replay.js';
 import { playLive } from '../tv/js/player.js';
 import { toast } from '../tv/js/ui.js';
-import { avatar, cleanCh, ic, esc, push, isShown, menu, longPress, tileOf, sheet } from './ui.js';
+import { avatar, cleanCh, cleanGroup, ic, esc, push, isShown, menu, longPress, tileOf, sheet } from './ui.js';
 
 let el, group = null, chans = [], shown = 60, q = '', searching = false;
 const realOf = (c) => c.items.filter((x) => !x._sep);
@@ -23,13 +23,13 @@ function groups() {
   for (const it of items) counts.set(it.cat, (counts.get(it.cat) || 0) + 1);
   const out = [];
   const fav = favList('live').length;
-  if (fav) out.push(['fav', 'Favourites', fav]);
+  if (fav) out.push(['fav', 'Saved', fav]);
   if (liveGames().length) out.push(['games', 'Live games', liveGames().length]);
   out.push(['all', 'All channels', items.length]);
   const cats = c.cats.filter((k) => counts.get(k.id));
   // Sports first while a game is on (SPEC 3.2)
   const sport = (k) => /sport|nba/i.test(k.name);
-  for (const k of liveGames().length ? [...cats.filter(sport), ...cats.filter((k) => !sport(k))] : cats) out.push([k.id, k.name, counts.get(k.id)]);
+  for (const k of liveGames().length ? [...cats.filter(sport), ...cats.filter((k) => !sport(k))] : cats) out.push([k.id, cleanGroup(k.name), counts.get(k.id)]);
   return out;
 }
 const groupName = () => groups().find((g) => g[0] === group)?.[1] || 'All channels';
@@ -63,7 +63,7 @@ function rowHtml(ch, i) {
   const fav = isFav(ch) && group !== 'fav';
   const prog = !list ? `<span class="pg dim">${guideFailed(ch) ? 'Guide not answering' : '&nbsp;'}</span>` : now ? `<span class="pg">${esc(v.title)}</span>` : '<span class="pg dim">No guide information</span>';
   const nx = now && !S.offline ? `<span class="nx"><span class="bar4" style="--p:${p}%"><i></i></span><span class="tx">until ${hm(now.end)}${next ? ` · Next ${esc(programmeView(ch, next).title)}` : ''}</span></span>` : '';
-  return `<div class="lv-wrap" data-i="${i}"><div class="lv-swipe">${ic(isFav(ch) ? 'starO' : 'star')}${isFav(ch) ? 'Unfavourite' : 'Favourite'}</div><button class="lv-ch" data-i="${i}"><span class="no">${ch.num || ''}</span>${tileOf(ch)}<span class="col"><span class="nm"><span class="n">${esc(cleanCh(ch.name))}</span>${fav ? ic('star') : ''}${live ? '<span class="live sm">Live</span>' : ''}</span>${prog}${nx}</span><span class="chev" data-day="${i}">${ic('chevR')}</span></button></div>`;
+  return `<div class="lv-wrap" data-i="${i}"><div class="lv-swipe">${ic(isFav(ch) ? 'starO' : 'star')}${isFav(ch) ? 'Unsave' : 'Save'}</div><button class="lv-ch" data-i="${i}"><span class="no">${ch.num || ''}</span>${tileOf(ch)}<span class="col"><span class="nm"><span class="n">${esc(cleanCh(ch.name))}</span>${fav ? ic('star') : ''}${live ? '<span class="live sm">Live</span>' : ''}</span>${prog}${nx}</span><span class="chev" data-day="${i}">${ic('chevR')}</span></button></div>`;
 }
 function nowCard() {
   const ch = lastCh();
@@ -72,10 +72,10 @@ function nowCard() {
   if (!list) guideFor(ch).then(() => soon()).catch(() => {});
   const v = now ? programmeView(ch, now) : null;
   const p = now ? ((Date.now() - now.start) / (now.end - now.start)) * 100 : 0;
-  return `<div class="lv-now"><div class="th">${ch.logo ? `<img src="${esc(ch.logo)}" alt="">` : esc(ch.name.slice(0, 3))}</div><div class="col"><div class="ey">Last watched</div><div class="t">${esc(v?.title || ch.name)}</div><div class="m">${esc(cleanCh(ch.name))}${now ? ` · ${hm(now.start)}–${hm(now.end)} · ${leftText((now.end - Date.now()) / 1000)}` : ''}</div>${now ? `<div class="bar4" style="--p:${p}%"><i></i></div>` : ''}<div class="act"><button class="pill" data-act="tune-last">${ic('play')}Tune</button>${ch.archive > 0 ? '<button class="ghost" data-act="earlier">Earlier</button>' : ''}</div></div></div>`;
+  return `<div class="lv-now"><div class="th">${ch.logo ? `<img src="${esc(ch.logo)}" alt="">` : esc(ch.name.slice(0, 3))}</div><div class="col"><div class="ey">Last watched</div><div class="t">${esc(v?.title || cleanCh(ch.name))}</div><div class="m">${esc(cleanCh(ch.name))}${now ? ` · ${hm(now.start)}–${hm(now.end)} · ${leftText((now.end - Date.now()) / 1000)}` : ''}</div>${now ? `<div class="bar4" style="--p:${p}%"><i></i></div>` : ''}<div class="act"><button class="pill" data-act="tune-last">${ic('play')}Tune</button>${ch.archive > 0 ? '<button class="ghost" data-act="earlier">Earlier</button>' : ''}</div></div></div>`;
 }
 const HINTS = 'tuner.phLiveHint';
-function hint() { try { const n = +localStorage.getItem(HINTS) || 0; if (n >= 5) return ''; return 'Tap plays · swipe left to favourite'; } catch { return ''; } }
+function hint() { try { const n = +localStorage.getItem(HINTS) || 0; if (n >= 5) return ''; return 'Tap plays · swipe left to save'; } catch { return ''; } }
 function draw() {
   if (!el) return;
   if (!S.acc) { el.innerHTML = '<div class="ph-top"><h1>Live</h1></div><div class="state"><b>Sign in to watch</b></div>'; return; }
@@ -87,7 +87,7 @@ function draw() {
   const top = `<div class="ph-top"><h1>Live</h1><span class="sp"></span><button class="ib" data-act="find" aria-label="Find a channel">${ic('search')}</button>${avatar()}</div>`;
   const search = searching ? `<div class="sr-field">${ic('search')}<input id="lv-q" value="${esc(q)}" placeholder="Channel number or name" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search"><button class="ib" data-act="clearq" aria-label="Clear">${ic('close')}</button></div>` : '';
   const body = !c ? Array.from({ length: 6 }, () => '<div class="lv-ch sk"><span class="no"></span><span class="tile"></span><span class="col"><span class="pg"></span></span></div>').join('')
-    : !chans.length ? `<div class="state"><b>${q ? 'No channel by that name' : group === 'fav' ? 'No favourites yet' : 'No channels'}</b><p>${q ? 'Try a number or part of the name.' : group === 'fav' ? 'Swipe a channel left to add one.' : ''}</p></div>`
+    : !chans.length ? `<div class="state"><b>${q ? 'No channel by that name' : group === 'fav' ? 'No saved channels yet' : 'No channels'}</b><p>${q ? 'Try a number or part of the name.' : group === 'fav' ? 'Swipe a channel left to save it.' : ''}</p></div>`
     : chans.slice(0, shown).map(rowHtml).join('') + (chans.length > shown ? '<div class="lb-more"><button class="ghost" data-act="more">More channels</button></div>' : '');
   const h = hint();
   const keepFocus = document.activeElement?.id === 'lv-q';
@@ -111,20 +111,20 @@ function warmShown() {
 function favSwipe(ch) {
   const on = !isFav(ch);
   toggleFav(ch, on);
-  toast(on ? `${ch.name} added to favourites` : `${ch.name} removed from favourites`);
+  toast(on ? `Saved ${cleanCh(ch.name)}` : `Removed ${cleanCh(ch.name)} from Saved`);
   try { localStorage.setItem(HINTS, String((+localStorage.getItem(HINTS) || 0) + 1)); } catch { /* none */ }
   draw();
 }
 function chMenu(ch) {
   const g = gameOn(ch, guideNow(ch));
-  menu(ch.name, [
+  menu(cleanCh(ch.name), [
     { label: 'Tune', icon: 'play', run: () => tune(ch) },
-    { label: isFav(ch) ? 'Remove from favourites' : 'Add to favourites', icon: 'star', run: () => favSwipe(ch) },
+    { label: isFav(ch) ? 'Remove from Saved' : 'Save', icon: 'star', run: () => favSwipe(ch) },
     { label: 'The channel\'s day', sub: ch.archive > 0 ? keptWords(ch.archive) : NOT_KEPT, icon: 'chevR', run: () => push('day', { id: ch.id }) },
     g ? { label: `${g.away.name} at ${g.home.name}`, sub: 'The game page', icon: 'ball', run: () => push('game', { id: g.id }) } : null,
   ]);
 }
-// swipe left on a row reveals Favourite (88 pt); let go past it and it's done
+// swipe left on a row reveals Save (88 pt); let go past it and it's done
 function swipes(root) {
   let s = null;
   root.addEventListener('touchstart', (e) => { const w = e.target.closest('.lv-wrap'); s = w ? { w, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null } : null; }, { passive: true });
@@ -198,7 +198,7 @@ function drawDay() {
     last = d;
     return `${head}<button class="p${isNow ? ' now' : ''}${gone ? ' gone' : ''}" data-p="${i}"><span class="tm">${hm(p.start)}</span><span class="col"><b>${esc(v.title)}</b><small>${isNow ? 'On now · ' : p.end <= now ? (gone ? 'Not in the replay · ' : 'Replay · ') : ''}until ${hm(p.end)}${v.desc && !isNow ? ` · ${esc(v.desc)}` : ''}</small></span>${isNow ? '<span class="live sm">Live</span>' : p.end <= now && !gone ? ic('play') : ''}</button>`;
   }).join('');
-  dayEl.innerHTML = `<div class="ph-top"><button class="ph-back" data-act="back" aria-label="Back">${ic('back')}</button><h1 class="ellipsis" style="font-size:26px">${esc(ch.name)}</h1></div><div class="note" style="margin-top:4px">${ch.archive > 0 ? esc(keptWords(ch.archive)) : esc(NOT_KEPT)} · channel ${ch.num}</div><div class="lv-day" style="margin-top:8px">${rows || '<div class="state"><b>No guide information</b></div>'}</div>`;
+  dayEl.innerHTML = `<div class="ph-top"><button class="ph-back" data-act="back" aria-label="Back">${ic('back')}</button><h1 class="ellipsis" style="font-size:26px">${esc(cleanCh(ch.name))}</h1></div><div class="note" style="margin-top:4px">${ch.archive > 0 ? esc(keptWords(ch.archive)) : esc(NOT_KEPT)} · channel ${ch.num}</div><div class="lv-day" style="margin-top:8px">${rows || '<div class="state"><b>No guide information</b></div>'}</div>`;
   dayEl._list = list;
   const cur = dayEl.querySelector('.p.now');
   if (cur && !dayEl._placed) { dayEl._placed = true; cur.scrollIntoView({ block: 'center' }); }

@@ -19,7 +19,7 @@ export const hasKey = () => !!tmdbKey() && !store.get('tmdbBad', false);
 export function setKey(k) { store.set('tmdbKey', String(k || '').trim()); store.del('tmdbBad'); mem.clear(); emit('tmdb', 'key'); }
 export function clearKey() { store.del('tmdbKey'); store.del('tmdbBad'); mem.clear(); emit('tmdb', 'key'); }
 // What Account shows: never the key, only that it's set and how it ends
-export const keyLabel = () => (tmdbKey() ? `Set · ends ${tmdbKey().slice(-4)}` : 'Not set');
+export const keyLabel = () => (tmdbKey() ? `Set · ends in …${tmdbKey().slice(-4)}` : 'Not set');
 const v3Key = (k) => /^[0-9a-f]{32}$/i.test(k);
 // Only a token's or a key's own characters: a pasted line with spaces or quotes is trimmed to them
 export const cleanKey = (s) => String(s || '').trim().replace(/^bearer\s+/i, '').replace(/^["']|["']$/g, '');

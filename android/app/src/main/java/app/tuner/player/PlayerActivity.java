@@ -647,6 +647,7 @@ public class PlayerActivity extends AppCompatActivity {
         bL3.addView(bProg, gapped(new LinearLayout.LayoutParams(Ui.dp(120), Ui.dp(4)), 10));
         bNext = Ui.shadow(Ui.line(this, "", 14, Ui.T3, Ui.inter500));
         bL3.addView(bNext, new LinearLayout.LayoutParams(0, -2, 1));
+        bNext.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);   // (the long "Next …" title gives way, not "Replays 3 days" at the end)
         LinearLayout.LayoutParams l3 = new LinearLayout.LayoutParams(-1, Ui.dp(18));
         l3.topMargin = Ui.dp(4);
         col.addView(bL3, l3);
@@ -1504,7 +1505,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (live) {
             JSONObject m = metaOf(cur);
             boolean fav = m != null && m.optBoolean("fav");
-            items.add(row(fav ? "Remove from favourites" : "Favourite this channel", null, fav ? "On" : "Off", fav ? "star" : "starO", () -> {
+            items.add(row(fav ? "Remove from Saved" : "Save this channel", null, null, fav ? "star" : "starO", () -> {
                 JSObject e = event("fav");
                 e.put("id", cur.id);
                 TunerPlayerPlugin.emit(e);

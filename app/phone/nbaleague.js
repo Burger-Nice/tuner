@@ -73,7 +73,7 @@ export function leadersHtml() {
   const l = [...rows].sort((a, b) => (parseFloat(b.value) || 0) - (parseFloat(a.value) || 0));
   leaderList = l;
   const p = l[0], tied = l[1]?.value === p.value, t = names(p.abbr);
-  const card = `<button class="ld-card nbz" data-lp="${esc(p.id)}" style="${teamVars(p.abbr)}"><span class="pl"></span>${p.headshot ? `<img class="hs" src="${esc(head(p.headshot))}" alt="" onerror="this.remove()">` : ''}<span class="tx"><span class="rk">${tied ? 'T-1st' : '1st'} in the NBA</span><b class="nm">${esc(p.name)}</b><span class="mt ellipsis">${esc(t.full)}${p.pos ? ` · ${esc(POS[p.pos] || p.pos)}` : ''}</span></span><span class="v"><b>${esc(p.value)}</b><small>${esc(c.pct ? c.short : `${c.short} a game`)}</small></span></button>`;
+  const card = `<button class="ld-card nbz" data-lp="${esc(p.id)}" style="${teamVars(p.abbr)}"><span class="pl"></span>${p.headshot ? `<img class="hs" src="${esc(head(p.headshot))}" alt="" onerror="this.remove()">` : ''}<span class="tx"><span class="rk">${tied ? 'T-1st' : '1st'} in the NBA</span><b class="nm">${esc(p.name)}</b><span class="mt ellipsis">${esc(p.pos ? t.name : t.full)}${p.pos ? ` · ${esc(POS[p.pos] || p.pos)}` : ''}</span></span><span class="v"><b>${esc(p.value)}</b><small>${esc(c.pct ? c.short : `${c.short} a game`)}</small></span></button>`;
   let rk = 1;
   const list = l.slice(1, 10).map((x, i) => {
     const r = l[i].value === x.value ? rk : (rk = i + 2);

@@ -8,7 +8,7 @@ import { nba } from '../tv/js/games.js';
 import { programmeView, videoMask } from '../tv/js/catchup.js';
 import { playLive } from '../tv/js/player.js';
 import * as AD from '../tv/js/addons.js';
-import { ic, esc, push, isShown, tileOf, crestImg } from './ui.js';
+import { ic, esc, push, isShown, tileOf, crestImg, cleanCh } from './ui.js';
 import { gameCard } from './cards.js';
 import { openTitle } from './detail.js';
 
@@ -39,7 +39,7 @@ function drawRes() {
   const n = q.trim().toLowerCase();
   gs = nba.today.filter((g) => [g.home, g.away].some((t) => `${t.name} ${window.NBA.team(t.abbr)?.city || ''} ${t.abbr}`.toLowerCase().includes(n)));
   titles = (ads?.items || []).slice(0, 30);
-  const ch = chans.map((c, i) => { const p = onNow(guideNow(c)); return `<button class="sr-row" data-ch="${i}">${tileOf(c)}<span class="col"><b>${esc(c.name)}</b><small>${c.num ? `${c.num} · ` : ''}${p ? `${esc(programmeView(c, p).title)} · until ${hm(p.end)}` : 'Channel'}</small></span></button>`; }).join('');
+  const ch = chans.map((c, i) => { const p = onNow(guideNow(c)); return `<button class="sr-row" data-ch="${i}">${tileOf(c)}<span class="col"><b>${esc(cleanCh(c.name))}</b><small>${c.num ? `${c.num} · ` : ''}${p ? `${esc(programmeView(c, p).title)} · until ${hm(p.end)}` : 'Channel'}</small></span></button>`; }).join('');
   const ti = titles.map((m, i) => `<button class="sr-row" data-t="${i}"><span class="tile" style="width:40px;height:60px;border-radius:6px">${m.poster ? `<img src="${esc(m.poster)}" alt="" style="object-fit:cover;padding:0" loading="lazy">` : ''}</span><span class="col"><b>${esc(m.name)}</b><small>${m.type === 'series' ? 'Series' : 'Film'}${m.year || m.releaseInfo ? ` · ${esc(m.releaseInfo || m.year)}` : ''}</small></span></button>`).join('');
   box.innerHTML = `${gs.length ? `<div class="sr-sec"><div class="sec-h">Games</div><div class="nb-grid">${gs.map((g) => gameCard(g)).join('')}</div></div>` : ''}
     ${ch ? `<div class="sr-sec"><div class="sec-h">Channels</div>${ch}</div>` : ''}

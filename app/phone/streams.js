@@ -5,6 +5,7 @@ import { S } from '../tv/js/state.js';
 import { catalog, ensure } from '../tv/js/catalog.js';
 import { pastFor } from '../tv/js/guide.js';
 import { toast } from '../tv/js/ui.js';
+import { cleanCh } from '../tv/js/names.js';
 
 // A channel's HLS link: its own hls source (core.js), else the .ts link turned into .m3u8 (Xtream serves both)
 export function hlsOf(ch, fallback = '') {
@@ -88,18 +89,18 @@ export async function checkStreams(onStep) {
   // 1. live: a sports channel if there is one (that's what he'll watch), else the first
   const ch = items.find((c) => SPORTY.test(c.name)) || items[0];
   if (!ch) { onStep('live', { state: 'bad', text: 'No channels in the list to try' }); onStep('catchup', { state: 'bad', text: 'No channels to try' }); return; }
-  onStep('live', { state: 'checking', text: `Trying ${ch.name}…` });
+  onStep('live', { state: 'checking', text: `Trying ${cleanCh(ch.name)}…` });
   const url = hlsOf(ch);
   const h = await head(url);
   const v = await tryVideo(url);
   const liveOk = v.ok;
-  onStep('live', liveOk ? { state: 'ok', text: `Live channels play here (HLS) · ${ch.name}${v.h ? ` · ${v.h}p` : ''}` }
-    : { state: 'bad', text: `Live HLS doesn't play: ${h.status && h.status !== 200 ? `the provider answered ${h.status}` : h.status === 200 && !h.m3u ? 'the provider sent no HLS playlist' : v.why} · ${ch.name}. Open in VLC still works.` });
+  onStep('live', liveOk ? { state: 'ok', text: `Live channels play here (HLS) · ${cleanCh(ch.name)}${v.h ? ` · ${v.h}p` : ''}` }
+    : { state: 'bad', text: `Live HLS doesn't play: ${h.status && h.status !== 200 ? `the provider answered ${h.status}` : h.status === 200 && !h.m3u ? 'the provider sent no HLS playlist' : v.why} · ${cleanCh(ch.name)}. Open in VLC still works.` });
   // 2. catch-up: a kept channel's programme that ended a while ago, as the player asks for it (the .m3u8 form first)
   const kept = items.filter((c) => c.archive > 0);
   const kc = kept.find((c) => SPORTY.test(c.name)) || kept[0];
   if (!kc || !S.src?.catchup) { onStep('catchup', { state: 'bad', text: kept.length ? 'This provider type has no replays' : 'No channel keeps replays (catch-up), so From tip-off can\'t work' }); return { liveOk, catchupOk: false }; }
-  onStep('catchup', { state: 'checking', text: `Trying a replay on ${kc.name}…` });
+  onStep('catchup', { state: 'checking', text: `Trying a replay on ${cleanCh(kc.name)}…` });
   let p = null;
   try { const list = await pastFor(kc, { urgent: true }); p = [...(list || [])].reverse().find((x) => x.end < Date.now() - 10 * MIN && x.start > Date.now() - kc.archive * 864e5 + 3600e3 && x.kept !== false) || null; } catch { /* no table */ }
   const start = p ? p.start : Date.now() - 2 * 3600e3, endT = p ? p.end : start + 30 * MIN;
@@ -108,8 +109,8 @@ export async function checkStreams(onStep) {
   if (!cu) { onStep('catchup', { state: 'bad', text: 'No replay link for this channel' }); return { liveOk, catchupOk: false }; }
   const h2 = await head(cu.url);
   const v2 = await tryVideo(cu.url, 20000);
-  onStep('catchup', v2.ok ? { state: 'ok', text: `Replays play here (HLS) · From tip-off works · ${kc.name}` }
-    : { state: 'bad', text: `Replays don't play as HLS: ${h2.status && h2.status !== 200 ? `the provider answered ${h2.status}` : h2.status === 200 && !h2.m3u ? 'the provider sent no HLS playlist' : v2.why} · ${kc.name}` });
+  onStep('catchup', v2.ok ? { state: 'ok', text: `Replays play here (HLS) · From tip-off works · ${cleanCh(kc.name)}` }
+    : { state: 'bad', text: `Replays don't play as HLS: ${h2.status && h2.status !== 200 ? `the provider answered ${h2.status}` : h2.status === 200 && !h2.m3u ? 'the provider sent no HLS playlist' : v2.why} · ${cleanCh(kc.name)}` });
   return { liveOk, catchupOk: v2.ok };
 }
 void catalog;

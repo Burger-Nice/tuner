@@ -118,11 +118,13 @@ final class Hud {
         Ui.lineHeight(c1, 22);
         Ui.tabular(c1);
         l1.addView(c1);
-        corner.addView(l1);
+        // (wrap, not the vertical default match_parent: a match_parent child in a wrap_content column is cut to the
+        // widest other child, the Paused tag, so "0:17 behind live" read "0:17 be…")
+        corner.addView(l1, new LinearLayout.LayoutParams(-2, -2));
         c2 = Ui.shadow(Ui.line(a, "", 15, Ui.T2, Ui.inter500));
         Ui.lineHeight(c2, 20);
         Ui.tabular(c2);
-        corner.addView(c2);
+        corner.addView(c2, new LinearLayout.LayoutParams(-2, -2));
         FrameLayout.LayoutParams cl = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         cl.setMargins(0, Ui.dp(32), Ui.dp(48), 0);
         root.addView(corner, cl);

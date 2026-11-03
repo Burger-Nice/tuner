@@ -11,7 +11,9 @@ import * as TM from '../tv/js/tmdb.js';
 import * as R from '../tv/js/rows.js';
 import { toast } from '../tv/js/ui.js';
 import { phoneInfo } from './bridge.js';
-import { ic, esc, back, go, isShown, sheet, confirm, menu } from './ui.js';
+import { ic, esc, back, go, isShown, sheet, confirm, menu, radio } from './ui.js';
+import { subSettings, saveSubSettings } from '../tv/js/subs.js';
+const SUB_LANGS = ['English', 'Icelandic', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Polish', 'Turkish', 'Arabic', 'Hindi'];
 import { checkStreams } from './streams.js';
 import { teamSheet, shieldSheet } from './nba.js';
 
@@ -30,7 +32,7 @@ function checkHtml() {
 function mainHtml() {
   const f = S.acc ? accountFacts() : null;
   const host = (() => { try { return new URL(S.acc?.server || S.acc?.url || '').host; } catch { return S.acc?.name || ''; } })();
-  const exp = f?.exp ? `Expires ${f.exp.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${f.days != null ? ` · ${f.days} days left` : ''}` : S.acc?.type === 'm3u' ? 'M3U playlist' : '';
+  const exp = f?.exp ? `Expires ${f.exp.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${f.days != null ? ` · ${f.days} day${f.days === 1 ? '' : 's'} left` : ''}` : S.acc?.type === 'm3u' ? 'M3U playlist' : '';
   const tmdb = TM.hasKey() ? 'Set' : 'Not set';
   const st = TM.status, pg = R.pageNow()?.src;
   const tmdbLine = !TM.hasKey() ? 'For the Home rows and Top rated: trending, the services, rows for what you like'
@@ -48,6 +50,7 @@ function mainHtml() {
       row({ icon: 'refresh', t: 'Refresh channels and guide', s: cacheAt('live') ? `Channels from ${new Date(cacheAt('live')).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}` : '', act: 'refresh' }),
     ], checkHtml())}
     ${group('Playback', [
+      row({ icon: 'cc', t: 'Subtitles', v: esc((subSettings().langs || []).slice(0, 2).join(', then ') || 'Off'), act: 'sublangs' }),
       row({ icon: 'pip', t: 'Picture in picture and AirPlay', s: 'The two buttons on the video, top right', chev: false }),
       row({ icon: 'ext', t: 'Streams this iPhone can\'t play', s: 'MKV copies, and channels the provider won\'t send as HLS: Open in VLC or Infuse', chev: false }),
     ])}
@@ -130,13 +133,15 @@ export default {
       if (a === 'check') { if (!checking) runCheck(); return; }
       if (a === 'refresh') { toast('Refreshing channels…'); refreshNow().then(() => { resetGuides(); toast('Channels are up to date'); draw(); }).catch((er) => toast(er?.message || 'Couldn\'t refresh the channels')); return; }
       if (a === 'team') return teamSheet(draw);
+      // (the TV's Subtitle languages, its first pick: the one found first shows, the rest wait in the player)
+      if (a === 'sublangs') { const cur = subSettings().langs || []; return radio('Subtitles first in', SUB_LANGS.map((l) => ({ v: l, l, sub: l === cur[0] && cur[1] ? `then ${cur.slice(1).join(', ')}` : '' })), cur[0], (v) => { saveSubSettings({ subLangs: [v, ...cur.filter((x) => x !== v)].slice(0, 3) }); draw(); }, { sub: 'The first one found shows. The others wait in the player' }); }
       if (a === 'shield') return shieldSheet(draw);
       if (a === 'addons') { sub = 'addons'; draw(); AD.stremioSync({ toast }).then((r) => { if (r) draw(); }).catch(() => {}); return; }
       if (a === 'tmdb') return input('TMDB key', { label: 'API key (v3) or read access token', hint: 'From themoviedb.org › Settings › API. It stays on this iPhone.', pass: true, mode: 'text', onOk: async (v) => { const k = TM.cleanKey(v); if (!k) { TM.clearKey(); return; } if (!TM.looksLikeKey(k)) throw new Error('That doesn\'t look like a TMDB key'); const r = await TM.checkKey(k).catch(() => ({ ok: false, why: 'TMDB didn\'t answer' })); if (!r.ok) throw new Error(r.why); TM.setKey(k); } });
       if (a === 'signout') return confirm({ title: 'Sign out?', text: 'airglow forgets this provider on this iPhone. Your TV stays signed in.', yes: 'Sign out', onYes: () => { signOut(true); go('signin'); } });
       if (a === 'stremio') return stremioSignIn();
       if (a === 'stremio-sync') { AD.stremioSync({ force: true, toast }).then(() => { toast('Add-ons are in step with Stremio'); draw(); }); return; }
-      if (a === 'addlink') return input('Add an add-on', { label: 'Its link', placeholder: 'https://…/manifest.json', onOk: async (v) => { const r = await AD.readManifest(v); if (!r.ok) throw new Error(`That link gave ${r.why}`); AD.addAddon(r); } });
+      if (a === 'addlink') return input('Add an add-on', { label: 'Its link', placeholder: 'https://…/manifest.json', onOk: async (v) => { const r = await AD.readManifest(v); if (!r.ok) throw new Error(r.why === 'not a link airglow can open' ? 'That isn\'t a link airglow can open' : `That link gave ${r.why}`); AD.addAddon(r); } });
       if (a.startsWith('ad:')) {
         const ad = AD.addons()[+a.slice(3)];
         if (!ad) return;
