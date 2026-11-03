@@ -11,23 +11,21 @@ import { toast, contextMenu } from '../ui.js';
 import { ringFor, ringName } from './home.js';
 import { findReplays, replaysOf, replaysLooked, replaysBusy, keptUntil, nightLabel } from '../catchup.js';
 import { watchFromTipoff, resumeGame, backToLive, sourcesSheet, chooseVideo, lookAgain, pickChannel } from '../replay.js';
-import { behindReplay, shielded, replayPick, liveByClock, replayProgress, holdGame } from '../games.js';
+import { behindReplay, shielded, replayPick, liveByClock, replayProgress, holdGame, boxTable, teamStatsOf } from '../games.js';
 
 let el, id = null, tab = 'away', scroll = 0, cur = null;   // cur: this page's params (its tab and scroll go back in them)
-const STATS = [['fieldGoalPct', 'Field goal %'], ['threePointFieldGoalPct', '3-point %'], ['freeThrowPct', 'Free throw %'], ['totalRebounds', 'Rebounds'], ['assists', 'Assists'], ['totalTurnovers', 'Turnovers'], ['steals', 'Steals'], ['blocks', 'Blocks'], ['pointsInPaint', 'Points in the paint'], ['fastBreakPoints', 'Fast-break points'], ['largestLead', 'Largest lead']];
-const COLS = ['MIN', 'PTS', 'REB', 'AST', 'FG', '3PT', '+/-'];
 
 // Empty states that say what's actually going on: before tip-off, still loading, or ESPN has nothing for it.
 const none = (g, s, what) => `<div class="t-body" style="padding:24px 0">${g.state === 'pre' ? `${what} ${what === 'Box score' ? 'appears' : 'appear'} at tip-off.` : !s && nba.sumFail.has(g.id) ? `ESPN didn't send the ${what.toLowerCase()} for this game. Trying again.` : !s ? `Loading the ${what.toLowerCase()}…` : g.state === 'in' ? `ESPN hasn't sent the ${what.toLowerCase()} yet. It fills in as the game goes.` : `No ${what.toLowerCase()} from ESPN for this game.`}</div>`;
+// The whole box score (games.js boxTable: ESPN's 14 columns), narrow columns so it fits the safe area.
 function table(s, abbr, g) {
-  const team = s?.box.find((b) => b.abbr === abbr);
-  if (!team || !team.players.length) return none(g, s, 'Box score');
-  const idx = COLS.map((c) => team.labels.indexOf(c));
-  const played = team.players.filter((p) => !p.dnp);
-  const rows = played.map((p) => `<tr class="${p.starter ? 'st' : ''}"><td>${esc(p.short || p.name)}<span class="pos">${esc(p.pos)}</span></td>${idx.map((i, k) => `<td${COLS[k] === 'PTS' ? ' class="b"' : ''}>${i >= 0 ? esc(p.stats[i] ?? '') : ''}</td>`).join('')}</tr>`).join('');
-  const tot = team.totals.length ? `<tr class="tot"><td>Team</td>${idx.map((i, k) => `<td${COLS[k] === 'PTS' ? ' class="b"' : ''}>${i >= 0 ? esc(team.totals[i] ?? '') : ''}</td>`).join('')}</tr>` : '';
+  const t = boxTable(s, abbr);
+  if (!t.rows.length) return none(g, s, 'Box score');
+  const td = (vals) => vals.map((v, k) => `<td${t.cols[k] === 'PTS' ? ' class="b"' : ''}>${esc(v)}</td>`).join('');
+  const rows = t.rows.map(({ p, vals }) => `<tr class="${p.starter ? 'st' : ''}"><td><span class="nm">${esc(p.short || p.name)}</span><span class="pos">${esc(p.pos)}</span></td>${td(vals)}</tr>`).join('');
+  const tot = t.totals.length ? `<tr class="tot"><td>Team</td>${td(t.totals)}</tr>` : '';
   const side = g.home.abbr === abbr ? g.home : g.away;
-  return `<table class="box"><thead><tr><th>Player</th>${COLS.map((c) => `<th>${c === '3PT' ? '3P' : c}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table>${teamRow(side)}`;
+  return `<table class="box full"><thead><tr><th>Player</th>${t.cols.map((c) => `<th>${c === '3PT' ? '3P' : c}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table>${teamRow(side)}`;
 }
 // Under the box score's Team totals: that team's page (SPEC 1; OK on a tab never navigates).
 const teamRow = (t) => `<div data-row style="padding:14px 0 6px 6px"><span class="pillbtn fx gd-tp" tabindex="-1" data-act="teampage" data-abbr="${esc(t.abbr)}">${crest(t, 's24')}${esc(t.full || t.name)} page ›</span></div>`;
@@ -35,13 +33,14 @@ function plays(s, g) {
   if (!s?.plays.length) return '<div class="t-body" style="padding:24px 0">No plays yet.</div>';
   return `<div class="plays">${s.plays.slice(0, 40).map((p) => `<div class="play"><span class="clk">${esc(ordinal(p.period))} ${esc(p.clock)}</span><span class="tm">${esc(p.team)}</span><span class="tx${p.scoring ? ' sc' : ''}">${p.scoring ? '<i></i>' : ''}${esc(p.text)}</span><span class="sco">${p.scoring ? `${esc(p.away)}–${esc(p.home)}` : ''}</span></div>`).join('')}</div>`;
 }
+// Team stats (games.js teamStatsOf): two columns of compared lines, so they fit with little scrolling.
 function teamStats(s, g) {
-  const a = s?.teams.find((t) => t.abbr === g.away.abbr)?.stats, h = s?.teams.find((t) => t.abbr === g.home.abbr)?.stats;
-  if (!a || !h) return none(g, s, 'Team stats');
+  const list = teamStatsOf(s, g);
+  if (!list.length) return none(g, s, 'Team stats');
   const mineAway = g.away.abbr === favTeam();
-  return `<div class="tstats">${STATS.filter(([k]) => a[k] != null).map(([k, n]) => {
-    const av = parseFloat(a[k]) || 0, hv = parseFloat(h[k]) || 0, sum = av + hv || 1;
-    return `<div class="ts"><span class="v l">${esc(a[k])}</span><div class="bars"><div class="bar ${mineAway ? 'l' : 'r'}" style="width:${(av / sum) * 100}%"></div><div class="bar ${mineAway ? 'r' : 'l'}" style="width:${(hv / sum) * 100}%"></div></div><span class="v">${esc(h[k])}</span><span class="n">${n}</span></div>`;
+  return `<div class="tstats two">${list.map(({ label, away, home }) => {
+    const av = parseFloat(away) || 0, hv = parseFloat(home) || 0, sum = av + hv || 1;
+    return `<div class="ts"><span class="v l">${esc(away)}</span><div class="bars"><div class="bar ${mineAway ? 'l' : 'r'}" style="width:${(av / sum) * 100}%"></div><div class="bar ${mineAway ? 'r' : 'l'}" style="width:${(hv / sum) * 100}%"></div></div><span class="v">${esc(home)}</span><span class="n">${esc(label)}</span></div>`;
   }).join('')}</div>`;
 }
 

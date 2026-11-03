@@ -180,10 +180,12 @@ const OVERFLOW = (sel) => {
     await qe(() => window.__tunerTest.push('game', { id: '401909851' }));
     check('Game page: tabs Summary, Box score, Plays, Replays', await qwait(() => [...document.querySelectorAll('[data-screen="game"] [data-gtab]')].map((t) => t.textContent).join() === 'Summary,Box score,Plays,Replays'));
     check('Game: summary (top performers, team stats)', await qwait(() => document.querySelectorAll('.gm-ts .r').length >= 4 && document.querySelectorAll('.gm-tp').length >= 3, 8000));
+    check('Game: team stats with fouls, the bonus, timeouts left, bench points', await qe(() => ['teamFouls', 'inBonus', 'timeoutsLeft', 'benchPoints', 'leadChanges'].every((k) => document.querySelector(`.gm-ts [data-ts="${k}"]`))));
     await qshot('game-summary');
     await fits('Game summary');
     await qtap('[data-gtab="box"]');
     check('Game: box score', await qwait(() => document.querySelectorAll('.gm-box tbody tr').length >= 5));
+    check('Game: the whole box score (14 columns: +/-, fouls, steals…)', await qe(() => { const h = [...document.querySelectorAll('.gm-box thead th')].map((t) => t.textContent); return h.length === 15 && ['PF', '+/-', 'STL', 'BLK', 'TO', 'OREB', 'FT'].every((k) => h.includes(k)); }));
     await qtap('[data-gside="home"]');
     check('Game: the other team\'s box', await qwait(() => document.querySelector('[data-gside="home"]').classList.contains('sel') && document.querySelectorAll('.gm-box tbody tr').length >= 5));
     await qshot('game-box');

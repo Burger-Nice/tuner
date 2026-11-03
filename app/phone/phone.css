@@ -745,6 +745,12 @@ body.playing #toast { bottom: calc(var(--sb) + 20px); }
 .gm-seg button, .gm-tabs button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; padding: 0 4px; }
 .gm-none { margin-top: 18px; font: var(--ph-sub); }
 .gm-box { margin-top: 12px; }
+/* the whole box score (14 columns): it scrolls sideways inside the page, the player column fixed; min-width 0 so WebKit
+   can't widen the page to the table, and cells never wrap */
+.gm-box { min-width: 0; max-width: calc(100vw - 32px); overscroll-behavior-x: contain; }
+.gm-box .box-t { width: max-content; min-width: 100%; }
+.gm-box .box-t th, .gm-box .box-t td { white-space: nowrap; min-width: 0; padding-left: 7px; padding-right: 7px; }
+.gm-box .box-t td:first-child, .gm-box .box-t th:first-child { padding-left: 0; }
 .gm-tps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 16px 0; }
 .gm-tps .col { border-radius: 14px; background: var(--a-surface-1); box-shadow: inset 0 0 0 1px var(--a-border); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .gm-tp { display: flex; align-items: center; gap: 8px; font: var(--ph-sub); }

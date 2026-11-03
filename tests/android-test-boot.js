@@ -91,11 +91,27 @@ window.TUNER_TEST = true;
       await press(['DPAD_LEFT'], 'player-options');
       await press(['BACK'], 'player-options-closed');
       await press(['DPAD_RIGHT'], 'player-right', 800);
-      // Sync score from the game panel's Sync tab: the clock list comes up
-      window.__lastClocks = -1;
-      await press(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'player-sync-tab', 600);
+      // The whole box score a set of columns at a time: OK shows More stats; the Team tab
+      await press(['DPAD_CENTER'], 'player-box-more-stats', 600);
+      await press(['DPAD_CENTER'], 'player-box-more-stats-2', 600);
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'player-team-stats', 600);
+      // Sync score from the game panel's Sync tab: the player reads ESPN itself (the fake one) and lists the clocks
+      window.__lastClocks = -1; window.__sync = null; window.__synced = null;
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT'], 'player-sync-tab', 600);
       await press(['DPAD_CENTER'], 'player-sync', 4000);
-      check('sync score lists the game clocks', window.__lastClocks > 0);
+      await until(() => window.__sync, 8000);
+      check('sync score lists the game clocks, read by the player', window.__sync?.from === 'native' && window.__sync?.state === 'list' && window.__lastClocks > 0, { sync: window.__sync });
+      await press(['DPAD_CENTER'], 'player-sync-picked', 1500);   // OK on the clock: stored as the channel's delay
+      await until(() => window.__synced != null, 8000);
+      check('sync: the picked clock is stored', typeof window.__synced === 'number', { synced: window.__synced });
+      // Sync again with the app not answering at all (as when the TV holds its page back behind the player)
+      window.__noClockAnswer = true; window.__sync = null;
+      await press(['DPAD_RIGHT'], 'player-right-again', 800);
+      await press(['DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT', 'DPAD_RIGHT'], 'player-sync-tab-again', 600);
+      await press(['DPAD_CENTER'], 'player-sync-no-app', 4000);
+      await until(() => window.__sync, 8000);
+      check('sync works without the app answering', window.__sync?.state === 'list' && window.__sync?.count > 0, { sync: window.__sync });
+      window.__noClockAnswer = false;
       await press(['BACK'], 'player-sync-closed');
       await press(['BACK'], 'player-right-closed');
       check('still in the player', state()?.watching);

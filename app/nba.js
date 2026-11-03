@@ -109,10 +109,20 @@
         })),
       };
     });
-    const teams = (d.boxscore?.teams || []).map((t) => ({
-      abbr: t.team?.abbreviation || '',
-      stats: Object.fromEntries((t.statistics || []).map((s) => [s.name, s.displayValue])),
-    }));
+    // Team stats: ESPN's, plus from the header the team fouls this quarter, the bonus and the timeouts left, and the
+    // bench's points from the box score
+    const compOf = new Map((comp.competitors || []).map((c) => [c.team?.abbreviation, c]));
+    const teams = (d.boxscore?.teams || []).map((t) => {
+      const abbr = t.team?.abbreviation || '', c = compOf.get(abbr) || {}, f = c.fouls || {};
+      const stats = Object.fromEntries((t.statistics || []).map((s) => [s.name, s.displayValue]));
+      const fouls = f.teamFoulsCurrent ?? f.teamFouls;
+      if (fouls != null) stats.teamFouls = String(fouls);
+      if (f.bonusState) stats.inBonus = f.bonusState !== 'NONE' ? 'Yes' : 'No';
+      if (c.timeoutsRemaining != null) stats.timeoutsLeft = String(c.timeoutsRemaining);
+      const b = box.find((x) => x.abbr === abbr), pi = b ? b.labels.indexOf('PTS') : -1;
+      if (pi >= 0 && b.players.some((p) => !p.dnp)) stats.benchPoints = String(b.players.filter((p) => !p.starter && !p.dnp).reduce((n, p) => n + (parseInt(p.stats[pi], 10) || 0), 0));
+      return { abbr, stats };
+    });
     const all = (d.plays || []).map((p) => ({
       text: p.text || '', clock: p.clock?.displayValue || '', period: p.period?.number || 0,
       away: p.awayScore, home: p.homeScore, scoring: !!p.scoringPlay, team: teamAbbr.get(String(p.team?.id)) || '', at: Date.parse(p.wallclock) || 0,

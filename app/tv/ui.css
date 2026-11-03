@@ -290,6 +290,13 @@ table.box td.b{font-weight:700}
 table.box .pos{margin-left:8px;color:var(--a-text-3);font-weight:500}
 table.box tr.st td:first-child{font-weight:650}
 table.box tr.tot td{font-weight:700;border-top:2px solid var(--a-border-strong)}
+/* the whole box score (14 columns): a narrower name column and tight cells, so it fits the safe area */
+table.box.full{table-layout:fixed}
+table.box.full th,table.box.full td{padding:0 4px;width:44px}
+table.box.full th{padding:2px 4px 4px;letter-spacing:.02em}
+table.box.full th:first-child,table.box.full td:first-child{width:178px;padding-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.box.full .nm{display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+table.box.full .pos{margin-left:6px}
 .plays{display:flex;flex-direction:column;gap:4px}
 .play{display:flex;align-items:center;gap:14px;height:40px;padding:0 14px;border-radius:var(--a-radius-poster);background:var(--a-surface-1);border:1px solid var(--a-border)}
 .play .clk{width:72px;font:500 var(--a-size-caption)/18px var(--a-font-text);color:var(--a-text-3)}
@@ -298,6 +305,7 @@ table.box tr.tot td{font-weight:700;border-top:2px solid var(--a-border-strong)}
 .play .tx.sc{color:var(--a-text-1);font-weight:650}.play .tx i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--a-pink);margin-right:10px}
 .play .sco{font:700 15px/20px var(--a-font-text);color:var(--a-text-1)}
 .tstats{display:flex;flex-direction:column;gap:12px;width:640px;margin:6px auto 0}
+.tstats.two{display:grid;grid-template-columns:1fr 1fr;column-gap:56px;row-gap:12px;width:820px}
 .ts{display:grid;grid-template-columns:56px 1fr 56px;grid-template-rows:auto auto;column-gap:14px;align-items:center}
 .ts .n{grid-column:1/4;text-align:center;font:650 var(--a-size-label)/var(--a-lh-label) var(--a-font-text);letter-spacing:.06em;text-transform:uppercase;color:var(--a-text-3);order:-1;margin-bottom:2px}
 .ts .v{font:700 20px/24px var(--a-font-text);color:var(--a-text-1);text-align:right}.ts .v:last-of-type{text-align:left}

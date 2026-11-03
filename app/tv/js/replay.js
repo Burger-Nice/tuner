@@ -11,7 +11,7 @@ import { pastFor, pastNow, guideNow, onNow } from './guide.js';
 import {
   nba, gameById, shielded, hidden, isSeen, markSeen, reveal, replay, openReplay, closeReplay, replayProgress, asAired, chaptersOf,
   chapterAt, archiveShift, setArchiveShift, shiftKnown, replayDelay, setReplayDelay, setReplayPick, replayPick, wantSummary,
-  fetchSummary, recentClocks, ordinal, isSporty, shieldMode, behindReplay, liveByClock, watchedOn,
+  fetchSummary, recentClocks, ordinal, isSporty, shieldMode, behindReplay, liveByClock, watchedOn, boxTable, teamStatsOf,
 } from './games.js';
 import { findReplays, replaysOf, bestReplay, nightLabel, keptUntil, videosNaming, videoMask, matchVideo, WINDOW, etDate, datesIn, programmeView, keptFor, keptWords } from './catchup.js';
 import { playLive, playVod, ctx, replayNative, playerCommand, startReplaySession } from './player.js';
@@ -67,18 +67,14 @@ function airedGame(g, src, played) {
   const wall = airedOf(src, played), at = wall - MARGIN, v = asAired(g, at);
   const ch = chaptersOf(g.id), boxOk = ch.buzzerAt && wall >= ch.buzzerAt + 2 * MIN;
   const s = nba.sums.get(g.id);
-  const cols = ['MIN', 'PTS', 'REB', 'AST', 'FG'];
-  const team = (side) => {
-    const b = boxOk && s?.box.find((x) => x.abbr === g[side].abbr);
-    if (!b) return { cols, rows: [] };
-    const ix = cols.map((l) => b.labels.indexOf(l));
-    return { cols, rows: b.players.filter((p) => !p.dnp).map((p) => [p.short || p.name, ...ix.map((i) => (i >= 0 ? String(p.stats[i] ?? '') : ''))]) };
-  };
+  const team = (side) => { const t = boxTable(boxOk ? s : null, g[side].abbr); return { cols: t.cols, rows: t.rows.map((r) => [r.p.short || r.p.name, ...r.vals]) }; };
   return {
     ...base, loading: !v, score: v?.score || null, clock: v ? v.label : 'Tip-off', moment: v?.state === 'in' ? `${v.label} · as aired` : 'Before tip-off',
     chapters: (v?.chapters || []).map((c) => ({ key: c.key, label: c.label, at: Math.max(0, posOf(src, c.at)) })),
     plays: (v?.plays || []).map((p) => ({ clock: `${ordinal(p.period)} ${p.clock}`, team: p.team || '', text: p.text || '', scoring: !!p.scoring, score: p.scoring ? `${p.away}–${p.home}` : '' })),
-    box: { away: team('away'), home: team('home') }, boxReady: !!boxOk,
+    box: { away: team('away'), home: team('home') }, boxReady: !!boxOk, teamStats: boxOk ? teamStatsOf(s, g) : [],
+    // (Sync reads ESPN in the player: the wallclock on screen is airedOffset + the position played)
+    espn: store.get('nbaBase', null) || '', airedOffset: src.windowStart - delayMs(src),
   };
 }
 
@@ -256,7 +252,7 @@ function handleReplayEvent(e) {
     if (!g || buzzerPlayed || (+e.count || 0) >= 2 || src.kind !== 'channel') { playerCommand('replay-extend', { ended: true, seen: isSeen(g), gameId: g?.id || '' }); return; }
     cur.windowMs += H;
     playerCommand('replay-extend', { source: cur.sources.indexOf(src), windowMs: cur.windowMs, links: linksOf(src, cur.windowMs) });
-  } else if (e.type === 'need' && e.what === 'clocks' && g) {
+  } else if (e.type === 'need' && e.what === 'clocks' && g && !window.__noClockAnswer) {
     // Sync in a replay: the clocks around the moment on screen; what you match is stored as the channel's replayDelay (S7)
     const src = cur.src;
     if (src.kind !== 'channel') { playerCommand('show-text', 'A video has no clock to match'); return; }

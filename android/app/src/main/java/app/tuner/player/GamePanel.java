@@ -26,7 +26,10 @@ import org.json.JSONObject;
  */
 final class GamePanel extends Overlay {
     private final LinearLayout box;
-    private int tab;            // 0 away, 1 home, 2 plays, 3 sync (a replay: see tabNames())
+    private int tab;            // live: see liveTabs() (away, home, team, plays, sync); a replay: see replayTabs()
+    private int page;           // the box score's columns: OK on a team's tab shows the next set (More stats)
+    // (all of ESPN's box score, a set at a time so it reads from the sofa; columns the app left out, as under the shield, are skipped)
+    private static final String[][] PAGES = { { "MIN", "PTS", "REB", "AST", "FG" }, { "3PT", "FT", "STL", "BLK", "TO" }, { "OREB", "DREB", "PF", "+/-" } };
     private boolean onReveal;
     private int foot;           // live: 0 the tabs, 1 Reveal, 2 From tip-off (the foot buttons, reached with ▼)
     private int qsel = -1;      // a replay's Quarters: the focused row (-1: the tabs)
@@ -47,14 +50,28 @@ final class GamePanel extends Overlay {
 
     private boolean replay() { return a.rp != null && a.rp.isGame(); }
     private boolean hidden() { return d != null && d.optBoolean("hidden") && !replay(); }
-    private int tabs() { return replay() ? replayTabs().size() : hidden() ? 2 : 4; }
+    private int tabs() { return replay() ? replayTabs().size() : liveTabs().size(); }
+    /** Live: each team's box score, the team stats, then (not under the shield) the plays and Sync. */
+    private java.util.List<String> liveTabs() {
+        java.util.List<String> t = new java.util.ArrayList<>(java.util.Arrays.asList("away", "home", "team"));
+        if (!hidden()) { t.add("plays"); t.add("sync"); }
+        return t;
+    }
+    /** The team whose box score is up ("away" / "home"), or null. */
+    private String boxSide() {
+        if (!replay()) { String lt = liveTab(); return "away".equals(lt) || "home".equals(lt) ? lt : null; }
+        String tn = tabName();
+        JSONObject aw = d == null ? null : d.optJSONObject("away"), hm = d == null ? null : d.optJSONObject("home");
+        return aw != null && tn.equals(aw.optString("abbr")) ? "away" : hm != null && tn.equals(hm.optString("abbr")) ? "home" : null;
+    }
+    private String liveTab() { java.util.List<String> t = liveTabs(); return tab < t.size() ? t.get(tab) : ""; }
     /** A replay's tabs: Quarters · Plays · (the box score, once ready) · Sync; a video: Sources. */
     private java.util.List<String> replayTabs() {
         java.util.List<String> t = new java.util.ArrayList<>();
         if (a.rp != null && a.rp.isVideo()) { t.add("Sources"); return t; }
         t.add("Quarters");
         t.add("Plays");
-        if (d != null && d.optBoolean("boxReady")) { JSONObject aw = d.optJSONObject("away"), hm = d.optJSONObject("home"); t.add(aw == null ? "Away" : aw.optString("abbr")); t.add(hm == null ? "Home" : hm.optString("abbr")); }
+        if (d != null && d.optBoolean("boxReady")) { JSONObject aw = d.optJSONObject("away"), hm = d.optJSONObject("home"); t.add(aw == null ? "Away" : aw.optString("abbr")); t.add(hm == null ? "Home" : hm.optString("abbr")); t.add("Team"); }
         t.add("Sync");
         return t;
     }
@@ -123,14 +140,16 @@ final class GamePanel extends Overlay {
         // tabs
         LinearLayout tabsRow = new LinearLayout(c);
         tabsRow.setPadding(Ui.dp(6), Ui.dp(4), Ui.dp(6), Ui.dp(4));
-        String[] names = { away == null ? "" : away.optString("abbr"), home == null ? "" : home.optString("abbr"), "Plays", "Sync" };
-        for (int i = 0; i < tabs(); i++) {
-            boolean f = i == tab && !onReveal;
-            TextView t = Ui.text(c, names[i], 14, i == tab ? Ui.PINK_TEXT : Ui.T2, Ui.inter650);
+        java.util.List<String> keys = liveTabs();
+        for (int i = 0; i < keys.size(); i++) {
+            String k = keys.get(i);
+            boolean f = i == tab && !onReveal, sync = "sync".equals(k);
+            String name = "away".equals(k) ? (away == null ? "" : away.optString("abbr")) : "home".equals(k) ? (home == null ? "" : home.optString("abbr")) : "team".equals(k) ? "Team" : "plays".equals(k) ? "Plays" : "Sync";
+            TextView t = Ui.text(c, name, 14, i == tab ? Ui.PINK_TEXT : Ui.T2, Ui.inter650);
             t.setGravity(Gravity.CENTER);
-            t.setPadding(Ui.dp(i == 3 ? 8 : 12), 0, Ui.dp(12), 0);
-            GradientDrawable bg = Ui.round(i == 3 ? 0 : i == tab ? Ui.S3 : Ui.S2, 999);
-            if (i == 3) { bg.setStroke(Ui.dp(2), Ui.BORDER_STRONG); t.setTextColor(Ui.T1); t.setCompoundDrawables(sized(Ui.icon("refresh", Ui.T1, 16)), null, null, null); t.setCompoundDrawablePadding(Ui.dp(4)); }
+            t.setPadding(Ui.dp(sync ? 8 : 12), 0, Ui.dp(12), 0);
+            GradientDrawable bg = Ui.round(sync ? 0 : i == tab ? Ui.S3 : Ui.S2, 999);
+            if (sync) { bg.setStroke(Ui.dp(2), Ui.BORDER_STRONG); t.setTextColor(Ui.T1); t.setCompoundDrawables(sized(Ui.icon("refresh", Ui.T1, 16)), null, null, null); t.setCompoundDrawablePadding(Ui.dp(4)); }
             if (f) bg.setStroke(Ui.dp(3), Ui.FOCUS);
             t.setBackground(bg);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, Ui.dp(30));
@@ -139,8 +158,10 @@ final class GamePanel extends Overlay {
         }
         box.addView(tabsRow);
 
-        if (tab == 2) plays(c);
-        else table(c, tab == 0 ? "away" : "home");
+        String lt = liveTab();
+        if ("plays".equals(lt)) plays(c);
+        else if ("team".equals(lt)) teamStats(c);
+        else if (!"sync".equals(lt)) table(c, lt);
 
         onReveal = foot == 1;
         if (hidden()) {
@@ -222,6 +243,7 @@ final class GamePanel extends Overlay {
         if ("Quarters".equals(tn)) quarters(c, r);
         else if ("Plays".equals(tn)) plays(c);
         else if ("Sources".equals(tn)) sources(c, r);
+        else if ("Team".equals(tn)) teamStats(c);
         else if ("Sync".equals(tn)) {
             TextView e = Ui.text(c, "OK lists the game clocks around the moment on screen. What you pick is kept for this channel's replays.", 14, Ui.T2, Ui.inter500);
             e.setPadding(Ui.dp(8), Ui.dp(10), Ui.dp(8), Ui.dp(6));
@@ -315,9 +337,15 @@ final class GamePanel extends Overlay {
             box.addView(e);
             return;
         }
-        JSONArray cols = t.optJSONArray("cols");
-        int nc = cols == null ? 0 : cols.length();
-        box.addView(tableRow(c, "", cols, nc, true, -1, cols));
+        JSONArray all = t.optJSONArray("cols");
+        java.util.List<int[]> pages = pages(all);
+        if (pages.isEmpty()) return;
+        page = Math.floorMod(page, pages.size());
+        int[] at = pages.get(page);
+        JSONArray cols = new JSONArray();
+        for (int i : at) cols.put(all.optString(i));
+        int nc = cols.length();
+        box.addView(tableRow(c, pages.size() > 1 ? "Stats " + (page + 1) + " of " + pages.size() : "", cols, nc, true, -1, cols));
         scroll = Math.max(0, Math.min(scroll, rows.length() - maxRows()));
         int bold = -1;
         for (int k = 0; k < nc; k++) if ("PTS".equals(cols.optString(k))) bold = k;
@@ -325,10 +353,70 @@ final class GamePanel extends Overlay {
             JSONArray r = rows.optJSONArray(i);
             if (r == null) continue;
             JSONArray vals = new JSONArray();
-            for (int k = 1; k < r.length(); k++) vals.put(r.optString(k));
+            for (int k : at) vals.put(r.optString(k + 1));
             View row = tableRow(c, r.optString(0), vals, nc, false, bold, cols);
             box.addView(row);
         }
+    }
+    /** The column sets on this table: indexes into its cols, each set with at least one column the app sent. */
+    private static java.util.List<int[]> pages(JSONArray cols) {
+        java.util.List<int[]> out = new java.util.ArrayList<>();
+        java.util.List<String> have = new java.util.ArrayList<>();
+        for (int i = 0; cols != null && i < cols.length(); i++) have.add(cols.optString(i));
+        java.util.Set<String> placed = new java.util.HashSet<>();
+        for (String[] p : PAGES) {
+            java.util.List<Integer> at = new java.util.ArrayList<>();
+            for (String k : p) { int i = have.indexOf(k); if (i >= 0) { at.add(i); placed.add(k); } }
+            if (!at.isEmpty()) out.add(toInts(at));
+        }
+        java.util.List<Integer> rest = new java.util.ArrayList<>();   // (any other column ESPN adds: a last set)
+        for (int i = 0; i < have.size(); i++) if (!placed.contains(have.get(i))) rest.add(i);
+        for (int i = 0; i < rest.size(); i += 5) out.add(toInts(rest.subList(i, Math.min(rest.size(), i + 5))));
+        return out;
+    }
+    private static int[] toInts(java.util.List<Integer> l) { int[] r = new int[l.size()]; for (int i = 0; i < r.length; i++) r[i] = l.get(i); return r; }
+    private int pageCount() {
+        String lt = boxSide();
+        if (d == null || lt == null) return 0;
+        JSONObject b = d.optJSONObject("box"), t = b == null ? null : b.optJSONObject(lt);
+        JSONArray rows = t == null ? null : t.optJSONArray("rows");
+        return rows == null || rows.length() == 0 ? 0 : pages(t.optJSONArray("cols")).size();
+    }
+
+    /** Team stats, away on the left and home on the right (the app sends only what the shield allows). */
+    private void teamStats(Context c) {
+        JSONArray ts = d.optJSONArray("teamStats");
+        if (ts == null || ts.length() == 0) {
+            TextView e = Ui.text(c, d.optBoolean("loading") ? "Loading the team stats…" : "No team stats yet. They appear at tip-off.", 14, Ui.T2, Ui.inter500);
+            e.setPadding(Ui.dp(8), Ui.dp(10), Ui.dp(8), Ui.dp(6));
+            box.addView(e);
+            return;
+        }
+        JSONObject away = d.optJSONObject("away"), home = d.optJSONObject("home");
+        box.addView(statRow(c, away == null ? "" : away.optString("abbr"), "", home == null ? "" : home.optString("abbr"), true));
+        scroll = Math.max(0, Math.min(scroll, ts.length() - maxRows()));
+        for (int i = scroll; i < Math.min(ts.length(), scroll + maxRows()); i++) {
+            JSONObject s = ts.optJSONObject(i);
+            if (s != null) box.addView(statRow(c, s.optString("away"), s.optString("label"), s.optString("home"), false));
+        }
+    }
+    private View statRow(Context c, String l, String name, String r, boolean head) {
+        LinearLayout row = new LinearLayout(c);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.dp(8), 0, Ui.dp(8), 0);
+        if (!head) row.setBackground(topLine());
+        TextView a = Ui.text(c, l, 14, head ? Ui.T3 : Ui.T1, head ? Ui.inter650 : Ui.inter650);
+        Ui.tabular(a);
+        row.addView(a, new LinearLayout.LayoutParams(Ui.dp(52), -2));
+        TextView n = Ui.line(c, name, 14, Ui.T2, Ui.inter500);
+        n.setGravity(Gravity.CENTER);
+        row.addView(n, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView b = Ui.text(c, r, 14, head ? Ui.T3 : Ui.T1, Ui.inter650);
+        b.setGravity(Gravity.END);
+        Ui.tabular(b);
+        row.addView(b, new LinearLayout.LayoutParams(Ui.dp(52), -2));
+        row.setLayoutParams(new LinearLayout.LayoutParams(-1, Ui.dp(head ? 22 : 25)));
+        return row;
     }
 
     /** One box-score line; FG (made-attempted, "7-12") gets a wider column than the counts. */
@@ -343,7 +431,8 @@ final class GamePanel extends Overlay {
             TextView v = Ui.text(c, vals == null ? "" : vals.optString(k), 14, head ? Ui.T3 : Ui.T1, head ? Ui.inter650 : k == bold ? Ui.inter700 : Ui.inter500);
             v.setGravity(Gravity.END);
             Ui.tabular(v);
-            boolean wide = cols != null && cols.optString(k).contains("FG") || cols != null && cols.optString(k).contains("3P");
+            String cn = cols == null ? "" : cols.optString(k);
+            boolean wide = cn.contains("FG") || cn.contains("3P") || cn.equals("FT");
             r.addView(v, new LinearLayout.LayoutParams(Ui.dp(wide ? 54 : 38), -2));
         }
         r.setLayoutParams(new LinearLayout.LayoutParams(-1, Ui.dp(head ? 22 : 25)));
@@ -396,6 +485,7 @@ final class GamePanel extends Overlay {
                 if (repeat || qsel >= 0) return true;
                 tab = Math.max(0, Math.min(tabs() - 1, tab + (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1)));
                 scroll = 0;
+                page = 0;
                 refresh();
                 return true;
             case KeyEvent.KEYCODE_DPAD_DOWN:
@@ -410,6 +500,7 @@ final class GamePanel extends Overlay {
                 if ("Sync".equals(tn)) { a.openSync(); return true; }
                 if ("Quarters".equals(tn) && qsel >= 0) { Timeline.Mark k = quarterMarks(r).get(qsel); a.closeOverlay(); r.seek(Math.max(0, k.at - 10000), false); return true; }
                 if ("Sources".equals(tn) && qsel >= 0) { int n = qsel; a.closeOverlay(); if (n != r.si) r.pickSource(n); return true; }
+                if (pageCount() > 1) { page++; refresh(); return true; }   // More stats
                 a.closeOverlay();
                 return true;
         }
@@ -424,6 +515,7 @@ final class GamePanel extends Overlay {
                 if (foot > 0 || repeat) return true;
                 tab = Math.max(0, Math.min(tabs() - 1, tab + (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1)));
                 scroll = 0;
+                page = 0;
                 refresh();
                 return true;
             case KeyEvent.KEYCODE_DPAD_DOWN:
@@ -441,7 +533,8 @@ final class GamePanel extends Overlay {
                 if (repeat) return true;
                 if (foot == 1) { foot = 0; a.revealGame(); return true; }
                 if (foot == 2) { foot = 0; a.closeOverlay(); a.fromTipoff(); return true; }
-                if (tab == 3) { a.openSync(); return true; }
+                if ("sync".equals(liveTab())) { a.openSync(); return true; }
+                if (pageCount() > 1) { page++; refresh(); return true; }   // More stats
                 a.closeOverlay();
                 return true;
         }
@@ -451,10 +544,12 @@ final class GamePanel extends Overlay {
     /** The table or the plays are scrolled to their end (▼ then goes on to the foot button). */
     private boolean scrollEnd() {
         JSONArray rows = null;
-        if (d != null && tab == 2) rows = d.optJSONArray("plays");
-        else if (d != null && tab < 2) { JSONObject b = d.optJSONObject("box"), t = b == null ? null : b.optJSONObject(tab == 0 ? "away" : "home"); rows = t == null ? null : t.optJSONArray("rows"); }
-        int n = rows == null ? 0 : rows.length(), max = tab == 2 ? 7 : maxRows();
-        return scroll >= Math.max(0, n - max) || tab == 3;
+        String lt = liveTab();
+        if (d != null && "plays".equals(lt)) rows = d.optJSONArray("plays");
+        else if (d != null && "team".equals(lt)) rows = d.optJSONArray("teamStats");
+        else if (d != null && ("away".equals(lt) || "home".equals(lt))) { JSONObject b = d.optJSONObject("box"), t = b == null ? null : b.optJSONObject(lt); rows = t == null ? null : t.optJSONArray("rows"); }
+        int n = rows == null ? 0 : rows.length(), max = "plays".equals(lt) ? 7 : maxRows();
+        return scroll >= Math.max(0, n - max) || "sync".equals(lt);
     }
 
     @Override String[][] hints() {
@@ -463,12 +558,14 @@ final class GamePanel extends Overlay {
             if ("Quarters".equals(tn) || "Sources".equals(tn)) return qsel >= 0 ? new String[][] { { "OK", "Quarters".equals(tn) ? "Jump there" : "Play this" }, { "▲ ▼", "Move" }, { "Back", "Close" } }
                     : new String[][] { { "◀ ▶", "Tabs" }, { "▼", "Quarters".equals(tn) ? "Quarters" : "Sources" }, { "Back", "Close" } };
             if ("Sync".equals(tn)) return new String[][] { { "OK", "Sync score" }, { "◀ ▶", "Tabs" }, { "Back", "Close" } };
+            if (pageCount() > 1) return new String[][] { { "◀ ▶", "Tabs" }, { "▲ ▼", "Scroll" }, { "OK", "More stats" }, { "Back", "Close" } };
             return new String[][] { { "◀ ▶", "Tabs" }, { "▲ ▼", "Scroll" }, { "Back", "Close" } };
         }
         if (foot == 2) return new String[][] { { "OK", "From tip-off" }, { "▲", "Back up" }, { "Back", "Close" } };
         if (hidden()) return onReveal ? new String[][] { { "OK", "Reveal score" }, { "▲", "Tabs" }, { "Back", "Close" } }
                 : new String[][] { { "◀ ▶", "Tabs" }, { "▼", "Reveal" }, { "OK", "Close" }, { "Back", "Close" } };
-        if (tab == 3) return new String[][] { { "OK", "Sync score" }, { "◀ ▶", "Tabs" }, { "Back", "Close" } };
+        if ("sync".equals(liveTab())) return new String[][] { { "OK", "Sync score" }, { "◀ ▶", "Tabs" }, { "Back", "Close" } };
+        if (pageCount() > 1) return new String[][] { { "◀ ▶", "Tabs" }, { "▲ ▼", "Scroll" }, { "OK", "More stats" }, { "Back", "Close" } };
         return new String[][] { { "◀ ▶", "Tabs" }, { "▲ ▼", "Scroll" }, { "OK", "Close" }, { "Back", "Close" } };
     }
 }

@@ -1705,13 +1705,24 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     // Match the clock: clocks only. The list opens on the stored delay's clock; newer clocks are collapsed behind one row.
+    // The player reads the clocks from ESPN itself (Espn.java): behind the player the app's page runs throttled by the
+    // WebView, so asking it came back too late. Only without a game id does it still ask the app.
     private long syncSeenAt;
+    private int syncToken;
     // (if the app doesn't answer in time, say so: Sync must never look like nothing happened)
     private final Runnable syncSlow = () -> showText("The game clocks didn't come in. Try Sync again in a moment.", 5000);
+    private void syncState(String state, int count, String text) {
+        JSObject e = event("sync-state");
+        e.put("state", state); e.put("count", count); e.put("from", "native"); e.put("text", text);
+        TunerPlayerPlugin.emit(e);
+    }
     void openSync() {
         if (rp != null && !rp.gameOnChannel()) { showText("A video has no clock to match", 3000); return; }
         syncSeenAt = System.currentTimeMillis();
         handler.removeCallbacks(syncSlow);
+        String id = game == null ? "" : game.optString("id");
+        if (rp != null && (game == null || !game.has("airedOffset"))) id = "";
+        if (!id.isEmpty()) { syncFromEspn(id); return; }
         handler.postDelayed(syncSlow, 8000);
         showText("Getting the game clocks…", 8000);
         if (rp != null) { rp.askClocks(); return; }
@@ -1719,6 +1730,44 @@ public class PlayerActivity extends AppCompatActivity {
         e.put("what", "clocks");
         e.put("seenAt", syncSeenAt);
         TunerPlayerPlugin.emit(e);
+    }
+    private void syncFromEspn(String id) {
+        final boolean inReplay = rp != null;
+        final long played = inReplay ? rp.played() : -1;
+        final long seenAt = inReplay ? game.optLong("airedOffset") + played : syncSeenAt;   // (a replay: the wallclock moment on screen)
+        final int delay = game.optInt("delay", 60);
+        final String note = inReplay ? "Stored for " + rp.src().chName + "'s replays." : "Stored for " + (cur == null || cur.title.isEmpty() ? "this channel" : cur.title) + ". Scores everywhere follow it.";
+        final int token = ++syncToken;
+        showText("Getting the game clocks…", 11000);
+        Espn.fetch(game.optString("espn"), id, 10000, new Espn.Done() {
+            @Override public void ok(Espn.Summary s) {
+                if (token != syncToken || isFinishing()) return;
+                if (!inReplay && id.equals(snapsFor)) { addSnap(s); refreshGame(); }
+                JSONArray list = Espn.clocks(s, seenAt);
+                if (list.length() == 0) {
+                    String t = inReplay ? "ESPN has no plays from around this moment" : "ESPN has no plays from the last few minutes yet";
+                    showText(t, 4000);
+                    syncState("empty", 0, t);
+                    return;
+                }
+                int current = 0;
+                if (!inReplay) {   // the list opens on the clock the stored delay points at
+                    long target = seenAt - delay * 1000L;
+                    for (int k = 0; k < list.length(); k++) if (Math.abs(list.optJSONObject(k).optLong("at") - target) < Math.abs(list.optJSONObject(current).optLong("at") - target)) current = k;
+                }
+                try {
+                    JSONObject d = new JSONObject().put("seenAt", seenAt).put("list", list).put("current", current).put("note", note);
+                    if (inReplay) d.put("replay", true).put("played", played);
+                    showClocks(d, false);
+                } catch (Exception ignored) {}
+                syncState("list", list.length(), "");
+            }
+            @Override public void fail(String why) {
+                if (token != syncToken || isFinishing()) return;
+                showText(why + ". Try Sync again in a moment.", 5000);
+                syncState("error", 0, why);
+            }
+        });
     }
     private void showClocks(JSONObject d, boolean expanded) {
         handler.removeCallbacks(syncSlow);
@@ -1755,6 +1804,16 @@ public class PlayerActivity extends AppCompatActivity {
                 ev.put("at", at);
                 ev.put("seenAt", seenAt);
                 if (replayClocks && playedAt >= 0) ev.put("played", playedAt);   // a replay: where the picture showed that clock
+                if (!replayClocks) {   // live: said and shown here at once (the app stores it when its page next runs)
+                    int sec = (int) Math.max(0, Math.min(600, Math.round((seenAt - at) / 1000.0) - 1));
+                    ev.put("said", true);
+                    TunerPlayerPlugin.emit(ev);
+                    showText("Synced · " + sec + " s behind live", 4000);
+                    lagMs = 0; if (stallAt > 0) stallAt = SystemClock.uptimeMillis(); sentLag = -1; sendLag();
+                    if (gameApp != null) try { gameApp.put("delay", sec).put("synced", sec).put("delayed", sec); } catch (Exception ignored) {}
+                    refreshGame();
+                    return;
+                }
                 TunerPlayerPlugin.emit(ev);
             };
             items.add(it);
@@ -1767,6 +1826,56 @@ public class PlayerActivity extends AppCompatActivity {
         p.hintKeys = curIdx > 0 && !expanded ? new String[][] { { "OK", "This clock" }, { "▲", "Newer" }, { "▼", "Older" }, { "Back", "Options" } }
                 : new String[][] { { "OK", "This clock" }, { "▲ ▼", "Move" }, { "Back", "Options" } };
         show(p);
+    }
+
+    // ---------- the game, live, from ESPN while the player is in front ----------
+    // The app sends the game at the score delay, but behind the player its page runs throttled, so the panel and the score
+    // on the picture went stale. The player reads ESPN's summary itself every 15 s while a linked game is on, keeps the
+    // copies, and lays the one at the delay (the stored delay + the stall lag, as games.js delayed()) over the app's, when
+    // it's newer than what the app had. The shield and the columns stay as the app chose them (Espn.over).
+    private JSONObject gameApp;   // the game as the app last sent it
+    private final ArrayList<Espn.Summary> snaps = new ArrayList<>();   // oldest first
+    private String snapsFor = "";
+    private long feedFetchedAt;
+    private boolean feedBusy;
+    private final Runnable feedTick = this::feedTick;
+    private void feedTick() {
+        handler.removeCallbacks(feedTick);
+        if (stopped || rp != null || !live || snapsFor.isEmpty() || gameApp == null) return;
+        handler.postDelayed(feedTick, 5000);
+        refreshGame();   // (the moment at the delay moves on between reads)
+        if (feedBusy || SystemClock.uptimeMillis() - feedFetchedAt < 15000) return;
+        Espn.Summary last = snaps.isEmpty() ? null : snaps.get(snaps.size() - 1);
+        if (last != null && !"in".equals(last.state) && SystemClock.uptimeMillis() - feedFetchedAt < 60000) return;   // before tip-off and after the final: once a minute
+        final String id = snapsFor;
+        feedBusy = true;
+        feedFetchedAt = SystemClock.uptimeMillis();
+        Espn.fetch(gameApp.optString("espn"), id, 10000, new Espn.Done() {
+            @Override public void ok(Espn.Summary s) { feedBusy = false; if (id.equals(snapsFor)) { addSnap(s); refreshGame(); } }
+            @Override public void fail(String why) { feedBusy = false; }
+        });
+    }
+    private void addSnap(Espn.Summary s) {
+        snaps.add(s);
+        long keep = s.fetchedAt - (delayMs() + 120000);
+        while (snaps.size() > 2 && snaps.get(1).fetchedAt < keep) snaps.remove(0);
+    }
+    private long delayMs() { return (gameApp == null ? 60 : gameApp.optInt("delay", 60)) * 1000L + lagMs; }
+    private JSONObject withFeed(JSONObject app) {
+        if (app == null || rp != null || app.optBoolean("replay") || snaps.isEmpty()) return app;
+        long target = System.currentTimeMillis() - delayMs();
+        Espn.Summary pick = null;
+        for (Espn.Summary s : snaps) if (s.fetchedAt <= target) pick = s;
+        if (pick == null || pick.fetchedAt <= app.optLong("asOf")) return app;
+        return Espn.over(app, pick);
+    }
+    private void refreshGame() {
+        if (gameApp == null || rp != null) return;
+        JSONObject n = withFeed(gameApp);
+        if (game != null && n.toString().equals(game.toString())) return;
+        game = n;
+        if (open instanceof GamePanel) open.refresh();
+        updateBug();
     }
 
     void revealGame() {
@@ -2353,14 +2462,17 @@ public class PlayerActivity extends AppCompatActivity {
                 case "lag-reset": lagMs = 0; if (stallAt > 0) stallAt = SystemClock.uptimeMillis(); sentLag = -1; sendLag(); break;
                 case "linked": {
                     gameLinked = "true".equals(arg);
-                    if (!gameLinked) { game = null; if (open instanceof GamePanel) closeOverlay(); }
+                    if (!gameLinked) { game = null; gameApp = null; if (open instanceof GamePanel) closeOverlay(); }
                     if (banner.getVisibility() == View.VISIBLE) fillBanner();
                     hintsChanged();
                     updateBug();
                     break;
                 }
                 case "game": {
-                    game = arg == null || arg.isEmpty() ? null : new JSONObject(arg);
+                    gameApp = arg == null || arg.isEmpty() ? null : new JSONObject(arg);
+                    String gid = gameApp == null || gameApp.optBoolean("replay") ? "" : gameApp.optString("id");
+                    if (!gid.equals(snapsFor)) { snaps.clear(); snapsFor = gid; handler.removeCallbacks(feedTick); if (!gid.isEmpty()) handler.post(feedTick); }
+                    game = withFeed(gameApp);
                     if (rp != null) rp.game(game);
                     if (open instanceof GamePanel) open.refresh();
                     updateBug();
@@ -2621,6 +2733,7 @@ public class PlayerActivity extends AppCompatActivity {
     @Override protected void onStart() {
         super.onStart();
         stopped = false;
+        handler.post(feedTick);
         if (player == null) return;
         // Back after a while on live: start from now rather than an old position.
         if (live && stoppedAt > 0 && System.currentTimeMillis() - stoppedAt > 10000) tuneTo(index < 0 ? 0 : index, false);

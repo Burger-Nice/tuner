@@ -7,7 +7,7 @@
 import { hm } from '../tv/js/util.js';
 import { on, S, store, scoped } from '../tv/js/state.js';
 import { catalog, ensure } from '../tv/js/catalog.js';
-import { nba, gameById, show, clockText, ordinal, wantSummary, summaryOf, holdGame, bestChannel, findFeeds, favTeam, recordFor, shielded, behindReplay, liveByClock, replayProgress, replayPick, setReplayPick, isSeen, watchedOn, shieldMode } from '../tv/js/games.js';
+import { nba, gameById, show, clockText, ordinal, wantSummary, summaryOf, holdGame, bestChannel, findFeeds, favTeam, recordFor, shielded, behindReplay, liveByClock, replayProgress, replayPick, setReplayPick, isSeen, watchedOn, shieldMode, boxTable, teamStatsOf } from '../tv/js/games.js';
 import { findReplays, replaysOf, replaysLooked, replaysBusy, keptUntil, nightLabel, keptFor, keptWords, videosNaming, videoMask, matchVideo } from '../tv/js/catchup.js';
 import { watchFromTipoff, resumeGame, lookAgain, playVideoFor } from '../tv/js/replay.js';
 import { playLive } from '../tv/js/player.js';
@@ -21,8 +21,6 @@ import { ringFor } from './home.js';
 const { NBA } = window;
 const tune = (ch) => playLive(ch, ringFor(ch), 'All channels');
 const team = (t) => ({ ...t, logo: t.logo || NBA.logoFor(t.abbr) });
-const STATS = [['fieldGoalPct', 'Field goal %'], ['threePointFieldGoalPct', '3-point %'], ['freeThrowPct', 'Free throw %'], ['totalRebounds', 'Rebounds'], ['assists', 'Assists'], ['totalTurnovers', 'Turnovers'], ['steals', 'Steals'], ['blocks', 'Blocks'], ['pointsInPaint', 'Points in the paint'], ['fastBreakPoints', 'Fast-break points'], ['largestLead', 'Largest lead']];
-const COLS = ['MIN', 'PTS', 'REB', 'AST', 'FG', '3PT', '+/-'];
 const TABS = [['sum', 'Summary'], ['box', 'Box score'], ['plays', 'Plays'], ['replays', 'Replays']];
 
 let gEl = null, gId = null, gTab = 'sum', gSide = 'away';
@@ -45,25 +43,24 @@ function summaryHtml(g, s) {
   };
   const ba = s.box.find((b) => b.abbr === g.away.abbr), bh = s.box.find((b) => b.abbr === g.home.abbr);
   const perf = ba || bh ? `<div class="sec-h" style="margin-top:20px">Top performers</div><div class="gm-tps nbz"><div class="col">${crest(team(g.away), 26)}${lead(ba)}</div><div class="col">${crest(team(g.home), 26)}${lead(bh)}</div></div>` : '';
-  const a = s.teams.find((t) => t.abbr === g.away.abbr)?.stats, h = s.teams.find((t) => t.abbr === g.home.abbr)?.stats;
-  const mineAway = g.away.abbr === favTeam();
-  const ts = a && h ? `<div class="sec-h" style="margin-top:22px">Team stats</div><div class="gm-ts">${STATS.filter(([k]) => a[k] != null).map(([k, n]) => {
-    const av = parseFloat(a[k]) || 0, hv = parseFloat(h[k]) || 0, sum = av + hv || 1;
-    return `<div class="r nbz"><span class="v">${esc(a[k])}</span><span class="n ellipsis">${n}</span><span class="v r2">${esc(h[k])}</span><div class="bars nbz"><i class="${mineAway ? 'me' : ''}" style="width:${((av / sum) * 100).toFixed(1)}%"></i><i class="${mineAway ? '' : 'me'}" style="width:${((hv / sum) * 100).toFixed(1)}%"></i></div></div>`;
+  const mineAway = g.away.abbr === favTeam(), list = teamStatsOf(s, g);   // (games.js: the same lines as the TV)
+  const ts = list.length ? `<div class="sec-h" style="margin-top:22px">Team stats</div><div class="gm-ts">${list.map(({ key, label, away, home }) => {
+    const av = parseFloat(away) || 0, hv = parseFloat(home) || 0, sum = av + hv || 1;
+    return `<div class="r nbz" data-ts="${esc(key)}"><span class="v">${esc(away)}</span><span class="n ellipsis">${esc(label)}</span><span class="v r2">${esc(home)}</span><div class="bars nbz"><i class="${mineAway ? 'me' : ''}" style="width:${((av / sum) * 100).toFixed(1)}%"></i><i class="${mineAway ? '' : 'me'}" style="width:${((hv / sum) * 100).toFixed(1)}%"></i></div></div>`;
   }).join('')}</div>` : none(g, s, 'Team stats');
   return `${perf}${ts}${teamsRow}`;
 }
 function boxHtml(g, s) {
   const side = gSide === 'home' ? g.home : g.away;
   const seg = `<div class="lb-seg gm-seg"><button class="${gSide === 'away' ? 'sel' : ''}" data-gside="away">${esc(g.away.name)}</button><button class="${gSide === 'home' ? 'sel' : ''}" data-gside="home">${esc(g.home.name)}</button></div>`;
-  const b = s?.box.find((x) => x.abbr === side.abbr);
-  if (!b || !b.players.length) return `${seg}${none(g, s, 'Box score')}`;
-  const idx = COLS.map((c) => b.labels.indexOf(c));
-  const played = b.players.filter((p) => !p.dnp), out = b.players.filter((p) => p.dnp);
-  const rows = played.map((p) => `<tr class="${p.starter ? 'st' : ''}"><td><span class="pc"><span class="nm">${esc(p.short || p.name)}</span><small>${esc(p.pos)}${p.starter ? ' · starter' : ''}</small></span></td>${idx.map((i, k) => `<td${COLS[k] === 'PTS' ? ' class="b"' : ''}>${i >= 0 ? esc(p.stats[i] ?? '') : ''}</td>`).join('')}</tr>`).join('');
-  const tot = b.totals.length ? `<tr class="tot"><td>Team</td>${idx.map((i, k) => `<td${COLS[k] === 'PTS' ? ' class="b"' : ''}>${i >= 0 ? esc(b.totals[i] ?? '') : ''}</td>`).join('')}</tr>` : '';
+  // the whole box score (games.js boxTable: ESPN's 14 columns), sideways with the player column fixed
+  const t = boxTable(s, side.abbr), out = t.dnp;
+  if (!t.rows.length) return `${seg}${none(g, s, 'Box score')}`;
+  const td = (vals) => vals.map((v, k) => `<td${t.cols[k] === 'PTS' ? ' class="b"' : ''}>${esc(v)}</td>`).join('');
+  const rows = t.rows.map(({ p, vals }) => `<tr class="${p.starter ? 'st' : ''}"><td><span class="pc"><span class="nm">${esc(p.short || p.name)}</span><small>${esc(p.pos)}${p.starter ? ' · starter' : ''}</small></span></td>${td(vals)}</tr>`).join('');
+  const tot = t.totals.length ? `<tr class="tot"><td>Team</td>${td(t.totals)}</tr>` : '';
   const dnp = out.length ? `<div class="note">Didn’t play: ${out.map((p) => `${esc(p.short || p.name)}${p.reason ? ` (${esc(p.reason.toLowerCase())})` : ''}`).join(', ')}</div>` : '';
-  return `${seg}<div class="tbl gm-box" data-x="box:${esc(side.abbr)}"><table class="box-t ro"><thead><tr><th>Player</th>${COLS.map((c) => `<th>${c === '3PT' ? '3P' : c}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table></div>${dnp}<div class="nb-act nbz" style="margin:14px 16px 0">${teamBtn(side)}</div>`;
+  return `${seg}<div class="tbl gm-box" data-x="box:${esc(side.abbr)}"><table class="box-t ro"><thead><tr><th>Player</th>${t.cols.map((c) => `<th>${c === '3PT' ? '3P' : c}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table></div>${dnp}<div class="nb-act nbz" style="margin:14px 16px 0">${teamBtn(side)}</div>`;
 }
 function playsHtml(g, s) {
   if (!s?.plays.length) return none(g, s, 'Plays');

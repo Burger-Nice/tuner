@@ -13,7 +13,7 @@ import { showStore, introMode, offerDue, doubtful, episodeKey, afterSkip, afterC
 import { keyOf } from './util.js';
 import { native } from './native.js';
 import { programmeView } from './catchup.js';
-import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress, chaptersOf } from './games.js';
+import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress, chaptersOf, boxTable, teamStatsOf } from './games.js';
 import { guideFor, guideNow, onNow, nextUp, resetGuides } from './guide.js';
 import { go } from './router.js';
 import { teamPalette, hm } from './util.js';
@@ -167,14 +167,9 @@ const teamOf = (t) => { const c = teamPalette(t); return { abbr: t.abbr, name: t
 function gameData(g) {
   const v = show(g);
   const dg = v.g, s = v.s, hid = v.hidden;
-  // Under the shield no points and no shooting (FG gives the scoring away), as on the NBA hub.
-  const cols = hid ? ['MIN', 'REB', 'AST'] : ['MIN', 'PTS', 'REB', 'AST', 'FG'];
-  const team = (side) => {
-    const b = s?.box.find((x) => x.abbr === dg[side].abbr);
-    if (!b) return { cols, rows: [] };
-    const at = cols.map((l) => b.labels.indexOf(l));
-    return { cols, rows: b.players.filter((p) => !p.dnp).map((p) => [p.short || p.name, ...at.map((i) => (i >= 0 ? String(p.stats[i] ?? '') : ''))]) };
-  };
+  // Under the shield no points, no shooting and no +/- (they give the scoring away), as on the NBA hub. The player shows the
+  // columns a set at a time (More stats).
+  const team = (side) => { const t = boxTable(s, dg[side].abbr, hid); return { cols: t.cols, rows: t.rows.map((r) => [r.p.short || r.p.name, ...r.vals]) }; };
   const feeds = feedsNow(g);
   return {
     id: g.id, title: `${g.away.name} at ${g.home.name}`,
@@ -182,7 +177,9 @@ function gameData(g) {
     score: hid || dg.state === 'pre' ? null : [String(dg.away.score ?? 0), String(dg.home.score ?? 0)],
     clock: dg.state === 'pre' ? `Tip-off ${hm(dg.date)}` : clockText(dg), hidden: hid,
     synced: v.synced, delayed: v.delayed, delay: watch.chId ? delayFor(watch.chId) : 60,
-    box: { away: team('away'), home: team('home') },
+    box: { away: team('away'), home: team('home') }, teamStats: teamStatsOf(s, dg, hid),
+    // (the player reads ESPN itself while it's in front, as this page runs slowly behind it: where, and how fresh this is)
+    espn: espnBase(), asOf: s?.at || 0,
     plays: hid ? [] : (s?.plays || []).slice(0, 40).map((p) => ({ clock: `${ordinal(p.period)} ${p.clock}`, team: p.team || '', text: p.text || '', scoring: !!p.scoring, score: p.scoring ? `${p.away}–${p.home}` : '' })),
     feeds: feeds.map((f, i) => ({ id: String(f.ch.id), name: f.ch.name, num: f.ch.num || 0, logo: f.ch.logo || '', label: `Feed ${i + 1} of ${feeds.length}${f.why === 'Your pick' ? ' · Your pick' : ''}` })),
     shieldLabel: shieldMode() === 'all' ? 'All games' : 'My team', loading: !s,
@@ -190,6 +187,7 @@ function gameData(g) {
     kept: (chOf(watch.chId)?.archive || 0) > 0, started: dg.state !== 'pre', tipAt: chaptersOf(g.id).list.find((x) => x.key === 'tip')?.at || g.date || 0,
   };
 }
+const espnBase = () => store.get('nbaBase', null) || '';
 function liveGamesData() {
   const list = liveGames().slice().sort((a, b) => isMine(b) - isMine(a));
   for (const g of list) if (!feedsNow(g).length) findFeeds(g);
@@ -501,7 +499,8 @@ native?.player.onEvent((e) => {
     }
     else if (e.what === 'games') { sent.games = ''; push(); }
     else if (e.what === 'rewind') emit('rewind-request', { chId: e.chId || e.id, at: +e.at || 0 });   // Start over / rewinding a kept channel past the live link (catch-up 6.8)
-    else if (e.what === 'clocks') {
+    else if (e.what === 'clocks') {   // (the player reads the clocks from ESPN itself; asked only when it has no game)
+      if (window.__noClockAnswer) return;   // (the emulator test: Sync must work without this page answering)
       const g = watch.gameId && gameById(watch.gameId);
       if (!g) { cmd('show-text', 'No NBA game found on this channel'); return; }
       // the plays fresh from ESPN: the ones kept may be minutes old (the app's own polling slows down behind the player)
@@ -546,6 +545,9 @@ native?.player.onEvent((e) => {
     const it = c.items[c.index];
     if (it) failedCopies.add(it.id);
     versionsNow().then((x) => { if (x && ctx.cur === c) cmd('versions', x); });
+  } else if (e.type === 'sync-state') {
+    window.__sync = { state: e.state, count: +e.count || 0, from: e.from, text: e.text || '', at: Date.now() };   // (the emulator test reads it)
+    if (e.state === 'list') window.__lastClocks = +e.count || 0;
   } else if (e.type === 'diag') {
     // the player's diagnosis (a card, chip, failure card or the Connection panel): no score or clock is in it
     window.__diag = { cause: e.cause, surface: e.surface, at: Date.now() };   // (the emulator test reads it)
@@ -562,8 +564,9 @@ native?.player.onEvent((e) => {
     // so "measured minus lag" could come out short and let scores run ahead after the next reconnect)
     const sec = Math.max(0, Math.min(600, Math.round((e.seenAt - e.at) / 1000) - 1));
     if (watch.chId) setDelay(watch.chId, sec);
+    window.__synced = sec;   // (the emulator test reads it)
     setLag(0); cmd('lag-reset', '');
-    cmd('show-text', `Synced · ${sec} s behind live`);
+    if (!e.said) cmd('show-text', `Synced · ${sec} s behind live`);   // (said: the player has shown it already)
     sent.game = '';
     push();
   } else if (e.type === 'version' && c.kind === 'vod') {

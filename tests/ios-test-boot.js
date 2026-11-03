@@ -114,6 +114,17 @@ window.TUNER_TEST = true;
         await wait(2500);
         await shot('game');
       }
+      // the whole box score (a live game in the fake ESPN): 14 columns sideways inside the page, WebKit not widening it
+      try {
+        if (T().state().screen === 'game') T().back();
+        T().push('game', { id: '401909851' });
+        await until(() => $('[data-gtab="box"]'), 10000);
+        $('[data-gtab="box"]').click();
+        const full = await until(() => document.querySelectorAll('.gm-box thead th').length === 15 && document.querySelectorAll('.gm-box tbody tr').length >= 5, 10000);
+        await shot('game-box-full');
+        check('game: the whole box score, sideways inside the screen', full && document.documentElement.scrollWidth <= innerWidth + 1 && $('.gm-box').getBoundingClientRect().right <= innerWidth + 1,
+          { cols: document.querySelectorAll('.gm-box thead th').length, sw: document.documentElement.scrollWidth, w: innerWidth });
+      } catch (e) { report('error', `box score: ${e}`); }
 
       // the NBA tab in depth (the TV's sections), in WebKit's own layout: every element inside the screen's width
       if (T().state().screen === 'game') T().back();

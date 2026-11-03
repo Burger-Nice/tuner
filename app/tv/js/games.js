@@ -168,6 +168,37 @@ async function sumTick() {
   sumTimer = setTimeout(sumTick, live ? 10000 : 60000);
 }
 export const summaryOf = (id) => nba.sums.get(id) || null;
+
+// ---------- the box score: every surface (the player's game panel, the game pages on the TV and the iPhone) ----------
+// All of ESPN's columns, in reading order. Under the shield the ones that give the score away go (points, the shooting, +/-).
+export const BOX_COLS = ['MIN', 'PTS', 'REB', 'OREB', 'DREB', 'AST', 'STL', 'BLK', 'TO', 'PF', 'FG', '3PT', 'FT', '+/-'];
+const SCORE_COLS = new Set(['PTS', 'FG', '3PT', 'FT', '+/-']);
+export const boxCols = (hidden = false) => (hidden ? BOX_COLS.filter((c) => !SCORE_COLS.has(c)) : BOX_COLS);
+// One team's table from a summary (the copy at the moment on screen): { cols, rows: [{ p, vals }], totals, dnp }, vals in
+// cols' order ('' where ESPN has no such column).
+export function boxTable(s, abbr, hidden = false) {
+  const cols = boxCols(hidden);
+  const b = s?.box?.find((x) => x.abbr === abbr);
+  if (!b) return { cols, rows: [], totals: [], dnp: [] };
+  const idx = cols.map((c) => b.labels.indexOf(c));
+  const pick = (arr) => idx.map((i) => (i >= 0 ? String(arr?.[i] ?? '') : ''));
+  return { cols, rows: b.players.filter((p) => !p.dnp).map((p) => ({ p, vals: pick(p.stats) })), totals: b.totals?.length ? pick(b.totals) : [], dnp: b.players.filter((p) => p.dnp) };
+}
+// Team stats, away against home: [{ key, label, away, home }]. safe: shown under the shield too (nothing in it adds up to
+// the score or says who leads).
+const TEAM_STATS = [
+  ['teamFouls', 'Team fouls this quarter', 1], ['inBonus', 'In the bonus', 1], ['timeoutsLeft', 'Timeouts left', 1], ['fouls', 'Personal fouls', 1],
+  ['totalTurnovers', 'Turnovers', 1], ['turnoverPoints', 'Points given up off turnovers'], ['pointsInPaint', 'Points in the paint'],
+  ['fastBreakPoints', 'Fast-break points'], ['benchPoints', 'Bench points'], ['largestLead', 'Largest lead'], ['leadChanges', 'Lead changes'],
+  ['fieldGoalPct', 'Field goal %'], ['threePointFieldGoalPct', '3-point %'], ['freeThrowPct', 'Free throw %'],
+  ['totalRebounds', 'Rebounds', 1], ['offensiveRebounds', 'Offensive rebounds', 1], ['defensiveRebounds', 'Defensive rebounds', 1],
+  ['assists', 'Assists', 1], ['steals', 'Steals', 1], ['blocks', 'Blocks', 1],
+];
+export function teamStatsOf(s, g, hidden = false) {
+  const a = s?.teams?.find((t) => t.abbr === g.away.abbr)?.stats, h = s?.teams?.find((t) => t.abbr === g.home.abbr)?.stats;
+  if (!a || !h) return [];
+  return TEAM_STATS.filter(([k, , safe]) => (safe || !hidden) && (a[k] != null || h[k] != null)).map(([key, label]) => ({ key, label, away: String(a[key] ?? '–'), home: String(h[key] ?? '–') }));
+}
 // One game's box score and plays now, whatever the polling is doing (Sync score; 6 s at most). Resolves either way.
 export async function fetchSummary(id) {
   try {
