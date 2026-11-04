@@ -183,26 +183,39 @@ window.addEventListener('resize', () => { if (openNow) requestAnimationFrame(pla
 function drawLayer() {
   if (!el) return;
   const rs = rects();
+  // empty and waiting slots: in the page itself (no picture covers them, so a drag from the picker drops there)
+  slots.forEach((s, i) => {
+    const d = el.querySelector(`.mv-slot[data-slot="${i}"]`);
+    if (!d) return;
+    const html = s.kind === 'empty' || s.kind === 'wait' ? slotHtml(s, i) : '';
+    if (d._html !== html) { d.innerHTML = html; d._html = html; }
+  });
   const tiles = slots.map((s, i) => {
     const r = rs[i];
-    if (!r) return '';
+    if (!r || s.kind !== 'ch') return '';
     const pos = `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
-    if (s.kind === 'empty') return `<div class="mv-t empty" data-slot="${i}" style="${pos}"><b>Empty slot</b><span>Drop a game or a channel here</span><button class="ghost sm" data-mv="choose" data-i="${i}">Choose…</button></div>`;
-    if (s.kind === 'wait') {
-      const g = gameById(s.g.id) || s.g, ch = bestChannel(g);
-      const mins = Math.max(0, Math.round((g.date - Date.now()) / 60e3));
-      return `<div class="mv-t wait" style="${pos}"><div class="crests">${crestImg(g.away, 48)}${crestImg(g.home, 48)}</div><b>${esc(gname(g))}</b><span>Tips off at ${hm(g.date)} · in ${mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`} · this slot tunes ${esc(ch ? cleanCh(ch.name) : 'the game')} by itself</span><div class="acts"><button class="ghost sm" data-mv="tunenow" data-i="${i}">Tune now</button><button class="ghost sm" data-mv="clear" data-i="${i}">Clear slot</button></div></div>`;
-    }
-    const v = s.g ? show(gameById(s.g.id) || s.g) : null;
-    const label = s.g ? `${esc(s.g.away.name)} · ${esc(s.g.home.name)}` : esc(cleanCh(s.ch.name));
-    const sc = v ? (v.hidden ? `${ic('eyeOff')}Score hidden` : v.g.state === 'pre' ? hm(v.g.date) : `${esc(v.g.away.score)} – ${esc(v.g.home.score)}`) : esc(nowTitle(s.ch));
-    return `<div class="mv-t${i === audio ? ' audio' : ''}" style="${pos}"><span class="no">${i + 1}</span>${i === audio ? `<span class="aud">${ic('vol')}Audio</span>` : ''}<div class="strip">${label}<span class="sc">${sc}</span><span class="chn">${esc(cleanCh(s.ch.name))}</span><button class="ib" data-mv="menu" data-i="${i}" aria-label="More">${ic('more')}</button></div></div>`;
+    return chHtml(s, i, pos);
   }).join('');
   const html = `<div class="pass mv-layer">${tiles}</div>`;
   const root = floatRoot('main');
   const old = root.querySelector('.mv-layer');
   if (old) { if (old._html !== html) { old.outerHTML = html; root.querySelector('.mv-layer')._html = html; } }
   else { root.insertAdjacentHTML('afterbegin', html); root.querySelector('.mv-layer')._html = html; }
+}
+function slotHtml(s, i) {
+    if (s.kind === 'empty') return `<div class="mv-t empty" data-slot="${i}"><b>Empty slot</b><span>Drop a game or a channel here</span><button class="ghost sm" data-mv="choose" data-i="${i}">Choose…</button></div>`;
+    if (s.kind === 'wait') {
+      const g = gameById(s.g.id) || s.g, ch = bestChannel(g);
+      const mins = Math.max(0, Math.round((g.date - Date.now()) / 60e3));
+      return `<div class="mv-t wait"><div class="crests">${crestImg(g.away, 48)}${crestImg(g.home, 48)}</div><b>${esc(gname(g))}</b><span>Tips off at ${hm(g.date)} · in ${mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`} · this slot tunes ${esc(ch ? cleanCh(ch.name) : 'the game')} by itself</span><div class="acts"><button class="ghost sm" data-mv="tunenow" data-i="${i}">Tune now</button><button class="ghost sm" data-mv="clear" data-i="${i}">Clear slot</button></div></div>`;
+    }
+    return '';
+}
+function chHtml(s, i, pos) {
+    const v = s.g ? show(gameById(s.g.id) || s.g) : null;
+    const label = s.g ? `${esc(s.g.away.name)} · ${esc(s.g.home.name)}` : esc(cleanCh(s.ch.name));
+    const sc = v ? (v.hidden ? `${ic('eyeOff')}Score hidden` : v.g.state === 'pre' ? hm(v.g.date) : `${esc(v.g.away.score)} – ${esc(v.g.home.score)}`) : esc(nowTitle(s.ch));
+    return `<div class="mv-t${i === audio ? ' audio' : ''}" style="${pos}"><span class="no">${i + 1}</span>${i === audio ? `<span class="aud">${ic('vol')}Audio</span>` : ''}<div class="strip">${label}<span class="sc">${sc}</span><span class="chn">${esc(cleanCh(s.ch.name))}</span><button class="ib" data-mv="menu" data-i="${i}" aria-label="More">${ic('more')}</button></div></div>`;
 }
 const nowTitle = (ch) => { const p = onNow(guideNow(ch)); return p ? programmeView(ch, p).title : ''; };
 function drawPicker() {
@@ -235,6 +248,8 @@ function click(e) {
   if (a === 'leave') return close();
   if (a === 'addg') { const g = gameById(b.dataset.id); if (g) addGame(g); return; }
   if (a === 'addc') { const ch = chOf(b.dataset.id); if (ch) addChannel(ch); return; }
+  if (a === 'clear') return clearSlot(i);
+  if (a === 'tunenow') { const g = gameById(slots[i]?.g?.id) || slots[i]?.g; const ch = g && bestChannel(g); if (ch) tuneSlot(i, ch, g); else toast('No channel for this game yet'); }
 }
 // the floating layer's own buttons (Choose…, Tune now, Clear slot, a tile's ⋯)
 floatRoot('main').addEventListener('click', (e) => {
@@ -271,10 +286,10 @@ const slotAt = (x, y) => rects().findIndex((r) => x >= r.x && x < r.x + r.w && y
 document.addEventListener('dragover', (e) => {
   if (!openNow) return;
   const i = slotAt(e.clientX, e.clientY);
-  floatRoot('main').querySelectorAll('.mv-t.drop').forEach((x) => x.classList.remove('drop'));
+  el?.querySelectorAll('.mv-t.drop').forEach((x) => x.classList.remove('drop'));
   if (i >= 0 && slots[i]?.kind === 'empty') {
     e.preventDefault();
-    const t = floatRoot('main').querySelector(`.mv-t.empty[data-slot="${i}"]`);
+    const t = el?.querySelector(`.mv-t.empty[data-slot="${i}"]`);
     if (t) { t.classList.add('drop'); t.querySelector('b').textContent = 'Drop to add'; }
   }
 });

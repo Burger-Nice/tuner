@@ -1112,7 +1112,7 @@ body.playing #dk-tbar { background: #0b0a10; }
 .pv-act .k { border-color: currentColor; color: inherit; }
 .pv-vol { display: inline-flex; align-items: center; border-radius: 999px; }
 .pv-vol .vs { width: 0; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; transition: width var(--a-dur); }
-.pv-vol:hover .vs { width: 170px; padding: 0 10px; }
+.pv-vol:hover .vs, .pv-vol.hov .vs { width: 170px; padding: 0 10px; }
 .pv-vol .vt { position: relative; width: 120px; height: 18px; display: flex; align-items: center; cursor: pointer; }
 .pv-vol .vt::before { content: ""; position: absolute; left: 0; right: 0; height: 4px; border-radius: 2px; background: rgba(243,239,230,.25); }
 .pv-vol .vt i { position: relative; height: 4px; border-radius: 2px; background: var(--a-text-1); }
@@ -1316,3 +1316,6 @@ html.narrow .pg-home .field .side.a { right: 24%; }
 html.narrow .pg-home .field .side .crest { width: 120px !important; height: 120px !important; }
 html.narrow .pg-home .field .side b { font-size: 20px; }
 html.narrow .pg-home .gn-score { left: 52%; top: calc(14vh + 200px); }
+
+.mv-slot { position: relative; }
+.mv-slot > .mv-t { position: absolute !important; inset: 0; }

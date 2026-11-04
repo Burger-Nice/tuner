@@ -458,7 +458,7 @@ function buttonsHtml() {
   const vol = Math.round(M?.volume ?? 100);
   const right = [
     disc('subs', ic('cc'), 'Subtitles', 'p-subs'),
-    `<span class="pv-vol" data-hover="1"><button class="pv-k" data-act="mute" data-tip="${esc(tip(M?.mute ? 'Unmute' : 'Mute', 'p-mute'))}">${ic(M?.mute || vol === 0 ? 'mute' : 'vol')}</button><span class="vs"><span class="vt" data-act="volset"><i style="width:${M?.mute ? 0 : Math.min(100, vol)}%"></i></span><b>${M?.mute ? 0 : vol}</b></span></span>`,
+    `<span class="pv-vol${floatRoot('main').querySelector('.pv-vol.hov') ? ' hov' : ''}" data-hover="1"><button class="pv-k" data-act="mute" data-tip="${esc(tip(M?.mute ? 'Unmute' : 'Mute', 'p-mute'))}">${ic(M?.mute || vol === 0 ? 'mute' : 'vol')}</button><span class="vs"><span class="vt" data-act="volset"><i style="width:${M?.mute ? 0 : Math.min(100, vol)}%"></i></span><b>${M?.mute ? 0 : vol}</b></span></span>`,
     disc('options', ic('gear'), 'Options', 'p-options'),
     disc('mini', ic('pip'), 'Mini player', 'p-mini'),
     disc('full', ic(layout.fs ? 'unfull' : 'full'), layout.fs ? 'Leave full screen' : 'Full screen', 'p-full'),
@@ -563,6 +563,9 @@ floatRoot('main').addEventListener('mousedown', (e) => {
   const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); const to = dragging?.to; dragging = null; if (to != null) seekTo(to); };
   window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
 });
+// (the overlay's hover reaches the page as mouseover / mouseout on [data-hover]: the volume slider unfolds the same in both)
+floatRoot('main').addEventListener('mouseover', (e) => { const v = e.target.closest?.('.pv-vol'); if (v) v.classList.add('hov'); });
+floatRoot('main').addEventListener('mouseout', (e) => { const v = e.target.closest?.('.pv-vol'); if (v && !v.contains(e.relatedTarget)) v.classList.remove('hov'); });
 floatRoot('main').addEventListener('mousedown', (e) => {
   const vt = e.target.closest('.vt');
   if (!vt) return;
