@@ -11,8 +11,9 @@ palette, shortcuts for everything, notifications at tip-off, a second screen.
 | File | What |
 |---|---|
 | `SPEC.md` | this: decisions, research, the frame, mouse and keyboard, every screen, the player, the PC extras (v1 / later), shortcuts, the architecture, what the builder changes where, open items |
-| `01` … `11` `.html` | the mocks at 1920 × 1080 CSS px (Windows at 100 %); `12-home-1366.html` at 1366 × 768. Real art: the TV's Cinemeta / metahub files (`../home-final/art`), ESPN's crests (`../home-final/art`, `../nba-pages/img`) |
-| `png/*.png`, `png/contact-sheet.png` | the renders at 1x (1920 × 1080; `12` at 1366 × 768) and the sheet of all twelve |
+| `01` … `11`, `13` `.html` | the mocks at 1920 × 1080 CSS px (Windows at 100 %); `12-home-1366.html` at 1366 × 768. Real art: the TV's Cinemeta / metahub files (`../home-final/art`), ESPN's crests (`../home-final/art`, `../nba-pages/img`) |
+| `png/*.png`, `png/contact-sheet.png` | the renders at 1x (1920 × 1080; `12` at 1366 × 768) and the sheet of all thirteen |
+| `REVIEW-independent-1.md` | the review of v1.0 (7.6; buildability 6) that v1.1 answers |
 | `desktop.css` | the desktop classes (`.tbar`, `.side`, `.ct`, `.lineup`, `.guide`, `.hero`, `.pv-*`, `.dock`, `.tile`, `.mini`, `.pal`, `.sheet` …) on the brand's tokens, written to become `app/desktop/desktop.css` |
 | `tools/build.js`, `tools/pages.json`, `tools/render.js` | builds the pages from one timeline; renders them (Playwright) |
 
@@ -20,7 +21,61 @@ The timeline is home-final's: the owner's laptop, Reykjavik (UTC), shield `My te
 add-ons Cinemeta plus the debrid add-on `Northlight` (a stand-in name), live TV from his provider. Wed 28 Oct 2026 20:41
 is the normal evening (`01`, `03`, `04`, `05`, `06`, `10`, `11`, `12`); the Grizzlies play at Portland Thu 29 Oct 02:00, and
 `02`, `07`, `08`, `09` are Thu 03:12 to 03:14 with the game on. The game pictures are stand-ins for the broadcast (the
-two crests on the teams' fields, as `player-v2` draws them). Box-score numbers in `07` are stand-ins too.
+two crests on the teams' fields, as `player-v2` draws them). Box-score numbers and plays in `07` are stand-ins too.
+
+---
+
+## v1.1 changes (an answer to the independent review; the build starts from this)
+
+**The seven must-fixes, all in.**
+1. **A mouse way out of the player.** Theater keeps a **40 px title strip** above the video: the mark, a `← Back` button
+   (named for where you came from: `Severance`, `NBA`), the title line, and Windows' own caption buttons at the right,
+   which are never under mpv's window, so minimise / maximise / close and the Snap Layouts flyout keep working (`06`, `07`).
+   The video sits under the strip, aspect-fit (1848 × 1040 at 1920 × 1080, 36 px bars at the sides); full screen (`F`)
+   drops the strip and takes the monitor. §6.1.
+2. **The docked panel starts under the caption area** (`07`): its header with the `G` cap and `×` is at y 40, never
+   beside the window's close. The picture is pinned to the top of the 1520 px area at 16:9 (855 high) and the bar, the
+   track, the ends row and the hint line sit **in the band under the picture**, not over it; the panel's lower half
+   holds the latest plays under the box score. §6.3.
+3. **1366 Home** (`12`): the lit card is 232 px tall, so the progress bar and the buttons have their own rows. §4.
+4. **Multiview's add flow is designed** (`13`, and `08` reshaped): the sidebar folds to the rail; `Add a game or
+   channel` (the header button, an empty slot's `Choose…`, `Ctrl M` anywhere) opens a **picker column at the right**
+   (a search field, `Tonight's games` and `Favourite channels` as rows with a `+` for the next free slot and a grip to
+   drag onto a slot; rows already in a slot say so); an empty slot reads `Empty slot · Drop a game or a channel here`,
+   and lights pink with `Drop to add · tunes at 03:30` while a row or a card is over it; a game before tip-off becomes
+   a waiting slot. The finished game left the showcase (`08` shows two live games, a waiting slot and an empty slot). §7.
+5. **§9, plan A is rewritten:** airglow creates **one plain host child window (HWND) per picture** at the video rect
+   and passes **that** handle to `--wid`, never the main window's (mpv fills whatever it is given); hosts are moved
+   with `SetWindowPos` and re-parented with `SetParent` to hand a picture between windows.
+6. **§9, airspace:** whenever any video is on screen, **one overlay window covers the content area** and hosts
+   everything that floats: the controls, panels, chips, the banner, the palette, the shortcuts sheet, menus, toasts,
+   tooltips, multiview's chrome and the mini player's chrome (the mini player's strip and bar sit over its picture, in
+   its own overlay; `09` was right, the spec was wrong).
+7. **§9, the overlay never takes focus** (`focusable: false`, no-activate), **hides while the window moves or resizes**
+   and shows again after, and **keeps the pointer over the picture** (click pauses, double-click goes full screen, the
+   wheel is volume) instead of passing clicks to an input-less mpv.
+
+**The top should-fixes, in.** The guide (`03`): the Now line runs **behind** the cells (it shows in the gaps and on the
+ruler, never through a title), every clipped title ends in an ellipsis, a cell under 80 px is a silhouette, the channel
+numbers show, the channel column is 220 px, `Favourites 11`, the `HD` badge sits on the channel line. The palette
+(`10`): one verb per row and Enter does it (`Watch · Enter`, `Add · Ctrl M`, `Set · Ctrl R`, `Open`), and no single-letter
+shortcut while the caret is in the field. The keys (`11`, §8): **one meaning per key**: `Ctrl ← →` is the NBA sections
+only, the mini player snaps with `Ctrl Shift ← →`; digits tune on Home, Live and in the player and give the audio to a
+tile only in multiview; `Esc` leaves full screen first, then hides the controls, then leaves; the `Everywhere` group
+holds no single letters (`?` and `/` are punctuation, and the mini player is `Ctrl P` there, `P` inside the player).
+Media keys are registered only while airglow plays and released at stop (§9). Hand-offs (a game to the mini player, a
+tile to full and back) **move the picture's host window between windows with `SetParent`**: the same mpv, the same
+stream, no second connection and no gap (§9). The player's hint line is per context (`C Subtitles` on an episode, no
+`G`; nothing from v1.1 in a v1 hint), the top scrim is stronger, the corner and the track agree (`21 min left` /
+`−21:00`), and the player's row gains an `Episodes` pill (`E`; the TV reaches it through Options).
+
+**Also:** the fallback order is A → C → B (C is what `mpv.js` does today and is known to work; B is the least proven);
+the copy checks' probes count against `max_connections` and pause while multiview is full; a reminder toast is never
+updated with a result once it sits in the Action Center; art is chosen by `width × devicePixelRatio`; the designer notes
+printed in the renders are gone. Left for the next round (listed, not done, to keep this one lean): a blurred
+translucent sidebar over the Marquee's art, the title page's backdrop fading before the episode list, `ON NOW` /
+`Score hidden` under the team names on game night, the right-click menu / toast / tray / Movies grid / Account › Windows
+frames and a 2560 render, an inside-the-window corner player while airglow is in front.
 
 ---
 
@@ -51,12 +106,14 @@ two crests on the teams' fields, as `player-v2` draws them). Box-score numbers i
    lists (§8); the focus ring (3 px white, the desktop token) appears only when the keyboard moved the focus, never on a
    click, so the screen is calm under the mouse. *Why:* Windows' guidance asks for on-object commanding (context menus and
    shortcuts for every action) and the TV's hold-OK menus map one to one onto right-click.
-5. **The player is mpv, embedded in the window, with the v2 controls drawn by the app over it.** mpv's video is a child
-   window of airglow's window (`--wid`), and a transparent child window of our own draws the bar, the title block, the
-   corner, the timeline, the chips, the hint line and the panels in HTML over it. *Why:* mpv is what plays everything the
-   owner's add-ons give him (HEVC, MKV, AC3/DTS/EAC3, every subtitle format, extra audio tracks) and it already runs as a
-   process over JSON IPC in `mpv.js`; drawing the controls in HTML keeps them identical to the TV's design and the phone's
-   port instead of rebuilding them in Lua. The detail (and the two fallbacks if `--wid` misbehaves in Electron) is §9.
+5. **The player is mpv, embedded in the window, with the v2 controls drawn by the app over it.** For every picture
+   airglow creates a plain child window of its own at the video rect and mpv attaches to it (`--wid`); one transparent,
+   non-activating overlay window over the content area draws everything that floats (the bar, the title block, the
+   corner, the timeline, the chips, the panels, the palette, the sheet, menus, toasts, tooltips) in HTML. *Why:* mpv is
+   what plays everything the owner's add-ons give him (HEVC, MKV, AC3/DTS/EAC3, every subtitle format, extra audio
+   tracks) and it already runs as a process over JSON IPC in `mpv.js`; drawing the controls in HTML keeps them identical
+   to the TV's design and the phone's port instead of rebuilding them in Lua. The detail (and the two fallbacks if the
+   child window misbehaves in Electron) is §9.
 6. **Playing takes the window; leaving keeps a live game in the corner.** Play = theater (the content area becomes the
    player, the sidebar folds away, `F` or double-click is full screen on the monitor, `Esc` returns). Leaving a live game
    or channel moves it to the **mini player**, a small always-on-top window of its own; leaving a film or an episode stops
@@ -288,8 +345,8 @@ Hover on a poster: lift, a `▶` disc and a `⋯` disc on its bottom scrim (noth
 Details, double-click or `▶` = play now, right-click = the menu. The wheel moves one row per notch; `Home` returns to the
 top. Game cards and wide cards as the TV's (`Your shows`, `Channels`).
 
-**1366 × 768 (`12`)**: the rail, the lineup 520 wide (lines 30 / 34, the card 520 × 206, the logo 54), posters 140 × 210
-(7 across), the peek 150 high. Nothing is dropped.
+**1366 × 768 (`12`)**: the rail, the lineup 520 wide (lines 30 / 34, the card 520 × 232 so the bar and the buttons keep
+their own rows, the logo 54), posters 140 × 210 (7 across), the peek 150 high, the key caption hidden. Nothing is dropped.
 
 **States** (home-final §2 holds): loading with a cache = Home as last drawn; offline = the pill `Offline · showing what
 airglow remembers` in the title bar's right and `Needs a connection to play` under the lit line; no add-ons = the footer
@@ -308,7 +365,7 @@ clock offset), `catchup.js` / `replay.js` (kept programmes, `Earlier`), `games.j
 | Part | Geometry |
 |---|---|
 | Controls row | y 20, 36 high: the group chips (`☰ Favourites 10` selected, `All channels`, `Sports`, `Iceland`, `UK`, `News`, `Movies`, `▾ 12 more`); at the right `‹ Now ›`, the date (`Wed 28 Oct ▾`, a calendar popover), the scale (`3 h ▾`: 2 h · 3 h · 4 h · 6 h) |
-| Grid | x 48, y 76, 1180 wide (the content minus the panel): the channel column 280 (number 15 `text-3`, a 42 px logo tile in the channel's colour, the name on two lines, the star or the pin for your team's channel), the time axis 900 px for 3 h (5 px a minute), the ruler 30 high with the `Now` flag (gradient, 26 high) at the now column and the 2 px pink line down the grid, times every 30 min; rows 76 high at an 84 px pitch (11 rows at 1080); cells 10 px radius on `surface-1` at 86 %, title Inter 650 16, times 14 `text-3` with `‹` for a programme that began before the window, the compact LIVE pill, `kept` on a programme with a replay (when the cell is wider than 200), a progress bar on the programme on now; a cell under 56 px shows no text; a missing guide is one dashed `No guide information` cell, still tunable |
+| Grid | x 48, y 76, 1180 wide (the content minus the panel): the channel column 220 (the number, 15 `text-3`, always shown because `0–9` tunes; a 42 px logo tile in the channel's colour, the provider's logo when it has one, else the initials; the name on two lines; the star, or the pin for your team's channel), the time axis 960 px for 3 h (16/3 px a minute), the ruler 30 high with the `Now` flag (gradient, 26 high) at the now column and the 2 px pink line down the grid **behind the cells** (it shows in the gaps and on the ruler, never through a title), times every 30 min; rows 76 high at an 84 px pitch (11 rows at 1080); cells 10 px radius on `surface-1` at 86 %, title Inter 650 16 **with an ellipsis**, times 14 `text-3` with `‹` for a programme that began before the window, the compact LIVE pill, `kept` on a programme with a replay (when the cell is wider than 200), a progress bar on the programme on now; a cell under 80 px is a silhouette (its title is in the panel on hover); a missing guide is one dashed `No guide information` cell, still tunable |
 | Panel | right 48, y 76, 380 wide: the picture 380 × 214 (the programme's art, the two crests on team fields for a game, a muted mpv preview when the setting is on; the `Tips off in 2 h 19 min` tag), the title Outfit 700 24 with LIVE when so, the facts (`NBA League Pass 4 · 23:00 to 01:30 · Wed 28 Oct · HD`), the second facts line (records, the arena; `No guide information` for a channel without), one paragraph, the buttons (`Remind me` pill on a future programme / `Tune` pill on a current one, `Tune now` ghost, `From the start` when kept, `Multiview`, `⋯`), `Also on …` (the other channels carrying the same game with their quality), `Earlier on this channel · replays for 3 days` with the kept programmes as rows (`‹ NBA Today · 20:00 · kept · 1 h`) |
 
 Mouse: hover a cell = the chalk edge and the panel answers (after 150 ms); click = tune a current programme, show a
@@ -389,9 +446,10 @@ a row. Back returns to the card that opened it.
 the typed text, the completion in `text-4`, `Esc`); groups in this order, each at most 3 rows: **Actions** (verbs on
 the things the query matches: `Watch …`, `Add … to multiview`, `Remind me 10 min before tip-off`, `Tune …`, `Open the
 guide at …`, `Reveal …`), **Teams**, **Channels** (number · name, what is on and until when), **Films and series** (the
-poster tile, year · genre · length · IMDb), **Games**, **Settings** (`Spoiler shield · My team`), **Pages**; each row has
-its action word and its shortcut at the right; the footer: `↑↓ Move · Enter Open · Shift Enter Play now · Esc Close ·
-Type a channel number to tune`. Digits alone show `Tune channel 4 · NBA League Pass 4` as the first row (Enter tunes,
+poster tile, year · genre · length · IMDb), **Games**, **Settings** (`Spoiler shield · My team`), **Pages**; **each row
+has one verb** at its right (`Watch`, `Add`, `Set`, `Tune`, `Open`, `Details`) and Enter does that verb; a row's shortcut
+is always a chord (`Ctrl M`, `Ctrl R`), never a letter, because the caret is in a text field; the footer: `↑↓ Move · Enter
+Open · Shift Enter Play now · Esc Close · Type a channel number to tune`. Digits alone show `Tune channel 4 · NBA League Pass 4` as the first row (Enter tunes,
 the TV's digit rule). Results come from the catalog, the guide, the schedule, the add-ons' search (Cinemeta `search=`)
 and the settings' names, 150 ms after the last key; the last 5 queries show when empty. Under the shield an action row
 never prints a score or a result.
@@ -442,10 +500,10 @@ registers itself behind `TUNER_NATIVE.player` and talks to mpv through `window.t
 
 | Mode | What |
 |---|---|
-| Theater (default on play) | the content area is the player; the sidebar folds away; the title bar is transparent over the top scrim with the caption buttons still at the right (`06`); `Esc` or `Ctrl W` leaves (a live game to the mini player, a film stops with Resume on its page); `T` keeps the sidebar (the "window" layout for a second monitor's small window) |
-| Full screen | `F`, double-click, or the ⤢ disc: the monitor, no caption buttons, the pointer hidden after 3 s; `Esc` back to theater |
-| Docked (`07`) | `G` or the `Game panel` pill docks the game panel 400 px at the right; the picture keeps 16:9 in the remaining 1520 (112 px bars at 1080) |
-| Mini (`09`) | `P`, or leaving a live game: a frameless always-on-top window of its own, 480 × 270 by default (320 min, 16:9 kept, resizable from any edge), bottom right, snaps to a corner within 24 px, `Ctrl ← →` moves it between corners; a top strip (LIVE, the channel, pin, close) and a bottom bar (title, the shield's line or the time left, pause, mute, `⤢` back to the app) on hover; the main window's sidebar shows `Now playing`; `P` again or `⤢` brings it back to theater |
+| Theater (default on play) | the content area is the player; the sidebar folds away; **the 40 px title strip stays** (`06`): the mark, `← Back` named for where you came from, the title line, Windows' caption buttons at the right (never under the video); the video is aspect-fit under the strip (1848 × 1040 at 1920 × 1080, 36 px bars at the sides); `Back`, `Esc` (after full screen and the controls) or `Ctrl W` leaves (a live game to the mini player, a film stops with Resume on its page); `T` keeps the sidebar (the "window" layout for a second monitor's small window) |
+| Full screen | `F`, double-click, or the ⤢ disc: the monitor, no strip, no caption buttons, the pointer hidden after 3 s; the first `Esc` leaves full screen (Netflix, YouTube, VLC) |
+| Docked (`07`) | `G` or the `Game panel` pill docks the game panel 400 px at the right, **under the title strip**; the picture is pinned to the top of the remaining 1520 at 16:9 (855 high) and the bar, the track, the ends row and the hint line sit in the 185 px band under it, never over the picture (the title block and the corner stay over it on the top scrim) |
+| Mini (`09`) | `P` in the player (`Ctrl P` anywhere), or leaving a live game: a frameless always-on-top window of its own, 480 × 270 by default (320 min, 16:9 kept, resizable from any edge), bottom right, snaps to a corner within 24 px, `Ctrl Shift ← →` moves it between corners; its chrome sits **over its picture** in its own overlay (§9) on hover: a top strip (LIVE, the channel, pin, close) and a bottom bar (title, the shield's line or the time left, pause, mute, `⤢` back to the app); the main window's sidebar shows `Now playing`; `P` again or `⤢` brings it back to theater by moving the picture's host window, the same stream (§9) |
 | Second screen (later, §7) | the player window on the other display, the game panel as a window on this one |
 
 ### 6.2 The v2 bar on a PC (`06`)
@@ -456,14 +514,17 @@ mpv is doing: `mpv, hardware decoding`), the corner at right 48 (`Ends at 21:02`
 if you play now`; a game: `Q3 4:12` / `Synced · the score waits 42 s for the picture`; hidden: `Score hidden` / `You're in
 Q2`), the buttons row at bottom 158 (48 px discs: `⏸`, `−10`, `+10`, then `Next episode ›` or `Skip intro` as outlined
 pills; at the right `CC`, the speaker **with a volume slider that unfolds on hover** (120 px, the number), `⚙` Options,
-`⧉` mini player, `⤢` full screen; a game: `⏮`, `−1m`, `+1m`, `Skip to Q4 ›`, `Back to live`, the `Game panel` pill), the
-track at bottom 108 (6 px line, the gradient played part, chapter ticks only up to the live point, the live dot and its
-compact LIVE pill, the dashed not-aired part, the 16 px thumb, 22 with the ring from the keyboard), the ends row, and
-the hint line at bottom 36 the first 5 times (`Space Pause · ← → 10 s · ↑ ↓ Volume · F Full screen · P Mini player · G
-Game panel · ? All shortcuts`). The pointer on the track shows the time bubble (and, later, a frame); a button under the
-bubble fades to 22 % (the scrubbing rule). Controls show on any mouse move or key, hide after 3 s of rest (never while
-paused; after 2 min paused they fade to 35 %, the OLED rule holds for a laptop too). Click on the picture = pause / play;
-the wheel = volume; `Ctrl` wheel = nothing (reserved).
+`⧉` mini player, `⤢` full screen; an episode adds the `Episodes` pill (`E`, the season's list as a right sheet); a game:
+`⏮`, `−1m`, `+1m`, `Skip to Q4 ›`, `Back to live`, the `Game panel` pill), the track at bottom 108 (6 px line, the gradient
+played part, chapter ticks only up to the live point, the live dot and its compact LIVE pill, the dashed not-aired part,
+the 16 px thumb, 22 with the ring from the keyboard), the ends row (the corner's `21 min left` and the track's `−21:00`
+are one number), and the hint line at bottom 36 the first 5 times, **per context**: an episode `Space Pause · ← → 10 s ·
+↑ ↓ Volume · F Full screen · P Mini player · C Subtitles · ? All shortcuts`; a game `Space Pause · ← → 1 min · End Back
+to live · G Game panel · P Mini player · PgUp PgDn Feeds · ? All shortcuts`; never a key from a later version. The pointer
+on the track shows the time bubble (and, later, a frame); a button under the bubble fades to 22 % (the scrubbing
+rule). Controls show on any mouse move or key, hide after 3 s of rest (never while paused; after 2 min paused they fade
+to 35 %, the OLED rule holds for a laptop too). The overlay keeps the pointer over the picture (§9): click = pause /
+play, double-click = full screen, the wheel = volume, right-click = Options; `Ctrl` wheel = nothing (reserved).
 
 ### 6.3 The docked game panel (`07`)
 
@@ -504,14 +565,14 @@ installed · Reinstall airglow`).
 
 | Extra | Use | Effort | When | Why |
 |---|---|---|---|---|
-| Multiview, 2–4 games or channels, audio follows the click, drag to a slot, a slot that waits for tip-off (`08`) | high on game nights | medium (N mpv instances, bounds, mute, the stream cap) | **v1** | the thing no app on his PC does; the NBA app's own shape |
+| Multiview, 2–4 games or channels, audio follows the click, the picker and drag to a slot, a slot that waits for tip-off, an empty slot (`08`, `13`) | high on game nights | medium (N mpv instances, bounds, mute, the stream cap) | **v1** | the thing no app on his PC does; the NBA app's own shape |
 | The mini player, always on top (`09`) | high (browsing during a game) | low (a second window with its own mpv) | **v1** | the YouTube / Apple TV shape; the "leave a game" default |
 | The box score docked beside the game (`07`) | high | low (the game panel is a component already; a 400 px dock) | **v1** | what he looks at during a game; the PC has the width |
 | The guide as a big grid with drag, wheel, zoom and the right panel (`03`) | high | low–medium (the TV's grid plus pointer handlers) | **v1** | the TV's guide with the mouse's verbs |
 | The one box: search and commands (`10`) | high daily | medium (an index over catalog, guide, schedule, settings) | **v1** | the desktop convention; replaces the TV's keyboard screen |
 | Shortcuts for everything and the sheet (`11`) | high | low | **v1** | the remote's hint bar, grown up |
 | Notifications at tip-off and the tray | high (reminders are NEXT.md's first item) | low (`Notification`, `Tray`, a timer in main) | **v1** | cheap on Windows; needs the tray to fire with the window closed |
-| Media keys from any app (play / pause, next / previous zap) | medium | trivial (`globalShortcut`) | **v1** | |
+| Media keys from any app (play / pause, next / previous zap), registered only while airglow plays | medium | trivial (`globalShortcut` on play, released on stop) | **v1** | never taken from Spotify or the browser while airglow is idle |
 | Window memory (bounds, monitor, maximised), the sidebar's fold, the last page | medium | trivial | **v1** | every desktop app |
 | Second-screen mode: the game full screen on one monitor, the panel (box score, plays) as a window on the other | medium (only with a second monitor) | low–medium (`screen.getAllDisplays`, a second player window, `--fs-screen`) | **v1.1** | the laptop has one screen; build it when he has a monitor |
 | Frame thumbnails on the track (thumbfast) | medium | medium (a background mpv per playing file; `network=yes`) | **v1.1** | Netflix / YouTube have them; the provider's streams allow it on a PC's CPU |
@@ -522,8 +583,21 @@ installed · Reinstall airglow`).
 | Discord rich presence, Chromecast | low | – | **no** | not asked, not his |
 
 Rules shared by the v1 extras: every extra is one key and one menu item away, never a mode he must learn; each one
-respects the shield (a multiview tile, the mini player's bar, a notification's text, the tray's menu print `Score
-hidden` and the masked name, never a result); each one counts against the provider's streams and says so.
+respects the shield (a multiview tile, the mini player's bar, a notification's text, the tray's menu and a palette's
+action row print `Score hidden` and the masked name, never a result; a reminder toast that sits in Windows' Action
+Center is never updated with a result afterwards); each one counts against the provider's streams (the copy checks'
+probes included) and says so.
+
+**The multiview add flow (`13`).** `Add a game or channel` (the header button, an empty slot's `Choose…`, `Ctrl M`
+from any card, the palette's `Add … to multiview`) opens the picker at the right of the tiles (320 px): a search field
+(`Find a game, a channel or a number`), `Tonight's games` (crests, the name, the state: `03:30 · in 18 min · NBA League
+Pass`, `Final · post-game on …`, or `In slot 1 · ESPN · 4K · live` for a game already placed, dimmed with a tick) and
+`Favourite channels` (the tile, number · name, what is on); each row has `+` (the next free slot) and a grip (drag onto a
+slot). An empty slot reads `Empty slot · Drop a game or a channel here · Choose…`; while a row, a game card or a channel
+row is over it, it lights pink and says `Drop to add · tunes at 03:30` (or `· Score hidden` for his team). A game before
+tip-off becomes the waiting slot (`08`) and tunes itself; a channel tunes at once; a game already on another tile moves
+there instead of starting twice. The picker closes with `Esc` or when every slot is full; the sidebar is the rail
+throughout multiview.
 
 ---
 
@@ -531,18 +605,21 @@ hidden` and the masked name, never a result); each one counts against the provid
 
 | Group | Keys |
 |---|---|
-| Everywhere | `Ctrl K` search and commands · `/` search · `?` this sheet · `Ctrl 1–6` sections · `Alt ← →` back / forward · `Ctrl B` sidebar · `Ctrl ,` settings · `F11` full-screen window · `P` mini player · `Ctrl Shift M` multiview · `0–9` tune a channel · `Ctrl P` print the sheet |
-| Browsing | `↑ ↓ ← →` move · `Enter` open · `Shift Enter` play now · `S` save · `X` not interested · `Shift F10` / right-click menu · `PgDn PgUp` next / previous row · `Home` top · `Shift` wheel scroll a row |
+| Everywhere | `Ctrl K` search and commands · `/` search · `?` this sheet · `Ctrl 1–6` sections · `Alt ← →` back / forward · `Ctrl B` sidebar · `Ctrl ,` settings · `F11` full-screen window · `Ctrl P` mini player · `Ctrl Shift M` multiview · `Ctrl R` remind me (on a game) · `Ctrl Shift P` print the sheet |
+| Browsing | `↑ ↓ ← →` move · `Enter` open · `Shift Enter` play now · `S` save · `X` not interested · `Shift F10` / right-click menu · `PgDn PgUp` next / previous row · `Home` top · `Shift` wheel scroll a row · `0–9` tune a channel (Home and Live only) |
 | The guide | `← →` or drag along time · `↑ ↓` or wheel channels · `PgUp PgDn` a page · `N` back to now · `D` day · `Ctrl` wheel zoom · `Enter` tune · `Shift Enter` from the start · `F` favourite · `R` remind me |
-| The player | `Space` `K` or click play / pause · `← →` `J L` 10 s · `Shift ← →` 1 min · `↑ ↓` or wheel volume · `M` mute · `F` or double-click full screen · `C` subtitles · `A` audio · `Q` quality · `[ ]` speed · `O` options · `G` game panel · `N` next episode · `Enter` skip intro / recap when offered · `Esc` hide the controls, then leave · `Ctrl W` close the player |
+| The player | `Space` `K` or click play / pause · `← →` `J L` 10 s · `Shift ← →` 1 min · `↑ ↓` or wheel volume · `M` mute · `F` or double-click full screen · `Esc` leave full screen · `C` subtitles · `A` audio · `Q` quality · `[ ]` speed · `O` options · `G` game panel · `P` mini player · `N` next episode · `E` episodes · `Enter` skip intro / recap when offered · `Esc` hide the controls, then leave · `Ctrl W` close the player |
 | Live TV | `PgUp PgDn` zap · `0–9` channel number · `Backspace` last channel · `L` channels · `Shift L` groups · `Space` pause live · `End` back to live · `Home` from the start · `Ctrl Shift R` reveal the score |
 | Multiview | `Ctrl M` or drag add from any card · `1–4` audio to a tile · `Shift 1–4` or double-click expand · `Del` remove · `Ctrl L` layout · drag swap · `Esc` leave |
-| Windows and screens | `Ctrl Shift T` always on top · `Ctrl Shift S` send to the other screen · `Ctrl ← →` snap the mini player · `Ctrl Shift H` minimise to the tray · media keys from any app |
+| Windows and screens | `Ctrl Shift T` always on top · `Ctrl Shift ← →` snap the mini player · `Ctrl Shift H` minimise to the tray · media keys while airglow plays |
 
-Rules: `Ctrl` for app-wide commands; single letters only inside the player, the guide and the rows (never in a text
-field); every tooltip names its key; the sheet is generated from the one key map (`app/desktop/keys.js`) so it cannot
-drift; a conflict with Windows (`Alt F4`, `Win`, `Ctrl Alt Del`) is never claimed; `Ctrl Shift R` for Reveal is
-deliberately awkward.
+Rules: **one meaning per key**: `Ctrl ← →` is the NBA sections and nothing else; digits tune on Home, Live and in the
+player and pick a tile's audio only in multiview, never in a text field; `Esc` is one ladder (full screen → the controls
+→ the player → the sheet or the palette → Back); `Ctrl` for app-wide commands; single letters only inside the player,
+the guide and the rows (`?` and `/` are punctuation and work everywhere outside a field); every tooltip names its key;
+the sheet is generated from the one key map (`app/desktop/keys.js`) so it cannot drift and the map refuses a duplicate
+in one scope; a conflict with Windows (`Alt F4`, `Win`, `Ctrl Alt Del`) is never claimed; `Ctrl Shift R` for Reveal is
+deliberately awkward; second-screen keys arrive with second-screen mode (v1.1), not before.
 
 ---
 
@@ -557,65 +634,97 @@ sets `window.TUNER_NATIVE` before any TV module loads (exactly phone-v1 §5's tr
 from `preload.js` (`contextIsolation`, `sandbox: true` kept; IPC only). The old `app/index.html` / `app/app.js` /
 `app/player.js` / `app/nav.js` are retired once the new shell plays.
 
+**The three kinds of window (the rule the whole plan follows).** (1) **Electron windows**: the main window, the mini
+player's window, later the second screen's; the pages in them are ordinary HTML. (2) **Host windows**: for every picture
+airglow creates a plain Win32 child window (`CreateWindowExW` with the `STATIC` class, no window procedure of its own,
+`WS_CHILD | WS_VISIBLE`, a black brush) as a child of the Electron window at the video rect; mpv attaches to the host
+with `--wid` and fills it (mpv sizes its video to whatever parent it is given, which is why the main window's own handle
+is never passed: that would cover the sidebar and everything else). airglow moves and sizes hosts with `SetWindowPos`
+and re-parents them with `SetParent` to hand a picture between Electron windows. (3) **Overlay windows**: whenever a host
+is on screen in an Electron window, one transparent frameless child window of that window (`parent`, `transparent:
+true`, `frame: false`, `hasShadow: false`, `skipTaskbar: true`, **`focusable: false`** so it never activates and the
+keyboard stays with its parent) covers that window's **whole content area** and hosts **everything that floats**: the
+player's controls, title block, corner, timeline, chips, banner, hint line and panels, the docked panel's popovers, the
+palette, the shortcuts sheet, context menus, toasts, tooltips, multiview's borders, numbers, chips, label strips, drop
+states and picker, and the mini player's strip and bar. Nothing in the parent page can draw over a host (the airspace
+rule), so nothing floating is ever drawn there while a host is up; the sidebar, the title strip and the band under a
+docked picture are the parent's, because no host covers them. The overlay is sized to the content area on every
+`resize`, **hidden on `will-move` / `will-resize` / `minimize` and shown again on `moved` / `resized` / `restore`**
+(owned windows do not follow their owner during a drag or a Snap animation), and it **keeps all pointer input over
+the picture**: it paints a 1 % alpha fill over the video rects (so Windows treats the pixels as hit-testable; the spike
+confirms this) and turns clicks into pause / play, double-clicks into full screen, the wheel into volume and right-click
+into Options, forwarding nothing to mpv (which runs with `--input-cursor=no`); `setIgnoreMouseEvents` is used only over
+the band and the sidebar when the overlay covers them, with `{ forward: true }` so hover still reaches the overlay's
+controls. Keyboard events go to the main window's page (the overlay is never focused); the two pages share state over
+IPC through main (`overlay.state`), one message per change, never per frame.
+
 **mpv, embedded (plan A, the one to build).** `mpv.js` becomes an `MpvInstance` class (one per picture: the player, each
 multiview tile, the mini player, the probe): spawns `vendor/mpv/mpv.exe` (shinchiro's build via `scripts/fetch-mpv.js`,
-as today) with `--wid=<HWND>` where the HWND is the host window's `getNativeWindowHandle()` (a Buffer; read as a 64-bit
-integer), `--input-ipc-server=\\.\pipe\airglow-<pid>-<n>`, `--idle=yes --keep-open=yes --force-window=yes`,
+as today) with `--wid=<host HWND>` (the host window's handle as mpv expects it on Windows, a 32-bit HWND value),
+`--input-ipc-server=\\.\pipe\airglow-<pid>-<n>`, `--idle=yes --keep-open=yes --force-window=yes`,
 `--vo=gpu-next --gpu-context=d3d11 --hwdec=auto-safe` (d3d11va), `--target-colorspace-hint=yes` when the HDR setting is
 on, `--audio-device=<chosen>`, `--audio-spdif=ac3,dts,eac3` when passthrough is on, `--sub-*` for the house subtitle
 style, `--osc=no --osd-level=0 --input-default-bindings=no --input-cursor=no --window-dragging=no --cursor-autohide=no`
 (the app draws and handles everything), `--cache=yes --demuxer-max-bytes=200MiB --network-timeout=20`, the live
-reconnect options from today's `mpv.js`, `--user-agent` from the provider. mpv's child HWND is placed and sized by the
-main process (`SetWindowPos` from `app/desktop/win32.js`, a 40-line module over [koffi](https://koffi.dev), a prebuilt FFI
-package, so no native build step) on every `resize` / `move` / layout change (the renderer sends the video rect over IPC),
-and raised above Chromium's own child HWND (`HWND_TOP`) so the video shows: this is the point where the Node-MPV report
-(§1) failed, and it is the first thing to prove. The old `player/tuner.lua` goes (its keys become the app's).
+reconnect options from today's `mpv.js`, `--user-agent` from the provider. The host is created, placed, sized, raised
+(`HWND_TOP` among the Electron window's children, above Chromium's own child HWND, which is where the Node-MPV report of
+§1 stopped) and re-parented by the main process through `app/desktop/win32.js`, a 60-line module over
+[koffi](https://koffi.dev) (a prebuilt FFI package, so no native build step: `CreateWindowExW`, `DestroyWindow`,
+`SetWindowPos`, `SetParent`, `ShowWindow`, `GetClientRect`); the renderer sends each picture's rect over IPC on every
+layout change and main applies it in one `SetWindowPos` per host. The old `player/tuner.lua` goes (its keys become the
+app's). The overlay (above) loads `app/desktop/overlay.html`; the docked panel and the band under a docked picture are
+ordinary HTML in the main window because no host covers them; the subtitles the app renders itself (when mpv's ASS
+rendering of the OpenSubtitles file is not wanted) live in the overlay.
 
-**The overlay.** The controls are a transparent, frameless child `BrowserWindow` (`parent: main`, `transparent: true`,
-`hasShadow: false`, `skipTaskbar: true`) sized to the video rect and moved with it (Windows child windows do not follow
-their parent, so the main process moves it on `move`); it loads `app/desktop/overlay.html` with the v2 controls, the
-panels, the sheets and the chips; when the pointer is over empty picture the overlay calls `setIgnoreMouseEvents(true,
-{ forward: true })` so clicks reach the video host (pause / play, double-click) and mouse moves still wake the
-controls; over a control it takes the mouse back. The docked panel is ordinary HTML in the main window (the video rect
-simply shrinks). The hint, the bubble, the subtitles the app renders itself (if mpv's ASS rendering of OpenSubtitles
-files is not wanted) all live in the overlay.
+**Hand-offs are moves, not restarts.** A game going to the mini player, a tile expanding to the player and back, the
+audio tile becoming the player when multiview closes: the picture's host window is **re-parented with `SetParent`
+into the other Electron window** and placed; the mpv instance, its stream and its buffer are untouched, so there is no
+second connection and no gap (`--wid` names the host, and the host is what moves). The TV's zap rule (a second stream
+overlapping the first for 1 s) is used only when the source really changes.
 
-**Plan B, if the spike shows the child HWND tearing on resize or losing DWM composition:** `electron-mpv-video`'s
-shape, libmpv in a native addon rendering to a shared D3D11 texture into Chromium (Electron 40 +), the video a `<canvas>`
-in the page: no overlay window, multiview and the mini player are plain HTML and plain windows. Costs: a built addon
-(libmpv from the same shinchiro build), `sandbox: false` for the player page only (a separate `BrowserWindow` for the
-player keeps the app's sandbox), and performance to measure at 4K HEVC on his laptop (the shared-texture path should be
-zero-copy; the software path will not do 4K). **Plan C, the fallback that works today:** mpv as its own borderless
-window laid over the app (as `mpv.js` does now), owned by the main window (`SetWindowLongPtr GWLP_HWNDPARENT` through
-the same koffi module, so it stays above the app and follows its activation) and glued to the video rect by
-`SetWindowPos`; the overlay window sits above it the same way. Plan C loses nothing visible; it only has three top-level
-windows instead of one.
+**The spike (one day, step 1 of §10).** On the owner's laptop, in Electron 45: a host child HWND with mpv in it shows
+video, resizes cleanly, survives a monitor change, sleep and a Windows HDR toggle (a 4K HEVC HDR file and a live
+`.ts`); the overlay's 1 % alpha fill takes the mouse over the picture; `focusable: false` keeps typing in the main
+window; the overlay hides and shows cleanly around a window drag and a Snap; `SetParent` moves a playing host between
+two windows without a frame drop; an SDR overlay over an HDR swapchain is not dimmed. Pass → plan A. **Fallbacks, in
+this order: A → C → B.** **Plan C, the one that works today:** mpv as its own borderless top-level window (as `mpv.js`
+does now), owned by the Electron window (`SetWindowLongPtrW GWLP_HWNDPARENT`) so it stays above the app and follows its
+activation, glued to the video rect by `SetWindowPos`; the overlay sits above it the same way and the rest of the plan
+(hosts per picture, hand-offs by re-owning) is unchanged; it costs three top-level windows instead of one. **Plan B, the
+last resort:** `electron-mpv-video`'s shape, libmpv in a native addon rendering to a shared D3D11 texture into Chromium
+(Electron 40 +), the video a `<canvas>` in the page, no overlay at all; it is the least proven (early stage, no
+performance figures, `sandbox: false` on the player page, a built addon), so it is tried only if both child-window plans
+fail on his machine.
 
-**Multiview.** `MpvInstance` × N with `--wid` on the main window, one video rect each (2 × 2: 788 × 443 tiles at 1920 with 8
-px gaps; 2 across; 1 + 2), `--mute=yes` on all but the audio tile (`set mute` over IPC when the audio moves; the border
-is HTML in the overlay), `--hwdec` on all (four 1080p streams decode on any 2020 + laptop; four 4K ones do not, so a
-tile asks for the provider's HD copy when the slot count is over 2, and the bar says `HD in multiview`), a waiting slot
-is a timer in the renderer that tunes at tip-off, the provider's `max_connections` caps the slots (`Your provider
-allows 4 streams · 3 in use`). Leaving multiview quits every instance but the audio one, which becomes the player.
+**Multiview.** `MpvInstance` × N, each in its own host at its tile's rect (2 × 2: 850 × 478 tiles at 1920 with the rail
+and 8 px gaps; 700 × 394 with the picker open; 2 across; 1 + 2), `--mute=yes` on all but the audio tile (`set mute` over
+IPC when the audio moves; the border, the numbers, the `Audio` chip, the label strips, the drop states and the picker
+are in the overlay), `--hwdec` on all (four 1080p streams decode on any 2020 + laptop; four 4K ones do not, so a tile
+asks for the provider's HD copy when the slot count is over 2, and the bar says `HD in multiview`), a waiting slot is a
+timer in the renderer that tunes at tip-off, the provider's `max_connections` caps the slots and counts the probes
+(`Your provider allows 4 streams · 2 in use`; the copy checks pause while multiview is full). Leaving multiview quits
+every instance but the audio one, whose host becomes the player's (a move).
 
-**The mini player.** A second frameless `BrowserWindow` (`alwaysOnTop` at `'floating'`, `skipTaskbar`, `setAspectRatio(16/9)`
-with a 44 px bar allowance, `minWidth` 320, remembered bounds), its own `MpvInstance` with `--wid` on it, the strip and
-the bar as HTML in the same window (they sit outside the video rect, so no overlay is needed); the main window's
-`Now playing` card reads its state over IPC; `⤢` hands the mpv instance back to the main window (`--wid` cannot move:
-the main window starts a new instance at the same position and the mini one quits once the first frame shows, 1 s of
-overlap, the TV's zap rule).
+**The mini player.** A second frameless `BrowserWindow` (`alwaysOnTop` at `'floating'`, `skipTaskbar`, `setAspectRatio(16/9)`,
+`minWidth` 320, remembered bounds) with the picture's host re-parented into it and **its own overlay** (the same rules:
+non-activating, the strip and the bar drawn over the picture on hover, hidden while the mini window is dragged); the
+main window's `Now playing` card reads its state over IPC; `⤢` or `P` re-parents the host back into the main window.
 
 **Second screen (v1.1).** `screen.getAllDisplays()`; a `BrowserWindow` per display; the game full screen on the chosen
-one (`setFullScreen` on that display's bounds), the game panel as a 400 px window on the other; `Ctrl Shift S` swaps.
+one (`setFullScreen` on that display's bounds) with the host moved there, the game panel as a 400 px window on the
+other; `Ctrl Shift S` swaps (the key arrives with the feature).
 
 **Native Electron work (main process).** Windows: `titleBarStyle: 'hidden'` + `titleBarOverlay` (the WCO), window
 state saved to `userData`, min size, `setContentProtection` off (he may screenshot). Tray: `Tray` with the airglow mark,
 the menu `Grizzlies at Trail Blazers · 02:00 · Watch`, `Open airglow`, `Multiview`, `Quit`; `close` hides to the tray
 when the setting is on. Notifications: `app.setAppUserModelId('app.tuner.player')` (the NSIS appId), `new Notification`
 with the masked title, `click` opens and tunes; the reminder schedule is kept in `userData` and re-armed on launch;
-`powerMonitor` `resume` re-checks the clock. Global shortcuts: `MediaPlayPause`, `MediaNextTrack`, `MediaPreviousTrack`
-only (`globalShortcut`), everything else in-window. IPC (`preload.js` → `window.tuner`): `mpv.create/play/command/
-quit/onEvent(id)`, `video.rect(id, rect)`, `window.{mini, theater, fullscreen, alwaysOnTop, snap, state}`, `notify`,
+`powerMonitor` `resume` re-checks the clock; a toast already shown is never edited afterwards (the Action Center keeps
+it, and a result there would be a spoiler). Global shortcuts: `MediaPlayPause`, `MediaNextTrack`, `MediaPreviousTrack`
+only (`globalShortcut`), **registered when playback starts and unregistered when it stops or pauses for more than 2
+min**, so an idle airglow never takes them from Spotify or the browser; everything else in-window. IPC (`preload.js` →
+`window.tuner`): `mpv.create/play/command/quit/onEvent(id)`, `host.{rect(id, rect), moveTo(id, window)}`, `overlay.state`,
+`window.{mini, theater, fullscreen, alwaysOnTop, snap, state}`, `notify`,
 `reminders.{set, list, clear}`, `tray.update`, `displays`, `updates.*` (as today), `net.fetch` for the diagnosis
 (`conncheck.js`'s checks run in main with Node's sockets, so the provider sees a plain client), `files.{mpvConf, log}`.
 Headers: today's `onBeforeSendHeaders` rewrite stays (Origin / Referer stripped, the provider's user agent).
@@ -627,7 +736,8 @@ Headers: today's `onBeforeSendHeaders` rewrite stays (Origin / Referer stripped,
 decoding, under 10 % CPU on his laptop's iGPU, no frame drops at 24 / 50 / 60 Hz (`--video-sync=audio` default; `Match
 frame rate` is a Windows display-mode change, offered as a setting but off: it is slow on laptops); four 1080p tiles:
 under 35 % CPU; the overlay repaints only on state changes (the TV's "no string built on a press" rule); images at slot
-size (`sized()` as on the TV: posters `/poster/small/`, the Marquee `/background/large/` at 1920).
+size, chosen by **`width × devicePixelRatio`** (`sized()` as on the TV: posters `/poster/small/` at 1x and `/medium/` at
+1.5x and up, the Marquee `/background/large/` at 1920 physical px and the original at 2560 and up).
 
 **Security.** `contextIsolation` and `sandbox` stay on for the app page; `webSecurity: false` stays only because the
 provider's servers send no CORS headers (as today), so the renderer never loads remote pages (`will-navigate` and
@@ -653,12 +763,12 @@ runs) and adds the flows; screenshots upload with the Android ones.
 | `app/desktop/home.js`, `live.js`, `nba.js` (+ `nbateam.js`, `nbaleague.js`, `nbanews.js`, `nbaplayer.js`, `nbagame.js`), `library.js`, `detail.js`, `search.js`, `saved.js`, `account.js`, `signin.js` | the views, one per screen, on the models the phone already lifted out of the TV screens (`screens/home.js`'s lines, `live.js`'s `programmeView`, `hub.js`'s hero table, `detail.js`'s facts and episodes, `account.js`'s groups) |
 | `app/desktop/guide.js` | the grid: cells positioned by time, drag / wheel / zoom, the panel, the Now flag |
 | `app/desktop/palette.js` | the index (catalog, guide, schedule, teams, settings, pages) and the sheet |
-| `app/desktop/player.js` | the host behind `TUNER_NATIVE.player`: asks main for an `MpvInstance`, sends the video rect, owns the overlay's state (controls, panels, chips, banner, timeline), the docked panel, mini / theater / full screen |
-| `app/desktop/overlay.html`, `overlay.js` | the v2 controls over the picture (the `pv-*` classes of `player-v2.css`, desktop sizes), click-through handling |
-| `app/desktop/multiview.js`, `mini.html` / `mini.js` | the tiles, the audio border, drag and drop, the waiting slot; the mini window's page |
-| `app/desktop/win32.js` | koffi: `SetWindowPos`, `SetWindowLongPtr`, `GetWindowRect` (nothing else) |
-| `mpv.js` | `MpvInstance` (id, `--wid`, the named pipe, `observe_property` for time, duration, pause, mute, volume, track lists, `demuxer-cache-state` for the diagnosis, `sub-add`, `audio-add`, `playlist`, `seek`, the live reconnect), `MpvProbe` (the copy checks); the overlay-window helpers |
-| `main.js` | the windows (main with the WCO, overlay, mini, later the second screen), `win32` glue, the tray, notifications and the reminder schedule, media keys, window state, IPC handlers (§9), `conncheck` in main, the updater as it is, `--smoke-test` kept |
+| `app/desktop/player.js` | the host behind `TUNER_NATIVE.player`: asks main for an `MpvInstance` in a host window, sends the picture's rect, owns the overlay's state (controls, panels, chips, banner, timeline), the title strip's Back, the docked panel and its band, mini / theater / full screen, the `Esc` ladder |
+| `app/desktop/overlay.html`, `overlay.js` | everything that floats while a picture is on screen (the `pv-*` classes of `player-v2.css` at desktop sizes, the palette, the sheet, menus, toasts, tooltips, multiview's chrome and picker, the mini player's chrome); the pointer over the picture (click, double-click, wheel, right-click); never focused |
+| `app/desktop/multiview.js`, `mini.html` / `mini.js` | the tiles, the audio border, the picker, drag and drop, the waiting and empty slots; the mini window's page |
+| `app/desktop/win32.js` | koffi: `CreateWindowExW` (the `STATIC` host), `DestroyWindow`, `SetWindowPos`, `SetParent`, `ShowWindow`, `GetClientRect`, `SetWindowLongPtrW` (plan C only); nothing else |
+| `mpv.js` | `MpvInstance` (id, its host HWND, `--wid`, the named pipe, `observe_property` for time, duration, pause, mute, volume, track lists, `demuxer-cache-state` for the diagnosis, `sub-add`, `audio-add`, `playlist`, `seek`, the live reconnect), `MpvProbe` (the copy checks, counted against the streams) |
+| `main.js` | the windows (main with the WCO and the title strip, one overlay per Electron window that holds a host, mini, later the second screen), the hosts (`win32` glue, rects, `SetParent` moves), the overlay's hide / show around moves, the tray, notifications and the reminder schedule, media keys while playing, window state, IPC handlers (§9), `conncheck` in main, the updater as it is, `--smoke-test` kept |
 | `preload.js` | the `window.tuner` surface of §9 |
 | `scripts/build-web.js` | a `desktop` target is not needed: Electron loads `app/desktop.html` straight from the repo (as the PC app does today); `package.json` `build.files` adds `app/desktop/**` and drops the old PC files when they go |
 | `scripts/fetch-mpv.js` | unchanged (mpv.exe); add `libmpv-2.dll` only if plan B is taken |
@@ -666,8 +776,8 @@ runs) and adds the flows; screenshots upload with the Android ones.
 | `tests/desktop/flows.js`, `.github/workflows/build.yml` | the Playwright walk on the Windows job |
 | `CLAUDE.md` | the desktop section: `app/desktop.html` + `app/desktop/`, mpv's `MpvInstance`, the overlay, the tests |
 
-**Order.** (1) The spike, one day: `--wid` into an Electron 45 window on the owner's laptop with a 4K HEVC HDR file and a
-live `.ts`: does the child HWND show, resize cleanly, survive a monitor change and sleep? Decide A / B / C. (2) The shell:
+**Order.** (1) The spike of §9, one day, on the owner's laptop: the host child HWND, the overlay's pointer and focus
+rules, the `SetParent` move, HDR. Decide A, else C, else B. (2) The shell:
 `desktop.html`, the sidebar, the router, `bridge.js`, Home and the title page, the launch. (3) The player host, the
 overlay, the v2 bar, the banner, the timeline, Options; the game panel docked. (4) The guide. (5) NBA. (6) Library,
 Search, the palette, the sheet, Saved, Account, sign-in. (7) The mini player, multiview, the tray and notifications,
@@ -710,8 +820,11 @@ media keys, window memory. (8) The flows test, CI, the first Windows release. Ea
 
 ## 13. Open items (need the owner's laptop)
 
-1. The `--wid` spike (§9): the one decision the build hinges on; the three plans are written so the builder loses no
-   design either way.
+1. The spike (§9): the one decision the build hinges on; the three plans are written so the builder loses no design
+   either way. Its open questions: does Windows hit-test a 1 % alpha fill in a transparent Electron window (else the
+   overlay keeps `setIgnoreMouseEvents(false)` over the whole picture and passes nothing); does a `STATIC` host need its
+   own message loop for mpv's d3d11 swapchain (it should not: mpv creates its own child inside it); is an SDR overlay
+   dimmed over an HDR host.
 2. His laptop: the GPU (d3d11va for HEVC 10-bit?), the display (HDR? 125 % scaling?), a second monitor or not (second
    screen goes to v1.1 until there is one).
 3. The provider's `max_connections` on his account: it decides how many multiview slots he really gets.

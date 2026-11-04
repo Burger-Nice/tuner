@@ -24,7 +24,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
   h1{font:700 26px/30px Outfit,sans-serif;margin:0 0 4px}p.s{margin:0 0 18px;color:#C8C4D8;font-size:14px}
   .g{display:grid;grid-template-columns:repeat(2,900px);gap:22px 20px}figure{margin:0}img{width:900px;height:506px;display:block;border-radius:6px;border:1px solid #3C3452;object-fit:contain;background:#000}
   figcaption{padding:7px 2px 0}figcaption b{display:block;font-weight:650;font-size:14px}figcaption span{display:block;color:#C8C4D8;margin-top:2px}</style>
-  <h1>airglow · the Windows app, v1</h1><p class="s">Mocks at 1920 x 1080 (100 % scale, 1x) and one at 1366 x 768. The owner's laptop, Reykjavik time, shield My team, films and series from his add-ons, mpv as the player. Spec: SPEC.md.</p><div class="g">${grid}</div>`;
+  <h1>airglow · the Windows app, v1.1</h1><p class="s">Mocks at 1920 x 1080 (100 % scale, 1x) and one at 1366 x 768. The owner's laptop, Reykjavik time, shield My team, films and series from his add-ons, mpv as the player. Spec: SPEC.md.</p><div class="g">${grid}</div>`;
   const tmp = path.join(root, 'tools', '_contact.html'); fs.writeFileSync(tmp, html);
   const p = await b.newPage({ viewport: { width: 28 * 2 + 2 * 900 + 20, height: 800 }, deviceScaleFactor: 1 });
   await p.goto('file://' + tmp); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(400);

@@ -4,11 +4,12 @@
   { "file": "03-live-guide.html", "title": "Live: the guide", "note": "A 3 h grid with drag and wheel, the group chips, the Now flag; the hovered programme answers in the right panel with Remind me, Tune, Multiview, replays" },
   { "file": "04-nba-hub.html", "title": "NBA: the hub", "note": "The TV's sections as chips, the hero with the tip-off slab, Remind me (a Windows notification), the day strip, four game cards a row" },
   { "file": "05-title-series.html", "title": "A title page", "note": "Severance: logo, facts, the copy line, Resume · Saved · Subtitles · Copies; the episodes as a list, More like this beside it" },
-  { "file": "06-player-episode.html", "title": "The player, controls up", "note": "The v2 bar on the picture, drawn by the app over mpv: discs, the volume slider, the track with the hover bubble, PiP and full screen, the shortcut hint" },
-  { "file": "07-player-game-panel.html", "title": "The game with the box score docked", "note": "A PC extra: the game panel docked at the right (G), the picture keeps 16:9; the replay timeline with Skip to Q4 and Back to live" },
-  { "file": "08-multiview.html", "title": "Multiview", "note": "Four mpv instances, audio follows the click (the white border), 1–4 pick, drag a card onto a slot, a slot that waits for tip-off, the provider's stream limit" },
+  { "file": "06-player-episode.html", "title": "The player, controls up", "note": "Theater keeps the 40 px title strip (Back for the mouse, Windows' caption buttons); the v2 bar drawn by the app over mpv: discs, the volume slider, the track's hover bubble, Episodes, PiP, full screen" },
+  { "file": "07-player-game-panel.html", "title": "The game with the box score docked", "note": "A PC extra: the game panel docked under the title strip (G); the picture pinned to the top at 16:9, the bar and the hint in the band under it; the box score and the latest plays" },
+  { "file": "08-multiview.html", "title": "Multiview", "note": "The sidebar folds to the rail; one mpv per tile, audio follows the click (the white border), 1–4 pick; a slot that waits for tip-off, an empty slot, the provider's stream limit" },
   { "file": "09-mini-player.html", "title": "The mini player over Home", "note": "The game kept in an always-on-top window while browsing the rows; Now playing in the sidebar; the rows with the index and See all" },
   { "file": "10-palette.html", "title": "The command palette", "note": "Ctrl K: actions, teams, channels, titles and settings from one box; digits tune; Shift Enter plays" },
   { "file": "11-shortcuts.html", "title": "The shortcuts sheet", "note": "? from anywhere: every key in seven groups, the same words as the TV's remote" },
-  { "file": "12-home-1366.html", "title": "Home at 1366 x 768", "note": "The small laptop: the sidebar folds to icons, the lineup narrows, the posters shrink; nothing is lost" }
+  { "file": "12-home-1366.html", "title": "Home at 1366 x 768", "note": "The small laptop: the sidebar folds to icons, the lineup narrows, the posters shrink; nothing is lost" },
+  { "file": "13-multiview-add.html", "title": "Multiview: adding a game", "note": "The picker at the right (tonight's games, favourite channels, a search field): click + for the next free slot, or drag a row onto a slot; a game before tip-off waits and tunes itself" }
 ]

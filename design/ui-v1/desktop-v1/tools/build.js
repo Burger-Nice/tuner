@@ -173,13 +173,13 @@ const gameNight = () => head('Home, game night', '', `
 ]) + `</div>\n` + foot;
 
 // ================================================================ 3. Live: the guide (Wed 20:41, window 20:30 to 23:30, 5 px a minute)
-const PXM = 5, T0 = 20 * 60 + 30;
+const AX = 960, PXM = AX / 180, T0 = 20 * 60 + 30;   // the axis is 960 px for 3 h (the channel column is 220 of the grid's 1180)
 const mins = (t) => { const [h, m] = t.split(':').map(Number); let v = h * 60 + m; if (v < T0 - 240) v += 1440; return v; };
-const cell = (s, e, title, o = {}) => { const l = Math.max(0, (mins(s) - T0) * PXM), r = Math.min(900, (mins(e) - T0) * PXM); if (r <= 0 || l >= 900) return '';
+const cell = (s, e, title, o = {}) => { const l = Math.max(0, (mins(s) - T0) * PXM), r = Math.min(AX, (mins(e) - T0) * PXM); if (r <= 0 || l >= AX) return '';
   const w = r - l; const early = mins(s) < T0; const now = mins(s) <= mins('20:41') && mins(e) > mins('20:41');
   const p = now ? Math.round(((mins('20:41') - mins(s)) / (mins(e) - mins(s))) * 100) : 0;
-  const sil = w < 56;
-  return `<div class="gcell${o.hov ? ' hov' : ''}${o.none ? ' none' : ''}${sil ? ' sil' : ''}" style="--l:${l}px;--w:${w}px">${sil ? '' : `<div class="tt">${esc(title)}${o.live ? live(true) : ''}</div><div class="tx">${early ? `${ic('chevL')}` : ''}<span>${w < 170 ? s : `${s}${dot}${e}`}</span>${o.kept && w > 200 ? `<span class="badge">kept</span>` : ''}</div>`}${now ? `<div class="pb" style="--p:${p}%"><i></i></div>` : ''}</div>`; };
+  const sil = w < 80;   // under 80 px a cell is a silhouette: the title lives in the panel on hover
+  return `<div class="gcell${o.hov ? ' hov' : ''}${o.none ? ' none' : ''}${sil ? ' sil' : ''}" style="--l:${l.toFixed(1)}px;--w:${w.toFixed(1)}px">${sil ? '' : `<div class="tt"><span class="t">${esc(title)}</span>${o.live ? live(true) : ''}</div><div class="tx">${early ? `${ic('chevL')}` : ''}<span>${w < 170 ? s : `${s}${dot}${e}`}</span>${o.kept && w > 200 ? `<span class="badge">kept</span>` : ''}</div>`}${now ? `<div class="pb" style="--p:${p}%"><i></i></div>` : ''}</div>`; };
 const CH = [
   { no: 1, nm: 'RÚV', tc: '#0B5C8A', tile: 'RÚV', star: true, cells: [['20:35', '20:55', 'Kastljós'], ['20:55', '21:10', 'Fréttir og veður'], ['21:10', '22:00', 'Taskmaster'], ['22:00', '22:40', 'Kiljan'], ['22:40', '23:00', 'Fréttir'], ['23:00', '23:40', 'Skaupið: upphitun']] },
   { no: 2, nm: 'Stöð 2', tc: '#5A2D81', tile: 'S2', cells: [['20:05', '20:45', 'Ísland í dag'], ['20:45', '22:05', 'The Voice Ísland'], ['22:05', '22:55', 'Ráðherrann'], ['22:55', '23:40', 'Fréttir og Sportpakkinn']] },
@@ -194,17 +194,17 @@ const CH = [
   { no: 204, nm: 'CNN International', tc: '#7A1F1F', tile: 'CI', cells: [['20:30', '23:30', 'No guide information', { none: true }]] },
 ];
 const liveGuide = () => head('Live: the guide') + tbar() + side('Live') + `<div class="ct">
-<div class="gh"><span class="chip sel">${ic('list')}Favourites <span class="n">10</span></span><span class="chip">All channels</span><span class="chip">Sports</span><span class="chip">Iceland</span><span class="chip">UK</span><span class="chip">News</span><span class="chip">Movies</span><span class="chip">${ic('chevD')}12 more</span>
+<div class="gh"><span class="chip sel">${ic('list')}Favourites <span class="n">11</span></span><span class="chip">All channels</span><span class="chip">Sports</span><span class="chip">Iceland</span><span class="chip">UK</span><span class="chip">News</span><span class="chip">Movies</span><span class="chip">${ic('chevD')}12 more</span>
   <span class="r"><span class="ctl">${ic('chevL')}</span><span class="ctl now">Now</span><span class="ctl">${ic('chevR')}</span><span class="ctl">${ic('cal')}Wed 28 Oct${ic('chevD')}</span><span class="ctl">${ic('zoom')}3 h${ic('chevD')}</span></span></div>
 <div class="guide" style="--gw:1180px">
-  <div class="ruler"><span class="nowf" style="--l:55px">Now</span>${['21:00', '21:30', '22:00', '22:30', '23:00'].map((t, i) => `<span style="--l:${(i + 1) * 150 - 18}px">${t}</span>`).join('')}</div>
-  <div class="nowline" style="--l:55px"></div>
+  <div class="ruler"><span class="nowf" style="--l:${(11 * PXM).toFixed(1)}px">Now</span>${['21:00', '21:30', '22:00', '22:30', '23:00'].map((t, i) => `<span style="--l:${(i + 1) * 160 - 18}px">${t}</span>`).join('')}</div>
+  <div class="nowline" style="--l:${(11 * PXM).toFixed(1)}px"></div>
 ${CH.map((c, i) => `  <div class="grow" style="--i:${i}"><div class="gch" style="--tc:${c.tc}"><span class="no">${c.no}</span><span class="tile">${c.tile}</span><span class="nm">${c.nm}</span>${c.pin ? ic('pin', 'pin') : c.star ? ic('star') : ''}</div>${c.cells.map((x) => cell(x[0], x[1], x[2], x[3] || {})).join('')}</div>`).join('\n')}
 </div>
 <div class="gpanel">
   <div class="pv">${tfield('BOS', 'NY', 110)}<span class="tag">${ic('clock')}Tips off in 2 h 19 min</span></div>
   <h3>Celtics at Knicks</h3>
-  <div class="f"><span>NBA League Pass 4</span>${dot}<span>23:00 to 01:30</span>${dot}<span>Wed 28 Oct</span><span class="badge">HD</span></div>
+  <div class="f"><span>4 · NBA League Pass 4</span><span class="badge">HD</span>${dot}<span>23:00 to 01:30</span>${dot}<span>Wed 28 Oct</span></div>
   <div class="f"><span>Boston 3-1</span>${dot}<span>New York 2-2</span>${dot}<span>Madison Square Garden</span></div>
   <p>Boston's first visit to the Garden this season. Also on ESPN in 4K: airglow picks the best copy when you tune.</p>
   <div class="acts"><span class="pill">${ic('bell')}Remind me</span><span class="ghost">${ic('play')}Tune now</span><span class="ghost">${ic('grid')}Multiview</span><span class="ghost sq">${ic('dots')}</span></div>
@@ -257,7 +257,6 @@ const titlePage = () => head('A title page: Severance') + picture('severance-bg.
 ${EPS.map(([n, name, dur, line, o]) => `  <div class="ep${o.cur ? ' cur' : ''}${o.hov ? ' hov' : ''}"><div class="st${o.seen ? ' seen' : ''}"><img src="${ART}/severance-bg.jpg" alt=""><span class="no">${n}</span>${o.seen ? `<span class="ok">${ic('check')}</span>` : ''}${o.p ? `<div class="pb" style="--p:${o.p}"><i></i></div>` : ''}</div><div class="tx"><b>${name}<small>${dur}</small></b><span>${line}</span></div><span class="pl${o.cur || o.hov ? '' : ' g'}">${ic('play')}</span></div>`).join('\n')}
 </div>
 <div class="mlt"><div class="hd">More like this<span>Same kind of thing · Thriller · Drama</span></div><div class="g">${MLT.map((f) => poster(f)).join('')}</div></div>
-<div class="note" style="right:48px;bottom:14px">Episode stills: the mock reuses the backdrop (open item)</div>
 </div>
 ` + foot;
 
@@ -265,16 +264,17 @@ ${EPS.map(([n, name, dur, line, o]) => `  <div class="ep${o.cur ? ' cur' : ''}${
 const hint = (items) => `<div class="pv-hint">${items.map(([kk, t]) => `<span>${kk.map((x) => k(x, true)).join('')}${t}</span>`).join('')}</div>`;
 const rowLeft = (o) => `<span class="disc">${ic('pause')}</span><span class="disc">−10</span><span class="disc">+10</span>${o}`;
 const rowRight = () => `<span class="disc">${ic('cc')}</span><span class="vol"><span class="disc">${ic('vol')}</span><span class="sl" style="--p:72%"><i></i></span><span>72</span></span><span class="disc">${ic('settings')}</span><span class="disc">${ic('pip')}</span><span class="disc">${ic('expand')}</span>`;
-const playerFilm = (over = '') => head('The player: an episode, controls up') + `<div class="frame"><img src="${ART}/severance-bg.jpg" alt=""><div class="cap"></div></div>
+// theater keeps the 40 px title strip: the way back for the mouse, and Windows' caption buttons (never under the video)
+const tstrip = (from, title) => `<div class="tstrip"><img class="mk" src="../../../app/tv/brand/assets/mark-small.svg" alt="airglow"><span class="back">${ic('back')}${from}</span><span class="ttl">${title}</span><div class="wco"><i>${ic('min')}</i><i>${ic('max')}</i><i>${ic('close')}</i></div></div>`;
+const playerFilm = (over = '') => head('The player: an episode, controls up', '', `.frame { top: 40px; left: 36px; width: 1848px; } .bars { top: 40px; } .pv-st { top: 40px; }`) + `<div class="bars"></div><div class="frame"><img src="${ART}/severance-bg.jpg" alt=""><div class="cap"></div></div>
 <div class="pv-st"></div><div class="pv-sb"></div>
-<div class="wco"><i>${ic('min')}</i><i>${ic('max')}</i><i>${ic('close')}</i></div>
+${tstrip('Severance', `<b>S2 · E3 · Who Is Alive?</b> · Esc or Back leaves · F for full screen`)}
 <div class="pv-top"><img class="logo" src="${ART}/severance-logo.png" alt="Severance"><div class="sub"><span>S2 · E3</span>${dot}<span>Who Is Alive?</span><span class="badge fill">4K</span><span class="badge fill">HDR</span></div><div class="what">${ic('check')}4K HDR, 5.1 · best of 3 copies · Icelandic subtitles · mpv, hardware decoding</div></div>
 <div class="pv-corner"><div class="l1">Ends at ${ends('20:41', 21)}</div><div class="l2">21 min left</div></div>
-<div class="pv-row">${rowLeft(`<span class="ppill hov">Next episode ${ic('chevR')}<span class="lab"></span></span>`)}<span class="sp"></span>${rowRight()}</div>
-<div class="pv-track" style="--p:57%"><div class="ln"></div><div class="pd"></div><div class="th"></div><div class="bub" style="--l:40%">24:00</div></div>
-<div class="pv-ends"><span class="l">34:10</span><span class="r">−25:50</span></div>
-${hint([[['Space'], 'Pause'], [['←', '→'], '10 s'], [['↑', '↓'], 'Volume'], [['F'], 'Full screen'], [['P'], 'Mini player'], [['G'], 'Game panel'], [['?'], 'All shortcuts']])}
-<div class="note" style="right:48px;bottom:36px">The pointer rests on the track at 24:00 · frame thumbnails come later (thumbfast)</div>
+<div class="pv-row">${rowLeft(`<span class="ppill hov">Next episode ${ic('chevR')}<span class="lab"></span></span><span class="ppill">${ic('list')}Episodes</span>`)}<span class="sp"></span>${rowRight()}</div>
+<div class="pv-track" style="--p:62%"><div class="ln"></div><div class="pd"></div><div class="th"></div><div class="bub" style="--l:40%">22:04</div></div>
+<div class="pv-ends"><span class="l">34:10</span><span class="r">−21:00</span></div>
+${hint([[['Space'], 'Pause'], [['←', '→'], '10 s'], [['↑', '↓'], 'Volume'], [['F'], 'Full screen'], [['P'], 'Mini player'], [['C'], 'Subtitles'], [['?'], 'All shortcuts']])}
 ${over}` + foot;
 
 // ================================================================ 7. The player: the game live with the box score docked (Thu 03:12, revealed)
@@ -282,18 +282,21 @@ const BOX = [
   ['T. Jerome', 'G', '26', '18', '3', '5', '7-12'], ['J. Wells', 'F', '24', '11', '4', '2', '4-9'], ['C. Boozer', 'F', '25', '12', '9', '3', '5-11'], ['C. Coward', 'F', '21', '8', '6', '1', '3-7'], ['Z. Edey', 'C', '19', '6', '8', '0', '3-4'],
   ['J. Grant', 'F', '14', '3', '2', '1', '1-5'], ['S. Pippen Jr.', 'G', '12', '0', '1', '4', '0-3'], ['G. Jackson', 'F', '9', '0', '2', '0', '0-2'],
 ];
-const playerGame = () => head('The player: the game, the box score beside it', '', `.pa { left: 0; top: 112px; width: 1520px; height: 855px; } .pa > * { position: absolute; }`) + `
+const PLAYS = [['4:12', 'Boozer makes 2-pt jump shot (Jerome assists)', '58–61', true], ['4:31', 'Grant misses 3-pt jump shot', ''], ['4:48', 'Sharpe makes driving layup', '56–61', true], ['5:05', 'Jerome defensive rebound', ''], ['5:09', 'Avdija misses 3-pt jump shot', '']];
+// docked: the picture pinned to the top of the 1520 × 1040 area (855 high), the bar in the band under it, nothing over the picture but the title block
+const playerGame = () => head('The player: the game, the box score beside it', '', `.pa { left: 0; top: 40px; width: 1520px; height: 1040px; } .pa > * { position: absolute; } .pa .frame { bottom: auto; height: 855px; } .pa .pv-st { height: 240px; }
+  .pa .pv-row { bottom: 127px; } .pa .pv-track { bottom: 91px; } .pa .pv-ends { bottom: 70px; } .pa .pv-hint { bottom: 15px; } .dock { top: 40px; }`) + `
+${tstrip('NBA', `<b>Grizzlies at Trail Blazers</b> · ESPN · live`)}
 <div class="pa">
-<div class="frame">${tfield('MEM', 'POR', 300, '<span class="standin">The picture is a stand-in for the broadcast.</span>')}</div>
-<div class="pv-st"></div><div class="pv-sb"></div>
+<div class="frame">${tfield('MEM', 'POR', 300)}</div>
+<div class="pv-st"></div>
 <div class="pv-top"><div class="ttl">Grizzlies at Trail Blazers</div><div class="sub"><span>ESPN</span>${dot}<span>Thu 29 Oct · late</span><span class="badge fill">4K</span>${dot}${live()}</div><div class="what">${ic('check')}Best of 3 channels · 4K · 42 s score delay, synced to the picture</div></div>
 <div class="pv-corner"><div class="l1">Q3 4:12</div><div class="l2">Synced · the score waits 42 s for the picture</div></div>
 <div class="pv-row"><span class="disc">${ic('pause')}</span><span class="disc">${ic('start')}</span><span class="disc">−1m</span><span class="disc">+1m</span><span class="ppill">Skip to Q4 ${ic('chevR')}</span><span class="sp"></span><span class="ppill hov">${ic('score')}Game panel</span><span class="disc">${ic('cc')}</span><span class="disc">${ic('vol')}</span><span class="disc">${ic('settings')}</span><span class="disc">${ic('pip')}</span><span class="disc">${ic('expand')}</span></div>
 <div class="pv-track" style="--p:70%"><div class="ln"></div><div class="pd"></div><div class="ahead" style="--w:29%"></div><div class="tk" style="--l:0"></div><div class="tk" style="--l:22%"></div><div class="tk" style="--l:44%"></div><div class="tk" style="--l:56%"></div><div class="live" style="--l:70.6%"></div><div class="th" style="--p:70%"></div></div>
 <div class="pv-ends"><span class="ch" style="--l:2%">Tip-off</span><span class="ch" style="--l:22%">Q2</span><span class="ch" style="--l:44%">Half</span><span class="ch cur" style="--l:56%">Q3</span>${live(true).replace('class="', 'style="--l:72.5%" class="')}<span class="r">${EYE}Ends when the game ends</span></div>
-${hint([[['Space'], 'Pause'], [['←', '→'], '1 min'], [['End'], 'Back to live'], [['G'], 'Hide the panel'], [['P'], 'Mini player'], [['Ctrl', 'Shift', 'S'], 'Send to the other screen'], [['?'], 'All shortcuts']])}
+${hint([[['Space'], 'Pause'], [['←', '→'], '1 min'], [['End'], 'Back to live'], [['G'], 'Hide the panel'], [['P'], 'Mini player'], [['PgUp', 'PgDn'], 'Feeds'], [['?'], 'All shortcuts']])}
 </div>
-<div class="wco"><i>${ic('min')}</i><i>${ic('max')}</i><i>${ic('close')}</i></div>
 <div class="dock">
   <div class="hd">Game panel<span class="x">${k('G', true)}${ic('close')}</span></div>
   <div class="scp"><span class="tm" style="--te:${pal('MEM').a}"><span class="cr"><img src="${ART}/mem.png" alt=""></span><b>58</b></span><span class="mid"><b>Q3 4:12</b><span>as aired · 42 s behind</span></span><span class="tm" style="--te:${pal('POR').a}"><b>61</b><span class="cr"><img src="${ART}/por.png" alt=""></span></span></div>
@@ -306,21 +309,58 @@ ${BOX.slice(0, 5).map((r) => `  <tr><td>${r[0]}<small>${r[1]}</small></td><td>${
 ${BOX.slice(5).map((r) => `  <tr><td>${r[0]}<small>${r[1]}</small></td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td></tr>`).join('\n')}
   <tr class="tot"><td>Grizzlies</td><td></td><td>58</td><td>35</td><td>16</td><td>23-53</td></tr>
   </table>
-  <div class="ft">Updates with the picture, 42 s behind the broadcast. Reveal is one place: Account › NBA. The numbers are stand-ins for a live box score.</div>
+  <div class="plays"><div class="h">Latest plays · Q3</div>${PLAYS.map(([c, t, s, sc]) => `<div class="r${sc ? ' s' : ''}"><span class="c">${c}</span><span>${t}</span>${s ? `<span class="sc">${s}</span>` : ''}</div>`).join('')}</div>
+  <div class="ft">The panel follows the picture, 42 s behind the broadcast; nothing here runs ahead of what you see.</div>
 </div>
 ` + foot;
 
 // ================================================================ 8. Multiview (Thu 03:12): four mpv instances, audio follows the click
-const tile = (x, y, inner, cls = '') => `<div class="tile ${cls}" style="left:${x}px;top:${y}px">${inner}</div>`;
+const tile = (x, y, w, h, inner, cls = '') => `<div class="tile ${cls}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">${inner}</div>`;
 const lab = (a, h, mid, right, o = {}) => `<div class="lab"><span class="cr"><img src="${crestSrc(a)}" alt=""></span><b>${SHORT[a] || NAMES[a]}</b>${mid}<b>${SHORT[h] || NAMES[h]}</b><span class="cr"><img src="${crestSrc(h)}" alt=""></span><span class="r">${right}</span></div>`;
-const multiview = () => head('Multiview: four games, audio follows the click') + tbar() + side('NBA', { live: true }) + `<div class="ct">
-<div class="mvbar"><b>Multiview</b><span>4 of 4 slots</span>${dot}<span>Your provider allows 4 streams · 3 in use</span>${dot}<span>Audio: Grizzlies at Trail Blazers</span>
-  <span class="r"><span class="lay"><i>${ic('lay2')}</i><i>${ic('lay13')}</i><i class="sel">${ic('grid')}</i></span><span class="ghost">${ic('plus')}Add a game or channel</span><span class="ghost">${ic('expand')}Full screen</span><span class="ghost sq">${ic('close')}</span></span></div>
-${tile(48, 68, `${tfield('MEM', 'POR', 160)}<span class="no">1</span><span class="spk">${ic('vol')}Audio</span>${lab('MEM', 'POR', `<span class="sc">·</span>`, `${EYE}Score hidden${dot}ESPN · 4K${dot}${live(true)}`)}`, 'aud')}
-${tile(844, 68, `${tfield('DEN', 'OKC', 160)}<span class="no">2</span><span class="hv"><i>${ic('vol')}</i><i>${ic('expand')}</i><i>${ic('close')}</i></span>${lab('DEN', 'OKC', `<span class="sc">88 – 84</span>`, `Q3 4:12${dot}Prime Video${dot}${live(true)}`)}`)}
-${tile(48, 519, `${tfield('DAL', 'HOU', 160)}<span class="no">3</span>${lab('DAL', 'HOU', `<span class="sc">109 – 118</span>`, `Final${dot}post-game${dot}NBA League Pass`)}`)}
-${tile(844, 519, `<div class="w"><div class="cs"><i><img src="${crestSrc('LAC')}" alt=""></i><i><img src="${crestSrc('SAC')}" alt=""></i></div><b>Clippers at Kings</b><span>Tips off at 03:30 · in 18 min · this slot tunes NBA League Pass by itself</span><div class="acts"><span class="ghost">${ic('play')}Tune now</span><span class="ghost">${ic('close')}Clear slot</span></div></div>`, 'wait')}
-<div class="note" style="left:48px;bottom:14px">Drag a game card or a channel row onto a slot; 1–4 picks the audio; double-click a tile to expand it. The pictures are stand-ins for the broadcasts.</div>
+const waitSlot = (n) => `<span class="no">${n}</span><div class="w"><div class="cs"><i><img src="${crestSrc('LAC')}" alt=""></i><i><img src="${crestSrc('SAC')}" alt=""></i></div><b>Clippers at Kings</b><span>Tips off at 03:30 · in 18 min · this slot tunes NBA League Pass by itself</span><div class="acts"><span class="ghost">${ic('play')}Tune now</span><span class="ghost">${ic('close')}Clear slot</span></div></div>`;
+const emptySlot = (n, over) => `<span class="no">${n}</span><div class="w">${over ? `<b>Drop to add</b><span>Clippers at Kings · tunes at 03:30</span>` : `<b>Empty slot</b><span>Drop a game or a channel here</span><div class="acts"><span class="ghost">${ic('plus')}Choose…</span></div>`}</div>`;
+// the sidebar folds to the rail in multiview (the tiles take the width); audio follows the click; a slot can wait for a tip-off or sit empty
+const mvbar = (slots, add) => `<div class="mvbar"><b>Multiview</b><span>${slots}</span>${dot}<span>Your provider allows 4 streams · 2 in use</span>${dot}<span>Audio: Grizzlies at Trail Blazers</span>
+  <span class="r"><span class="lay"><i>${ic('lay2')}</i><i>${ic('lay13')}</i><i class="sel">${ic('grid')}</i></span><span class="ghost${add ? ' hov' : ''}">${ic('plus')}Add a game or channel</span><span class="ghost">${ic('expand')}Full screen</span><span class="ghost sq">${ic('close')}</span></span></div>`;
+const T1 = (w, h) => `${tfield('MEM', 'POR', 160)}<span class="no">1</span><span class="spk">${ic('vol')}Audio</span>${lab('MEM', 'POR', `<span class="sc">·</span>`, `${EYE}Score hidden${dot}ESPN · 4K${dot}${live(true)}`)}`;
+const T2 = () => `${tfield('DEN', 'OKC', 160)}<span class="no">2</span><span class="hv"><i>${ic('vol')}</i><i>${ic('expand')}</i><i>${ic('close')}</i></span>${lab('DEN', 'OKC', `<span class="sc">88 – 84</span>`, `Q3 4:12${dot}Prime Video${dot}${live(true)}`)}`;
+const multiview = () => head('Multiview: games side by side, audio follows the click', 'rail') + tbar() + side('NBA', { live: true }) + `<div class="ct">
+${mvbar('2 of 4 slots · 1 waiting')}
+${tile(48, 68, 850, 478, T1(), 'aud')}
+${tile(906, 68, 850, 478, T2())}
+${tile(48, 554, 850, 478, waitSlot(3), 'wait')}
+${tile(906, 554, 850, 478, emptySlot(4), 'empty')}
+</div>
+` + foot;
+
+// ================================================================ 13. Multiview: adding a game (the picker at the right, a card being dragged onto a slot)
+const pick = (cs, name, sub, o = {}) => `<div class="it${o.in ? ' in' : ''}${o.hov ? ' hov' : ''}${o.drag ? ' drag' : ''}">${cs}<span class="tx"><b>${name}</b><span>${sub}</span></span><span class="ad">${o.in ? ic('check') : ic('plus')}</span><span class="gr">${ic('drag')}</span></div>`;
+const pcs = (a, h) => `<span class="cs"><i><img src="${crestSrc(a)}" alt=""></i><i><img src="${crestSrc(h)}" alt=""></i></span>`;
+const pch = (t, c) => `<span class="tl" style="--tc:${c}">${t}</span>`;
+const multiviewAdd = () => head('Multiview: adding a game', 'rail') + tbar() + side('NBA', { live: true }) + `<div class="ct">
+${mvbar('2 of 4 slots', true)}
+${tile(48, 68, 700, 394, T1(), 'aud')}
+${tile(756, 68, 700, 394, T2())}
+${tile(48, 470, 700, 394, emptySlot(3, true), 'empty over')}
+${tile(756, 470, 700, 394, emptySlot(4), 'empty')}
+<div class="ghostcard" style="left:430px;top:700px">${gameCard({ a: 'LAC', h: 'SAC', ra: '2-2', rh: '1-3', st: 'Late', ch: 'NBA League Pass', pl: { t: '03:30' } })}</div>
+<div class="mvp">
+  <div class="hd">Add a game or channel<span class="x">${k('Esc', true)}${ic('close')}</span></div>
+  <div class="fld">${ic('search')}Find a game, a channel or a number</div>
+  <h5>Tonight's games</h5>
+  ${pick(pcs('MEM', 'POR'), 'Grizzlies at Trail Blazers', 'In slot 1 · ESPN · 4K · live', { in: true })}
+  ${pick(pcs('DEN', 'OKC'), 'Nuggets at Thunder', 'In slot 2 · Prime Video · Q3 4:12', { in: true })}
+  ${pick(pcs('LAC', 'SAC'), 'Clippers at Kings', '03:30 · in 18 min · NBA League Pass', { drag: true })}
+  ${pick(pcs('UTAH', 'PHX'), 'Jazz at Suns', '04:00 · in 48 min · NBA League Pass')}
+  ${pick(pcs('BOS', 'NY'), 'Celtics at Knicks', 'Final · post-game on NBA League Pass 4')}
+  ${pick(pcs('DAL', 'HOU'), 'Mavs at Rockets', 'Final · post-game on NBA League Pass')}
+  <h5>Favourite channels</h5>
+  ${pick(pch('NL', '#1D428A'), '4 · NBA League Pass 4', 'Celtics at Knicks · post-game')}
+  ${pick(pch('ES', '#B22222'), '12 · ESPN', 'Grizzlies at Trail Blazers · in slot 1', { in: true })}
+  ${pick(pch('NT', '#1D428A'), '33 · NBA TV', 'GameTime · live')}
+  ${pick(pch('TS', '#2D2B35'), '31 · TNT Sports 1', 'NBA: Nuggets – Thunder · live')}
+  <div class="ft">Click + for the next free slot, or drag a row onto a slot. A game that has not tipped off waits in its slot and tunes by itself.</div>
+</div>
 </div>
 ` + foot;
 
@@ -345,11 +385,10 @@ ${index('Comedy for you')}
   gameCard({ a: 'DAL', h: 'HOU', ra: '1-4', rh: '3-1', st: 'Final', ch: '', pl: { fin: ['109', '118'] } }),
 ].join('')}</div></div>
 </div>
-<div class="mini">${tfield('MEM', 'POR', 120, '<span class="standin" style="right:12px;bottom:56px;font-size:11px">Stand-in for the broadcast</span>')}
+<div class="mini">${tfield('MEM', 'POR', 120)}
   <div class="top"><span>${live(true)}</span><span>ESPN · 4K</span><span class="r"><i>${ic('pin')}</i><i>${ic('close')}</i></span></div>
   <div class="bar"><div class="t">Grizzlies at Trail Blazers<small>${'Score hidden · Q3 as aired · 42 s behind'}</small></div><i>${ic('pause')}</i><i>${ic('vol')}</i><i>${ic('expand')}</i></div>
 </div>
-<div class="note" style="left:1440px;top:300px;width:432px;text-align:right">The mini player (bottom right) is a window of its own, always on top, 480 × 270 here; drag it anywhere, snap it to a corner, resize it from any edge</div>
 ` + foot;
 
 // ================================================================ 10. The command palette (Ctrl K) over the hub
@@ -358,11 +397,11 @@ const palette = () => nbaHub(`<div class="dimall"></div>
 <div class="pal">
   <div class="fld">${ic('search')}<span>gri</span><span class="cursor"></span><span class="ph">zzlies</span><span class="r">${k('Esc')}</span></div>
   <div class="grp"><div class="gl">Actions</div>
-  ${pr(`<span class="ico">${ic('play')}</span>`, 'Watch Grizzlies at Trail Blazers', 'tonight 02:00 · ESPN 4K · pre-game from 23:00', `<span class="act">Remind me</span>${k('Enter')}`, true)}
-  ${pr(`<span class="ico">${ic('grid')}</span>`, 'Add Grizzlies at Trail Blazers to multiview', 'a slot that tunes at tip-off', `${k('Ctrl')}${k('M')}`)}
-  ${pr(`<span class="ico">${ic('bell')}</span>`, 'Remind me 10 min before tip-off', 'a Windows notification, even when airglow is closed', `${k('R')}`)}</div>
+  ${pr(`<span class="ico">${ic('play')}</span>`, 'Watch Grizzlies at Trail Blazers', 'tonight 02:00 · ESPN 4K · pre-game from 23:00', `<span class="act">Watch</span>${k('Enter')}`, true)}
+  ${pr(`<span class="ico">${ic('grid')}</span>`, 'Add Grizzlies at Trail Blazers to multiview', 'a slot that tunes at tip-off', `<span class="act">Add</span>${k('Ctrl')}${k('M')}`)}
+  ${pr(`<span class="ico">${ic('bell')}</span>`, 'Remind me 10 min before tip-off', 'a Windows notification, even when airglow is closed', `<span class="act">Set</span>${k('Ctrl')}${k('R')}`)}</div>
   <div class="grp"><div class="gl">Teams</div>
-  ${pr(`<span class="ico"><img src="${ART}/mem.png" alt=""></span>`, 'Grizzlies', 'team page · 3-0 · 1st in the Southwest', `${k('Ctrl')}${k('3')}`)}</div>
+  ${pr(`<span class="ico"><img src="${ART}/mem.png" alt=""></span>`, 'Grizzlies', 'team page · 3-0 · 1st in the Southwest', `<span class="act">Open</span>`)}</div>
   <div class="grp"><div class="gl">Channels</div>
   ${pr(`<span class="ico ch" style="--tc:#1D428A">NL</span>`, '4 · NBA League Pass 4', 'NBA GameTime · until 22:30', `<span class="act">Tune</span>${k('Enter')}`)}
   ${pr(`<span class="ico ch" style="--tc:#2D5A27">SÝ</span>`, '52 · Sýn Sport', 'NBA: Celtics – Knicks · 22:30', `<span class="act">Tune</span>`)}</div>
@@ -377,13 +416,13 @@ const palette = () => nbaHub(`<div class="dimall"></div>
 
 // ================================================================ 11. The shortcuts sheet (?) over the player
 const SG = [
-  [['Everywhere', [['Search and commands', ['Ctrl', 'K']], ['Search', ['/']], ['This sheet', ['?']], ['Sections, Home to Saved', ['Ctrl', '1–6']], ['Back · forward', ['Alt', '←', '→']], ['Sidebar', ['Ctrl', 'B']], ['Settings', ['Ctrl', ',']], ['Full-screen window', ['F11']], ['Mini player', ['P']], ['Multiview', ['Ctrl', 'Shift', 'M']], ['Tune a channel', ['0–9']]]],
-   ['Browsing', [['Move', ['↑', '↓', '←', '→']], ['Open', ['Enter']], ['Play now', ['Shift', 'Enter']], ['Save', ['S']], ['Not interested', ['X']], ['Menu', ['Shift', 'F10'], 'right-click'], ['Next · previous row', ['PgDn', 'PgUp']], ['Top of Home', ['Home']], ['Scroll a row', ['Shift', 'wheel']]]]],
-  [['The player', [['Play · pause', ['Space', 'K'], 'click'], ['10 s back · forward', ['←', '→', 'J', 'L']], ['1 min', ['Shift', '←', '→']], ['Volume', ['↑', '↓'], 'wheel'], ['Mute', ['M']], ['Full screen', ['F'], 'double-click'], ['Subtitles · audio', ['C', 'A']], ['Quality', ['Q']], ['Speed', ['[', ']']], ['Options', ['O']], ['Game panel', ['G']], ['Next episode', ['N']], ['Skip intro · recap', ['Enter'], 'when offered'], ['Hide the controls', ['Esc']], ['Close the player', ['Ctrl', 'W']]]],
+  [['Everywhere', [['Search and commands', ['Ctrl', 'K']], ['Search', ['/']], ['This sheet', ['?']], ['Sections, Home to Saved', ['Ctrl', '1–6']], ['Back · forward', ['Alt', '←', '→']], ['Sidebar', ['Ctrl', 'B']], ['Settings', ['Ctrl', ',']], ['Full-screen window', ['F11']], ['Mini player', ['Ctrl', 'P']], ['Multiview', ['Ctrl', 'Shift', 'M']], ['Remind me', ['Ctrl', 'R']]]],
+   ['Browsing', [['Move', ['↑', '↓', '←', '→']], ['Open', ['Enter']], ['Play now', ['Shift', 'Enter']], ['Save', ['S']], ['Not interested', ['X']], ['Menu', ['Shift', 'F10'], 'right-click'], ['Next · previous row', ['PgDn', 'PgUp']], ['Top of Home', ['Home']], ['Scroll a row', ['Shift', 'wheel']], ['Tune a channel (Home, Live)', ['0–9']]]]],
+  [['The player', [['Play · pause', ['Space', 'K'], 'click'], ['10 s back · forward', ['←', '→', 'J', 'L']], ['1 min', ['Shift', '←', '→']], ['Volume', ['↑', '↓'], 'wheel'], ['Mute', ['M']], ['Full screen', ['F'], 'double-click'], ['Leave full screen', ['Esc']], ['Subtitles · audio', ['C', 'A']], ['Quality', ['Q']], ['Speed', ['[', ']']], ['Options', ['O']], ['Game panel', ['G']], ['Mini player', ['P']], ['Next episode · episodes', ['N', 'E']], ['Skip intro · recap', ['Enter'], 'when offered'], ['Hide the controls, then leave', ['Esc']], ['Close the player', ['Ctrl', 'W']]]],
    ['Live TV', [['Zap', ['PgUp', 'PgDn']], ['Channel number', ['0–9']], ['Last channel', ['Backspace']], ['Channels · groups', ['L', 'Shift', 'L']], ['Pause live', ['Space']], ['Back to live', ['End']], ['From the start', ['Home']], ['Reveal the score', ['Ctrl', 'Shift', 'R']]]]],
   [['The guide', [['Along time', ['←', '→'], 'drag'], ['Channels', ['↑', '↓'], 'wheel'], ['A page', ['PgUp', 'PgDn']], ['Back to now', ['N']], ['Day', ['D']], ['Zoom the time scale', ['Ctrl', 'wheel']], ['Tune', ['Enter']], ['From the start', ['Shift', 'Enter']], ['Favourite', ['F']], ['Remind me', ['R']]]],
    ['Multiview', [['Add from any card', ['Ctrl', 'M'], 'drag'], ['Audio to a tile', ['1–4']], ['Expand a tile', ['Shift', '1–4'], 'double-click'], ['Remove a tile', ['Del']], ['Layout', ['Ctrl', 'L']], ['Swap tiles', [], 'drag'], ['Leave', ['Esc']]]],
-   ['Windows and screens', [['Always on top', ['Ctrl', 'Shift', 'T']], ['Send to the other screen', ['Ctrl', 'Shift', 'S']], ['Snap the mini player', ['Ctrl', '←', '→']], ['Minimise to the tray', ['Ctrl', 'Shift', 'H']], ['Media keys', ['⏯', '⏮', '⏭'], 'from any app']]]],
+   ['Windows and screens', [['Always on top', ['Ctrl', 'Shift', 'T']], ['Snap the mini player', ['Ctrl', 'Shift', '←', '→']], ['Minimise to the tray', ['Ctrl', 'Shift', 'H']], ['Media keys', ['⏯', '⏮', '⏭'], 'while airglow plays']]]],
 ];
 const shortcuts = () => playerFilm(`<div class="dimall"></div>
 <div class="sheet">
@@ -406,5 +445,6 @@ const pages = {
   '10-palette.html': palette(),
   '11-shortcuts.html': shortcuts(),
   '12-home-1366.html': homeEvening(true),
+  '13-multiview-add.html': multiviewAdd(),
 };
 for (const [f, html] of Object.entries(pages)) { fs.writeFileSync(path.join(root, f), html); console.log('wrote', f); }
