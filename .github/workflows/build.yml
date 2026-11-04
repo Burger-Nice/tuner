@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tests:
-        description: 'Which device tests to run (the builds always run): both, tv (the Android TV emulator) or phone (the iPhone simulator)'
+        description: 'Which device tests to run (the builds always run): both (all three), tv (the Android TV emulator), phone (the iPhone simulator) or windows (the Windows desktop)'
         type: choice
-        options: [both, tv, phone]
+        options: [both, tv, phone, windows]
         default: both
 
 permissions:
@@ -41,7 +41,7 @@ jobs:
       - name: Smoke test the built app
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath "dist/win-unpacked/Tuner.exe" -ArgumentList "--smoke-test" -PassThru -Wait -RedirectStandardOutput smoke.txt -RedirectStandardError smoke-err.txt
+          $p = Start-Process -FilePath "dist/win-unpacked/airglow.exe" -ArgumentList "--smoke-test" -PassThru -Wait -RedirectStandardOutput smoke.txt -RedirectStandardError smoke-err.txt
           Get-Content smoke.txt, smoke-err.txt
           if ($p.ExitCode -ne 0) { throw "Smoke test failed" }
       - uses: actions/upload-artifact@v4
@@ -51,6 +51,63 @@ jobs:
             dist/Tuner-Setup.exe
             dist/Tuner-Setup.exe.blockmap
             dist/latest.yml
+
+  # The Windows app on a real Windows desktop (design/ui-v1/desktop-v1/SPEC.md 9): mpv embedded in the window (plan A,
+  # with plan C beside it), the overlay's pointer and focus rules with real OS input, multiview, the mini player's
+  # hand-off, then the app's own flows against the fake provider. Screenshots go to the windows-test release.
+  windows-test:
+    if: ${{ !inputs.tests || inputs.tests == 'both' || inputs.tests == 'windows' }}
+    runs-on: windows-latest
+    needs: test-media
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm }
+      - name: Install (downloads mpv)
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with: { name: test-media, path: tests/media }
+      - name: Test on the Windows desktop
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms
+          "::notice title=Windows test::screen " + [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $env:MEDIA_DIR = "tests/media"
+          $mock = Start-Process -FilePath node -ArgumentList "tests/mock-provider.js" -PassThru -RedirectStandardOutput mock.log -RedirectStandardError mock-err.log
+          Start-Sleep -Seconds 2
+          node tests/desktop/windows.js windows-shots 2>&1 | Tee-Object -FilePath windows-test.log
+          Stop-Process -Id $mock.Id -ErrorAction SilentlyContinue
+      - name: Check the Windows test's results
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            if (!fs.existsSync('windows-shots/reports.json')) { console.log('::error title=Windows test::no reports (the test did not run)'); process.exit(1); }
+            const r = JSON.parse(fs.readFileSync('windows-shots/reports.json', 'utf8'));
+            const checks = r.filter((x) => x.step === 'check'), bad = checks.filter((x) => !x.data.ok);
+            for (const x of checks) console.log((x.data.ok ? 'OK   ' : 'FAIL ') + x.data.name + (x.data.detail ? ' · ' + x.data.detail : ''));
+            const v = r.find((x) => x.step === 'verdict');
+            if (v) console.log('::notice title=Windows player::plan ' + v.data.pick + ' (A ' + JSON.stringify(v.data.A) + ')');
+            for (const x of bad) console.log('::error title=Windows check failed::' + x.data.name + ' ' + (x.data.detail || '').slice(0, 300));
+            console.log(checks.length + ' checks, ' + bad.length + ' failed' + (r.some((x) => x.step === 'done') ? '' : ', the test did not finish'));
+            if (bad.length || !r.some((x) => x.step === 'done')) process.exit(1);
+          "
+      - name: Share the test screenshots
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -d windows-shots ] || exit 0
+          cp windows-test.log mock.log windows-shots/ 2>/dev/null || true
+          tar czf windows-test-shots.tgz windows-shots
+          gh release delete windows-test --yes --cleanup-tag 2>/dev/null || true
+          gh release create windows-test windows-test-shots.tgz --prerelease --latest=false --title "Windows desktop test" --notes "Screenshots from the Windows desktop test of $GITHUB_SHA (mpv embedded in the app, multiview, the mini player, the app's flows). Not an app release."
 
   test-media:
     runs-on: ubuntu-latest
@@ -90,7 +147,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: test-media, path: tests/media }
       - name: Test in the iPhone simulator
-        if: inputs.tests != 'tv'
+        if: inputs.tests != 'tv' && inputs.tests != 'windows'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -113,7 +170,7 @@ jobs:
           gh release create ios-test ios-test-shots.tgz --prerelease --latest=false --title "iPhone simulator test" --notes "Screenshots from the iPhone simulator test of $GITHUB_SHA. Not an app release."
       # The simulator test's own verdict (the step above always looks green): it finished, and every check passed.
       - name: Check the simulator test's results
-        if: inputs.tests != 'tv'
+        if: inputs.tests != 'tv' && inputs.tests != 'windows'
         run: |
           node -e "
             const fs = require('fs');
@@ -189,7 +246,7 @@ jobs:
 
   android-test:
     # Separate from the release so a stuck emulator can never hold up the TV app. Skipped when only the phone is tested.
-    if: inputs.tests != 'phone'
+    if: inputs.tests != 'phone' && inputs.tests != 'windows'
     runs-on: ubuntu-latest
     needs: test-media
     timeout-minutes: 47

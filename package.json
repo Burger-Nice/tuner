@@ -1,6 +1,6 @@
 {
   "name": "tuner",
-  "productName": "Tuner",
+  "productName": "airglow",
   "version": "0.1.0",
   "description": "A fast, ad-free IPTV player with Xtream Codes and M3U support.",
   "main": "main.js",
@@ -24,22 +24,25 @@
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "electron-updater": "^6.8.11",
     "hls.js": "^1.7.3",
+    "koffi": "^2.16.3",
     "mpegts.js": "^1.8.2"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
     "7zip-bin": "^5.2.0",
     "electron": "^45.0.0",
-    "electron-builder": "^26.0.0"
+    "electron-builder": "^26.0.0",
+    "playwright": "^1.56.1"
   },
   "build": {
     "appId": "app.tuner.player",
-    "productName": "Tuner",
+    "productName": "airglow",
     "files": [
       "main.js",
       "mpv.js",
       "preload.js",
-      "app/**/*"
+      "app/**/*",
+      "!app/tv/sounds/src/**"
     ],
     "mac": {
       "target": "dmg",
@@ -52,22 +55,17 @@
           "from": "vendor/mpv",
           "to": "mpv"
         }
-      ]
+      ],
+      "icon": "app/desktop/img/mark-256.png"
     },
     "linux": {
       "target": "AppImage",
       "category": "AudioVideo"
     },
-    "extraResources": [
-      {
-        "from": "player",
-        "to": "player"
-      }
-    ],
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "shortcutName": "Tuner",
+      "shortcutName": "airglow",
       "artifactName": "Tuner-Setup.${ext}"
     },
     "publish": [
@@ -77,6 +75,9 @@
         "repo": "tuner",
         "releaseType": "release"
       }
+    ],
+    "asarUnpack": [
+      "node_modules/koffi/**"
     ]
   }
 }

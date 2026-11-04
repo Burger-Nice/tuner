@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" class="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark">
+<title>airglow overlay</title>
+<link rel="stylesheet" href="../tv/brand/fonts.css">
+<link rel="stylesheet" href="../tv/brand/tokens.css">
+<link rel="stylesheet" href="desktop.css">
+<style>
+  html, body { background: transparent !important; margin: 0; overflow: hidden; width: 100vw; height: 100vh; }
+  body::before, body::after { display: none !important; }
+  #root { position: fixed; inset: 0; pointer-events: none; }
+  #pics { position: fixed; inset: 0; pointer-events: none; }
+  /* the pictures keep the pointer: a near-zero fill so Windows hit-tests them (SPEC 9) */
+  #pics > i { position: fixed; display: block; background: rgba(0, 0, 0, .01); pointer-events: auto; }
+  body.nocursor, body.nocursor * { cursor: none !important; }
+</style>
+</head>
+<body class="overlay">
+<div id="pics"></div>
+<div id="root" class="floats"></div>
+<script src="overlay.js"></script>
+</body>
+</html>

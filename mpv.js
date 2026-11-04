@@ -1,7 +1,10 @@
-// Runs mpv as Tuner's full player. mpv plays what Chromium can't: HEVC, AC3/DTS audio, MKV, subtitles, extra audio tracks.
-// It opens as a borderless window laid exactly over Tuner and is driven over mpv's JSON IPC.
-const { app, screen } = require('electron');
+// mpv, the Windows app's player (design/ui-v1/desktop-v1/SPEC.md 9): one MpvInstance per picture (the player, each
+// multiview tile, the mini player keeps the player's), each its own mpv process attached to a host window with --wid
+// and driven over its JSON IPC (a named pipe on Windows). mpv draws the picture only: the app draws the controls in
+// HTML and handles every key and click (--input-default-bindings=no, --input-cursor=no, --osc=no).
+const { app } = require('electron');
 const { spawn, spawnSync } = require('child_process');
+const { EventEmitter } = require('events');
 const net = require('net');
 const path = require('path');
 const fs = require('fs');
@@ -13,125 +16,92 @@ function findMpv() {
   const exe = IS_WIN ? 'mpv.exe' : 'mpv';
   const bundled = [app.isPackaged && path.join(process.resourcesPath, 'mpv', exe), path.join(__dirname, 'vendor', 'mpv', exe)];
   for (const p of bundled) if (p && fs.existsSync(p)) return p;
-  // Fall back to an mpv the user installed themselves.
   const which = spawnSync(IS_WIN ? 'where' : 'which', ['mpv'], { encoding: 'utf8' });
   const found = which.status === 0 && which.stdout.split(/\r?\n/)[0].trim();
   if (found) return found;
-  for (const p of ['/opt/homebrew/bin/mpv', '/usr/local/bin/mpv', '/Applications/mpv.app/Contents/MacOS/mpv']) if (fs.existsSync(p)) return p;
+  for (const p of ['/opt/homebrew/bin/mpv', '/usr/local/bin/mpv', '/usr/bin/mpv']) if (fs.existsSync(p)) return p;
   return null;
 }
+let BIN;
+const mpvBin = () => (BIN === undefined ? (BIN = findMpv()) : BIN);
 
-const scriptPath = () => (app.isPackaged ? path.join(process.resourcesPath, 'player', 'tuner.lua') : path.join(__dirname, 'player', 'tuner.lua'));
+// what the app watches (property name -> observe id)
+const PROPS = ['time-pos', 'duration', 'pause', 'mute', 'volume', 'eof-reached', 'idle-active', 'paused-for-cache', 'cache-buffering-state',
+  'demuxer-cache-duration', 'track-list', 'width', 'height', 'hwdec-current', 'speed', 'sid', 'aid', 'seekable', 'video-codec', 'audio-params', 'video-params'];
 
-class Mpv {
-  constructor(win) {
-    this.win = win;
-    this.bin = findMpv();
+let serial = 0;
+class MpvInstance extends EventEmitter {
+  // opts: { wid, ua, volume, mute, hwdec, hdr, spdif, audioDevice, vo, extra: [] }
+  constructor(id, opts = {}) {
+    super();
+    this.id = id;
+    this.opts = opts;
     this.proc = null;
     this.sock = null;
-    this.session = 0;
+    this.state = { t: null, d: null, pause: false, mute: !!opts.mute, volume: opts.volume ?? 100, loaded: false, idle: true, eof: false, buffering: false, cache: 0, w: 0, h: 0, hwdec: '', tracks: [], error: '' };
+    this.req = 100;
+    this.waiting = new Map();
+    this.stderr = '';
+    this.ready = null;
   }
-
-  get available() { return !!this.bin; }
-
-  emit(evt) { if (!this.win.isDestroyed()) this.win.webContents.send('mpv-event', evt); }
-
-  command(args, requestId) {
-    if (!this.sock || this.sock.destroyed) return;
-    const msg = { command: args };
-    if (requestId) msg.request_id = requestId;
-    this.sock.write(JSON.stringify(msg) + '\n');
-  }
-
-  // entries: [{ url, title, startAt }]
-  async play({ mode = 'vod', entries, index = 0, ua = '' }) {
-    if (!this.bin) return { ok: false, error: 'mpv is not installed.' };
-    this.stop();
-    const session = ++this.session;
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tuner-'));
-    const list = path.join(dir, 'list.m3u8');
-    fs.writeFileSync(list, '#EXTM3U\n' + entries.map((e) => `#EXTINF:-1,${String(e.title).replace(/[\r\n]+/g, ' ')}\n${e.url}`).join('\n') + '\n');
-    const ipc = IS_WIN ? `\\\\.\\pipe\\tuner-mpv-${process.pid}-${session}` : path.join(dir, 'ipc.sock');
-
-    // Cover Tuner's content area exactly. mpv wants physical pixels; Electron gives DIPs.
-    const dip = this.win.getContentBounds();
-    const b = IS_WIN ? screen.dipToScreenRect(this.win, dip) : dip;
-    const live = mode === 'live';
-    const args = [
-      '--no-config',
-      `--input-ipc-server=${ipc}`,
-      `--script=${scriptPath()}`,
-      `--script-opts=tuner-mode=${mode},osc-layout=bottombar,osc-seekbarstyle=bar,osc-hidetimeout=1500,osc-deadzonesize=0.5,osc-boxalpha=60`,
-      '--force-window=immediate',
-      '--no-border',
-      `--geometry=${b.width}x${b.height}+${b.x}+${b.y}`,
-      '--keepaspect-window=no',
-      '--title=${media-title} · Tuner',
-      '--hwdec=auto-safe',
-      `--osd-font=${IS_WIN ? 'Segoe UI' : 'sans-serif'}`,
-      '--osd-font-size=38',
-      '--osd-border-size=2',
-      '--cache=yes',
-      '--demuxer-max-bytes=200MiB',
-      '--network-timeout=20',
-      '--msg-level=all=error',
-      `--playlist=${list}`,
-      `--playlist-start=${index}`,
+  get available() { return !!mpvBin(); }
+  args() {
+    const o = this.opts, n = ++serial;
+    this.ipc = IS_WIN ? `\\\\.\\pipe\\airglow-${process.pid}-${n}` : path.join(os.tmpdir(), `airglow-${process.pid}-${n}.sock`);
+    const confDir = path.join(app.getPath('userData'), 'mpv');
+    try { fs.mkdirSync(confDir, { recursive: true }); } catch { /* read-only */ }
+    const a = [
+      `--config-dir=${confDir}`,   // (Account > Windows > Open mpv.conf: the owner's own escape hatch, read by mpv only)
+      `--input-ipc-server=${this.ipc}`,
+      '--idle=yes', '--keep-open=yes', '--force-window=yes', '--terminal=no',
+      '--osc=no', '--osd-level=0', '--input-default-bindings=no', '--input-vo-keyboard=no', '--input-cursor=no', '--window-dragging=no', '--cursor-autohide=no',
+      '--ytdl=no', '--audio-display=no', '--msg-level=all=error',
+      `--hwdec=${o.hwdec || 'auto-safe'}`,
+      '--cache=yes', '--demuxer-max-bytes=200MiB', '--demuxer-max-back-bytes=60MiB', '--network-timeout=20',
+      '--stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5',
+      // the house subtitle style (chalk, a soft edge, 5.3 % of the picture; mpv scales sub-font-size to 720 lines)
+      '--sub-font=Segoe UI', '--sub-bold=yes', '--sub-font-size=38', '--sub-color=#F2EFE9', '--sub-border-size=2.2', '--sub-border-color=#C0000000', '--sub-shadow-offset=1', '--sub-margin-y=34',
+      `--volume=${Math.round(o.volume ?? 100)}`, `--mute=${o.mute ? 'yes' : 'no'}`,
     ];
-    if (this.win.isFullScreen()) args.push('--fullscreen');
-    if (ua) args.push(`--user-agent=${ua}`);
-    if (live) args.push('--loop-playlist=inf', '--stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5');
-
-    const st = (this.state = { session, entries, played: false, index, t: null, d: null, loaded: false, error: '', stderr: '' });
-    let proc;
-    try {
-      proc = this.proc = spawn(this.bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    } catch (e) {
-      return { ok: false, error: `Could not start mpv: ${e.message}` };
-    }
-    proc.stderr.on('data', (d) => { st.stderr = (st.stderr + d).slice(-2000); });
-    const started = await new Promise((resolve) => {
-      proc.once('error', (e) => resolve(e));
-      proc.once('spawn', () => resolve(null));
-    });
-    if (started) { this.proc = null; return { ok: false, error: `Could not start mpv: ${started.message}` }; }
-
-    const tick = setInterval(() => {
-      if (st.loaded && st.t != null) this.emit({ type: 'progress', session, index: st.index, t: st.t, d: st.d });
-    }, 1000);
-
-    proc.once('exit', (code) => {
-      clearInterval(tick);
-      if (this.proc === proc) { this.proc = null; this.sock = null; }
-      let error = null;
-      if (!st.played) error = st.error || st.stderr.trim().split('\n').pop() || (code ? `mpv stopped (code ${code}).` : 'Nothing could be played.');
-      this.emit({ type: 'exit', session, index: st.index, t: st.t, d: st.d, played: st.played, error });
-      fs.rm(dir, { recursive: true, force: true }, () => {});
-      if (!this.win.isDestroyed()) this.win.focus();
-    });
-
-    this.connect(ipc, proc, st);
-    return { ok: true, session };
+    if (o.wid) a.push(`--wid=${o.wid >>> 0}`);
+    if (o.vo) a.push(`--vo=${o.vo}`);
+    else if (IS_WIN) a.push('--vo=gpu-next,gpu,direct3d');   // (mpv picks d3d11 and d3d11va itself on Windows; the later ones only where gpu-next can't start)
+    if (o.hdr) a.push('--target-colorspace-hint=yes');
+    if (o.spdif) a.push('--audio-spdif=ac3,dts,eac3');
+    if (o.audioDevice) a.push(`--audio-device=${o.audioDevice}`);
+    if (o.ua) a.push(`--user-agent=${o.ua}`);
+    if (o.ao) a.push(`--ao=${o.ao}`);
+    return [...a, ...(o.extra || [])];
   }
-
-  async connect(ipc, proc, st) {
-    for (let i = 0; i < 50 && this.proc === proc; i++) {
-      const sock = await new Promise((resolve) => {
-        const s = net.connect(ipc);
-        s.once('connect', () => resolve(s));
-        s.once('error', () => resolve(null));
+  start() {
+    if (this.ready) return this.ready;
+    this.ready = (async () => {
+      if (!mpvBin()) return { ok: false, error: 'missing' };
+      let proc;
+      try { proc = this.proc = spawn(mpvBin(), this.args(), { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true }); } catch (e) { return { ok: false, error: e.message }; }
+      proc.stderr.on('data', (d) => { this.stderr = (this.stderr + d).slice(-2000); });
+      const err = await new Promise((res) => { proc.once('error', res); proc.once('spawn', () => res(null)); });
+      if (err) { this.proc = null; return { ok: false, error: err.message }; }
+      proc.once('exit', (code) => {
+        this.proc = null; this.sock = null;
+        for (const [, w] of this.waiting) w(null);
+        this.waiting.clear();
+        this.emit('event', { type: 'exit', code, error: this.state.error || this.stderr.trim().split('\n').pop() || '' });
       });
-      if (sock) {
-        if (this.proc !== proc) { sock.destroy(); return; }
-        this.sock = sock;
-        this.listen(sock, st);
-        return;
-      }
+      const ok = await this.connect(proc);
+      return ok ? { ok: true, pid: proc.pid } : { ok: false, error: 'mpv did not answer' };
+    })();
+    return this.ready;
+  }
+  async connect(proc) {
+    for (let i = 0; i < 80 && this.proc === proc; i++) {
+      const sock = await new Promise((res) => { const s = net.connect(this.ipc); s.once('connect', () => res(s)); s.once('error', () => res(null)); });
+      if (sock) { this.sock = sock; this.listen(sock); return true; }
       await new Promise((r) => setTimeout(r, 100));
     }
+    return false;
   }
-
-  listen(sock, st) {
+  listen(sock) {
     let buf = '';
     sock.setEncoding('utf8');
     sock.on('error', () => {});
@@ -141,50 +111,105 @@ class Mpv {
       while ((nl = buf.indexOf('\n')) >= 0) {
         const line = buf.slice(0, nl);
         buf = buf.slice(nl + 1);
-        let msg;
-        try { msg = JSON.parse(line); } catch { continue; }
-        this.handle(msg, st);
+        let m;
+        try { m = JSON.parse(line); } catch { continue; }
+        this.handle(m);
       }
     });
-    this.command(['observe_property', 1, 'time-pos']);
-    this.command(['observe_property', 2, 'duration']);
+    PROPS.forEach((p, i) => this.send(['observe_property', i + 1, p]));
   }
-
-  handle(msg, st) {
-    if (msg.event === 'property-change') {
-      if (msg.id === 1 && typeof msg.data === 'number') st.t = msg.data;
-      if (msg.id === 2 && typeof msg.data === 'number') st.d = msg.data;
-    } else if (msg.event === 'file-loaded') {
-      // Ask which entry this is; the reply (request 7) finishes the setup.
-      this.command(['get_property', 'playlist-pos'], 7);
-    } else if (msg.event === 'end-file') {
-      if (st.loaded && st.t != null) this.emit({ type: 'progress', session: st.session, index: st.index, t: st.t, d: st.d, final: true });
-      st.loaded = false;
-      st.t = st.d = null;
-      if (msg.reason === 'error') {
-        st.error = msg.file_error ? `mpv could not open the stream (${msg.file_error}).` : 'mpv could not open the stream.';
-        this.emit({ type: 'failed', session: st.session, error: st.error });
+  send(args) {
+    if (!this.sock || this.sock.destroyed) return Promise.resolve(null);
+    const request_id = ++this.req;
+    return new Promise((res) => {
+      this.waiting.set(request_id, res);
+      this.sock.write(JSON.stringify({ command: args, request_id }) + '\n');
+      setTimeout(() => { if (this.waiting.has(request_id)) { this.waiting.delete(request_id); res(null); } }, 5000);
+    });
+  }
+  command(args) { return this.send(args); }
+  set(prop, value) { return this.send(['set_property', prop, value]); }
+  get(prop) { return this.send(['get_property', prop]).then((r) => (r && r.error === 'success' ? r.data : null)); }
+  handle(m) {
+    if (m.request_id && this.waiting.has(m.request_id)) { const w = this.waiting.get(m.request_id); this.waiting.delete(m.request_id); w(m); return; }
+    const st = this.state;
+    if (m.event === 'property-change') {
+      const v = m.data;
+      switch (m.name) {
+        case 'time-pos': st.t = typeof v === 'number' ? v : null; return;   // (sent per tick: the renderer polls state, no event)
+        case 'demuxer-cache-duration': st.cache = typeof v === 'number' ? v : 0; return;
+        case 'duration': st.d = typeof v === 'number' ? v : null; break;
+        case 'pause': st.pause = !!v; break;
+        case 'mute': st.mute = !!v; break;
+        case 'volume': st.volume = typeof v === 'number' ? v : st.volume; break;
+        case 'eof-reached': st.eof = !!v; break;
+        case 'idle-active': st.idle = !!v; break;
+        case 'paused-for-cache': st.buffering = !!v; break;
+        case 'cache-buffering-state': st.bufPct = typeof v === 'number' ? v : 0; return;
+        case 'track-list': st.tracks = Array.isArray(v) ? v.map((t) => ({ id: t.id, type: t.type, lang: t.lang || '', title: t.title || '', codec: t.codec || '', selected: !!t.selected, external: !!t.external, channels: t['demux-channel-count'] || 0, h: t['demux-h'] || 0 })) : []; break;
+        case 'width': st.w = v || 0; break;
+        case 'height': st.h = v || 0; break;
+        case 'hwdec-current': st.hwdec = v && v !== 'no' ? String(v) : ''; break;
+        case 'speed': st.speed = v || 1; break;
+        case 'sid': st.sid = v; break;
+        case 'aid': st.aid = v; break;
+        case 'seekable': st.seekable = !!v; break;
+        case 'video-codec': st.vcodec = v || ''; break;
+        case 'video-params': st.gamma = v?.gamma || ''; st.primaries = v?.primaries || ''; break;
+        case 'audio-params': st.ach = v?.['channel-count'] || 0; break;
+        default: return;
       }
-    } else if (msg.event === 'client-message' && msg.args?.[0] === 'tuner-game') {
-      this.emit({ type: 'game', session: st.session });
-    } else if (msg.request_id === 7 && typeof msg.data === 'number') {
-      st.index = msg.data;
-      st.loaded = true;
-      st.played = true;
-      const e = st.entries[st.index];
-      if (e && e.startAt > 0) this.command(['seek', e.startAt, 'absolute']);
-      this.emit({ type: 'track', session: st.session, index: st.index });
-    }
+      this.emit('event', { type: 'prop', name: m.name, value: m.data });
+    } else if (m.event === 'file-loaded') {
+      st.loaded = true; st.error = ''; st.eof = false;
+      if (this.resetStart) { this.resetStart = false; this.set('start', 'none'); }
+      this.emit('event', { type: 'file-loaded' });
+    } else if (m.event === 'end-file') {
+      st.loaded = false;
+      if (m.reason === 'error') st.error = m.file_error ? `mpv could not open the stream (${m.file_error}).` : 'mpv could not open the stream.';
+      this.emit('event', { type: 'end-file', reason: m.reason, error: m.reason === 'error' ? st.error : '' });
+    } else if (m.event === 'playback-restart') this.emit('event', { type: 'restart' });
+    else if (m.event === 'seek') this.emit('event', { type: 'seek' });
   }
-
-  stop() {
+  // a file or a stream; start in seconds; ua per provider
+  async load({ url, start = 0, ua = '', title = '' }) {
+    const r = await this.start();
+    if (!r.ok) return r;
+    if (typeof url !== 'string' || !/^(https?|file|rtmp|rtsp|udp):/i.test(url)) return { ok: false, error: 'Not a stream link.' };
+    if (ua) await this.set('user-agent', ua);
+    if (title) await this.set('force-media-title', String(title).slice(0, 200));
+    if (start > 0) { await this.set('start', `+${Math.floor(start)}`); this.resetStart = true; }
+    this.state.t = null; this.state.d = null; this.state.error = '';
+    await this.send(['loadfile', url, 'replace']);
+    await this.set('pause', false);
+    return { ok: true };
+  }
+  stopFile() { return this.send(['stop']); }
+  quit() {
     const p = this.proc;
     if (!p) return;
-    this.command(['quit']);
-    setTimeout(() => { if (p.exitCode === null) p.kill(); }, 800);
-    this.proc = null;
-    this.sock = null;
+    this.send(['quit']);
+    setTimeout(() => { if (p.exitCode === null) { try { p.kill(); } catch { /* gone */ } } }, 800);
   }
+  snapshot() { return { ...this.state, pid: this.proc?.pid || 0 }; }
 }
 
-module.exports = { Mpv };
+// the copy checks (probes): a short-lived mpv with no window that opens a link and says what it found; counted
+// against the provider's streams by the caller
+function probe(url, { ua = '', timeout = 15000 } = {}) {
+  return new Promise((resolve) => {
+    if (!mpvBin()) return resolve({ ok: false, error: 'missing' });
+    const args = ['--no-config', '--vo=null', '--ao=null', '--frames=1', '--length=1', '--msg-level=all=error', '--term-playing-msg=PROBE ${video-codec} ${width}x${height} ${audio-codec-name} ${audio-params/channel-count}', '--network-timeout=10'];
+    if (ua) args.push(`--user-agent=${ua}`);
+    args.push(url);
+    let out = '';
+    const p = spawn(mpvBin(), args, { windowsHide: true });
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { out += d; });
+    const t = setTimeout(() => { try { p.kill(); } catch { /* gone */ } }, timeout);
+    p.on('exit', (code) => { clearTimeout(t); const m = /PROBE (.*)/.exec(out); resolve({ ok: !!m, line: m ? m[1].trim() : '', error: m ? '' : out.trim().split('\n').pop() || `code ${code}` }); });
+    p.on('error', (e) => { clearTimeout(t); resolve({ ok: false, error: e.message }); });
+  });
+}
+
+module.exports = { MpvInstance, mpvBin, probe };

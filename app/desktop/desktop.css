@@ -1,0 +1,9 @@
+/* airglow for Windows (design/ui-v1/desktop-v1/SPEC.md; the mock sheet design/ui-v1/desktop-v1/desktop.css). */
+/* ---- the floating layers (float.js): the page's top layer, or mirrored to the overlay while a picture is up ---- */
+.floats { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
+.floats > * { pointer-events: auto; }
+.floats > .pass { pointer-events: none; }
+.floats > .pass > * { pointer-events: auto; }
+.floats.mirrored { opacity: 0 !important; pointer-events: none !important; }
+.floats.mirrored * { pointer-events: none !important; }
+#floats-mini { position: fixed; left: 0; top: 0; right: auto; bottom: auto; width: 480px; height: 270px; opacity: 0; pointer-events: none; z-index: -1; }

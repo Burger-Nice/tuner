@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" class="desktop">
+<head>
+<meta charset="utf-8">
+<title>airglow spike</title>
+<link rel="stylesheet" href="../../app/tv/brand/fonts.css">
+<link rel="stylesheet" href="../../app/tv/brand/tokens.css">
+<link rel="stylesheet" href="../../app/desktop/desktop.css">
+<style>
+  body { background: var(--a-bg-0); }
+  .stage { position: fixed; background: #000; }
+  .side { position: fixed; left: 0; top: 0; bottom: 0; width: 18px; background: var(--a-surface-1); }
+  #typed { position: fixed; left: 30px; top: 8px; color: var(--a-text-2); font: 500 13px/20px var(--a-font-text); }
+  .sp-bar { position: fixed; display: flex; align-items: center; gap: 12px; padding: 0 14px; height: 52px; box-sizing: border-box; background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.75)); }
+  .sp-bar .t { font: 650 15px/1 var(--a-font-text); color: var(--a-text-1); }
+  .sp-pill { display: inline-flex; align-items: center; height: 34px; padding: 0 16px; border-radius: 999px; background: #F95BAC; color: #14101F; font: 700 14px/1 var(--a-font-display); border: 0; }
+  .sp-tile { position: fixed; box-sizing: border-box; border: 4px solid #FFFFFF; pointer-events: none !important; }
+</style>
+</head>
+<body>
+<div class="side"></div>
+<div id="typed">keys: 0</div>
+<div id="stages"></div>
+<div id="floats" class="floats"></div>
+<script type="module">
+import { floatRoot, setMirror, setPictures } from '../../app/desktop/float.js';
+const T = window.tuner;
+const S = { keys: 0, clicks: 0, pics: 0, dbl: 0, wheel: 0, last: '' };
+const rects = {};
+let barFor = null;
+function draw() {
+  document.getElementById('stages').innerHTML = Object.entries(rects).map(([id, r]) => `<div class="stage" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"></div>`).join('');
+  const f = floatRoot('main');
+  const b = barFor && rects[barFor];
+  f.innerHTML = (b ? `<div class="sp-bar" style="left:${b.x}px;top:${b.y + b.h - 52}px;width:${b.w}px"><button class="sp-pill" data-act="pause">Pause · Space</button><span class="t">${S.last}</span></div>` : '')
+    + (Object.keys(rects).length > 1 ? Object.entries(rects).map(([id, r], i) => i === 0 ? `<div class="sp-tile" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"></div>` : '').join('') : '');
+  setPictures('main', Object.entries(rects).map(([id, r]) => ({ id, ...r })), (ev) => { S.pics++; if (ev.type === 'click') togglePause(ev.id); if (ev.type === 'dblclick') S.dbl++; if (ev.type === 'wheel') S.wheel++; });
+  setMirror('main', Object.keys(rects).length > 0);
+}
+async function togglePause(id = barFor) {
+  if (!id) return;
+  const p = await T.mpv.get(id, 'pause');
+  await T.mpv.set(id, 'pause', !p);
+  S.last = `paused: ${!p}`;
+  draw();
+}
+floatRoot('main').addEventListener('click', (e) => { if (e.target.closest('[data-act="pause"]')) { S.clicks++; togglePause(); } });
+document.addEventListener('keydown', (e) => { S.keys++; document.getElementById('typed').textContent = `keys: ${S.keys}`; if (e.key === ' ') togglePause(); });
+window.spike = {
+  S,
+  async play(id, url, r, o = {}) {
+    const c = await T.mpv.create(id, o);
+    if (!c.ok) return c;
+    rects[id] = r;
+    if (!barFor) barFor = id;
+    T.host.rect(id, r);
+    draw();
+    return { ...(await T.mpv.load(id, { url })), plan: c.plan, hwnd: c.hwnd };
+  },
+  rect(id, r) { rects[id] = r; T.host.rect(id, r); draw(); },
+  hide(id) { delete rects[id]; T.host.rect(id, null); draw(); },
+  async quit(id) { delete rects[id]; if (barFor === id) barFor = Object.keys(rects)[0] || null; await T.mpv.quit(id); draw(); },
+  state: (id) => T.mpv.state(id),
+  set: (id, k, v) => T.mpv.set(id, k, v),
+  move: (id, win) => T.host.moveTo(id, win),
+  mini: () => T.mini.open(),
+};
+</script>
+</body>
+</html>
