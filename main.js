@@ -68,7 +68,7 @@ function createMain() {
   if (st.maximized) win.maximize();
   win.once('ready-to-show', () => { if (!process.argv.includes('--hidden')) win.show(); });
   const page = TEST && arg('--test-page') ? path.resolve(__dirname, arg('--test-page')) : path.join(__dirname, 'app', 'desktop.html');
-  win.loadFile(page);
+  win.loadFile(page, TEST ? { query: { test: '1' } } : undefined);
   guard(win);
   // window memory: bounds (normal), maximised; saved after a rest
   let saveT = 0;

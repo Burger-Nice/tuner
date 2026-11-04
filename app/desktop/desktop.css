@@ -1306,3 +1306,13 @@ body.playing #dk-tbar { background: #0b0a10; }
 .pg-detail .dt-head .act .pill { flex: none; }
 .pg-detail .dt-seasons .chips { margin: 0; }
 .hm-peek { display: none; }
+.hm-lineup .e small { flex: 1 1 auto; min-width: 0; }
+.hm-lineup .e b { flex: 0 1 auto; }
+/* a narrow window (a snapped half, a 1024 laptop): the fields and crests keep to the right of the lineup */
+html.narrow .pg-home .field .away { left: 52%; }
+html.narrow .pg-home .field .home, html.narrow .pg-home .field .edge { left: 76%; }
+html.narrow .pg-home .field .side { width: 22%; top: 14vh; }
+html.narrow .pg-home .field .side.a { right: 24%; }
+html.narrow .pg-home .field .side .crest { width: 120px !important; height: 120px !important; }
+html.narrow .pg-home .field .side b { font-size: 20px; }
+html.narrow .pg-home .gn-score { left: 52%; top: calc(14vh + 200px); }
