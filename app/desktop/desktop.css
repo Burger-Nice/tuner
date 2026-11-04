@@ -1319,3 +1319,9 @@ html.narrow .pg-home .gn-score { left: 52%; top: calc(14vh + 200px); }
 
 .mv-slot { position: relative; }
 .mv-slot > .mv-t { position: absolute !important; inset: 0; }
+.mv-head .ghost, .mv-head .pill, .mv-head .ib { flex: none; }
+.mv-head > span:not(.sp) { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1360px) { .mv-head > span:not(.sp):nth-of-type(n+2) { display: none; } .mv-head .ghost { font-size: 0; gap: 0; padding: 0 9px; } .mv-head .ghost svg { width: 16px; height: 16px; } }
+.pv-top { max-width: calc(100% - 420px); }
+.pv-corner { max-width: 360px; }
+.pv-layer.docked .pv-top h1 { font-size: 28px; line-height: 34px; }
