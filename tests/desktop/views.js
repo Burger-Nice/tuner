@@ -193,6 +193,28 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('1366: the sidebar folds to the rail', (await state()).rail);
   await shot('home-1366');
 
+  // game night at small windows: the lit card keeps clear of the crests, the records line and the ON NOW / score plates
+  for (const [w, h] of [[1024, 768], [1366, 768], [1920, 1080]]) {
+    await p.setViewportSize({ width: w, height: h });
+    await key('Control+1');
+    await p.waitForTimeout(1200);
+    // light the game's line (it is the lead when a game is on, else the last one)
+    for (let k = 0; k < 5 && !(await ev(() => !!document.querySelector('.pg-home .field'))); k++) {
+      const es = await p.$$('.hm-lineup .e[data-line]');
+      if (!es.length) break;
+      await es[Math.min(k, es.length - 1)].hover(); await p.waitForTimeout(900);
+    }
+    const gn = await ev(() => {
+      const r = (e) => { const b = e?.getBoundingClientRect(); return b ? { l: b.left, t: b.top, r: b.right, b: b.bottom } : null; };
+      const card = r(document.querySelector('.hm-card'));
+      const parts = [...document.querySelectorAll('.pg-home .field .side .crest, .pg-home .field .side b, .pg-home .field .side span, .pg-home .field .gn-score .clock, .pg-home .field .gn-score .plate')].map((e) => ({ n: e.className || e.tagName, ...r(e) }));
+      return { card, parts, field: !!document.querySelector('.pg-home .field') };
+    });
+    const hit = gn.field && gn.card ? gn.parts.filter((x) => x.l < gn.card.r && x.r > gn.card.l && x.t < gn.card.b && x.b > gn.card.t) : null;
+    check(`${w}: game night's card clears the crests, records and plates`, gn.field && gn.card && !hit.length, gn.field ? JSON.stringify({ card: gn.card, hit }) : 'no game field lit');
+    await shot(`gamenight-${w}`);
+  }
+
   const fatal = errs.filter((e) => !/ResizeObserver/.test(e));
   check('no page errors', !fatal.length, `${fatal.length} errors`);
   for (const e of fatal.slice(0, 6)) console.log('  ', e);

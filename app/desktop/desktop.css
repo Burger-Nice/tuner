@@ -755,14 +755,14 @@ body[data-screen="signin"] #dk-pages > section { left: 0; }
 .pg-home .hm-pic .st { height: 200px; }
 .pg-home .hm-pic::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--a-bg-0) 0, rgba(21,19,29,.94) calc(var(--sb) + 8%), rgba(21,19,29,.6) calc(var(--sb) + 30%), rgba(21,19,29,.08) 72%); pointer-events: none; }
 .pg-home .hm-pic .sb { height: 46vh; background: linear-gradient(180deg, rgba(21,19,29,0), rgba(21,19,29,.88) 60%, var(--a-bg-0)); }
-.pg-home .field .side { top: 16vh; width: 32%; }
-.pg-home .field .side.a { left: auto; right: 34%; } .pg-home .field .side.h { right: 2%; }
+.pg-home .field .side { top: 16vh; width: 22%; }
+.pg-home .field .side.a { left: auto; right: 22.3%; } .pg-home .field .side.h { right: 6%; }
 .pg-home .field .side .crest { width: 200px; height: 200px; }
 .pg-home .field .side b { font: 700 28px/32px var(--a-font-display); margin-top: 14px; }
 .pg-home .field .side span { font: 500 15px/20px var(--a-font-text); }
-.pg-home .field .away { left: 40%; }
-.pg-home .field .home { left: 70%; } .pg-home .field .edge { left: 70%; }
-.pg-home .gn-score { top: calc(16vh + 290px); left: 40%; right: 2%; }
+.pg-home .field .away { left: 0; }
+.pg-home .field .home { left: 80%; } .pg-home .field .edge { left: 80%; }
+.pg-home .gn-score { top: calc(16vh + 290px); left: 52%; right: 4%; }
 .hm-mq { position: relative; z-index: 2; min-height: calc(100vh - var(--tb)); display: flex; flex-direction: column; }
 .hm-lineup { margin: 36px var(--gx) 0; width: 640px; display: flex; flex-direction: column; }
 html.narrow .hm-lineup, html.side-rail .hm-lineup { width: min(640px, 48vw); }
@@ -1310,12 +1310,12 @@ body.playing #dk-tbar { background: #0b0a10; }
 .hm-lineup .e b { flex: 0 1 auto; }
 /* a narrow window (a snapped half, a 1024 laptop): the fields and crests keep to the right of the lineup */
 html.narrow .pg-home .field .away { left: 52%; }
-html.narrow .pg-home .field .home, html.narrow .pg-home .field .edge { left: 76%; }
+html.narrow .pg-home .field .home, html.narrow .pg-home .field .edge { left: 80%; }
 html.narrow .pg-home .field .side { width: 22%; top: 14vh; }
-html.narrow .pg-home .field .side.a { right: 24%; }
+html.narrow .pg-home .field .side.a { right: 16%; } html.narrow .pg-home .field .side.h { right: 0; }
 html.narrow .pg-home .field .side .crest { width: 120px !important; height: 120px !important; }
 html.narrow .pg-home .field .side b { font-size: 20px; }
-html.narrow .pg-home .gn-score { left: 52%; top: calc(14vh + 200px); }
+html.narrow .pg-home .gn-score { left: 58%; right: 0; top: calc(14vh + 200px); }
 
 .mv-slot { position: relative; }
 .mv-slot > .mv-t { position: absolute !important; inset: 0; }
@@ -1325,3 +1325,5 @@ html.narrow .pg-home .gn-score { left: 52%; top: calc(14vh + 200px); }
 .pv-top { max-width: calc(100% - 420px); }
 .pv-corner { max-width: 360px; }
 .pv-layer.docked .pv-top h1 { font-size: 28px; line-height: 34px; }
+/* the picture's `img` rule (cover, absolute) must not catch the crests inside the game field */
+.pg-home .hm-pic .crest img { position: static; inset: auto; width: 100%; height: 100%; object-fit: contain; object-position: center; transition: none; }
