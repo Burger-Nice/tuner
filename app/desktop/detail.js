@@ -71,6 +71,9 @@ function phoneRanking(x) {
 }
 
 // Open a title from a row, the library, search: an add-on item (its IMDb id first) or a provider title.
+// Shift Enter / double-click / the ▶ disc on a poster: the title page opens and plays its best copy at once
+let autoplay = false;
+export function playNow(it) { autoplay = true; return openTitle(it); }
 export async function openTitle(it) {
   if (!it) return;
   if (it.versions) return showTitle(it);
@@ -180,7 +183,6 @@ function playEpisode(e) {
     const q = tc.askEpisode(row);
     const go = () => {
       const c = tc.episodeCopies(row)[0];
-      if (c && !here(c)) { menu('Only MKV copies', [{ label: 'Open in Infuse', icon: 'ext', run: () => handOff(infuseUrl(linkOf(c)), 'Infuse') }, { label: 'Open in VLC', icon: 'ext', run: () => handOff(vlcUrl(linkOf(c)), 'VLC') }], { sub: 'This iPhone can\'t play MKV' }); return; }
       if (!tc.playEpisode(row, rows.slice(rows.indexOf(row)))) { if (e._row) toast('No copy of this episode yet. Your add-ons are still looking'); else playVod(e, { queue: all.filter((x) => !x._row) }); }
     };
     if (q && tc.episodeAsking(row).length) { toast('Asking your add-ons…', 1500); Promise.race([q.done, new Promise((r) => setTimeout(r, 6000))]).then(go); } else go();
@@ -226,6 +228,7 @@ export default {
     tc = phoneRanking(titleCopies(t, (x, why) => { if (x !== tc) return; if (why === 'tick') { const b = el.querySelector('[data-act="play"]'); const w = tc.waiting(); if (b && w) b.innerHTML = `${ic('play')}Playing in ${w.left()} s`; return; } soon(); }));
     const mine = ++my;
     draw();
+    if (autoplay) { autoplay = false; setTimeout(() => { if (mine === my) play(false); }, 80); }
     try {
       const ver = t.versions?.length ? defaultVersion(t) : null;
       const d = t.addon ? await addonInfo(t) : t.kind === 'movie' ? await S.src.movieInfo(ver) : await S.src.seriesInfo({ id: t.id, name: t.name, poster: t.poster });

@@ -1,4 +1,5 @@
-// The cards the phone's screens share: game cards (the TV's shape at full width or 260 pt), posters, wide cards.
+// The cards the pages share (from the iPhone's): game cards (the hub's 378 x 176), posters (170 x 255), wide cards. On a
+// PC a card answers the pointer: a lift, and discs on its scrim (▶ plays now, ⊞ multiview, ⋯ the menu).
 // Every score goes through games.js show() / hidden() / recordFor(), so the shield holds as on the TV.
 import { hm, leftText, sized, teamPalette } from '../tv/js/util.js';
 import { progressOf, inProgress } from '../tv/js/state.js';
@@ -29,7 +30,8 @@ export function gameCard(g0, { wide = true } = {}) {
   else plate = `<span class="plate"><span class="x"><span${fin && aw < hw ? ' style="opacity:.6"' : ''}>${esc(g.away.score)}</span><span${fin && hw < aw ? ' style="opacity:.6"' : ''}>${esc(g.home.score)}</span></span></span>`;
   const rec = (t) => (v.hidden || behind ? '' : recText(t));
   const row = (t, lose) => `<div class="tr${t.abbr === favTeam() ? ' mine' : ''}${lose ? ' lose' : ''}"><span class="tedge" style="--te:${edge(t)}"></span>${crestImg(team(t), 26)}<span class="nm">${esc(t.name)}</span><span class="rc">${rec(t)}</span></div>`;
-  return `<button class="gcard${wide ? '' : ' sm'}" data-g="${esc(g0.id)}"><div class="st${mine ? ' mine' : ''}">${st}${tv}</div><div class="teams">${row(g.away, fin && aw < hw)}${row(g.home, fin && hw < aw)}</div>${plate}</button>`;
+  const discs = `<span class="hv"><span class="d" data-gd="watch" data-tip="Watch · Shift Enter">${ic('play')}</span><span class="d" data-gd="mv" data-tip="Add to multiview · Ctrl M">${ic('grid')}</span><span class="d" data-gd="more" data-tip="More · right-click">${ic('more')}</span></span>`;
+  return `<button class="gcard${wide ? '' : ' sm'}" data-g="${esc(g0.id)}" draggable="true"><div class="st${mine ? ' mine' : ''}">${st}${tv}</div><div class="teams">${row(g.away, fin && aw < hw)}${row(g.home, fin && hw < aw)}</div>${plate}${discs}</button>`;
 }
 // 'TONIGHT 02:00' words for a game day (the night rule: a tip-off before 06:00 is the evening before)
 export function dayWord(t) {
@@ -49,7 +51,7 @@ export function posterCard(it, i, { q = '', mkv = false } = {}) {
   const p = it.kind === 'movie' ? progressOf({ kind: 'movie', id: it.imdb || it.id }) : null;
   const meta = [it.year || '', it.runtime ? `${Math.floor(it.runtime / 60) ? `${Math.floor(it.runtime / 60)}h ` : ''}${it.runtime % 60}m` : '', it.rating ? (+it.rating).toFixed(1) : ''].filter(Boolean).join(' · ');
   const art = it.poster ? `<img src="${esc(sized(String(it.poster).replace(/\/poster\/(medium|large)\//, '/poster/small/'), 342))}" alt="" loading="lazy" decoding="async">` : `<div class="noart">${esc(it.name)}</div>`;
-  return `<button class="poster" data-i="${i}"><div class="box">${art}${q ? `<span class="q">${esc(q)}</span>` : mkv ? '<span class="q">MKV</span>' : ''}${p && inProgress(p) ? `<div class="pb"><i style="--p:${pct(p)}%"></i></div>` : ''}</div><div class="cap">${esc(it.name)}<small>${esc(meta)}</small></div></button>`;
+  return `<button class="poster" data-i="${i}"><div class="box">${art}${q ? `<span class="q">${esc(q)}</span>` : ''}${p && inProgress(p) ? `<div class="pb"><i style="--p:${pct(p)}%"></i></div>` : ''}<span class="hv"><span class="d" data-pd="play" data-tip="Play now · Shift Enter">${ic('play')}</span><span class="d" data-pd="more" data-tip="More · right-click">${ic('more')}</span></span></div><div class="cap">${esc(it.name)}<small>${esc(meta)}</small></div></button>`;
 }
 // Continue watching / a replay you stopped as a 198 x 111 card
 export function contCard(p, i) {

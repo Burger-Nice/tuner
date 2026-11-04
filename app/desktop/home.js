@@ -1,5 +1,6 @@
-// Home (SPEC 3.1, 01 / 02): the Marquee stacked (the picture on top, the lit line as its card, the other lines as 44 pt
-// rows) and the personal rows under it. The lines follow the TV's rules (home-final SPEC 3, 4): the game leads from 3 h
+// Home (desktop SPEC 4, mocks 01 / 02 / 09 / 12): the Marquee (the picture bleeding under the whole window, the lineup
+// at the left: the lines in their order, the lit one its card in place with buttons instead of hints) and the personal
+// rows under it (8 posters of 170 x 255 at 1920, a row index, hover discs; the wheel moves a row a notch). The lines follow the TV's rules (home-final SPEC 3, 4): the game leads from 3 h
 // before tip-off (and the morning after), then what you're in the middle of, what is new in your shows, a film for
 // tonight, the last channel. The rows are rows.js's page; the live rows (Your shows, the NBA, Saved, Channels) are
 // drawn from what the app has.
@@ -20,7 +21,8 @@ import * as TM from '../tv/js/tmdb.js';
 import { analyse, capFor, glowOf } from '../tv/js/art.js';
 import { avatar, ic, esc, push, go, isShown, menu, sheet, longPress, facts, crestImg, tileOf, cleanCh } from './ui.js';
 import { gameCard, posterCard, contCard, dayWord } from './cards.js';
-import { openTitle } from './detail.js';
+import { openTitle, playNow } from './detail.js';
+import * as rem from './reminders.js';
 import { tipsIn } from '../tv/js/nba/common.js';
 
 let el, lines = [], lit = 0, rows = [], page = null, film = null, shows = [], picT = 0, picKey = '', hist = null;
@@ -173,8 +175,11 @@ function cardHtml(v) {
   const off = S.offline ? '<div class="off">Needs a connection to play</div>' : '';
   return `<div class="hm-card${v.sharp ? ' sharp' : ''}" data-line="${lit}"><div class="ey">${esc(v.ey)}${v.live ? '<span class="live sm">Live</span>' : ''}</div>${title}
     <div class="facts">${facts(meta)}</div>${v.line ? `<div class="line">${esc(v.line)}</div>` : ''}${v.bar != null ? `<div class="bar4" style="--p:${v.bar}%"><i></i></div>` : ''}${off}
-    <div class="act"><button class="pill${v.noplay ? ' noicon' : ''}" data-act="primary">${v.noplay ? '' : ic('play')}${esc(v.verb)}</button>${v.right ? `<button class="ghost" data-act="${v.right[0]}">${esc(v.right[1])}</button>` : ''}<button class="ghost sq" data-act="more" aria-label="More">${ic('more')}</button></div></div>`;
+    <div class="act"><button class="pill${v.noplay ? ' noicon' : ''}" data-act="primary">${v.noplay ? '' : ic('play')}${esc(v.verb)}</button>${v.right ? `<button class="ghost" data-act="${v.right[0]}">${esc(v.right[1])}</button>` : ''}${v.kind === 'game' && lines[lit]?.g?.state !== 'post' ? `<button class="ghost" data-act="multiview" data-tip="Add to multiview · Ctrl M">${ic('grid')}Multiview</button>` : ''}${v.kind === 'game' && lines[lit]?.g?.state === 'pre' ? `<button class="ghost sq" data-act="remind" data-tip="Remind me · Ctrl R">${ic('bell')}</button>` : ''}<button class="ghost sq" data-act="more" aria-label="More" data-tip="More · right-click">${ic('more')}</button></div></div>${keyCaption()}`;
 }
+const CAP = 'tuner.dkHomeCap';
+function keyCaption() { try { const n = +localStorage.getItem(CAP) || 0; if (n >= 5) return ''; if (!drawn) { drawn = true; localStorage.setItem(CAP, String(n + 1)); } } catch { return ''; } return '<div class="hm-cap">Enter plays · right-click for more</div>'; }
+let drawn = false;
 function lineRow(v, i) {
   const fs = (v.facts || []).filter(Boolean).map((x) => (typeof x === 'string' ? esc(x) : x.html)).join(' · ');
   return `<button class="e" data-line="${i}"><b>${esc(v.name)}</b><small>${fs}</small>${ic('chevR')}</button>`;
@@ -219,12 +224,12 @@ function draw() {
   const views = lines.map(lineView);
   const v = views[lit];
   const rowsHtml = rowsMarkup();
-  const top = `<div class="ph-top"><img class="mk" src="tv/brand/assets/mark-small.svg" alt="airglow"><span class="sp"></span>${avatar()}</div>`;
-  const others = views.map((x, i) => (i === lit ? '' : lineRow(x, i))).join('');
+  const lineup = views.map((x, i) => (i === lit ? cardHtml(x) : lineRow(x, i))).join('');
   // a redraw (scores, data landing) keeps every row where his thumb left it
   const keep = new Map([...el.querySelectorAll('.row')].map((r) => [r.dataset.id, r.querySelector('.cards')?.scrollLeft || 0]));
   const y = el.scrollTop;
-  el.innerHTML = `<div class="hm"><div class="hm-pic"></div>${top}<div class="hm-body">${cardHtml(v)}<div class="hm-lines">${others}</div>${rowsHtml}</div></div>`;
+  el.innerHTML = `<div class="hm"><div class="hm-pic"></div><div class="hm-mq"><div class="hm-lineup">${lineup}</div><div class="hm-peek"><span>Browse · ${rows.length} rows</span>${ic('chevD')}</div></div><div class="hm-rows">${rowsHtml}</div></div>`;
+  window.__homeGameLit = () => lines[lit]?.kind === 'game';
   for (const r of el.querySelectorAll('.row')) { const x = keep.get(r.dataset.id); if (x) r.querySelector('.cards').scrollLeft = x; }
   el.scrollTop = y;
   const was = picKey;
@@ -233,11 +238,16 @@ function draw() {
   void was;
 }
 function drawLit(i) {
+  if (i === lit && el.querySelector('.hm-card')) return;
   lit = i;
   const views = lines.map(lineView), v = views[lit];
-  el.querySelector('.hm-card').outerHTML = cardHtml(v);
-  el.querySelector('.hm-lines').innerHTML = views.map((x, k) => (k === lit ? '' : lineRow(x, k))).join('');
+  const box = el.querySelector('.hm-lineup');
+  if (!box) return draw();
+  const focusedLine = document.activeElement?.closest?.('.hm-lineup');
+  box.innerHTML = views.map((x, k) => (k === lit ? cardHtml(x) : lineRow(x, k))).join('');
+  if (focusedLine) box.querySelector('.hm-card [data-act="primary"]')?.focus({ preventScroll: true });
   picture(v, false);
+  import('./ui.js').then(() => window.dispatchEvent(new Event('home-lit')));
 }
 
 // ---------- the rows ----------
@@ -273,7 +283,7 @@ function rowsMarkup() {
     const tmp = [{ id: 'yourshows', type: 'wide', live: 'yourshows' }, { id: 'nba', type: 'game', live: 'nba' }, { id: 'channels', type: 'channel', live: 'channels' }];
     rows = tmp.map((r) => { const items = rowItems(r); return items.length ? { ...r, name: NAMES[r.live], reason: reasonOf(r, items), list: items } : null; }).filter(Boolean);
   }
-  return rows.map((r, ri) => `<div class="row" data-ri="${ri}" data-id="${esc(r.id)}"><div class="sec-h"><span class="ellipsis">${esc(r.name)}</span>${r.isNew ? '<span class="badge">New row</span>' : ''}<span class="sp"></span>${ri === 0 ? `<button class="more" data-act="index">${rows.length} rows ${ic('chevD')}</button>` : ''}</div>${r.reason ? `<div class="why">${esc(r.reason)}</div>` : ''}<div class="cards">${r.list.slice(0, 30).map((x, i) => cardOf(r, x, i)).join('')}</div></div>`).join('') + (anyStreamAddon() ? '' : '<div class="state"><b>Films and series</b><p>Add a Stremio add-on for films and series.</p><button class="ghost" data-act="addons">Account › Add-ons</button></div>')
+  return rows.map((r, ri) => `<div class="row" data-ri="${ri}" data-id="${esc(r.id)}"><div class="sec-h"><span class="ellipsis">${esc(r.name)}</span>${r.isNew ? '<span class="badge">New row</span>' : ''}<span class="sp"></span>${ri === 0 ? `<button class="more" data-act="index">${rows.length} rows ${ic('chevD')}</button>` : ''}</div>${r.reason ? `<div class="why">${esc(r.reason)}</div>` : ''}<div class="cards">${r.list.slice(0, 30).map((x, i) => cardOf(r, x, i)).join('')}</div><button class="ra l" data-ra="-1" aria-label="Scroll back">${ic('chevL')}</button><button class="ra r" data-ra="1" aria-label="Scroll on">${ic('chevR')}</button></div>`).join('') + (anyStreamAddon() ? '' : '<div class="state"><b>Films and series</b><p>Add a Stremio add-on for films and series.</p><button class="ghost" data-act="addons">Account › Add-ons</button></div>')
     + (anyStreamAddon() && !TM.hasKey() ? '<div class="state"><b>More rows with your TMDB key</b><p>Trending, top rated, the streaming services and rows for what you like come from TMDB. Type the key from the TV here once.</p><button class="ghost" data-act="tmdb">Account › TMDB key</button></div>' : '')
     + (anyStreamAddon() && hist === false && !R.picked().length ? '<div class="state"><b>Pick what you like</b><p>Three genres start your own rows.</p><button class="pill noicon" data-act="pick">Pick genres</button></div>' : '');
 }
@@ -287,6 +297,13 @@ function cardOf(r, x, i) {
   if (x.note) return '';
   return posterCard(x, i);
 }
+// play now (double-click, ▶, Shift Enter): a channel tunes, a game plays live (or opens), a title plays its best copy
+function playRowItem(r, x) {
+  if (x.cont) return resumeItem(x.cont.item);
+  if (r.live === 'nba' || r.type === 'game') { const ch = bestChannel(x); if (x.state === 'in' && ch) return tune(ch); if (x.state === 'post' && replaysOf(x)?.length) return watchFromTipoff(x); return push('game', { id: x.id }); }
+  if (r.live === 'channels' || r.type === 'channel') return tune(x);
+  return playNow(x);
+}
 async function openRowItem(r, x) {
   if (x.cont) return resumeItem(x.cont.item);
   if (r.live === 'nba' || r.type === 'game') return push('game', { id: x.id });
@@ -298,14 +315,15 @@ function rowMenu(r, x) {
   if (x.cont) { const it = x.cont.item; return menu(it.seriesName || it._title || it.name, [{ label: 'Resume', icon: 'play', run: () => resumeItem(it) }, { label: 'Start over', icon: 'rew', run: () => resumeItem(it, { restart: true }) }]); }
   if (r.live === 'nba' || r.type === 'game') {
     const g = x, ch = bestChannel(g);
-    return menu(`${g.away.name} at ${g.home.name}`, [g.state === 'in' && ch ? { label: 'Watch live', icon: 'play', run: () => tune(ch) } : null, g.state !== 'pre' ? { label: 'Watch from tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null, { label: 'Open the game', icon: 'chevR', run: () => push('game', { id: g.id }) }]);
+    return menu(`${g.away.name} at ${g.home.name}`, [g.state === 'in' && ch ? { label: 'Watch live', icon: 'play', run: () => tune(ch) } : null, g.state !== 'pre' ? { label: 'From tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null, g.state !== 'post' ? { label: 'Add to multiview', icon: 'grid', key: 'Ctrl M', run: () => import('./multiview.js').then((m) => m.addGame(g)) } : null, g.state === 'pre' ? { label: rem.isSet(g) ? 'No reminder' : 'Remind me', icon: 'bell', key: 'Ctrl R', run: () => rem.toggle(g) } : null, { label: 'Open the game', icon: 'chevR', run: () => push('game', { id: g.id }) }]);
   }
-  if (r.live === 'channels' || r.type === 'channel') return menu(cleanCh(x.name), [{ label: 'Tune', icon: 'play', run: () => tune(x) }, { label: isFav(x) ? 'Remove from Saved' : 'Save', icon: 'star', run: () => toggleFav(x) }]);
+  if (r.live === 'channels' || r.type === 'channel') return menu(cleanCh(x.name), [{ label: 'Tune', icon: 'play', run: () => tune(x) }, { label: isFav(x) ? 'Remove from favourites' : 'Favourite', icon: 'star', run: () => toggleFav(x) }, { label: 'Open in the guide', icon: 'liveTab', run: () => go('live', { ch: x.id }) }, { label: 'Add to multiview', icon: 'grid', key: 'Ctrl M', run: () => import('./multiview.js').then((m) => m.addChannel(x)) }]);
   const t = SH.asTitle(x, x.imdb || x.id);
   menu(x.name, [
-    { label: 'Details', icon: 'chevR', run: () => openTitle(x) },
-    { label: isFav(t) ? 'Remove from Saved' : 'Save', icon: 'heart', run: () => toggleFav(t) },
-    r.live ? null : { label: 'Not interested', icon: 'close', run: () => { R.notWanted(x); r.items = (r.items || []).filter((y) => y !== x); draw(); } },
+    { label: 'Play now', icon: 'play', key: 'Shift Enter', run: () => playNow(x) },
+    { label: 'Details', icon: 'chevR', key: 'Enter', run: () => openTitle(x) },
+    { label: isFav(t) ? 'Remove from Saved' : 'Save', icon: 'heart', key: 'S', run: () => toggleFav(t) },
+    r.live ? null : { label: 'Not interested', icon: 'close', key: 'X', run: () => { R.notWanted(x); r.items = (r.items || []).filter((y) => y !== x); draw(); } },
     r.live ? null : { label: 'Why this row?', icon: 'bang', run: async () => { const w = await R.whyRow(r); menu(w.title, w.lines.map((l) => ({ label: l }))); } },
     r.live ? null : { label: 'Hide this row', icon: 'eyeOff', run: () => { R.hideRow(r); page = R.pageNow(); draw(); } },
   ]);
@@ -322,6 +340,8 @@ function lineAct(act) {
   if (act === 'more') return lineMenu(l);
   if (l.kind === 'game') {
     const g = l.g, ch = bestChannel(g), row = heroRow(g);
+    if (act === 'multiview') return import('./multiview.js').then((m) => m.addGame(g));
+    if (act === 'remind') return rem.toggle(g).then(() => draw());
     if (act === 'primary') {
       if (v.verb === 'Resume') return resumeGame(g);
       if (v.verb === 'Watch from tip-off') return watchFromTipoff(g);
@@ -352,7 +372,7 @@ function openTitleOf(it) {
   return openTitle({ kind: 'movie', id: it.id, imdb: /^tt/.test(it.id) ? it.id : '', name: it._title || it.name, poster: it.poster, _prov: !it.copy || it.copy.source === 'provider' ? it.id : null });
 }
 function lineMenu(l) {
-  if (l.kind === 'game') { const g = l.g; return menu(`${g.away.name} at ${g.home.name}`, [{ label: 'Game page', icon: 'chevR', run: () => push('game', { id: g.id }) }, g.state !== 'pre' ? { label: 'Watch from tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null, { label: 'NBA', icon: 'ball', run: () => go('nba') }]); }
+  if (l.kind === 'game') { const g = l.g, ch = bestChannel(g); return menu(`${g.away.name} at ${g.home.name}`, [g.state === 'in' && ch ? { label: 'Watch live', icon: 'play', run: () => tune(ch) } : null, g.state !== 'pre' ? { label: 'From tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null, g.state !== 'post' ? { label: 'Add to multiview', icon: 'grid', key: 'Ctrl M', run: () => import('./multiview.js').then((m) => m.addGame(g)) } : null, g.state === 'pre' ? { label: rem.isSet(g) ? 'No reminder' : 'Remind me', icon: 'bell', key: 'Ctrl R', run: () => rem.toggle(g) } : null, { label: 'Game page', icon: 'chevR', run: () => push('game', { id: g.id }) }]); }
   if (l.kind === 'cont') { const it = l.p.item; return menu(it.seriesName || it._title || it.name || 'Continue', [{ label: 'Start over', icon: 'rew', run: () => resumeItem(it, { restart: true }) }, it.kind !== 'rp' ? { label: 'Details', icon: 'chevR', run: () => openTitleOf(it) } : null]); }
   if (l.kind === 'ch') return menu(cleanCh(l.ch.name), [{ label: isFav(l.ch) ? 'Remove from Saved' : 'Save', icon: 'star', run: () => toggleFav(l.ch) }, { label: 'Open the guide', icon: 'chevR', run: () => go('live') }]);
   if (l.kind === 'film') return menu(l.it.name, [{ label: 'Details', icon: 'chevR', run: () => openTitle(l.it) }, { label: 'Save', icon: 'heart', run: () => toggleFav(SH.asTitle(l.it, l.it.imdb || l.it.id)) }]);
@@ -374,11 +394,26 @@ export default {
         if (a === 'pick') return pickSheet();
         if (b.closest('.hm-card')) return lineAct(a);
       }
-      const ln = e.target.closest('.hm-lines [data-line]');
+      const ln = e.target.closest('.hm-lineup .e[data-line]');
       if (ln) return drawLit(+ln.dataset.line);
-      const card = e.target.closest('.row [data-i]');
-      if (card) { const r = rows[+card.closest('.row').dataset.ri]; const x = r?.list[+card.dataset.i]; if (x) openRowItem(r, x); }
+      const ra = e.target.closest('[data-ra]');
+      if (ra) { const c = ra.closest('.row').querySelector('.cards'); c.scrollBy({ left: +ra.dataset.ra * (c.clientWidth - 120), behavior: 'smooth' }); return; }
+      const card = e.target.closest('.row [data-i], .row .gcard[data-g]');
+      if (card) {
+        const r = rows[+card.closest('.row').dataset.ri], x = card.dataset.i != null ? r?.list[+card.dataset.i] : r?.list.find((g) => g.id === card.dataset.g);
+        if (!x) return;
+        const d = e.target.closest('[data-pd], [data-gd]');
+        if (d) { const k = d.dataset.pd || d.dataset.gd; if (k === 'more') return rowMenu(r, x); if (k === 'mv') return import('./multiview.js').then((m) => m.addGame(x)); return playRowItem(r, x); }
+        openRowItem(r, x);
+      }
     });
+    root.addEventListener('dblclick', (e) => { const card = e.target.closest('.row [data-i], .row .gcard[data-g]'); if (!card) return; const r = rows[+card.closest('.row').dataset.ri], x = card.dataset.i != null ? r?.list[+card.dataset.i] : r?.list.find((g) => g.id === card.dataset.g); if (x) playRowItem(r, x); });
+    // the lit line answers the hovered line after 150 ms (the lines under it slide); the picture after its 600 ms rest
+    let hovT = 0;
+    root.addEventListener('mouseover', (e) => { const ln = e.target.closest('.hm-lineup .e[data-line]'); clearTimeout(hovT); if (ln) hovT = setTimeout(() => drawLit(+ln.dataset.line), 150); });
+    root.addEventListener('focusin', (e) => { const ln = e.target.closest('.hm-lineup .e[data-line]'); if (ln) drawLit(+ln.dataset.line); });
+    // S saves, X not interested (the focused card)
+    root.addEventListener('cardkey', (e) => { const card = e.target.closest('.row [data-i]'); if (!card) return; const r = rows[+card.closest('.row').dataset.ri], x = r?.list[+card.dataset.i]; if (!x || x.cont || r.live) return; const t = SH.asTitle(x, x.imdb || x.id); if (e.detail === 'save') { toggleFav(t); import('../tv/js/ui.js').then((u) => u.toast(isFav(t) ? `${x.name} is saved` : `${x.name} left Saved`)); } if (e.detail === 'notint') { R.notWanted(x); r.items = (r.items || []).filter((y) => y !== x); draw(); } });
     longPress(root, '.row [data-i]', (card) => { const r = rows[+card.closest('.row').dataset.ri]; rowMenu(r, r?.list[+card.dataset.i]); });
     longPress(root, '.hm-card', () => lineMenu(lines[lit]));
     const redraw = () => { if (isShown('home')) soon(); };

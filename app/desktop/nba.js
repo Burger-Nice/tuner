@@ -16,6 +16,7 @@ import { playLive } from '../tv/js/player.js';
 import { tipsIn, gameName } from '../tv/js/nba/common.js';
 import { toast } from '../tv/js/ui.js';
 import { avatar, ic, esc, push, go, current, isShown, menu, radio, longPress, crestImg, cleanCh } from './ui.js';
+import * as rem from './reminders.js';
 import { gameCard, recText } from './cards.js';
 import { ringFor } from './home.js';
 import { paint, onReveal, revealIds, downState } from './nbakit.js';
@@ -82,12 +83,20 @@ function heroModel(g0) {
   if (shield) m.acts.push(['reveal', 'Reveal', false]);
   return m;
 }
+// the desktop's verbs on the hero (SPEC 5.2): Remind me (a Windows notification), Add to multiview, ⋯
+function deskActs(m, g0) {
+  const acts = [...m.acts];
+  if (g0.state === 'pre') acts.splice(acts[0]?.[0] === 'live' ? 1 : 0, 0, ['remind', rem.isSet(g0) ? 'Reminder set' : 'Remind me', false]);
+  if (g0.state !== 'post') acts.push(['mv', 'Add to multiview', false]);
+  return acts;
+}
 function heroHtml(g0) {
   const m = heroModel(g0), g = show(g0).g;
+  m.acts = deskActs(m, g0);
   const trow = (t) => `<div class="tr${t.abbr === favTeam() ? ' mine' : ''}"><span class="tedge" style="--te:${teamPalette(t).p}"></span>${crestImg(team(t), 40)}<div style="min-width:0"><div class="nm">${esc(t.name)}</div>${!m.shield && g.state !== 'pre' ? `<span style="position:absolute;right:136px;font:italic 800 24px/1 var(--a-font-live)">${esc(t.score ?? '')}</span>` : ''}<div class="rc">${m.shield ? `${esc(recordFor(t).text || '')}${recordFor(t).text ? ' · as of tip-off' : ''}` : recText(t)}</div></div></div>`;
   const score = !m.shield && g.state !== 'pre' ? ` · ${esc(g.away.score)}–${esc(g.home.score)}` : '';
   const slab = m.shield && m.slab[1] === 'Score hidden' ? `<div><b>${esc(m.slab[0])}</b><span>${ic('eyeOff')}Score hidden</span></div>` : `<div><b>${esc(m.slab[0])}</b><span>${esc(m.slab[1])}</span></div>`;
-  const acts = m.acts.map(([a, l, play], i) => (i === 0 ? `<button class="pill${play ? '' : ' noicon'}" data-hero="${a}">${play ? ic('play') : ''}${esc(l)}</button>` : `<button class="ghost" data-hero="${a}">${esc(l)}</button>`)).join('');
+  const acts = m.acts.map(([a, l, play], i) => (i === 0 ? `<button class="pill${play ? '' : ' noicon'}" data-hero="${a}">${play ? ic('play') : a === 'remind' ? ic('bell') : ''}${esc(l)}</button>` : `<button class="ghost" data-hero="${a}">${a === 'mv' ? ic('grid') : a === 'remind' ? ic('bell') : ''}${esc(l)}</button>`)).join('') + `<button class="ghost sq" data-hero="more" aria-label="More">${ic('more')}</button>`;
   return `<div class="nb-hero" data-g="${esc(g0.id)}"><div class="ey">${esc(`${m.ey[0]} · ${m.ey[1]}`)}${m.liveTag ? '<span class="live sm">Live</span>' : ''}</div>
     <div class="mt">${trow(g.away)}<div class="at">AT</div>${trow(g.home)}</div><div class="slab">${slab}</div>
     <div class="act">${acts}</div>${m.cap || score ? `<div class="cap">${esc(m.cap)}${score && !m.cap.includes('Final') ? '' : ''}</div>` : ''}</div>`;
@@ -99,6 +108,9 @@ function heroAct(a, g) {
   if (a === 'resume') return resumeGame(g);
   if (a === 'game') return push('game', { id: g.id });
   if (a === 'reveal') return revealAsk(g);
+  if (a === 'remind') return rem.toggle(g).then(() => draw());
+  if (a === 'mv') return import('./multiview.js').then((m) => m.addGame(g));
+  if (a === 'more') return cardMenu(g);
 }
 export const revealAsk = (g, then) => revealIds([g.id], then);
 
@@ -210,36 +222,50 @@ export default {
         if (b.dataset.act === 'keep') return;
       }
       const card = e.target.closest('.gcard[data-g]');
-      if (card) push('game', { id: card.dataset.g });
+      if (card) {
+        const g = gameById(card.dataset.g) || games.find((x) => x.id === card.dataset.g);
+        const d = e.target.closest('[data-gd]');
+        if (d && g) { if (d.dataset.gd === 'more') return cardMenu(g); if (d.dataset.gd === 'mv') return import('./multiview.js').then((m) => m.addGame(g)); return watchGame(g); }
+        push('game', { id: card.dataset.g });
+      }
     });
-    longPress(root, '.gcard[data-g]', (card) => {
-      const g = gameById(card.dataset.g) || games.find((x) => x.id === card.dataset.g);
-      if (!g) return;
+    root.addEventListener('dblclick', (e) => { const card = e.target.closest('.gcard[data-g]'); const g = card && (gameById(card.dataset.g) || games.find((x) => x.id === card.dataset.g)); if (g) watchGame(g); });
+    longPress(root, '.gcard[data-g]', (card) => { const g = gameById(card.dataset.g) || games.find((x) => x.id === card.dataset.g); if (g) cardMenu(g); });
+    longPress(root, '[data-lp]', (n) => { const p = leaderList.find((x) => x.id === n.dataset.lp); if (p) menu(p.name, [{ label: `${NBA.team(p.abbr)?.name || p.abbr} page`, lead: crestImg(team({ abbr: p.abbr }), 28), run: () => push('team', { abbr: p.abbr }) }, { label: 'Player card', icon: 'user', run: () => openPlayer(p, { from: 'leaders' }) }]); });
+    mountRest();
+  },
+  enter: () => enterNba(),
+  toTop() { if (sec !== 'games') select('games'); },
+};
+function watchGame(g) { const ch = bestChannel(g); if (g.state === 'in' && ch) return tune(ch); if (g.state !== 'pre' && replaysOf(g)?.length) return watchFromTipoff(g); return push('game', { id: g.id }); }
+function cardMenu(g) {
       const ch = bestChannel(g);
       menu(gameName(g), [
-        g.state === 'in' ? { label: 'Watch live', icon: 'play', run: () => (ch ? tune(ch) : toast('No channel found yet')) } : null,
-        g.state !== 'pre' ? { label: 'Watch from tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null,
+        g.state === 'in' ? { label: 'Watch live', icon: 'play', key: 'Shift Enter', run: () => (ch ? tune(ch) : toast('No channel found yet')) } : null,
+        g.state !== 'pre' ? { label: 'From tip-off', icon: 'tipoff', run: () => watchFromTipoff(g) } : null,
+        g.state !== 'post' ? { label: 'Add to multiview', icon: 'grid', key: 'Ctrl M', run: () => import('./multiview.js').then((m) => m.addGame(g)) } : null,
+        g.state === 'pre' ? { label: rem.isSet(g) ? 'No reminder' : 'Remind me', icon: 'bell', key: 'Ctrl R', run: () => rem.toggle(g).then(draw) } : null,
         { label: `${g.away.name} page`, lead: crestImg(team(g.away), 28), run: () => push('team', { abbr: g.away.abbr }) },
         { label: `${g.home.name} page`, lead: crestImg(team(g.home), 28), run: () => push('team', { abbr: g.home.abbr }) },
         { label: 'Open the game', icon: 'chevR', run: () => push('game', { id: g.id }) },
         hidden(g) ? { label: `Reveal ${gameName(g)}`, icon: 'eyeOff', run: () => revealIds([g.id], draw) } : null,
       ]);
-    });
-    longPress(root, '[data-lp]', (n) => { const p = leaderList.find((x) => x.id === n.dataset.lp); if (p) menu(p.name, [{ label: `${NBA.team(p.abbr)?.name || p.abbr} page`, lead: crestImg(team({ abbr: p.abbr }), 28), run: () => push('team', { abbr: p.abbr }) }, { label: 'Player card', icon: 'user', run: () => openPlayer(p, { from: 'leaders' }) }]); });
+}
+function mountRest() {
     const redraw = () => { if (!isShown('nba')) return; if (!offset) { games = nba.today; loading = false; err = nba.err; } soon(); };
     on('nba', redraw); on('summary', redraw); on('feeds', redraw); on('replays', redraw); on('progress', redraw); on('league', redraw);
     // every minute: what the section shows is asked for again when it's older than its age (or the last try failed)
     setInterval(() => { if (isShown('nba') && sec !== 'games') { WANT[sec]?.(); soon(); } }, 60000);
-  },
-  enter() {
+}
+// Ctrl ← → (the NBA sections only, SPEC 8's one meaning per key)
+export function sectionStep(d) { const l = SECS().map((x) => x[0]); select(l[(l.indexOf(sec) + d + l.length) % l.length]); }
+function enterNba() {
     startNba();
     ensure('live').catch(() => {});
     if (favTeam()) want(`schedule:${favTeam()}`);
     WANT[sec]?.();
     if (offset === 0) { games = nba.today; loading = !nba.today.length && !nba.err; err = nba.err; draw(); const m = heroGame(); if (m && (m.state === 'in' || (m.state === 'pre' && m.date - Date.now() < 3 * 3600e3))) findFeeds(m).then(soon); }
     else load(offset);
-  },
-  toTop() { if (sec !== 'games') select('games'); },
-};
+}
 export { gamePage, teamScreen };
 void nightLabel;
