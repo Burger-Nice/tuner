@@ -1,8 +1,8 @@
 # airglow (repo name: tuner)
 
 An ad-free IPTV app for Xtream Codes and M3U providers, built for one owner: a Memphis Grizzlies fan who watches on a
-Philips 55" OLED (55OLED810/12, Google TV) with the remote. The TV app comes first; the Windows and phone builds
-exist but are on hold. The brand is "airglow" (the repo and Android package are still `tuner` / `app.tuner`).
+Philips 55" OLED (55OLED810/12, Google TV) with the remote. The TV app comes first; the Windows app (desktop-v1) is
+being built; the phone build exists. The brand is "airglow" (the repo and Android package are still `tuner` / `app.tuner`).
 The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`; the plan for what's next is in `NEXT.md`.
 
 ## How it fits together
@@ -60,6 +60,20 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   `app/tv/js/native.js` uses). It reuses `app/tv/js`'s data modules as they are. HLS only; VLC / Infuse hand-off.
   Test: `node scripts/build-web.js phone`, serve `www/` on 8779, `node tests/phone/flows.js <outdir>`;
   CI's simulator test is `tests/ios-test-boot.js`.
+- The Windows app (`design/ui-v1/desktop-v1/SPEC.md`, v1.1 §9): Electron (`main.js`: the windows, the hosts, the overlay's
+  pointer hit-testing, the mini window, tray, reminders, media keys, window memory, updater; `preload.js` the `window.tuner`
+  surface; `mpv.js` `MpvInstance`, one mpv per picture over JSON IPC). Each picture is a plain Win32 host window
+  (`app/desktop/win32.js` over koffi) with mpv `--wid` inside it; plan A (a child of the window, proved on CI) or C (an owned
+  popup; Account > Windows > the picture). Everything that floats is built in the page in `#floats` and mirrored to a
+  never-focused transparent overlay window while a picture is up (`float.js` → `overlay.html`/`overlay.js`, clicks replayed by
+  path). Views: `app/desktop.html` + `app/desktop/` (`main.js` title bar, sidebar, keys; `ui.js` pages with history, right
+  sheets, menus at the pointer; `keys.js` the one key map and the ? sheet; `palette.js` Ctrl K; `home`, `live` (the guide
+  grid), `nba*` (from the iPhone's), `library`, `detail`, `search`, `saved`, `account` (two panes, Windows); `player.js` the host
+  behind TUNER_NATIVE with the v2 bar, the docked game panel, skip intro / Up next, subtitles via `sub-add memory://`, the mini
+  player by moving the host; `multiview.js`; `reminders.js`; `bridge.js` as the phone's). Tests: `node tests/desktop/views.js
+  <outdir>` (Chromium, `tests/desktop/stub.js` fakes `window.tuner`; serve.sh first; `PW=<a playwright with browsers>`), and on
+  CI's `windows-test` job `tests/desktop/windows.js --app` (the spike with real OS input and screen grabs, then the app's flows
+  in `app-windows.js`; screenshots in the `windows-test` release). `npm start` runs it from the repo.
 - `scripts/build-web.js tv` builds `www/` for the TV APK (`phone` for the iPhone app).
 
 ## Build, test, release
@@ -71,8 +85,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   between walkthrough runs, it keeps the reports). NBA page scripts: `tests/tv/nba-{host,league,news,team}.js`, and the
   bug-hunt scripts `tests/tv/hunt-*.js`. Home: `tests/tv/home-{marquee,gamenight,rows,cold,library,curate}.js` (a fake TMDB,
   `tests/mock-tmdb.js`, on the fake provider; `home-common.js` seeds an owner-like history).
-- CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign [-f tests=tv|phone]`; `tests=phone` skips the
-  40-minute TV emulator for iPhone-only changes, `tv` skips the simulator; a change in `app/tv/js` or `app/core.js` needs both) builds Windows, Android, iOS and runs
+- CI (`.github/workflows/build.yml`, `gh workflow run build.yml --ref tv-redesign [-f tests=tv|phone|windows]`; `tests=phone` skips the
+  40-minute TV emulator for iPhone-only changes, `tv` skips the simulator, `windows` runs only the Windows desktop test; a change in `app/tv/js` or `app/core.js` needs both) builds Windows, Android, iOS and runs
   `tests/android-test-boot.js` on an Android TV emulator (about 57 checks; the run fails if a check fails or the test doesn't finish). Its screenshots and `reports.json` are uploaded
   to the `android-test` release as `android-test-shots.tgz`.
 - Local Android build: the SDK is at `/root/android-sdk`: `export ANDROID_HOME=/root/android-sdk; node scripts/build-web.js tv;

@@ -153,6 +153,7 @@ function run(id, e) {
     case 'mini': return player.toggleMini();
     case 'multiview': return mv.isOpen() ? mv.close() : mv.open();
     case 'remind': return rem.remindFocused();
+    case 'addmv': { const g = document.activeElement?.closest?.('[data-g]')?.dataset.g; const gm = g && gameById(g); if (gm) return mv.addGame(gm); return mv.open(); }
     case 'print': return window.print();
     case 'w-top': return player.toggleTop();
     case 'w-snap': return T?.mini?.snap(/left/i.test(e.key) ? 'left' : 'right');

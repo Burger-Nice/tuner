@@ -18,6 +18,7 @@ const MAP = [
   ['mini', 'Everywhere', 'Mini player', 'Ctrl P', ['ctrl+p']],
   ['multiview', 'Everywhere', 'Multiview', 'Ctrl Shift M', ['ctrl+shift+m']],
   ['remind', 'Everywhere', 'Remind me (on a game)', 'Ctrl R', ['ctrl+r']],
+  ['addmv', 'Everywhere', 'Add the game or channel to multiview', 'Ctrl M', ['ctrl+m']],
   ['print', 'Everywhere', 'Print this sheet', 'Ctrl Shift P', ['ctrl+shift+p']],
 
   ['move', 'Browsing', 'Move', '↑ ↓ ← →', ['arrowup', 'arrowdown', 'arrowleft', 'arrowright']],

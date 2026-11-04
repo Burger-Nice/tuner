@@ -78,6 +78,15 @@ host.impl = {
     else if (what === 'subs') { P.subs = j(); applySubPick(); }
     else if (what === 'segments') { const m = j(); if (m) { if (m.ahead) P.segAhead = m; else P.seg[m.id] = m; } }
     else if (what === 'linked') draw();
+    // an add-on episode's next one (titlecopies.js answerNext): what it is, then its best copy
+    else if (what === 'next-info') { P.nextInfo = j(); draw(); }
+    else if (what === 'queue-next') {
+      const q = j() || {};
+      if (q.entry && P.mode === 'vod' && !P.entries[P.index + 1]) P.entries.push(q.entry);
+      if (q.none) P.nextNone = q;
+      if (P.wantNext) { P.wantNext = false; if (q.entry) nextEpisode(); else say(q.say || (q.none === 'last' ? 'This is the last episode' : 'No copy of the next episode yet')); }
+      draw();
+    }
   },
   stop: () => end({}),
 };
@@ -118,7 +127,7 @@ MPV?.onEvent((e) => {
     if (['pause', 'mute', 'volume', 'width', 'hwdec-current', 'track-list', 'paused-for-cache'].includes(e.name)) draw();
     if (e.name === 'track-list' && P) applySubPick();
   } else if (e.type === 'file-loaded') {
-    if (P) { P.playing = true; P.err = null; P.waiting = false; failedOnce = false; clearTimeout(P.startT); draw(); }
+    if (P) { P.playing = true; P.err = null; P.waiting = false; failedOnce = false; clearTimeout(P.startT); askNext(); draw(); }
   } else if (e.type === 'end-file') {
     if (!P) return;
     if (e.reason === 'error') fail(e.error || 'The stream stopped.');
@@ -171,20 +180,34 @@ function onEnded() {
   if (P.mode === 'vod' && !P.R) {
     const i = P.index;
     sendProgress(true);
-    if (P.entries[i + 1]) {
-      if (P.upnext?.cancelled) { P.ended = true; endCard(); return; }
-      emitEvent({ type: 'watched', session: P.s, index: i });
-      nextEpisode();
+    if (hasNext()) {
+      if (P.upnext?.cancelled && !P.wantNext) { P.ended = true; endCard(); return; }
+      goNext();
       return;
     }
   }
   P.ended = true;
   draw();
 }
+// an episode's next one: lined up by the TV's code (queue), or asked for (an add-on episode: need next)
+const isEpisode = () => P?.mode === 'vod' && !P.R && (P.entries[P.index]?.kind === 'episode' || /^episode:/.test(String(P.entries[P.index]?.id || '')) || / E\d+/.test(P.entries[P.index]?.sub || ''));
+function askNext(now = false) {
+  if (!isEpisode() || P.entries[P.index + 1] || (P.asked === P.index && !now)) return;
+  P.asked = P.index;
+  emitEvent({ type: 'need', session: P.s, what: 'next', index: P.index, binge: P.entries[P.index]?.binge || '' });
+}
+const hasNext = () => !!P && (!!P.entries?.[P.index + 1] || (isEpisode() && !P.nextInfo?.last && P.nextNone?.none !== 'last'));
+function goNext() {
+  if (!P) return;
+  emitEvent({ type: 'watched', session: P.s, index: P.index });
+  if (P.entries[P.index + 1]) return nextEpisode();
+  P.wantNext = true; askNext(true); say('Getting the next episode…');
+}
+const nextLine = () => { const n = P.entries?.[P.index + 1]; return n ? { title: n.title || '', sub: n.sub || '' } : P.nextInfo && !P.nextInfo.last ? { title: P.nextInfo.title || '', sub: P.nextInfo.sub || '' } : { title: '', sub: '' }; };
 function nextEpisode() {
   if (!P || !P.entries[P.index + 1]) return;
   sendProgress(true);
-  P.index++; P.upnext = null; P.ended = false; P.done = {};
+  P.index++; P.upnext = null; P.ended = false; P.done = {}; P.nextInfo = null; P.nextNone = null;
   emitEvent({ type: 'track', session: P.s, index: P.index });
   if (P.segAhead) { P.seg[P.segAhead.id] = P.segAhead; P.segAhead = null; }
   load();
@@ -429,7 +452,7 @@ function buttonsHtml() {
     if (v.nextCh) acts.push(`<button class="pv-act" data-act="skipch">Skip to ${esc(v.nextCh.label === 'Halftime' ? 'Half' : v.nextCh.label)} ${ic('chevR')}</button>`);
     if (v.live && P.R.live) acts.push(`<button class="pv-act" data-act="tolive"><span class="a-live compact">Live</span>Back to live</button>`);
   } else if (live && P.game?.kept && P.game?.started) acts.push(`<button class="pv-act" data-act="tipoff">${ic('tipoff')}From tip-off</button>`);
-  if (P.mode === 'vod' && !P.R && P.entries[P.index + 1]) acts.push(`<button class="pv-act" data-act="next" data-tip="${esc(tip('Next episode', 'p-next'))}">Next episode ${ic('chevR')}</button>`);
+  if (hasNext()) acts.push(`<button class="pv-act" data-act="next" data-tip="${esc(tip('Next episode', 'p-next'))}">Next episode ${ic('chevR')}</button>`);
   if (P.mode === 'vod' && !P.R && P.entries.length > 1) acts.push(`<button class="pv-act" data-act="eps" data-tip="${esc(tip('Episodes', 'p-eps'))}">${ic('list')}Episodes</button>`);
   if (game) acts.push(`<button class="pv-act${layout.docked ? ' sel' : ''}" data-act="panel" data-tip="${esc(tip(layout.docked ? 'Hide the panel' : 'Game panel', 'p-panel'))}">${ic('panel')}Game panel</button>`);
   const vol = Math.round(M?.volume ?? 100);
@@ -466,10 +489,10 @@ function bannerHtml() {
 }
 function upnextHtml() {
   const u = P.upnext;
-  if (!u || u.cancelled) return u?.endCard ? `<div class="pv-upnext"><span class="disc">${ic('next')}</span><div class="col"><small>Next episode</small><b>${esc(P.entries[P.index + 1]?.title || '')}</b><span>${esc(P.entries[P.index + 1]?.sub || '')}</span></div><button class="pill noicon" data-act="upnow">Play now · Enter</button><button class="ghost" data-act="close">Close</button></div>` : '';
+  const nl = nextLine();
+  if (!u || u.cancelled) return u?.endCard ? `<div class="pv-upnext"><span class="disc">${ic('next')}</span><div class="col"><small>Next episode</small><b>${esc(nl.title)}</b><span>${esc(nl.sub)}</span></div><button class="pill noicon" data-act="upnow">Play now · Enter</button><button class="ghost" data-act="close">Close</button></div>` : '';
   const left = Math.max(0, Math.ceil((u.at + 15000 - Date.now()) / 1000));
-  const n = P.entries[P.index + 1] || {};
-  return `<div class="pv-upnext"><span class="ring" style="--p:${pct(1 - left / 15)}"><b>${left}</b></span><div class="col"><small>Next episode in ${left} s</small><b>${esc(n.title || '')}</b><span>${esc(n.sub || '')}</span></div><button class="pill noicon" data-act="upnow">Play now · Enter</button><button class="ghost" data-act="upstay">Stay here</button></div>`;
+  return `<div class="pv-upnext"><span class="ring" style="--p:${pct(1 - left / 15)}"><b>${left}</b></span><div class="col"><small>Next episode in ${left} s</small><b>${esc(nl.title)}</b><span>${esc(nl.sub)}</span></div><button class="pill noicon" data-act="upnow">Play now · Enter</button><button class="ghost" data-act="upstay">Stay here</button></div>`;
 }
 let lastHtml = '';
 function draw() {
@@ -574,14 +597,14 @@ function act(a, e, b) {
   if (a === 'nextcopy') { const nx = nextCopy(); if (nx) nx.go(); return; }
   if (a === 'external') return handOff(P.src?.url);
   if (a === 'reinstall') return T?.openExternal?.('https://github.com/Burger-Nice/tuner/releases/latest');
-  if (a === 'next') { emitEvent({ type: 'watched', session: P.s, index: P.index }); return nextEpisode(); }
+  if (a === 'next') return goNext();
   if (a === 'eps') return episodesSheet();
   if (a === 'skipch') { const n = replayView().nextCh; if (n) seekTo(Math.max(0, n.at / 1000 - 10)); return; }
   if (a === 'tolive') return toLive();
   if (a === 'tipoff') return emitEvent({ type: 'tipoff', session: P.s });
   if (a === 'panel') return dock();
   if (a === 'skip-seg') return doSkip('press');
-  if (a === 'upnow') { emitEvent({ type: 'watched', session: P.s, index: P.index }); return nextEpisode(); }
+  if (a === 'upnow') return goNext();
   if (a === 'upstay') { P.upnext = { ...P.upnext, cancelled: true }; draw(); return; }
   if (a === 'close') return end({});
   if (a === 'skipback') { const b0 = P.skipped; P.skipped = null; if (b0) seekTo(b0.from); return; }
@@ -657,9 +680,9 @@ export function key(id, e) {
     case 'p-options': return options();
     case 'p-panel': return dock();
     case 'p-mini': return toMini();
-    case 'p-next': if (P.entries?.[P.index + 1]) { emitEvent({ type: 'watched', session: P.s, index: P.index }); nextEpisode(); } return;
+    case 'p-next': if (hasNext()) goNext(); return;
     case 'p-eps': return episodesSheet();
-    case 'p-skip': if (skipNow()) return doSkip('press'); if (P.upnext) { emitEvent({ type: 'watched', session: P.s, index: P.index }); return nextEpisode(); } return false;
+    case 'p-skip': if (skipNow()) return doSkip('press'); if (P.upnext) return goNext(); return false;
     case 'p-esc': return escape();
     case 'p-close': return end({});
     case 'l-zap': if (live) return tune(P.index + (/up/i.test(e.key) ? -1 : 1)); return false;
@@ -897,12 +920,12 @@ function segments() {
     }
   }
   // Up next: at the credits (known), else the last 40 s of an episode with one after it
-  if (P.entries[P.index + 1] && !P.upnext && d) {
+  if (hasNext() && !P.upnext && d) {
     const cr = (s.credits || [])[0]?.start || (s.preview || [])[0]?.start || 0;
     const at = cr > 0 && cr < d ? cr : d - 40000;
     if (t >= at && t < d - 1000) { P.upnext = { at: Date.now() }; draw(); }
   }
-  if (P.upnext && !P.upnext.cancelled && Date.now() - P.upnext.at >= 15000) { emitEvent({ type: 'watched', session: P.s, index: P.index }); nextEpisode(); }
+  if (P.upnext && !P.upnext.cancelled && Date.now() - P.upnext.at >= 15000) { P.upnext = { cancelled: true }; goNext(); }
   else if (P.upnext && !P.upnext.cancelled) draw();
 }
 function endCard() { P.upnext = { cancelled: true, endCard: true }; uiUp = true; draw(); }

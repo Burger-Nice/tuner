@@ -134,7 +134,22 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await key('Control+5');
   await wait(() => document.querySelectorAll('.pg-lib .poster[data-i]').length >= 4, 15000);
   const sp = await p.$('.pg-lib .poster[data-i]');
-  if (sp) { await sp.click(); await wait(() => window.__tunerTest.state().screen === 'detail', 10000); await p.waitForTimeout(3000); await shot('title-series'); }
+  if (sp) {
+    await sp.click(); await wait(() => window.__tunerTest.state().screen === 'detail', 10000); await p.waitForTimeout(3000); await shot('title-series');
+    // an episode plays (an add-on copy, in the fake mpv): the v2 bar for an episode, seeking, Up next's queue, Esc stops it
+    await ev(() => document.querySelector('.pg-detail .ep')?.click());
+    const vod = await wait(() => window.__tunerTest.state().player?.mode === 'vod' && window.__tunerTest.state().player.playing, 15000);
+    check('an episode plays from the title page', vod, JSON.stringify((await state()).player));
+    if (vod) {
+      await p.mouse.move(800, 500); await p.waitForTimeout(300);
+      await key('ArrowRight'); await key('ArrowRight');
+      check('→ seeks 10 s', await ev(() => window.__stub.log.some((x) => x[0] === 'cmd' && x[2] === 'seek')));
+      await shot('player-episode');
+      await key('c'); check('C opens Subtitles', await ev(() => /Subtitles/.test(document.querySelector('#floats .menu')?.textContent || ''))); await key('Escape');
+      await key('Escape'); await key('Escape');
+      check('Esc leaves: an episode stops (no mini player)', await wait(() => !window.__tunerTest.state().player, 4000), JSON.stringify((await state()).player));
+    }
+  }
 
   // the palette, the sheet
   await key('Control+k');

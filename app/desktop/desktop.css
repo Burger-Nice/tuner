@@ -1305,3 +1305,4 @@ body.playing #dk-tbar { background: #0b0a10; }
 .pill svg { stroke: currentColor; }
 .pg-detail .dt-head .act .pill { flex: none; }
 .pg-detail .dt-seasons .chips { margin: 0; }
+.hm-peek { display: none; }
