@@ -161,7 +161,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('Ctrl Shift M opens multiview with the picker', await wait(() => window.__tunerTest.state().mv?.picker));
   await wait(() => document.querySelectorAll('.mv-pr [data-mv="addc"]').length >= 2, 6000);
   const adds = await p.$$('.mv-pr [data-mv="addc"]');
-  if (adds.length < 2) { await p.fill('#mv-q', 'ESPN'); await p.waitForTimeout(400); }
+  if (adds.length < 2) { await p.fill('#mv-q', 'channel'); await p.waitForTimeout(400); }
   for (let k = 0; k < 2; k++) { await ev(() => document.querySelector('.mv-pr:not(.placed) [data-mv="addc"]')?.click()); await p.waitForTimeout(600); }
   const mv = (await state()).mv;
   check('multiview: two tiles playing, one with the audio', mv && mv.slots.filter((s) => s.kind === 'ch').length >= 2, JSON.stringify(mv));

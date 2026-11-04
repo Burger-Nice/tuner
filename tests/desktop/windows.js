@@ -214,7 +214,7 @@ async function spike(plan) {
   console.log(`\nVERDICT: plan ${pick}`);
   fs.writeFileSync(path.join(OUT, 'verdict.txt'), `plan ${pick}\nA ${JSON.stringify(A)}\nC ${JSON.stringify(C)}\n`);
   if (process.argv.includes('--app')) {
-    try { await require('./app-windows.js')(OUT, report, check, pick); } catch (e) { check('app flows ran', false, e.stack || e.message); }
+    try { await require('./app-windows.js')(OUT, report, check, pick, { grab, screenRect }); } catch (e) { check('app flows ran', false, e.stack || e.message); }
   }
   report('done', true);
 })();

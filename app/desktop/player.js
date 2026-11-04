@@ -237,7 +237,7 @@ function enterTheater() {
   pv().innerHTML = '<div class="pv-stage"><div class="pv-black"></div></div><div class="pv-band"></div><aside class="pv-dock" hidden></aside>';
   wireStage();
   uiUp = true;
-  setMirror('main', !!MPV);
+  setMirror('main', false);   // (until mpv's picture is placed: then the overlay draws the controls over it)
   emit('player-ui');
   requestAnimationFrame(place);
   showUi();
@@ -266,6 +266,7 @@ function place() {
   if (!r) return;
   if (mid && MPV) T.host.rect(mid, r);
   setPictures('main', [{ id: mid || 'pv', ...r }], onPicture);
+  setMirror('main', !!(mid && MPV));
   draw();
 }
 window.addEventListener('resize', () => { if (P && !layout.mini) requestAnimationFrame(place); });

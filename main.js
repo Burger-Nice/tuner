@@ -16,7 +16,7 @@ const W32 = require('./app/desktop/win32');
 app.userAgentFallback = app.userAgentFallback.replace(/ (tuner|Tuner|airglow)\/\S+| Electron\/\S+/g, '');
 app.setAppUserModelId('app.tuner.player');
 // (the PC app was "Tuner": its settings, sign-in and caches stay where they were under the new name)
-app.setPath('userData', path.join(app.getPath('appData'), 'Tuner'));
+app.setPath('userData', process.env.AIRGLOW_USERDATA && !app.isPackaged ? process.env.AIRGLOW_USERDATA : path.join(app.getPath('appData'), 'Tuner'));
 const TEST = !!process.env.AIRGLOW_TEST && !app.isPackaged;
 const SMOKE = process.argv.includes('--smoke-test');
 if (!SMOKE && !TEST && !app.requestSingleInstanceLock()) app.quit();

@@ -1216,11 +1216,11 @@ body.playing #dk-tbar { background: #0b0a10; }
 .mv-head b { font: 700 18px/1 var(--a-font-display); color: var(--a-text-1); }
 .mv-head .sp { flex: 1; }
 .mv-grid { display: grid; gap: 8px; min-height: 0; }
-#dk-mv.mv-l2 .mv-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; align-content: center; }
+#dk-mv.mv-l2 .mv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; align-content: center; }
 #dk-mv.mv-l2 .mv-slot { aspect-ratio: 16 / 9; }
-#dk-mv.mv-l1p2 .mv-grid { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+#dk-mv.mv-l1p2 .mv-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
 #dk-mv.mv-l1p2 .mv-slot:first-child { grid-row: 1 / span 2; }
-#dk-mv.mv-l2x2 .mv-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+#dk-mv.mv-l2x2 .mv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
 .mv-slot { background: #000; border-radius: 6px; min-height: 0; }
 .mv-pick { grid-row: 2; grid-column: 2; overflow-y: auto; background: var(--a-bg-1); border-radius: 14px; border: 1px solid var(--a-border); padding: 12px; }
 .mv-ph { display: flex; align-items: center; justify-content: space-between; font: 700 16px/1 var(--a-font-display); }
@@ -1298,3 +1298,10 @@ body.playing #dk-tbar { background: #0b0a10; }
 @media print { body * { visibility: hidden; } .ks, .ks * { visibility: visible; } .ks { position: absolute; inset: 0; width: auto; } }
 .pg-home .hm-pic { height: auto; }
 .hm-cap { margin: -2px 22px 6px; font: 500 13px/18px var(--a-font-text); color: var(--a-text-3); }
+.pg-home .field .side .crest { width: 200px !important; height: 200px !important; background: none; }
+.crest { display: inline-grid; place-items: center; border-radius: 50%; overflow: hidden; flex: none; }
+.crest img { width: 100%; height: 100%; object-fit: contain; }
+
+.pill svg { stroke: currentColor; }
+.pg-detail .dt-head .act .pill { flex: none; }
+.pg-detail .dt-seasons .chips { margin: 0; }

@@ -79,7 +79,7 @@ jobs:
           $env:MEDIA_DIR = "tests/media"
           $mock = Start-Process -FilePath node -ArgumentList "tests/mock-provider.js" -PassThru -RedirectStandardOutput mock.log -RedirectStandardError mock-err.log
           Start-Sleep -Seconds 2
-          node tests/desktop/windows.js windows-shots 2>&1 | Tee-Object -FilePath windows-test.log
+          node tests/desktop/windows.js windows-shots --app 2>&1 | Tee-Object -FilePath windows-test.log
           Stop-Process -Id $mock.Id -ErrorAction SilentlyContinue
       - name: Check the Windows test's results
         shell: bash
