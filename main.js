@@ -128,7 +128,7 @@ function syncOverlay(name) {
   const ov = any ? overlayFor(name) : overlays[name];
   if (!ov || ov.isDestroyed()) return;
   const show = any && w && !w.isDestroyed() && w.isVisible() && !w.isMinimized() && !w._moving;
-  if (show) { fitOverlay(name); if (!ov.isVisible()) ov.showInactive(); raiseOverlay(name); } else if (ov.isVisible()) ov.hide();
+  if (show) { fitOverlay(name); if (!ov.isVisible()) { ov._inside = null; ov.showInactive(); } raiseOverlay(name); pointerOn(); } else if (ov.isVisible()) ov.hide();
 }
 function raiseOverlay(name) {
   // plan C: the popup hosts sit just under the overlay
@@ -166,8 +166,8 @@ function placeHost(h) {
     const p = W32.clientToScreen(parent, r.x, r.y);
     const ov = overlays[h.win];
     // just under the overlay (so the controls stay over the picture), above the window
-    W32.place(h.hwnd, { ...r, x: p.x, y: p.y }, true);
-    if (ov && !ov.isDestroyed() && ov.isVisible()) ov.moveTop();
+    W32.place(h.hwnd, { ...r, x: p.x, y: p.y }, true, w.isAlwaysOnTop());
+    if (ov && !ov.isDestroyed() && ov.isVisible()) { if (w.isAlwaysOnTop()) ov.setAlwaysOnTop(true, 'floating'); ov.moveTop(); }
   } else W32.place(h.hwnd, r, true);
 }
 async function createHost(id, o = {}) {
@@ -249,7 +249,30 @@ ipcMain.on('overlay:layers', (_, name, payload) => {
   ov.webContents.send('layers', payload);
 });
 ipcMain.on('overlay:input', (e, ev) => send('overlay-input', ev));
-ipcMain.on('overlay:ignore', (e, ignore) => { const ov = BrowserWindow.fromWebContents(e.sender); if (ov && !ov.isDestroyed()) ov.setIgnoreMouseEvents(!!ignore, { forward: true }); });
+// The pointer: main hit-tests the cursor against what the overlay drew (its hits) and the pictures, 25 times a second
+// while an overlay is up, and lets the pointer through everywhere else (setIgnoreMouseEvents with forward). No move
+// is needed before a click, and a drag (the track, the mini window) holds the pointer until the button is let go.
+ipcMain.on('overlay:hits', (e, rects) => { const ov = BrowserWindow.fromWebContents(e.sender); if (ov) { ov._hits = Array.isArray(rects) ? rects : []; pointerOn(); } });
+ipcMain.on('overlay:hold', (e, on) => { const ov = BrowserWindow.fromWebContents(e.sender); if (ov) ov._hold = !!on; });
+let pointerT = 0;
+function pointerOn() {
+  if (pointerT) return;
+  pointerT = setInterval(() => {
+    const live = Object.entries(overlays).filter(([, ov]) => ov && !ov.isDestroyed() && ov.isVisible());
+    if (!live.length) { clearInterval(pointerT); pointerT = 0; return; }
+    const c = screen.getCursorScreenPoint();
+    for (const [name, ov] of live) {
+      const b = ov.getBounds(), x = c.x - b.x, y = c.y - b.y;
+      const within = x >= 0 && y >= 0 && x < b.width && y < b.height;
+      const inside = ov._hold || (within && (ov._hits || []).some(([l, t, w, h]) => x >= l && y >= t && x < l + w && y < t + h));
+      if (inside !== ov._inside) { ov._inside = inside; ov.setIgnoreMouseEvents(!inside, { forward: true }); }
+      // the pointer's moves over this window (the controls show, the cursor hides after 3 s): only when it moved
+      const key = `${c.x},${c.y}`;
+      if (within && key !== ov._last) { ov._last = key; send('overlay-input', { win: name, kind: 'move', x, y, over: inside }); }
+      else if (!within) ov._last = '';
+    }
+  }, 40);
+}
 
 // ---------- the window's own verbs ----------
 ipcMain.handle('win:state', () => { const w = wins.main; return w ? { maximized: w.isMaximized(), fullscreen: w.isFullScreen(), focused: w.isFocused(), plan: PLAN(), scale: scaleOf(w), platform: process.platform } : null; });

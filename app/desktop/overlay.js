@@ -6,7 +6,8 @@
   const O = window.tuner.overlay;
   const WIN = O.name || new URLSearchParams(location.search).get('win') || 'main';
   const root = document.getElementById('root'), pics = document.getElementById('pics');
-  let ignoring = true, drag = false, miniDrag = false, lastMove = 0;
+  const css = document.head.appendChild(document.createElement('style'));
+  let drag = false, miniDrag = false;
   O.onLayers((p) => {
     if (p.cls != null) document.documentElement.className = `${p.cls} overlay-doc`;
     if (root._html !== p.html) {
@@ -15,12 +16,27 @@
       for (const el of root.querySelectorAll('[data-st]')) { const [t, l] = el.getAttribute('data-st').split(',').map(Number); el.scrollTop = t || 0; el.scrollLeft = l || 0; }
     }
     if (p.style != null) root.setAttribute('style', p.style);
+    if (p.css != null && css.textContent !== p.css) css.textContent = p.css;
     const ph = (p.pictures || []).map((r) => `<i data-pic="${r.id}" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"></i>`).join('');
     if (pics._html !== ph) { pics.innerHTML = ph; pics._html = ph; }
     document.body.classList.toggle('nocursor', p.cursor === 'none');
+    requestAnimationFrame(sendHits);
   });
+  // where the overlay takes the pointer (main hit-tests the cursor against these, so a click needs no move first):
+  // the pictures and every drawn thing (a layer, or each child of a pass-through layer)
+  let lastHits = '';
+  function sendHits() {
+    const out = [];
+    const add = (el) => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden') out.push([Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]); };
+    for (const el of root.children) { if (el.classList.contains('pass')) { for (const k of el.children) if (getComputedStyle(k).pointerEvents !== 'none') add(k); } else if (getComputedStyle(el).pointerEvents !== 'none') add(el); }
+    for (const el of pics.children) add(el);
+    const sig = JSON.stringify(out);
+    if (sig !== lastHits) { lastHits = sig; O.hits(out); }
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(sendHits));
+  setInterval(sendHits, 500);   // (transitions and late images move things)
   const isHit = (t) => !!t && t !== document.body && t !== document.documentElement && t !== root && t !== pics;
-  const setIgnore = (v) => { if (v !== ignoring) { ignoring = v; O.ignore(v); } };
+  const hold = (v) => O.hold(v);
   const pathOf = (el) => { const p = []; for (let e = el; e && e !== root; e = e.parentElement) { p.unshift([...e.parentElement.children].indexOf(e)); } return p; };
   const base = (e) => ({ win: WIN, x: e.clientX, y: e.clientY, button: e.button, buttons: e.buttons, shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey, detail: e.detail });
   function route(e, type) {
@@ -30,19 +46,15 @@
     return false;
   }
   document.addEventListener('mousemove', (e) => {
-    setIgnore(!isHit(e.target) && !drag);
     if (drag) { O.input({ ...base(e), kind: 'win', type: 'mousemove' }); return; }
-    const now = performance.now();
-    if (now - lastMove > 80) { lastMove = now; O.input({ ...base(e), kind: 'move', over: isHit(e.target) ? (e.target.closest('#pics > i') ? 'pic' : 'el') : '' }); }
   }, true);
-  document.addEventListener('mouseleave', () => setIgnore(true));
   document.addEventListener('mousedown', (e) => {
     if (e.target.closest?.('[data-drag]') && e.button === 0 && !e.target.closest('[data-act], button')) { miniDrag = true; window.tuner.mini.drag('start'); e.preventDefault(); return; }
-    if (route(e, 'mousedown')) { drag = e.button === 0; e.preventDefault(); }
+    if (route(e, 'mousedown')) { drag = e.button === 0; if (drag) hold(true); e.preventDefault(); }
   }, true);
   document.addEventListener('mouseup', (e) => {
     if (miniDrag) { miniDrag = false; window.tuner.mini.drag('end'); return; }
-    if (drag) { drag = false; O.input({ ...base(e), kind: 'win', type: 'mouseup' }); }
+    if (drag) { drag = false; hold(false); O.input({ ...base(e), kind: 'win', type: 'mouseup' }); }
   }, true);
   for (const type of ['click', 'dblclick', 'contextmenu']) document.addEventListener(type, (e) => { if (route(e, type)) e.preventDefault(); }, true);
   document.addEventListener('wheel', (e) => { if (route(e, 'wheel')) e.preventDefault(); }, { capture: true, passive: false });

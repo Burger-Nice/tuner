@@ -76,9 +76,12 @@ function serialize(el) {
   }
   return clone.innerHTML;
 }
+// a page's own float styles (<style data-float-css>) go along, so a test page's layers look the same in the overlay
+let cssCache = null;
+const extraCss = () => (cssCache ??= [...document.querySelectorAll('style[data-float-css]')].map((x) => x.textContent).join('\n'));
 function push(r) {
   const html = serialize(r.el);
-  const payload = { html, pictures: r.pictures, cursor: r.cursor, cls: document.documentElement.className, style: r.win === 'main' ? '' : r.el.getAttribute('style') || '' };
+  const payload = { html, pictures: r.pictures, cursor: r.cursor, cls: document.documentElement.className, style: r.win === 'main' ? '' : r.el.getAttribute('style') || '', css: extraCss() };
   const sig = JSON.stringify(payload);
   if (sig === r.sent) return;
   r.sent = sig;

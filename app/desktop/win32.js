@@ -58,11 +58,11 @@ function createHost(parentHwnd, plan, r = { x: 0, y: 0, w: 16, h: 9 }) {
   return Number(h) || 0;
 }
 // place and show (or hide) a host; raised to the top of its siblings (A: above Chromium's own child windows)
-function place(h, r, show = true) {
+function place(h, r, show = true, topmost = false) {
   const u = lib();
   if (!u || !h) return false;
   if (!show) return u.SetWindowPos(h, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_HIDEWINDOW);
-  return u.SetWindowPos(h, HWND_TOP, Math.round(r.x), Math.round(r.y), Math.max(1, Math.round(r.w)), Math.max(1, Math.round(r.h)), SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_NOOWNERZORDER);
+  return u.SetWindowPos(h, topmost ? -1 /* HWND_TOPMOST: plan C over an always-on-top window */ : HWND_TOP, Math.round(r.x), Math.round(r.y), Math.max(1, Math.round(r.w)), Math.max(1, Math.round(r.h)), SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_NOOWNERZORDER);
 }
 // a popup host (C) placed just under a given window (the overlay), so the overlay stays above the picture
 function placeUnder(h, above, r) {

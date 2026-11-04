@@ -42,7 +42,8 @@ contextBridge.exposeInMainWorld('tuner', {
     name: overlayArg ? overlayArg.split('=')[1] : '',
     onLayers: on('layers'),
     input: (ev) => ipcRenderer.send('overlay:input', ev),
-    ignore: (yes) => ipcRenderer.send('overlay:ignore', yes),
+    hits: (rects) => ipcRenderer.send('overlay:hits', rects),
+    hold: (on) => ipcRenderer.send('overlay:hold', on),
   },
   win: {
     state: () => ipcRenderer.invoke('win:state'),
