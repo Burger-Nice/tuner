@@ -1,0 +1,12 @@
+{
+  "name": "airglow-acct",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "dev": "node test/server.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.148.0"
+  }
+}
