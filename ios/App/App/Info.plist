@@ -82,6 +82,18 @@
 	<string>UIStatusBarStyleLightContent</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>airglow talks to your provider and to your TV on this network.</string>
+	<!-- airglow accounts (design/ui-v1/accounts-v1/SPEC.md 2.3): airglow://tv?code=…&k=… opens the approval sheet -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.tuner.player.airglow</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>airglow</string>
+			</array>
+		</dict>
+	</array>
 	<!-- the hand-off for what the iPhone can't play (MKV, a channel that isn't HLS): Infuse and VLC -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>

@@ -249,6 +249,10 @@ const OVERFLOW = (sel) => {
   await p.goto(APP);
   await p.waitForTimeout(1500);
   check('starts on sign in', (await state())?.screen === 'signin');
+  // airglow accounts (design/ui-v1/accounts-v1 05): the account card leads; the provider card is the second door
+  check('sign in leads with the airglow account', await ev(() => /No other sign-in/.test(document.querySelector('.si-card')?.textContent || '') && !!document.querySelector('[data-act="noacct"]')));
+  await shot('signin-account');
+  await tap('[data-act="noacct"]'); await p.waitForTimeout(400);
   // the fields as an iPhone types them (review 2, S4)
   const attrs = await ev(() => { const s = document.querySelector('#siServer'), u = document.querySelector('#siUser'), pw = document.querySelector('#siPass'); return { s: [s.getAttribute('autocapitalize'), s.getAttribute('autocorrect'), s.getAttribute('inputmode')], u: [u.getAttribute('autocapitalize'), u.getAttribute('autocomplete')], pw: pw.getAttribute('autocomplete'), labels: [...document.querySelectorAll('.si-card label')].map((l) => l.textContent) }; });
   check('sign-in fields: labels and iPhone attributes', attrs.s.join() === 'off,off,url' && attrs.u.join() === 'off,username' && attrs.pw === 'current-password' && attrs.labels.join() === 'Server,Username,Password', JSON.stringify(attrs));

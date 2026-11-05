@@ -37,6 +37,11 @@ window.TUNER_NATIVE = {
     command: (args) => { try { host.impl?.command(args[0], args[1]); } catch (e) { console.error(e); } return Promise.resolve(); },
     onEvent: (f) => { listeners.add(f); return { remove: () => listeners.delete(f) }; },
   },
+  // airglow accounts (SPEC 5.7): the Keychain, through the app's own plugin (ios/App/App/SceneDelegate.swift)
+  secret: CAP?.isNativePlatform?.() ? (() => {
+    const K = CAP.registerPlugin('AirglowSecret');
+    return { get: async (key) => (await K.get({ key })).value ?? null, set: (key, value) => K.set({ key, value }), clear: (key) => K.clear({ key }).catch(() => {}) };
+  })() : undefined,
   onBack: () => {},
   onResume: (f) => document.addEventListener('visibilitychange', () => { if (!document.hidden) f(); }),
   exit: () => {},

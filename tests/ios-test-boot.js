@@ -52,6 +52,8 @@ window.TUNER_TEST = true;
       if (sessionStorage.getItem(PHASE) === '2') return phase2();
       check('opens on sign in', T().state().screen === 'signin', JSON.stringify(T().state()));
       await shot('signin');
+      check('sign in leads with the airglow account', !!$('[data-act="noacct"]'));
+      $('[data-act="noacct"]')?.click(); await wait(500);
       $('#siServer').value = API.replace(/^https?:\/\//, '');
       $('#siUser').value = 'demo';
       $('#siPass').value = 'demo';

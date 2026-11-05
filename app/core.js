@@ -47,7 +47,7 @@
     store.set('settingsAt', at); store.set('settings', s); return s;
   };
   // airglow accounts (design/ui-v1/accounts-v1): the Worker. `store 'acctHost'` overrides it (the tests' local Worker).
-  const ACCOUNTS_HOST = 'https://acct.airglow.workers.dev';
+  const ACCOUNTS_HOST = 'https://acct.airglow-tv.workers.dev';
 
   async function fetchT(url, ms = 20000) {
     const ctl = new AbortController();
