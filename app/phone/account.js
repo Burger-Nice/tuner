@@ -16,6 +16,7 @@ import { subSettings, saveSubSettings } from '../tv/js/subs.js';
 const SUB_LANGS = ['English', 'Icelandic', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Polish', 'Turkish', 'Arabic', 'Hindi'];
 import { checkStreams } from './streams.js';
 import { teamSheet, shieldSheet } from './nba.js';
+import { groupRows, groupAct } from './acctui.js';
 
 let el, sub = null;   // sub: null | 'addons'
 const CHECK = 'tuner.phCheck';
@@ -43,6 +44,7 @@ function mainHtml() {
   const info = phoneInfo();
   const shield = { off: 'Off', mine: 'My team', all: 'All games' }[shieldMode()];
   return `<div class="ph-top"><button class="ph-back" data-act="back" aria-label="Back">${ic('back')}</button><h1>Account</h1></div><div class="ac-list">
+    ${group('airglow account', groupRows(row))}
     ${group('Provider', [
       row({ icon: 'server', g: true, t: esc(host || 'Provider'), s: esc(exp), v: f ? (f.active ? `${ic('tick')}${esc(f.status === 'Playlist' ? 'Playlist' : 'Active')}` : esc(f.status)) : '', vcls: f?.active ? 'ok' : 'bad', chev: false }),
       f?.cons ? row({ icon: 'wifi', t: 'Connections', s: `${esc(f.cons)} · one stream each for the TV and this iPhone`, chev: false }) : '',
@@ -129,6 +131,7 @@ export default {
       if (!b) return;
       const a = b.dataset.act;
       if (a === 'back') return back();
+      if (a.startsWith('ag')) return groupAct(a, draw);
       if (a === 'up') { sub = null; draw(); return; }
       if (a === 'check') { if (!checking) runCheck(); return; }
       if (a === 'refresh') { toast('Refreshing channels…'); refreshNow().then(() => { resetGuides(); toast('Channels are up to date'); draw(); }).catch((er) => toast(er?.message || 'Couldn\'t refresh the channels')); return; }
@@ -150,6 +153,8 @@ export default {
     });
     on('info', () => { if (isShown('account')) draw(); });
     on('addons', () => { if (isShown('account')) draw(); });
+    on('acct-sync', () => { if (isShown('account')) draw(); });
+    on('acct', () => { if (isShown('account')) draw(); });
   },
   enter(root, params) { sub = params.open === 'addons' ? 'addons' : null; draw(); if (params.open === 'tmdb') root.querySelector('[data-act="tmdb"]')?.click(); },
 };

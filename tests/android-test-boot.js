@@ -25,12 +25,30 @@ window.TUNER_TEST = true;
   window.addEventListener('load', async () => {
     try {
       localStorage.setItem('tuner.nbaBase', JSON.stringify(`${API}/espn`)); localStorage.setItem('tuner.nbaWebBase', JSON.stringify(`${API}/espnweb`)); localStorage.setItem('tuner.nbaContentBase', JSON.stringify(`${API}/espncontent`));
-      await until(() => $('[data-act="type"]'), 30000);
+      localStorage.setItem('tuner.acctHost', JSON.stringify(API.replace(/:\d+$/, ':8790')));   // (the local accounts Worker, tests/mock-accounts.js)
+      await until(() => $('[data-act="phone"]'), 30000);
       await until(() => !$('#app').classList.contains('l-on'), 15000);   // the launch animation has finished
       await wait(800);
       const t0 = performance.now();
       report('boot', { bridge: !!window.Capacitor?.isNativePlatform?.(), ua: navigator.userAgent, size: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, modules: typeof window.__tunerTest, state: state() });
       await shot('welcome');
+      // airglow accounts (design/ui-v1/accounts-v1): the first screen leads with the phone; the code screen against the
+      // local Worker; the Keystore-wrapped store on a real Android
+      check('first screen leads with Sign in on your phone', document.activeElement?.dataset?.act === 'phone');
+      try {
+        const nat = (await import('./tv/js/native.js')).native;
+        await nat.secret.set('ci-test', 'kept');
+        check('the Keystore store keeps a value', (await nat.secret.get('ci-test')) === 'kept');
+        await nat.secret.clear('ci-test');
+        check('the Keystore store clears it', (await nat.secret.get('ci-test')) == null);
+      } catch (e) { check('the Keystore store keeps a value', false, { error: String(e) }); }
+      await press(['DPAD_CENTER'], 'account-code', 2500);
+      await until(() => /^[A-Z]{6}$/.test([...document.querySelectorAll('#agCode span')].map((x) => x.textContent).join('')), 15000);
+      check('the code screen shows six letters and the QR', /^[A-Z]{6}$/.test([...document.querySelectorAll('#agCode span')].map((x) => x.textContent).join('')) && !!$('.ag-qr svg'));
+      await shot('account-code');
+      await press(['BACK'], 'account-back', 600);
+      check('Back returns to the choices', !!$('[data-act="phone"]'));
+      await press(['DPAD_RIGHT', 'DPAD_CENTER'], 'without-an-account', 600);
 
       // Sign in: the keyboard comes up only on OK, Back puts it away again.
       await press(['DPAD_CENTER'], 'type-it-here');

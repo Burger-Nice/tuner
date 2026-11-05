@@ -339,7 +339,9 @@ jobs:
           npx cap sync android
           cd android && ./gradlew assembleDebug --no-daemon -q -PtunerVersionCode=${{ github.run_number }} -PtunerVersionName=$VERSION
       - name: Start the fake provider
-        run: MEDIA_DIR=tests/media nohup node tests/mock-provider.js > mock.log 2>&1 &
+        run: |
+          MEDIA_DIR=tests/media nohup node tests/mock-provider.js > mock.log 2>&1 &
+          nohup node --no-warnings tests/mock-accounts.js > acct.log 2>&1 &
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

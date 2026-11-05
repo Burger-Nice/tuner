@@ -788,3 +788,31 @@ body.playing::before { display: none; }
 .gm-src b { font: 650 15px/19px var(--a-font-text); display: block; }
 .gm-src small { font: var(--ph-cap); color: var(--a-text-3); display: block; }
 .gm-cov .act { margin-top: 2px; }
+
+/* ---------- airglow accounts (design/ui-v1/accounts-v1/accounts.css, the iPhone part) ---------- */
+.agp { padding: 0 16px 8px; }
+.agp .ico { width: 56px; height: 56px; border-radius: 16px; background: var(--a-grad); display: grid; place-items: center; color: var(--a-ink); }
+.agp .ico svg { width: 30px; height: 30px; }
+.agp h2 { margin: 14px 0 0; font: var(--ph-head); color: var(--a-text-1); letter-spacing: -.01em; }
+.agp .sub { margin-top: 4px; font: var(--ph-body); color: var(--a-text-2); }
+.agp .chk { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; font: var(--ph-sub); color: var(--a-text-1); }
+.agp .lbl { margin: 16px 0 8px; font: var(--ph-label); letter-spacing: .1em; text-transform: uppercase; color: var(--a-text-3); }
+.agp .act { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.agp .act .pill, .agp .act .ghost { width: 100%; box-sizing: border-box; }
+.agp .pill[disabled], .si-card .pill[disabled] { background: rgba(243,239,230,.1); color: var(--a-text-3); box-shadow: inset 0 0 0 1px rgba(243,239,230,.14); }
+.agp .note { margin-top: 12px; font: var(--ph-cap); color: var(--a-text-3); text-align: center; }
+.agp .three { width: 120px; letter-spacing: .3em; text-transform: uppercase; font: 700 22px/1 var(--a-font-display); }
+.ag-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--a-ok); color: var(--a-ink); flex: none; }
+.ag-tick svg { width: 11px; height: 11px; }
+.ag-q { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--a-surface-3); color: var(--a-text-1); flex: none; margin-top: 1px; font: 700 12px/1 var(--a-font-text); }
+.ag-gives { display: flex; flex-wrap: wrap; gap: 6px; }
+.ag-gives span { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--a-surface-2); font: 650 13px/1 var(--a-font-text); color: var(--a-text-1); white-space: nowrap; }
+.ag-key { display: flex; gap: 8px; margin-top: 14px; }
+.ag-key span { flex: 1; text-align: center; padding: 6px 0; border-radius: 10px; background: var(--a-bg-1); box-shadow: inset 0 0 0 1px var(--a-border-strong); font: 700 22px/30px var(--a-font-display); letter-spacing: .06em; color: var(--a-text-1); }
+.si-card .ag-btns { display: flex; gap: 8px; margin-top: 12px; }
+.si-card .ag-btns .ghost { flex: 1; margin: 0; }
+.si-card .ag-ck { display: flex; align-items: center; gap: 12px; margin-top: 14px; font: var(--ph-sub); color: var(--a-text-1); }
+.si-card .ag-ck input { width: 24px; height: 24px; accent-color: var(--a-pink); }
+.si-card .ag-link { display: block; margin-top: 12px; text-align: center; font: 600 14px/18px var(--a-font-text); color: var(--a-pink-text); background: none; border: 0; width: 100%; }
+.ag-cap { font: var(--ph-cap); color: var(--a-text-3); }
+.ac-row .v.ag-dot { color: var(--a-ok); font-weight: 650; }

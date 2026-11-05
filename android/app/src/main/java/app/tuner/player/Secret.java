@@ -7,7 +7,8 @@ import android.util.Base64;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
 import java.security.KeyStore;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -55,7 +56,9 @@ final class Secret {
     static synchronized String get(Context c, String name) throws Exception {
         File f = file(c, name);
         if (!f.exists()) return null;
-        String[] p = new String(Files.readAllBytes(f.toPath()), StandardCharsets.US_ASCII).split("\\.");
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        try (FileInputStream in = new FileInputStream(f)) { byte[] buf = new byte[4096]; int n; while ((n = in.read(buf)) > 0) b.write(buf, 0, n); }   // (API 24: no java.nio.file)
+        String[] p = new String(b.toByteArray(), StandardCharsets.US_ASCII).split("\\.");
         if (p.length != 2) return null;
         Cipher ci = Cipher.getInstance("AES/GCM/NoPadding");
         ci.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(128, Base64.decode(p[0], Base64.NO_WRAP)));

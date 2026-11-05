@@ -20,6 +20,9 @@ import detail from './detail.js';
 import search from './search.js';
 import account from './account.js';
 import signin from './signin.js';
+import { openLink } from './acctui.js';
+import { startLater } from '../tv/js/account/flow.js';
+import { endSession, store } from '../tv/js/state.js';
 
 window.__phAcc = () => S.acc?.name || '';
 [home, live, dayPage, nbaTab, gamePage, teamScreen, lib, detail, search, account, signin].forEach(register);
@@ -61,6 +64,15 @@ busy.showing = (k) => current() === (k === 'live' ? 'live' : 'lib');
 busy.gameOn = () => !nba.stale && myGame()?.state === 'in';
 on('session', () => { S.offline = false; offline(false); if (S.acc) startNba(); drawTabs(); });
 on('signed-out', (msg) => go('signin', { error: msg }));
+// airglow accounts: signed out (here or from elsewhere), a provider that left with the account, airglow://tv links
+on('acct-out', (r) => { if (!S.acc) go('signin', { error: r?.line || '' }); });
+on('acct-provider-gone', () => { store.del('active'); endSession(); go('signin'); });
+try {
+  const App = window.Capacitor?.Plugins?.App;
+  App?.addListener?.('appUrlOpen', (e) => openLink(e.url));
+  App?.getLaunchUrl?.().then((r) => { if (r?.url) setTimeout(() => openLink(r.url), 1500); }).catch(() => {});
+} catch { /* a desktop browser */ }
+window.__agOpenLink = openLink;   // (the tests)
 let offT = 0;
 function offline(onOff) {
   const el = document.getElementById('ph-offline');
@@ -91,6 +103,7 @@ async function start() {
     go('home');
   } else go('signin');
   drawTabs();
+  startLater();
 }
 start();
 
