@@ -219,6 +219,15 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
     await shot(`gamenight-${w}`);
   }
 
+  // (the owner: hovering a poster on Home, its white edge was cut off at the top by the row)
+  await p.setViewportSize({ width: 1920, height: 1080 }); await p.waitForTimeout(600);
+  const pst = await p.$('.pg-home .row .cards .poster');
+  if (pst) {
+    await pst.scrollIntoViewIfNeeded(); await pst.hover(); await p.waitForTimeout(400);
+    const hv = await ev(() => { const po = document.querySelector('.pg-home .row .cards .poster:hover') || document.querySelector('.pg-home .row .cards .poster'); const b = po.querySelector('.box').getBoundingClientRect(), r = po.closest('.cards').getBoundingClientRect(); return { box: [Math.round(b.top), Math.round(b.bottom)], rail: [Math.round(r.top), Math.round(r.bottom)] }; });
+    check("Home: a hovered poster's white edge isn't cut by its row", hv.box[0] - 2 >= hv.rail[0] && hv.box[1] + 2 <= hv.rail[1], JSON.stringify(hv));
+  } else check("Home: a hovered poster's white edge isn't cut by its row", false, 'no poster in a Home row');
+
   const fatal = errs.filter((e) => !/ResizeObserver/.test(e));
   check('no page errors', !fatal.length, `${fatal.length} errors`);
   for (const e of fatal.slice(0, 6)) console.log('  ', e);
