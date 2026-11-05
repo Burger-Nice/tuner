@@ -103,6 +103,8 @@ async function spike(plan) {
     page.on('console', (m) => { if (m.type() === 'error') console.log('page error:', m.text()); });
     page.on('pageerror', (e) => console.log('page exception:', e.message));
     await page.waitForFunction(() => !!window.spike, null, { timeout: 20000 });
+    // (now and then the first page comes up without window.tuner: a preload that didn't run on that load. Once more.)
+    if (!(await page.evaluate(() => !!window.tuner?.mpv))) { console.log(`plan ${plan}: no window.tuner on the first load, reloading`); await page.reload(); await page.waitForFunction(() => !!window.spike && !!window.tuner?.mpv, null, { timeout: 20000 }); }
     const scr = await app.evaluate(({ screen }) => ({ ...screen.getPrimaryDisplay().workAreaSize, scale: screen.getPrimaryDisplay().scaleFactor }));
     report('screen', scr);
     const W = Math.min(1000, scr.width), Hh = Math.min(680, scr.height - 20);
