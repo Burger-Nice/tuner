@@ -168,12 +168,27 @@ const ph04 = phPage({ title: 'iPhone: sign in this TV?', body: phHomeUnder + `
   <h2>Sign in this TV?</h2>
   <div class="sub">Philips TV · <b>${CODE_SHOWN}</b> · asked 20 s ago</div>
   <div class="chk"><span class="ag-q">${ic('info')}</span><span>Is this the code on your TV? Only sign in a TV you're looking at. If someone sent you this link, tap Not now.</span></div>
-  <div class="chk" style="margin-top:8px">${tick()}<span>On the same Wi-Fi as this iPhone</span></div>
+  <div class="chk" style="margin-top:8px">${tick()}<span>On the same network as this iPhone</span></div>
   <div class="lbl">It gets your</div>
   <div class="ag-gives"><span>${ic('server')}Provider login</span><span>${ic('puzzle')}Stremio add-ons</span><span>${ic('key')}TMDB key</span><span>${ic('bookmark')}Saved</span><span>${ic('hist')}History</span><span>${ic('sliders')}Settings</span></div>
   <div class="ag-cap" style="margin-top:8px">The TV signs in to nothing else: your provider, Stremio and TMDB logins come with it.</div>
   <div class="act"><span class="pill noicon">Sign in the TV</span><span class="ghost">Not now</span></div>
   <div class="note">Locked on this iPhone for that TV only. airglow's server passes it on without being able to read it.</div>
+</div>` });
+
+// ---- 04b phone: approving a TV from another network (the three-letter step) ----
+const ph04b = phPage({ title: 'iPhone: sign in this TV? (another network)', body: phHomeUnder + `
+<div class="ag-scrim"></div>
+<div class="ag-sheet"><div class="hdl"></div>
+  <div class="ico">${ic('tv')}</div>
+  <h2>Sign in this TV?</h2>
+  <div class="sub">Philips TV · <b>WDJ-___</b> · asked 20 s ago</div>
+  <div class="chk"><span class="ag-q">${ic('info')}</span><span>Is this the code on your TV? Only sign in a TV you're looking at. If someone sent you this link, tap Not now.</span></div>
+  <div class="lbl">The last three letters on your TV</div>
+  <div class="si-code" style="margin-top:0;width:200px"><span>B</span><span>M</span><span class="cur empty">·</span></div>
+  <div class="ag-cap" style="margin-top:8px">This iPhone isn't on the TV's network, so the letters make sure it's your TV.</div>
+  <div class="act"><span class="pill noicon dim">Sign in the TV</span><span class="ghost">Not now</span></div>
+  <div class="note">Then it gets your provider login, Stremio add-ons, TMDB key, Saved and history. The TV signs in to nothing else.</div>
 </div>` });
 
 // ---- 05 phone: sign in (email + password; or without an account) ----
@@ -218,7 +233,7 @@ ${status('20:43')}
   <div class="lbl">Email</div><div class="si-field"><b>${EMAIL}</b></div>
   <div class="lbl">Password</div><div class="si-field"><b>••••••••••••••</b><span class="eye">Show</span></div>
   <span class="ghost" style="width:100%;box-sizing:border-box;margin-top:14px">Sign in the TV</span>
-  <div class="note">Your password is used here, in your browser, to unlock the key your TV needs. It isn't sent anywhere. The TV gets a locked copy only it can open.</div></div>
+  <div class="note">Your password stays in this browser: it unlocks the key your TV needs. The TV gets a locked copy only it can open.</div></div>
 <div class="ag-sbar">${ic('chevL')}${ic('chevR')}${ic('share')}${ic('book')}${ic('tabs')}</div>
 ` });
 
@@ -248,7 +263,7 @@ const dk08 = dkHead('Windows: Account › airglow account, the devices') + `<div
     <div class="pt">airglow account<small>the same things on every screen you sign in</small></div>
     <div class="c1">
     ${dkGroup('Devices', [
-      dkRow({ icon: 'tv', t: 'Living room TV', s: 'Philips 55OLED810 · Google TV · signed in Tue 28 Oct with your phone', v: 'Active now', vcls: 'ok', right: '<span class="ghost">Sign out</span>' }),
+      dkRow({ icon: 'tv', t: 'Living room TV', s: 'Philips 55OLED810 · Google TV · signed in Tue 28 Oct with Birgir\'s iPhone', v: 'Active now', vcls: 'ok', right: '<span class="ghost">Sign out</span>' }),
       dkRow({ icon: 'phone', t: 'Birgir\'s iPhone', s: 'iOS 26 · signed in Tue 28 Oct with the password · last seen 2 h ago', v: 'Last seen 18:41', right: '<span class="ghost">Sign out</span>' }),
       dkRow({ icon: 'pc', t: 'Laptop<span class="this">This PC</span>', s: 'Windows 11 · signed in Sat 25 Oct with the password', v: 'Active now', vcls: 'ok', hov: true, right: '<span class="ghost">Rename</span>' }),
     ], 'Signing a device out removes your account\'s things from it the next time it is online; the device keeps working without an account until then. <b style="color:var(--a-text-2)">Sign out everywhere</b> does this to all three and asks for your password or your phone on each.', '3 of 10')}
@@ -267,7 +282,7 @@ const dk08 = dkHead('Windows: Account › airglow account, the devices') + `<div
     ])}
     ${dkGroup('Sync', [
       dkRow({ icon: 'sync', t: 'Synced just now', s: '<span class="dk-sync"><span>2 provider logins</span><span>TMDB key</span><span>7 add-ons + your Stremio link</span><span>1,860 plays, Continue watching</span><span>31 saved</span><span>Home rows and your choices</span><span>spoiler shield seen list</span><span>team, shield, languages, replays, skip intro</span><span class="off">not this PC\'s player, window or tray settings</span></span>', right: '<span class="ghost">Sync now</span>' }),
-      dkRow({ icon: 'hist', t: 'Undo', s: 'The server keeps 30 days of previous versions of every record and a snapshot from each merge, so a bad change can be rolled back from here', v: 'Undo changes since…', chev: true }),
+      dkRow({ icon: 'hist', t: 'Undo', s: '30 days of previous versions and the merge snapshots; a bad change rolls back from any device', v: 'Undo changes since…', chev: true }),
     ])}
     </div>
   </div>
@@ -278,6 +293,7 @@ write('01-tv-signin-code.html', tv01);
 write('02-tv-merge.html', tv02);
 write('03-tv-account.html', tv03);
 write('04-phone-approve-tv.html', ph04);
+write('04b-phone-approve-other-network.html', ph04b);
 write('05-phone-signin.html', ph05);
 write('06-phone-recovery-key.html', ph06);
 write('07-web-tv-page.html', ph07);

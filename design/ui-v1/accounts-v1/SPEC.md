@@ -1,4 +1,4 @@
-# airglow accounts and sync, v1.1: sign in on any screen, everything follows, the server can't read it
+# airglow accounts and sync, v1.2: sign in on any screen, everything follows, the server can't read it
 
 The owner asked for "the login thing so I can log in on different devices", then chose a real account system over a
 GitHub-only one "if my friends want to use it", and today asked the question this whole design has to answer: *"I still
@@ -13,10 +13,65 @@ Worker with D1, deployed by CI, on the free plan.
 
 Mocks (`png/`, contact sheet `png/contact-sheet.png`; built by `tools/build.js`, rendered by `tools/render.js`): the TV
 sign-in with the code and the QR (`01`), the TV's merge-or-replace question (`02`), Account › airglow account on the TV
-(`03`), the iPhone approving a TV (`04`), the iPhone sign-in (`05`) and the recovery key at sign-up (`06`), the page the
+(`03`), the iPhone approving a TV (`04`, and `04b` from another network), the iPhone sign-in (`05`) and the recovery key at sign-up (`06`), the page the
 QR opens on a phone (`07`), and the Windows Account page with the devices (`08`).
 
-## v1.1 changes (an answer to `REVIEW-independent-1.md`; the build starts from this)
+## v1.2 changes (an answer to `REVIEW-independent-2.md`; the build starts from this)
+
+Spec text only, plus one new mock (`04b`) and four words on screens. The six must-fixes:
+
+1. **Undo is the client's (§4.4, §6.1).** The server can't re-encrypt, and the AAD binds `ver`, so `GET /v1/undo?since=`
+   now returns the previous blobs *with their old `ver`*; the client opens each with that `ver`, re-encrypts it under a
+   fresh `ver` and pushes it as an ordinary compare-and-set write. `POST /v1/undo` is gone. Snapshot `Restore` was
+   already client-side and stays so.
+2. **The mass-delete guard has a door (§4.4):** `wipe: true` is sent by the confirmed actions that really do delete most
+   of a collection: `Remove provider`, `Forget my taste`, `Reset rows`, `Clear Continue watching`, `Delete account`.
+   Each already has its own confirm. A client that gets `too_many_deletes` without `wipe` keeps the records locally,
+   marks them held, shows `Some changes weren't synced · <n> deletions wait for a confirm` on the Sync row with
+   `Sync them` / `Undo them`, and stops retrying those records. For logs, deletes win over union: `Forget my taste`
+   writes `rows/forget = { upTo }` and every merge of plays drops plays with `at ≤ upTo` and tombstones the parts; a
+   part's tombstone beats any lower `ver` of it.
+3. **A full inventory of today's local keys (§4.2a), and a person-wide prefix when signed in.** Per-person stores
+   (add-ons, the Stremio state, picks, hidden rows, rows off, finishes, not interested, IMDb notes, skip shows, the plays
+   log, the Home page cache) move under `u:<accountId>:*` when signed in; `scoped()` routes by a table of which keys are
+   which. Per-provider stores (Saved, order, progress, recents, last channel, live group, delays, team channel, the
+   probe budget, `m3u:`, `info:`, `probes:`) keep the device's random `acc.id`, and the sync adapter maps `acc.id ↔ pid`
+   at the boundary through the account's provider record, so nothing on the device is renamed and nothing is missed.
+   The merge step folds each provider's per-person copies into the `u:` set (union for add-ons, newest for picks).
+4. **A refresh grace that can be built (§5.8):** the successor token is deterministic,
+   `next = HMAC(refreshKey, deviceId || prev)`, so a retry with the previous token recomputes the same successor and
+   re-signs the same access token; a reuse of the previous token counts as theft only once the successor has itself
+   been used (`refresh_used_at`); and a client wipes only on an explicit `{ error: "revoked" }`, never on a 401, a 5xx,
+   the 503 for missing secrets or a network error.
+5. **Recovery no longer depends on the password's salt (§5.3):** `rwk` and `rak` are HKDF'd from `rk` with the constant
+   salt `"airglow/v1/recovery"` (fine for 100 random bits), so a password change or a KDF upgrade that replaces the KDF
+   salt can't break recovery; the known-answer tests add "change the password, then recover". A KDF ceiling (5 million
+   PBKDF2 iterations) joins the floor.
+6. **The CI secrets step fails closed (§7.2):** `shell: bash` with `set -euo pipefail`, the `secret list` output
+   validated as a JSON array before anything is read from it, `PEPPER` and `TOKEN_SECRET` never written while
+   `/v1/health` answers `ready: true`, an empty owner value skipped, and the job runs on `push` and `workflow_dispatch`
+   only.
+
+The top should-fixes, taken: the owner's first account is claimed with an **owner code**, not his email (§7.3): a phrase
+he picks, kept as the `AIRGLOW_OWNER_CODE` repository secret and put into the Worker once as `OWNER_CODE`; he types it in
+the invite field of the first sign-up, after which it is spent; `/v1/health` answers only `{ ok, version, ready }` and
+says nothing about an owner. `04b` mocks the other-network approval (the three-letter step). The same-network tick shows
+only when the phone is on Wi-Fi (never on mobile data: CGNAT) and reads `On the same network as this iPhone`; the `/tv`
+page asks for the letters too unless the code was typed; a home network that speaks IPv4 to the TV and IPv6 to the
+phone will show the step, which is friction only, and is measured on his network (open item). Only devices that signed
+in with the password or the recovery key may approve a TV, and Devices shows the approver (`signed in Tue 28 Oct with
+Birgir's iPhone`). The `/tv` page's one-shot token is scoped to lookup and approve for 5 minutes. A provider's `pid` is
+assigned once, when the provider is first added, and stored in its record; a server-URL edit keeps it, and duplicates
+are matched at merge by a canonical natural key. `records_prev` counts toward the 8 MB cap and keeps one previous
+version per record per UTC day; `rowStats` stays on the device. Plays dedupe by `playId` across parts; `delays` and
+`teamCh` don't travel at all. Account names a pasted M3U's exception by provider (`backup.m3u stays on the iPhone it
+was pasted on`). The display name comes from an optional `Name` at sign-up (defaulting to the part before `@`), kept in
+the `settings` record. `GET /v1/devices` says `active`, not `now`. Invite codes are 8 letters (two blocks of four, about
+35 bits). Safari's `Open in "airglow"?` confirmation is counted (five taps). `07` says `Your password stays in this
+browser`. `logout-all` from a TV asks only the remote's OK, which is accepted and stated. After a pepper loss, signed-in
+devices keep working; nobody can sign in *again*.
+
+## v1.1 changes (an answer to `REVIEW-independent-1.md`)
 
 The screens barely change; the words and the crypto do. The twelve must-fixes, in the review's order:
 
@@ -119,7 +174,7 @@ shows digits); the wrong-lookup rule has a subject; `prelogin`'s fake answer fol
    wins per item for settings and saved items, union for logs (plays, the shield's seen list) and lists keyed by id.
    This is the Standard Notes shape (items keys, `items_key_id`, sync by cursor) with the merge rules airglow's data
    already implies (`plays` is append-only; `nbaSeen` is `{ upTo, ids }`). The server keeps 30 days of previous
-   versions, so a bad push is undoable.
+   versions; the client opens them and pushes them back, so a bad push is undoable.
 8. **Local first.** Every app keeps working exactly as today with the account offline: the local store stays the
    source of truth; sync is a push of changed records and a pull by cursor, on launch, every 15 minutes (a one-read
    `seq` check), on a change (debounced 5 s), and when the app comes back. A device that was used without an account
@@ -129,7 +184,7 @@ shows digits); the wrong-lookup rule has a subject; `prelogin`'s fake answer fol
    mpv settings, the phone's data saver. §4.2 lists both sides. Saved, order and progress stay scoped to the provider
    they belong to (as `state.js` stores them today), under an id every device agrees on.
 10. **Invite-only, no payments, soft limits.** The owner makes invite codes (Account › Friends); open sign-up is a
-    Worker flag left off; the owner's own first account is bootstrapped from a secret (§7). Each account is separate:
+    Worker flag left off; the owner's own first account is claimed with an owner code he picks (§7.3). Each account is separate:
     nothing is shared between friends. Limits (§4.6) keep the free plan free.
 11. **No email is sent in v1.** With no reset-by-email (decision 5) and invite-only sign-up, there is nothing an email
     must carry; the email is a sign-in name. Cloudflare's Email Sending is paid-plan only and Resend's free tier is
@@ -146,7 +201,7 @@ shows digits); the wrong-lookup rule has a subject; `prelogin`'s fake answer fol
     offline guessing oracle at the KDF's cost, exactly as in Bitwarden; the password's length (12 or more) and the KDF
     are the defence there. Bitwarden's own server-side iterations were shown to add little for the same reason.
 14. **Sessions: a short access token (1 h, HMAC-signed) and a rotating refresh token (90 days, stored hashed, with a
-    60 s grace window after each rotation).** "Sign out everywhere" revokes every refresh token; the device wipes the
+    deterministic successor so a lost response or a crash never signs a device out).** "Sign out everywhere" revokes every refresh token; the device wipes the
     account's data the next time it is online and is told. A device that stays offline keeps what it has (there is no
     way to reach it), and the Devices list says so.
 15. **Everything that already exists keeps working without an account.** The TV's and the phone's provider sign-in
@@ -255,8 +310,9 @@ The first screen has two doors and keeps the old one:
 
 ### 2.2 Sign-up (iPhone, Windows, or the Worker's `/signup` page; never the TV)
 
-1. **Account:** the invite code (from the link, or typed; the field says `Not needed for the first account` while the
-   Worker reports no owner yet, §7), email, password (12 characters or more; a strength line, no rules beyond length;
+1. **Account:** the invite code (from the link, or typed; the owner types his owner code here the first time, §7.3),
+   email, an optional `Name` (the part before `@` when empty; what `Signed in as Birgir` and the avatar's letter show),
+   password (12 characters or more; a strength line, no rules beyond length;
    NFKC-normalised, never trimmed), `Continue`. The device makes the master key, the wrapping key and the auth key
    (§5.2), a random data key and a random recovery key, wraps the data key twice and the recovery key once (§5.3), and
    calls `POST /v1/signup`.
@@ -280,29 +336,32 @@ The first screen has two doors and keeps the old one:
    now" on the phone) goes back to the choices.
 3. On the phone, the camera opens the https link in Safari: the `/tv` page (`07`), which names the TV and the code and
    leads with `Open in airglow` (`airglow://tv?code=WDJBMH&k=…`; the scheme is registered by the phone app, which works
-   for a sideloaded build, unlike Universal Links). The app shows the sheet `04`: the TV's name, the code, `asked 20 s
+   for a sideloaded build, unlike Universal Links; Safari asks `Open in "airglow"?` first). The app shows the sheet `04`: the TV's name, the code, `asked 20 s
    ago`, the question `Is this the code on your TV? Only sign in a TV you're looking at. If someone sent you this link,
    tap Not now.`, the same-network tick when it applies (§3.2), what the TV gets and that it signs in to nothing else,
    `Sign in the TV`, `Not now`. The app checks that `SHA-256(tvPub)` from the server equals `k` from the link, wraps the
    data key for `tvPub` (§5.5) and calls `POST /v1/device/approve`. A phone without the app uses the form under `or
-   sign in here` on the same page; its login is one-shot (no refresh token, no device row).
+   sign in here` on the same page; it asks for the last three letters as well (a browser's address rarely matches:
+   Private Relay, mobile data), and its login is one-shot: a 5-minute token good for the lookup and the approval only,
+   no refresh token, no device row.
 4. The TV's next poll returns the tokens and the box; the TV opens it, checks `dk_check`, keeps the data key (§5.7),
    pulls the account's records, and shows `Signed in as Birgir` with the verifying rows (`02`'s background: Account,
    `Your account, unlocked on this TV · 2 providers · Stremio · TMDB · 7 add-ons · 31 saved · 1,860 plays`). If this TV
    already has things from life without an account, the merge question (§2.6) comes first. Home opens when the
    provider's channels are in.
 
-Steps for the person: OK on the TV, scan, `Open in airglow`, `Sign in the TV`. Four, three of them on the phone; about
-45 to 60 s when the phone is already signed in (measured against Netflix's five: open the site, sign in, type eight
+Steps for the person: OK on the TV, scan, `Open in airglow`, Safari's `Open in "airglow"?`, `Sign in the TV`. Five
+taps, four of them on the phone; about 45 to 60 s when the phone is already signed in (measured against Netflix's five: open the site, sign in, type eight
 digits, confirm, wait). If the iPhone camera opens `airglow://` links from a QR directly (open item 1), the page is
-skipped and it is three.
+skipped and it is three or four.
 
 ### 2.4 Signing in on the iPhone or Windows (`05`)
 
 `POST /v1/prelogin { email }` returns the KDF parameters (for an unknown email, the current default parameters and a
 fake salt `HKDF(PEPPER, "fake-salt") ⊕ email`-derived, so the answer doesn't say whether the account exists, and keeps
 saying the same thing after a KDF upgrade). **The client refuses parameters below the floor** (600,000 PBKDF2, or the
-Argon2id minimums later) with `This server asked for a weak key. Not signing in.` The device derives the keys, calls
+Argon2id minimums later) **or above the ceiling** (5,000,000: a hostile answer must not hang the TV) with `This server
+asked for a weak key. Not signing in.` The device derives the keys, calls
 `POST /v1/login { email, authKey, device }`, unwraps the data key with its wrapping key, checks `dk_check`, keeps it
 (§5.7), pulls the records, merges with what is local (§2.6 if there is anything), and opens Home with the provider
 already there. A wrong password is the neutral sentence under the field (`That password doesn't open this account`);
@@ -315,22 +374,25 @@ someone who knows the email can't lock the owner out from elsewhere.
   lost` if it can't), revokes this device's refresh token, wipes the account's data key and the synced records from the
   device, and leaves the device as it was before the account (the local-only provider, if any, stays; if the provider
   came from the account, the first screen comes back).
-- `Sign out everywhere` (every app; a confirm with the password on the phone and Windows, the TV only confirms): revokes
+- `Sign out everywhere` (every app; a confirm with the password on the phone and Windows, the TV only confirms with OK,
+  so anyone with the remote can do it: accepted, it is the same trust as the remote's Sign out today): revokes
   all refresh tokens; every device wipes on its next contact and shows the first screen with `Signed out everywhere
   from <device name>` once. Offline devices keep what they hold until they come online, which the Devices list says
   (`08`'s foot).
-- `Devices` lists each device (name, kind, how it signed in: *with your phone* or *with the password* or *with the
-  recovery key*, when, last seen) with `Sign out` per device and `Rename` on this one. Nothing about what plays.
+- `Devices` lists each device (name, kind, how it signed in: *with Birgir's iPhone* (the approver's name) or *with the
+  password* or *with the recovery key*, when, last seen) with `Sign out` per device and `Rename` on this one. Nothing
+  about what plays. A device that signed in with a phone (a TV) can't approve another: only devices that signed in with
+  the password or the recovery key can, so a stolen TV can't enrol a second screen.
 
 ### 2.6 First sign-in on a device that already has things (`02`)
 
 Asked once per device, only when the device has local data for a provider that is not already in the account or has
 local plays / Saved / add-ons. Two choices:
 
-- **Merge them** (recommended, focused): union by the rules of §4.4; duplicate providers (same type, server and user)
-  become one and the device's local `a:<random id>:*` stores are renamed to the account's `pid` for that provider
-  (§4.2); the device's plays go into the person's log with their timestamps and their `pid`; Saved is unioned, the
-  account's order first.
+- **Merge them** (recommended, focused): union by the rules of §4.4; duplicate providers (the same canonical natural
+  key, §4.2) become one and the device's `acc.id` is mapped to the account's `pid` for that provider (§4.2a; nothing is
+  renamed); each provider's per-person stores are folded into the person's `u:` set (add-ons unioned, the newest picks,
+  the plays log unioned with their timestamps and `pid`); Saved is unioned, the account's order first.
 - **Use only what's in my account**: the device's own records are dropped locally (nothing is pushed as deleted) and
   the account's pulled. The provider stays if it is the same one.
 
@@ -343,7 +405,7 @@ today's state for 30 days.` Back on this screen shows the toast `Pick one to fin
 
 Asks for the current password and the new one twice. The device derives the new keys, re-wraps the data key and the
 recovery key with the new wrapping key, and calls `POST /v1/password` with the old auth key, the new auth key, the new
-KDF parameters and the two new wraps. A tick `Also sign out my other devices` (off) revokes the other refresh tokens.
+KDF parameters (a fresh KDF salt is fine: recovery no longer depends on it, §5.3) and the two new wraps. A tick `Also sign out my other devices` (off) revokes the other refresh tokens.
 Nothing else is re-encrypted; `dk` is not rotated (decision 6).
 
 ### 2.8 Forgot the password: the recovery key
@@ -397,7 +459,8 @@ stays 30 days with the email hashed.
   half-merged state); Left/Right do nothing; Up/Down move between the two rows.
 - **Account (`03`):** a new first group `airglow account`: `Birgir` / the email / `Signed in` (OK opens Devices);
   `Synced 2 min ago` / `Provider logins, Stremio add-ons, TMDB key, Saved, history, Home rows, your settings` / `Sync
-  now ›`; `Devices` / this TV named / `3 ›` (a right sheet listing the devices, OK on one offers `Sign out <name>`);
+  now ›`; `Devices` / this TV named / `3 ›` (a right sheet listing the devices, OK on one offers `Sign out <name>`); a pasted
+  M3U with no link gets its own line under the provider's row (`backup.m3u stays on the iPhone it was pasted on`);
   `What syncs` / `Not this TV's picture, sound or player settings: those stay here` / `See ›` (a sheet with §4.2's two
   lists); `Sign out of this TV` / `Your provider, add-ons and history leave this TV. Your account keeps them`; `Sign out
   everywhere` (a confirm menu: `Every device asks for your password or your phone again. The TV keeps working without
@@ -416,12 +479,15 @@ stays 30 days with the email hashed.
 - **Approving a TV (`04`):** a bottom sheet over whatever was on screen (the app was opened by `Open in airglow`; if the
   app was not signed in, the sign-in card comes first and the sheet after): the TV icon, `Sign in this TV?`, `Philips TV
   · WDJ-BMH · asked 20 s ago`, the question line with the info bullet, then:
-  - **same network** (the Worker saw the TV's code request and the phone's lookup from the same public IPv4, or the
-    same IPv6 /64): the tick `On the same Wi-Fi as this iPhone`;
-  - **different networks:** no tick; the sheet shows `WDJ-___`, a three-letter field `The last three letters on your TV`,
+  - **same network** (the phone is on Wi-Fi, by Capacitor's Network plugin, and the Worker saw the TV's code request
+    and the phone's lookup from the same public IPv4, or the same IPv6 /64): the tick `On the same network as this
+    iPhone`. Never on mobile data (a carrier's CGNAT puts strangers behind one address).
+  - **different networks, or no Wi-Fi** (`04b`): no tick; the sheet shows `WDJ-___`, a three-letter field `The last
+    three letters on your TV`, the line `This iPhone isn't on the TV's network, so the letters make sure it's your TV.`,
     and `Sign in the TV` lights only when they match the code the link carried. The letters are in the link, so this is
-    friction for a phished person, not proof; it is the friction RFC 8628 §5.4 asks for, and it costs the owner nothing
-    at home.
+    friction for a phished person, not proof; it is the friction RFC 8628 §5.4 asks for. A home where the TV speaks
+    IPv4 and the phone IPv6 will see this step too (the families never match); it fails closed, and whether it shows at
+    the owner's home is measured there (open item 9).
   - **a typed code** (Account › `Sign in a TV`, no `k`): the app trusts the server's `tvPub` and the line says `Make
     sure the code is the one on your TV.`
   Then `IT GETS YOUR` chips (`Provider login`, `Stremio add-ons`, `TMDB key`, `Saved`, `History`, `Settings`), the line
@@ -440,14 +506,15 @@ sign-out-everywhere), **Friends** (`Invite a friend` with the code field, `copie
 this month. Open sign-up is off`), the unnamed group (`Sign out of this PC`, `Delete account`); **Security** (`Change
 password`, `Recovery key · Set · 28 Oct`, `What the server has`), **Sync** (`Synced just now` with the list of what syncs
 and the `not this PC's player, window or tray settings` line, `Sync now`; `Undo · Undo changes since…`, the 30 days of
-previous versions and the merge snapshots). The sidebar's Account item reads `Account · synced` (or `· offline`, `· sign
+previous versions and the merge snapshots, restored by this device, §4.4). The sidebar's Account item reads `Account · synced` (or `· offline`, `· sign
 in`).
 
 ### 3.4 The Worker's pages (`07`)
 
 Static files beside the Worker, in the brand (the TV's tokens and fonts, `phone.css`'s field and pill): `/tv` (the TV's
-name and the code from the link, `Open in airglow` first, `or sign in here` with the code, email, password, `Sign in
-the TV` as a ghost, the note), `/signup` (the invite, email, password, then the recovery key page, then `Done · open
+name and the code from the link, `Open in airglow` first, `or sign in here` with the code, email, password, the
+three-letter step unless the code was typed, `Sign in the TV` as a ghost, the note `Your password stays in this browser:
+it unlocks the key your TV needs`), `/signup` (the invite code, email, name, password, then the recovery key page, then `Done · open
 airglow on your phone or PC`), `/recover` (email, the recovery key, a new password). No account page on the web in v1:
 devices, invites and the rest are in the apps. `/tv/<code>` is routed through the Worker (`run_worker_first`), which
 serves the same page with the code filled in.
@@ -479,32 +546,68 @@ numbered parts (`plays:2026-10:1`, `:2`, …; `snapshot:<dev>:<date>:1`, …), a
 
 ### 4.2 What syncs (and what doesn't)
 
-`pid` is the provider's account-wide id: `idKey`-HMAC of `type|server|username` (or `type|url` for an M3U). When signed
-in, `session.js` uses `pid` as the local `acc.id`, so `state.js`'s `scoped()` keys (`a:<pid>:favs` and the rest) are the
-same on every device; a device's pre-account stores under a random id are renamed at the merge step.
+`pid` is the provider's account-wide id, assigned once when the provider is first added to the account (random, 16
+bytes, base64url) and stored in its record; a server-URL edit keeps it. Duplicates are found at merge by the canonical
+natural key (`type|scheme://host[:port]|username`, scheme and host lowercased, a default port and a trailing slash
+dropped; `type|url` for an M3U). On the device the provider keeps its random `acc.id`; the sync adapter maps
+`acc.id ↔ pid` through the account's provider record at the boundary (§4.2a).
 
 | Collection | Record id | Plaintext | From | Merge rule (§4.4) |
 |---|---|---|---|---|
-| `providers` | `<pid>` | `{ type, server, username, password, url, name, tz }` (an M3U's text never; a large M3U is re-downloaded from its `url`; a pasted one with no `url` stays on its device and Account says so) | `store 'accounts'`, `session.js` | union by `pid`; last write per record |
+| `providers` | `<pid>` | `{ pid, natural, type, server, username, password, url, name, tz }` (an M3U's text never; a large M3U is re-downloaded from its `url`; a pasted one with no `url` stays on its device and Account says so) | `store 'accounts'`, `session.js` | union by `pid`; last write per record |
 | `keys` | `tmdb`, `stremio` | `{ key }`; `{ authKey, email, keep }` | `tmdb.js`, `addons.js` `scoped('stremio')` | last write |
 | `addons` | `<addonId>` (HMAC of the manifest url) and `order` | `{ url, name, from, on, catalogs }` (the manifest is re-fetched); `{ keys }` | `addons.js` list | union by id; last write per record; `order` = the newest list with unknown keys appended |
 | `favs` | `<pid>/<itemKey>` and `<pid>/order` | `{ kind, item }`; `{ keys }` | `state.js` favs / favOrder | union; last write per item; order merged by the newest list with unknown keys appended |
 | `progress` | `<pid>/<itemKey>` | `{ t, d, at, item }` | `state.js` progress | newest `at` wins; entries older than a year are pruned on both sides |
-| `plays` | `<month>:<part>` (per person) | `{ plays: [{ pid, playId, imdb, type, name, year, season, episode, from, to, completion, at, source }] }` | `rows.js` plays (IndexedDB); the taste profile reads the whole log | union by `playId` (random, made when the play is logged); sorted by `at`; the 2,000 cap per device stays local |
-| `rows` | `picks`, `hiddenRows`, `rowsOff`, `notInterested`, `rowStats` | as today | `rows.js` | last write per record (`notInterested` union by key with the later expiry) |
+| `plays` | `<month>:<part>` (per person) | `{ plays: [{ pid, playId, imdb, type, name, year, season, episode, from, to, completion, at, source }] }` | `rows.js` plays (IndexedDB); the taste profile reads the whole log | union by `playId` (random, made when the play is logged) across all parts; plays with `at ≤ forget.upTo` dropped; a part's tombstone beats any lower `ver`; sorted by `at`; the 2,000 cap per device stays local |
+| `rows` | `picks`, `hiddenRows`, `rowsOff`, `notInterested`, `forget` | as today; `forget = { upTo }` | `rows.js`, `shelves.js` | last write per record (`notInterested` union by key with the later expiry); `forget.upTo` = max, and it prunes `plays` on every merge |
+| `titles` | `imdb`, `skipShows` | the IMDb notes and the learnt intro skips | `imdb.js`, `skip` | last write per key inside the record |
 | `shield` | `nbaSeen` | `{ upTo, ids }` | `games.js` SEEN | `upTo` = max; `ids` = union, pruned by the auto-seen window |
-| `settings` | `shared` | the shared keys with a timestamp each: `nbaTeam`, `shield`, `langs`, `subLang`, `replaysPlay`, `skipIntro`, `heroGame`, `gameNight`, `scoreBug`, `liveAlert` | `core.js` settings | last write per key |
+| `settings` | `shared` | the shared keys with a timestamp each: `name`, `nbaTeam`, `shield`, `langs`, `subLang`, `replaysPlay`, `skipIntro`, `heroGame`, `gameNight`, `scoreBug`, `liveAlert` | `core.js` settings | last write per key |
 | `snapshots` | `<deviceId>:<date>:<part>` (§2.6) | the device's local stores | the merge step | never merged; listed under Undo |
 | `devices-meta` | `<deviceId>` | `{ name }` | Account | last write |
 
 Stays on the device: `liveFormat`, `ua`, `scale`, `player`, `sounds`, `zapUp`, `previews`, `setupDone`, `recents`, the
-TV's picture and frame-rate settings, the catch-up delays and `teamCh` per channel (they travel inside the provider
-record only when both devices use the same one, as `providers.<pid>.delays`), the PC's Windows group, the phone's data
-saver and PiP, the guide and catalog caches, the subtitle files index, the probe budget.
+TV's picture and frame-rate settings, the catch-up delays and `teamCh` per channel (a score delay is tuned to one
+device's buffer; it doesn't travel), `rowStats` (written on every row entered: too chatty to sync), the PC's Windows
+group, the phone's data saver and PiP, the guide and catalog caches, the subtitle files index, the probe budget.
 
 Plays and taste are per person, not per provider: the owner's films come from add-ons, not the provider, and his
 Comedy row should not forget what he watched when he switches lines. Saved and progress stay per provider because
 their items are that provider's channels and copies.
+
+### 4.2a The device's keys today, and where each one lives when signed in
+
+Every key the three apps write (`store`, `tuner.<key>` in localStorage, and `Core.cache`, the IndexedDB parts), marked
+**person** (one copy per account, under `u:<accountId>:<key>` when signed in), **provider** (per provider login, under
+`a:<acc.id>:<key>` as today), **device** (never leaves the device) or **cache** (re-fetched, never synced).
+
+| Key | Today | When signed in | Synced as |
+|---|---|---|---|
+| `accounts`, `active` | device | device; the list also carries each account's `pid` once mapped | `providers` (the login and `pid`), not the list |
+| `m3u:<acc.id>` (a pasted playlist's text), `info:<acc.id>` (the Xtream login answer) | provider | provider, by `acc.id` | never (`info` is re-fetched; `m3u` text stays, §4.2) |
+| `a:…:favs`, `favOrder`, `progress`, `recents`, `lastLive`, `liveCat`, `dkLiveGroup`, `phLiveGroup`, `hfLine`, `homeHidden` | provider | provider, by `acc.id` | `favs`, `progress` with `pid`; the rest device |
+| `a:…:delays`, `teamCh`, `probeBudget`, `ver` (the pinned copy version), `replayPick`, `replayDelay`, `archiveShift`, `nbaWatchedOn` | provider | provider | device (they are about this device's buffer, probes and replays) |
+| `probes:<acc.id>` (the copy checks) | provider | provider | device |
+| `a:…:addons`, `stremio` | provider | **person** (`u:`) | `addons`, `keys/stremio` |
+| `a:…:picks`, `hiddenRows`, `rowsOff`, `finishes`, `playsFrom`, `notInterested` (`shelves.js` `hiddenKey()`) | provider (`x:` with no account) | **person** | `rows/*` (`finishes` and `playsFrom` device) |
+| `a:…:rowStats` | provider | person, local only | never |
+| `a:…:imdb`, `skipShows` | provider | **person** | `titles` |
+| `cache a:…:plays` (IndexedDB) | provider | **person** | `plays/<month>:<part>` |
+| `cache a:…:homePage` | provider | person, local only | never (rebuilt from the rows) |
+| `settings` (one object) | device | device; the shared keys of §4.2 mirrored to `u:` | `settings/shared` |
+| `tmdbKey`, `tmdbBad`, `tmdbIx` | device | person for the key | `keys/tmdb`; `tmdbBad` and the index device |
+| `nbaSeen`, `nbaPins`, `nba:today`, `nbaStories` | device | person for `nbaSeen` | `shield/nbaSeen`; the rest cache |
+| `hfHints`, `hfKeyNote`, `subsFiles`, `tvRegion`, `*Base` / `*Url` overrides | device | device | never |
+| `cache` catalogs, guides, `ratings`, `ad:meta:*`, `subs:file:*`, `nba` pins, pages | cache | cache | never |
+
+`scoped(k)` becomes `S.user && PERSON.has(k) ? u:${S.user}:${k} : a:${S.acc.id}:${k}` with `PERSON` the set in the
+table; `rows.js`'s `k()`, `addons.js`'s `LKEY`/`SKEY`, `shelves.js`'s `hiddenKey()`, the plays `PKEY` and the IMDb /
+skip stores go through it. The merge step (§2.6) folds each provider's existing per-person copies into the `u:` set
+once (add-ons unioned by manifest url, the Stremio state kept if any copy has it, picks and hidden rows from the newest
+copy, plays unioned), and leaves the `a:` copies in place for life without the account. Switching providers while
+signed in therefore keeps the add-ons, the Home rows and the taste; only Saved, progress and the last channel change
+with the line, as they do today.
 
 ### 4.3 Keys and encryption of records
 
@@ -527,11 +630,24 @@ for settings); *union* never loses an element; *newest list* for orders. Deletes
 empty) kept 90 days; a client whose cursor is older than that gets `{ reset: true }` and does a full pull, dropping its
 non-dirty records the server no longer has.
 
-Two server-side guards the client can't defeat by accident: every overwritten or deleted record's previous blob is kept
-30 days in `records_prev` (`POST /v1/undo { since }` puts a collection, or everything, back as it was at that moment,
-as new versions, so the undo is itself undoable); and one push that would delete more than half of a collection and at
-least five records is refused with `too_many_deletes` unless it carries `{ wipe: true }`, which no client path sends
-(sign-out and Replace clear locally and push nothing).
+Two server-side guards against a bad push, both finished by the client:
+
+- **Undo.** Every overwritten or deleted record's previous blob is kept 30 days in `records_prev` (one per record per
+  UTC day: the first predecessor stored that day, so an undo point is the start of any day; it counts toward the 8 MB
+  cap). `GET /v1/undo?since=<time>&col=` returns those blobs *with the `ver` they were written under*; the device opens
+  each with that `ver` in the AAD, re-encrypts it under the current `ver + 1`, and pushes it as an ordinary
+  compare-and-set write, so the undo syncs everywhere and is itself undoable. The server never re-versions a blob.
+- **The mass-delete guard.** One push that would delete more than half of a collection and at least five records is
+  refused with `too_many_deletes` unless it carries `{ wipe: true }`. The confirmed actions that send it, each behind
+  its own confirm already: `Remove provider` (its `providers/<pid>`, `favs/<pid>/*`, `progress/<pid>/*`), `Forget my
+  taste` (the plays parts, plus `rows/forget`), `Reset rows` (`rows/*`), `Clear Continue watching` (`progress/<pid>/*`),
+  `Delete account`. Sign-out and Replace clear locally and push nothing. A client refused without `wipe` keeps the
+  records locally, marks them *held*, stops retrying them, and shows on the Sync row `Some changes weren't synced ·
+  <n> deletions wait for a confirm` with `Sync them` (re-push with `wipe`) and `Undo them` (drop the local deletes and
+  pull).
+- **Deletes win over union for logs.** `Forget my taste` writes `rows/forget = { upTo: now }` (last write, max) and
+  tombstones every plays part; a merge of plays drops every play with `at ≤ forget.upTo`, and a part's tombstone beats
+  any lower `ver` of that part, so a phone's old copy can't bring the log back.
 
 ### 4.5 When
 
@@ -568,7 +684,7 @@ it back.
 
 - `pw` the password (NFKC-normalised, **not** trimmed); `email` lowercased.
 - `salt` 16 random bytes made at sign-up, stored on the server in the clear (random, not the email: changing the email
-  costs nothing).
+  costs nothing; a password change may replace it).
 - `mk` master key, 32 bytes; `wk` wrapping key; `ak` auth key; `dk` data key; `encKey`, `idKey` from it; `rk` recovery
   key; `rwk` / `rak` the recovery wrapping and auth keys.
 
@@ -581,8 +697,8 @@ ak  = HKDF-SHA-256(ikm = mk, salt = "", info = "airglow/v1/auth", 256 bits)
 ```
 The account record carries `kdf = { alg: "pbkdf2-sha256", iterations: 600000, salt }` so a later Argon2id (`alg:
 "argon2id", m, t, p`) or a higher count re-derives on the next sign-in and re-wraps (§2.7's path, without a new
-password). **Floor in every client:** `pbkdf2-sha256` below 600,000, or any `alg` the client doesn't know, is refused
-before anything is derived. Target: about 1 s on the iPhone, 2 to 4 s on the TV's SoC in the typed fallback (the TV's
+password). **Floor and ceiling in every client:** `pbkdf2-sha256` below 600,000 or above 5,000,000, or any `alg` the client
+doesn't know, is refused before anything is derived. Target: about 1 s on the iPhone, 2 to 4 s on the TV's SoC in the typed fallback (the TV's
 normal path never derives anything).
 
 ### 5.3 The data key, the recovery key, and their wraps
@@ -591,12 +707,14 @@ normal path never derives anything).
 dk    = random 32 bytes
 wrap  = AES-256-GCM(key = wk, iv = random 12, aad = "airglow/v1/dk", plaintext = dk)        -> wrappedKey
 rk    = random 100 bits, shown as 20 Crockford base-32 characters in five groups (no I, L, O, U; case-free)
-rwk   = HKDF-SHA-256(ikm = rk, salt = salt, info = "airglow/v1/recovery-wrap", 256 bits)
-rak   = HKDF-SHA-256(ikm = rk, salt = salt, info = "airglow/v1/recovery-auth", 256 bits)
+rwk   = HKDF-SHA-256(ikm = rk, salt = "airglow/v1/recovery", info = "airglow/v1/recovery-wrap", 256 bits)
+rak   = HKDF-SHA-256(ikm = rk, salt = "airglow/v1/recovery", info = "airglow/v1/recovery-auth", 256 bits)
 rwrap = AES-256-GCM(key = rwk, iv, aad = "airglow/v1/dk", dk)                               -> recoveryWrappedKey
 rkpw  = AES-256-GCM(key = wk, iv, aad = "airglow/v1/rk", rk)                                -> recoveryKeyWrappedByPw
 ```
-`rk` is random and 100 bits, so no slow KDF is needed on it (1Password's Secret Key reasoning). `rkpw` is what `Show
+`rk` is random and 100 bits, so no slow KDF is needed on it (1Password's Secret Key reasoning), and its HKDF salt is a
+constant, not the password's KDF salt: a password change or a KDF upgrade can replace that salt without touching
+`recoveryWrappedKey` or `recoveryAuthHash` (the known-answer tests include "change the password, then recover"). `rkpw` is what `Show
 it` opens, with the password; it is never wrapped under `dk` or `encKey`, so a device that holds only `dk` (a TV, or a
 stolen one) cannot learn `rk`, derive `rak` and take the account over. The server stores `wrappedKey`,
 `recoveryWrappedKey`, `recoveryKeyWrappedByPw`, `dk_check` (§4.3), and the HMACs of `ak` and `rak` (§5.4).
@@ -614,7 +732,8 @@ Compared with `timingSafeEqual`. What a stolen D1 export gives: auth HMACs usele
 without `dk`; and `wrappedKey`, which **is** an offline oracle: a guess at the password costs one 600,000-iteration
 PBKDF2 plus one AES-GCM tag check, no pepper needed, exactly Bitwarden's exposure. The pepper protects the auth path; the
 password's length and the KDF protect the data. Rotating the pepper: `PEPPER_PREV` kept 30 days; a successful login
-against the old HMAC re-HMACs under the new.
+against the old HMAC re-HMACs under the new. Refresh hashes are not peppered, so signed-in devices survive a pepper
+loss; nobody can sign in *again* until it is rotated.
 
 ### 5.5 Handing the data key to a TV
 
@@ -653,12 +772,19 @@ Ids must not leak content and must be the same on every device, including a TV t
 
 ### 5.8 Tokens
 
-Access token: 1 hour, HMAC-SHA-256-signed compact JSON `{ sub, dev, exp }` (a Worker secret `TOKEN_SECRET`); every
-authenticated request also reads `devices.revoked_at` (one indexed read), so a signed-out device stops at once, not at
-the hour. Refresh token: 32 random bytes, stored as SHA-256 in `devices.refresh_hash`, rotated on every use, 90 days
-idle. **Grace:** the previous hash is kept in `refresh_prev_hash` with `refresh_rotated_at`; a refresh with the previous
-token within 60 s of the rotation returns the same new pair (a lost response on flaky Wi-Fi); after 60 s, a reuse of a
-spent token revokes the device (the theft signal). The TV's device flow issues the same pair.
+Access token: 1 hour, HMAC-SHA-256-signed compact JSON `{ sub, dev, exp, scope }` (`TOKEN_SECRET`; `scope:
+"approve"` for the `/tv` page's 5-minute one-shot); every authenticated request also reads `devices.revoked_at` (one
+indexed read), so a signed-out device stops at once, not at the hour. Refresh token: the first is 32 random bytes;
+every successor is deterministic, `next = HMAC-SHA-256(refreshKey, deviceId || prev)` with `refreshKey =
+HKDF(TOKEN_SECRET, "", "airglow/v1/refresh")`, so the server (which stores only `SHA-256(next)` in `refresh_hash` and
+`SHA-256(prev)` in `refresh_prev_hash`) can recompute the same successor from the token it is handed. **The rule:** a
+refresh with the *current* token rotates (the successor becomes current, `refresh_used_at` cleared); a refresh with
+the *previous* token while the successor has not yet been used (`refresh_used_at` null) recomputes the same successor
+and re-signs the access token, however long ago the rotation was (a lost response, a crash before the Keystore write,
+the TV switched off at the wall); a refresh with the previous token *after* the successor was used is a reuse by a
+second holder and revokes the device with `revoked_why = reuse`. 90 days idle. **The client wipes only on an explicit
+`{ error: "revoked" }`** from `/v1/token` or an authenticated call; never on a generic 401, a 5xx, the 503 for missing
+secrets or a network error, which all just wait. The TV's device flow issues the same pair.
 
 ---
 
@@ -674,14 +800,14 @@ spent token revokes the device (the theft signal). The TV's device flow issues t
 
 | Method and path | Body → answer | Notes |
 |---|---|---|
-| `GET /v1/health` | → `{ ok, version, ready, owner }` | `ready` false until the secrets exist (then `/v1/*` answers 503); `owner` false until the owner's account exists |
+| `GET /v1/health` | → `{ ok, version, ready }` | `ready` false until the secrets exist (then `/v1/*` answers 503); nothing about accounts or the owner |
 | `POST /v1/prelogin` | `{ email }` → `{ kdf }` | the current default kdf + a fake salt from `fakeKey` for unknown emails |
-| `POST /v1/signup` | `{ invite, email, kdf, authKey, wrappedKey, recoveryWrappedKey, recoveryAuthKey, recoveryKeyWrappedByPw, dkCheck, device }` → `{ account, access, refresh }` | 409 if the email exists; 403 bad invite; while no owner exists, `OWNER_EMAIL` needs no invite and becomes `is_owner`; 5/h per IP |
-| `POST /v1/login` | `{ email, authKey, device: { name, kind, platform }, oneShot? }` → `{ access, refresh?, wrappedKey, recoveryKeyWrappedByPw, dkCheck, kdf, keyVersion, deviceId? }` | 401 one neutral error; 5 fails / 10 min per account + IP → `slow_down`; `oneShot` (the `/tv` page): an access token only, no device row |
-| `POST /v1/token` | `{ refresh }` → `{ access, refresh }` | rotation with the 60 s grace; a reuse after it revokes the device |
+| `POST /v1/signup` | `{ invite, email, kdf, authKey, wrappedKey, recoveryWrappedKey, recoveryAuthKey, recoveryKeyWrappedByPw, dkCheck, device }` → `{ account, access, refresh }` | 409 if the email exists; 403 bad invite (one neutral error whether the code is wrong, spent or expired); the owner code (`OWNER_CODE`, compared constant-time after NFKC and trim) is accepted as the invite once, makes that account `is_owner` and is marked spent in `meta`; 5/h per IP |
+| `POST /v1/login` | `{ email, authKey, device: { name, kind, platform }, oneShot? }` → `{ access, refresh?, wrappedKey, recoveryKeyWrappedByPw, dkCheck, kdf, keyVersion, deviceId? }` | 401 one neutral error; 5 fails / 10 min per account + IP → `slow_down`; `oneShot` (the `/tv` page): a 5-minute access token with `scope: "approve"` (the lookup and the approval only), no refresh token, no device row |
+| `POST /v1/token` | `{ refresh }` → `{ access, refresh }` or `{ error: "revoked" }` | the deterministic successor of §5.8; the previous token re-issues until its successor is used, then counts as a reuse and revokes |
 | `POST /v1/logout` (auth) | → 204 | this device |
 | `POST /v1/logout-all` (auth) | `{ authKey }` (phone/PC) or none from a TV → 204 | every device; the audit row |
-| `GET /v1/devices` (auth) | → `{ devices: [{ id, name, kind, platform, how, createdAt, lastSeen, now, this }] }` | nothing about what plays |
+| `GET /v1/devices` (auth) | → `{ devices: [{ id, name, kind, platform, how, approvedBy, createdAt, lastSeen, active, this }] }` | nothing about what plays; `approvedBy` is the approving device's name for a TV |
 | `PATCH /v1/devices/:id` (auth) | `{ name }` → 204 | rename |
 | `DELETE /v1/devices/:id` (auth) | → 204 | sign that one out |
 | `POST /v1/password` (auth) | `{ authKey, newAuthKey, kdf, wrappedKey, recoveryKeyWrappedByPw, signOutOthers }` → `{ keyVersion }` | |
@@ -690,12 +816,12 @@ spent token revokes the device (the theft signal). The TV's device flow issues t
 | `POST /v1/device/code` | `{ name, kind, pub }` → `{ device_code, user_code, verification_uri, verification_uri_complete, expires_in: 600, interval: 5 }` | 20/h per IP (D1 counter); the TV's `ipKey`-HMAC and /64 kept for the same-network check |
 | `POST /v1/device/token` | `{ device_code }` → `authorization_pending` / `slow_down` / `expired_token` / `access_denied` / `{ access, refresh, box, dkCheck, keyVersion, deviceId }` | the TV polls |
 | `GET /v1/device/:user_code` (auth) | → `{ name, kind, pub, askedAt, sameNetwork }` | the approver's lookup; a code that matches nothing counts against the approving account and its IP: 5 misses per 10 min → `slow_down`; lookups need an account, so a stranger can't guess at all |
-| `POST /v1/device/approve` (auth) | `{ user_code, box }` → 204 | binds the code to the account |
+| `POST /v1/device/approve` (auth) | `{ user_code, box }` → 204 | binds the code to the account; only a device whose `how` is `password` or `recovery` (or the `/tv` page's `approve` scope) may call it; the approver's id is stored |
 | `POST /v1/device/deny` (auth) | `{ user_code }` → 204 | "Not now" |
 | `GET /v1/sync/seq` (auth) | → `{ seq }` | the idle poll: one read |
 | `GET /v1/sync?since=<seq>&limit=100` (auth) | → `{ records, seq, more }` or `{ reset: true, seq }` | indexed by `(account, seq)`; `reset` for a cursor older than the tombstone horizon |
-| `POST /v1/sync` (auth) | `{ records: [{ col, id, baseVer, ver, iv, blob, deleted }], wipe? }` → `{ ok, conflict: [...], seq }` | CAS per record; ≤ 100 records / 256 KB; `too_many_deletes` (§4.4) unless `wipe` |
-| `GET /v1/undo` (auth) / `POST /v1/undo` (auth) | → `{ points: [...] }`; `{ since, col? }` → `{ restored }` | 30 days of previous versions, restored as new versions |
+| `POST /v1/sync` (auth) | `{ records: [{ col, id, baseVer, ver, iv, blob, deleted }], wipe? }` → `{ ok, conflict: [...], seq }` | CAS per record; ≤ 100 records / 256 KB; `too_many_deletes` (§4.4) unless `wipe`, which only the confirmed actions send |
+| `GET /v1/undo?since=<time>&col=<col>` (auth) | → `{ records: [{ col, id, ver, iv, blob, deleted, replacedAt }], more }` | the previous blobs with the `ver` they were written under; the client opens, re-encrypts and pushes them (§4.4) |
 | `GET /v1/invites` (auth, owner) / `POST /v1/invites` (auth, owner) | → `{ code, expiresAt }` | 10/month (`INVITES_PER_MONTH`) |
 | `DELETE /v1/account` (auth) | `{ authKey }` → 204 | |
 
@@ -717,7 +843,9 @@ CREATE TABLE devices (
   id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   name TEXT NOT NULL, kind TEXT NOT NULL, platform TEXT, how TEXT NOT NULL,          -- how: password | phone | recovery
   created_at INTEGER NOT NULL, last_seen INTEGER NOT NULL,
-  refresh_hash BLOB, refresh_prev_hash BLOB, refresh_rotated_at INTEGER, revoked_at INTEGER, revoked_why TEXT );
+  approved_by TEXT,                                                                   -- the approving device, for a TV
+  refresh_hash BLOB, refresh_prev_hash BLOB, refresh_rotated_at INTEGER, refresh_used_at INTEGER,
+  revoked_at INTEGER, revoked_why TEXT );
 CREATE INDEX devices_account ON devices(account_id);
 CREATE TABLE device_codes (
   device_code_hash BLOB PRIMARY KEY, user_code TEXT NOT NULL UNIQUE, tv_name TEXT NOT NULL, tv_kind TEXT NOT NULL,
@@ -738,6 +866,7 @@ CREATE INDEX records_prev_at ON records_prev(account_id, replaced_at);
 CREATE TABLE invites (
   code_hash BLOB PRIMARY KEY, made_by TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER, used_by TEXT );
+CREATE TABLE meta ( key TEXT PRIMARY KEY, value TEXT NOT NULL );   -- 'owner_claimed' once the owner code is spent
 CREATE TABLE counters (                                          -- the hourly limits the binding can't express
   key TEXT PRIMARY KEY, n INTEGER NOT NULL, window_start INTEGER NOT NULL );
 CREATE TABLE audit (
@@ -747,7 +876,7 @@ CREATE INDEX audit_account ON audit(account_id, at);
 ```
 `tv_net` is `HMAC(ipKey, ipv4)` or `HMAC(ipKey, ipv6 /64)`; the approver's lookup compares its own the same way and
 answers `sameNetwork`. Housekeeping on a cron trigger (daily): expired device codes, tombstones over 90 days,
-`records_prev` and snapshots over 30 days, counters over a day, audit rows over 180 days, devices revoked over 30 days.
+`records_prev` (which keeps one row per record per UTC day) and snapshots over 30 days, counters over a day, audit rows over 180 days, devices revoked over 30 days.
 `seq` is per account (`accounts.seq + 1` in the same transaction as the write), so a pull by `since` is one indexed
 range read.
 
@@ -770,35 +899,57 @@ A new job `accounts` in `.github/workflows/build.yml`, run on pushes that touch 
 then its id from `wrangler d1 list --json` into `wrangler.toml`; or `database_id` left out if the pinned wrangler
 provisions on deploy); then `cloudflare/wrangler-action@v4` with `apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}`,
 `accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}`, `workingDirectory: worker`, `command: d1 migrations apply airglow
---remote` and then `deploy`; then the secrets step; then `curl <host>/v1/health` and fail unless `ready` is true.
+--remote` and then `deploy`; then the secrets step; then `curl <host>/v1/health` and fail unless `ready` is true. The job runs on `push` and
+`workflow_dispatch` only, never on `pull_request` (a fork's PR must not reach the secrets).
 
 ### 7.2 The secrets step (CI makes them, once)
 
-```sh
-have=$(npx wrangler secret list --format json | jq -r '.[].name')
-for name in PEPPER TOKEN_SECRET; do
-  echo "$have" | grep -qx "$name" || openssl rand -base64 32 | npx wrangler secret put "$name" > /dev/null
-done
-echo "$have" | grep -qx OWNER_EMAIL || printf '%s' "$AIRGLOW_OWNER_EMAIL" | npx wrangler secret put OWNER_EMAIL > /dev/null
+```yaml
+- name: Worker secrets (made once, never printed)
+  shell: bash            # bash -e alone has no pipefail: a failed `secret list` would read as "nothing exists"
+  env: { AIRGLOW_OWNER_CODE: ${{ secrets.AIRGLOW_OWNER_CODE }} }
+  run: |
+    set -euo pipefail; set +x
+    list=$(npx wrangler secret list --format json)
+    echo "$list" | jq -e 'type == "array"' > /dev/null          # anything else: stop, touch nothing
+    have=$(echo "$list" | jq -r '.[].name')
+    ready=$(curl -fsS "https://$HOST/v1/health" | jq -r '.ready')
+    for name in PEPPER TOKEN_SECRET; do
+      if ! grep -qx "$name" <<< "$have"; then
+        [ "$ready" = "true" ] && { echo "health says ready but $name is missing: refusing to touch secrets"; exit 1; }
+        openssl rand -base64 32 | npx wrangler secret put "$name" > /dev/null
+      fi
+    done
+    if ! grep -qx OWNER_CODE <<< "$have" && [ -n "${AIRGLOW_OWNER_CODE:-}" ]; then
+      printf '%s' "$AIRGLOW_OWNER_CODE" | npx wrangler secret put OWNER_CODE > /dev/null
+    fi
 ```
-The values go from `openssl` into `wrangler` through a pipe and are never echoed, never written to the repo and never
-printed in the (public) CI logs; `set +x` on that step. They are made once: Worker secrets persist across deploys, and
-the step re-creates nothing that exists. The Worker answers 503 on `/v1/*` (and `ready: false` on `/v1/health`) until
+It fails closed: `pipefail`, the listing validated as a JSON array before any name is read from it, `PEPPER` and
+`TOKEN_SECRET` never written while the live Worker says it is ready (both conditions must agree), an empty owner code
+skipped (an empty code would be a bootstrap anyone could claim), and nothing echoed. The values go from `openssl`
+into `wrangler` through a pipe and are never written to the repo or printed in the (public) CI logs. They are made
+once: Worker secrets persist across deploys, and the step re-creates nothing that exists; a changed repository secret
+later does not update the Worker's copy (rotate by hand with `wrangler secret put`). The Worker answers 503 on `/v1/*` (and `ready: false` on `/v1/health`) until
 `PEPPER` and `TOKEN_SECRET` exist, so a deploy that beats the secrets step is harmless. **Deleting or renaming the
-`acct` Worker deletes its secrets: the pepper is gone, every auth hash is unverifiable, and nobody can sign in or
-recover.** The data stays safe (it is not under the pepper) but unreachable: the builder writes this in `NEXT.md` under
+`acct` Worker deletes its secrets: the pepper is gone, every auth hash is unverifiable, and nobody can sign in again or
+recover** (devices already signed in keep working, §5.4). The data stays safe (it is not under the pepper): the builder writes this in `NEXT.md` under
 "things that are true but easy to miss", and the Worker's name is never changed casually. A pepper rotation is the
 planned path (`PEPPER_PREV`, §5.4), not a delete.
 
 ### 7.3 What the owner does, once
 
 1. In the GitHub repository's settings › Secrets and variables › Actions, add three secrets: `CLOUDFLARE_API_TOKEN` (a
-   token with Workers Scripts Edit, D1 Edit, Account Settings Read), `CLOUDFLARE_ACCOUNT_ID`, and `AIRGLOW_OWNER_EMAIL`
-   (the email he will sign up with; this is the only place it lives: never in `wrangler.toml`, which is public).
-2. Run the workflow (or push `worker/**`). CI creates the database, deploys, makes the secrets, and checks health.
-3. On his iPhone or laptop: `Create an account with an invite`, type that same email (the invite field says `Not needed
-   for the first account` because `/v1/health` reports `owner: false`), a password of 12 characters or more, save the
-   recovery key. That account is the owner's: it can make invites. From then on sign-up needs an invite.
+   token with Workers Scripts Edit, D1 Edit, Account Settings Read), `CLOUDFLARE_ACCOUNT_ID`, and `AIRGLOW_OWNER_CODE`:
+   a phrase he makes up (three or four words, say `grizzlies at portland tonight`; it is compared after NFKC and trim,
+   case-sensitive). His email is not a secret (it is on every commit), so it is not the key to the first account; the
+   phrase is, and it lives only there and in the Worker.
+2. Run the workflow (or push `worker/**`). CI creates the database, deploys, makes the pepper and the token secret, puts
+   the owner code into the Worker, and checks health.
+3. On his iPhone or laptop: `Create an account with an invite`, type the phrase in the invite field (the field is just
+   `Invite code`; nothing on screen or in `/v1/health` says an owner is still unclaimed), his email, a name, a password
+   of 12 characters or more, and save the recovery key. That account is the owner's: it can make invites, and the phrase
+   is spent. From then on sign-up needs an invite. If someone else somehow typed the phrase first, the Devices list and
+   the invites would be theirs: the phrase is to be kept like a password until it is used.
 
 `wrangler.toml` (no email in it):
 ```
@@ -841,14 +992,17 @@ The release job is unchanged: the Worker deploys from `tv-redesign` as well as `
 | The Worker is malicious (a bad deploy, a stolen Cloudflare token) | The apps' code is in the APK / IPA / installer, not served, and the apps refuse a weak KDF from `prelogin`; the `/tv`, `/signup` and `/recover` pages are served and are the one place a bad server could steal a password. Mitigations: the pages are files in this repo, deployed by CI from a reviewed commit; `/tv` leads with the app; the form's note says what the browser does. (SRI on a same-origin script protects nothing and is not claimed.) |
 | Someone sends the owner a link to a code they started (remote phishing, RFC 8628 §5.4) | The sheet names the TV and the time, asks `Is this the code on your TV?`, says `If someone sent you this link, tap Not now`, shows the same-network tick only when it holds, and from another network asks for the last three letters from the TV screen; every new device lands in the Devices list with `signed in with your phone` and a `Sign out`; the key hash binds the link to the key the server reports, no more. |
 | Code guessing | 64 M codes, 10 minutes; lookups need a signed-in account and are counted per account + IP; 20 code requests per IP per hour. |
-| A stolen refresh token | Rotated on every use with a 60 s grace; a reuse after it revokes the device (the theft signal) and the next sync shows `Signed out from Laptop · a sign-in token was reused`. `revoked_at` is read on every call. |
-| A stolen TV (or a sold one) | `Sign out <device>` from any other device; the TV wipes on its next contact. A TV that never comes online keeps `dk` in the Keystore-wrapped store, which is Android's own protection; it holds no `rk` and no password, so it can't change either (§5.3). A factory reset before selling is the advice in About. |
+| A stolen refresh token | Rotated on every use with a deterministic successor; a reuse of the previous token after its successor has been used revokes the device (the theft signal) and the next sync shows `Signed out from Laptop · a sign-in token was reused`. `revoked_at` is read on every call. A device wipes only on an explicit `revoked`. |
+| A stolen TV (or a sold one) | `Sign out <device>` from any other device; the TV wipes on its next contact. A TV that never comes online keeps `dk` in the Keystore-wrapped store, which is Android's own protection; it holds no `rk` and no password, so it can't change either (§5.3), and a device that signed in with a phone can't approve another, so it can't enrol a second screen. A factory reset before selling is the advice in About. |
 | Password change by an attacker who has a session | `POST /v1/password` needs the current auth key; the TV can't change it at all. |
 | Recovery-key guessing | 100 bits, HKDF'd; 5 tries an hour per account (someone who knows the email can lock recovery for an hour: accepted); a recovery revokes every session and is in the audit list. |
 | Email enumeration | `prelogin` answers for any email with the current default KDF and a stable fake salt; `signup` says `409` only with a valid invite; `recover` answers the same for unknown emails. |
 | Replay / swapping records between accounts | AES-GCM AAD binds `accountId/col/id/ver`; clients refuse a lower `ver`; a record moved, rolled back or swapped fails to open and is reported as a sync error, not applied. |
-| One bad push empties every device | Refused when it deletes more than half a collection; 30 days of previous versions; `Undo changes since…`. |
-| A lost response on flaky Wi-Fi | The 60 s refresh grace; the TV never wipes over a retry. |
+| One bad push empties every device | Refused when it deletes more than half a collection unless a confirmed action sent `wipe`; 30 days of previous versions the client can open and push back; `Undo changes since…`. |
+| A lost response or a crash mid-rotation | The deterministic successor re-issues until it has been used; the TV never wipes over a retry, a 5xx or a network error. |
+| The owner's first account is squatted | The bootstrap needs the owner code, a phrase only he and the Worker know; `/v1/health` and `/signup` say nothing about whether it has been used; after the first use it is spent. |
+| Someone on the sofa signs everyone out | `Sign out everywhere` on the TV needs only the remote's OK: accepted, the same trust as the TV's provider Sign out today; every device just asks for the password or the phone again. |
+| Another iOS app claims `airglow://` | Harmless: the link carries the code and the TV's key hash, no secret; the app that opens it still has to be signed in to approve. |
 | The WebView's localStorage on the TV | `dk` is never in it (§5.7); records at rest on the TV are the app's own store as today (the provider login is already there in the clear today; the account makes nothing worse on the device). |
 | Logging | The Worker logs no bodies; `ip_hash` is `HMAC(ipKey, ip)` truncated, kept for the rate rules and the audit lines only. |
 
@@ -865,25 +1019,32 @@ watched, Saved, settings, the recovery key.
    until the secrets exist), `src/auth.js` (§5.4, §5.8 with the grace window and the `revoked_at` read, prelogin with
    the stable fake salt, signup with the owner bootstrap, login with `oneShot`, token, logout, password, recovery-key,
    recover, account delete), `src/device.js` (§2.3, §6.1's device endpoints, `tv_net`, `sameNetwork`), `src/sync.js`
-   (§4, CAS, limits, the cursor, `reset`, `records_prev`, the mass-delete guard, undo), `src/invites.js`,
+   (§4, CAS, limits, the cursor, `reset`, `records_prev` one per day, the mass-delete guard with `wipe`, the undo
+   listing), `src/invites.js` (the invite codes and the owner code's one use),
    `src/counters.js` (§6.3), `src/cron.js`, `pages/tv.html` (`Open in airglow` first), `pages/signup.html`,
    `pages/recover.html`, `pages/acct.css` (the brand files copied by the build), `pages/acct.js` (§5.2, §5.3, §5.5 in
-   the browser, the KDF floor), `test/*.test.js` (Miniflare: the whole device flow, a sync with a conflict, a push over
-   256 KB refused, the mass-delete guard, undo, the grace window, the rate rules, the 503 without secrets).
+   the browser, the KDF floor), `test/*.test.js` (Miniflare: the whole device flow, an approval refused from a phone-enrolled device, a sync with
+   a conflict, a push over 256 KB refused, the mass-delete guard with and without `wipe`, undo then decrypt and
+   re-push, a lost `/v1/token` response then a retry after 90 s (re-issued) and a reuse after the successor was used
+   (revoked), the rate rules, the 503 without secrets, the owner code used once; and the CI secrets step run against a
+   failing `secret list`, which must `put` nothing).
 2. **`.github/workflows/build.yml`:** the `accounts` job of §7; `tests/mock-accounts.js` (a fake Worker for the TV,
    phone and desktop tests, started by `tests/tv/serve.sh`, with a `native.secret` stub for the browser runs).
-3. **Shared data layer (`app/tv/js/`):** `account/crypto.js` (§5: `deriveKeys` with the floor, `wrapKey`, `unwrapKey`,
+3. **Shared data layer (`app/tv/js/`):** `account/crypto.js` (§5: `deriveKeys` with the floor and the ceiling, `wrapKey`, `unwrapKey`,
    `subkeys` (`encKey`, `idKey`), `dkCheck`, `encryptRecord`, `decryptRecord`, `handover`, `recoveryKey` with lenient
    Crockford decoding; WebCrypto only; `tests/account-crypto-test.js` with known-answer vectors, including a handover
-   box, that the TV, the phone page and the Worker's `acct.js` all decrypt), `account/api.js` (the endpoints, the token
+   box and "change the password, then recover", that the TV, the phone page and the Worker's `acct.js` all decrypt),
+   `account/api.js` (the endpoints, the token
    refresh, the host), `account/session.js` (signed-in state, `dk` in memory, the secure store per platform behind
    `native.secret`, `tuner.secret`, the phone's Keychain plugin), `account/sync.js` (§4: the dirty set, the collections'
-   adapters, the merge rules, part sets, the schedule, `seq` polls, `on('acct-sync')`), `account/merge.js` (§2.6: the
-   counts for the question, the snapshot parts, merge / replace, the `a:<random>:*` → `a:<pid>:*` rename),
-   `account/device.js` (the TV's code flow: `start`, `poll`, `cancel`). Hooks in the existing modules: `session.js`
-   (`acc.id = pid` when signed in; providers from the account; `signIn` saves to the account), `state.js` (favs,
-   favOrder, progress mark dirty under `pid`), `rows.js` (`playId` per play, the person-wide log when signed in, picks,
-   hiddenRows, rowsOff, notInterested, rowStats), `games.js` (`saveSeen`), `addons.js` (the list, the Stremio state),
+   adapters with the `acc.id ↔ pid` map, the merge rules, `forget`, held records and `wipe`, part sets, the schedule,
+   `seq` polls, the client-side undo, `on('acct-sync')`), `account/merge.js` (§2.6: the counts for the question, the
+   snapshot parts, merge / replace, folding each provider's per-person copies into `u:`),
+   `account/device.js` (the TV's code flow: `start`, `poll`, `cancel`). Hooks in the existing modules: `state.js` (`scoped()` with the
+   `PERSON` set of §4.2a; favs, favOrder, progress mark dirty), `session.js` (providers from the account with their
+   `pid`; `signIn` saves to the account; `removeAccount` sends `wipe`), `rows.js` (`playId` per play, the person-wide
+   log under `u:`, `forgetTaste` and `resetRows` with `wipe`, picks, hiddenRows, rowsOff, notInterested; `rowStats`
+   stays local), `shelves.js` (`hiddenKey()` through `scoped()`), `imdb.js` and the skip store (`titles`), `games.js` (`saveSeen`), `addons.js` (the list, the Stremio state),
    `tmdb.js` (`setKey`), `core.js` (`saveSettings` marks the shared keys dirty; `ACCOUNTS_HOST`).
 4. **TV:** `screens/first.js` (the Welcome's new primary and its line, `01`, the typed fallback with Email / Password,
    the verifying rows for an account), `screens/account.js` (the `airglow account` group, `03`, the Devices sheet, the
@@ -929,16 +1090,16 @@ again in 2 min`, `Can't reach airglow's server right now. You can use airglow wi
 `This server asked for a weak key. Not signing in.`
 
 Phone and Windows: `Sign in`, `Your provider login, Stremio add-ons, TMDB key, Saved and history come to this iPhone /
-PC by themselves. No other sign-in.`, `Forgot it? Use your recovery key`, `Create an account with an invite`, `Not
-needed for the first account`, `Your password never leaves this iPhone: it unlocks everything here. airglow's server
+PC by themselves. No other sign-in.`, `Forgot it? Use your recovery key`, `Create an account with an invite`, `Invite code`, `Your password never leaves this iPhone: it unlocks everything here. airglow's server
 keeps only locked copies it can't open.`, `That password doesn't open this account`, `Wait a minute and try again`,
 `Create an account`, `1 · Account`, `2 · Recovery`, `3 · Provider`, `Your recovery key`, `If you forget your password,
 this key is the only way back in. airglow can't read what it keeps for you, so it can't reset it. Write it down or
 save it in Passwords.`, `Copy`, `Save to Files` / `Save as…`, `I've put it somewhere safe`, `Continue`, `You can see it
 again later in Account › airglow account › Recovery key; your password unlocks it. A new key can be made there too,
 which retires this one.`, `Skip for now`, `Sign in this TV?`, `<TV> · <code> · asked <n> s ago`, `Is this the code on
-your TV? Only sign in a TV you're looking at. If someone sent you this link, tap Not now.`, `On the same Wi-Fi as this
-iPhone`, `The last three letters on your TV`, `Make sure the code is the one on your TV.`, `This link doesn't match the
+your TV? Only sign in a TV you're looking at. If someone sent you this link, tap Not now.`, `On the same network as this
+iPhone`, `The last three letters on your TV`, `This iPhone isn't on the TV's network, so the letters make sure it's your
+TV.`, `Make sure the code is the one on your TV.`, `This link doesn't match the
 TV it names`, `It gets your`, `The TV signs in to nothing else: your provider, Stremio and TMDB logins come with it.`,
 `Sign in the TV`, `Not now`, `Locked on this iPhone for that TV only. airglow's server passes it on without being able
 to read it.`, `Sign in a TV`, `Change password`, `Also sign out my other devices`, `Your other devices keep working:
@@ -947,7 +1108,8 @@ recovery key`, `What the server has`, `Your email, a locked copy of your key and
 your provider passwords, your history or your TMDB key in the clear`, `Invite a friend`, `Works once, for 7 days. A
 friend gets their own account: nothing of yours is shared`, `New code`, `copied`, `<n> invites left this month. Open
 sign-up is off: only invited people can make an account.`, `Undo`, `Undo changes since…`, `Restore`, `Rename`, `This
-PC`, `Active now`, `Last seen <time>`, `signed in <day> with your phone / with the password / with the recovery key`,
+PC`, `Active now`, `Last seen <time>`, `signed in <day> with <phone's name> / with the password / with the recovery key`, `Some changes weren't synced · <n>
+deletions wait for a confirm`, `Sync them`, `Undo them`, `<name> stays on the <device> it was pasted on`,
 `Signing a device out removes your account's things from it the next time it is online; the device keeps working
 without an account until then.`, `Changes made offline will be lost`, `Sign out of this PC`, `Your provider, add-ons
 and history leave this PC; your account keeps them`, `Delete account`, `Everything on the server goes. Your devices
@@ -955,8 +1117,7 @@ keep what they have, as if they had never signed in.`
 
 The Worker's pages: `Sign in your TV`, `<TV> · <code> · asked <n> s ago`, `Open in airglow`, `The app signs the TV in
 with one tap. No app on this phone? Sign in below.`, `or sign in here`, `TV code`, `Email`, `Password`, `Your password
-is used here, in your browser, to unlock the key your TV needs. It isn't sent anywhere. The TV gets a locked copy only
-it can open.`, `Done · open airglow on your phone or PC`.
+stays in this browser: it unlocks the key your TV needs. The TV gets a locked copy only it can open.`, `Done · open airglow on your phone or PC`.
 
 ---
 
@@ -980,5 +1141,8 @@ it can open.`, `Done · open airglow on your phone or PC`.
 7. **`keyVersion` rotation** of `dk` (after a suspected compromise): re-encrypt every record under a new key, from one
    device, with the old key kept until every device has caught up.
 8. **Selling the TV.** `Sign out of this TV` plus the factory-reset line in About.
-9. **Friends' sizes.** A 60,000-channel provider still syncs only its login (the catalog never syncs). The 8 MB cap is
+9. **The three-letter step at home.** Whether the owner's network shows the TV and the phone to the Worker as the same
+    address (IPv4 against IPv6 never matches): measured on his network in the first TV test; if it shows every time,
+    the step is still right (it fails closed) and the words stay.
+10. **Friends' sizes.** A 60,000-channel provider still syncs only its login (the catalog never syncs). The 8 MB cap is
    mostly plays over years; months fold into a yearly record after a year.

@@ -63,6 +63,7 @@
 .ag-sheet .lbl { margin: 16px 0 8px; font: var(--ph-label); letter-spacing: .1em; text-transform: uppercase; color: var(--a-text-3); }
 .ag-sheet .act { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .ag-sheet .act .pill, .ag-sheet .act .ghost { width: 100%; box-sizing: border-box; }
+.ag-sheet .act .pill.dim { opacity: .45; }
 .ag-sheet .note { margin-top: 12px; font: var(--ph-cap); color: var(--a-text-3); text-align: center; }
 .ag-scrim { inset: 0; background: rgba(21,19,29,.62); z-index: 45; }
 .si-card .ag-key { gap: 8px; margin-top: 14px; font-size: 24px; line-height: 30px; }

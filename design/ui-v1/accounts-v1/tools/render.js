@@ -29,7 +29,7 @@ const { chromium } = require('playwright'); const path = require('path'); const 
   figure.ph{width:300px}figure.ph img{width:300px;height:650px;border-radius:22px}
   figure.win{width:1300px}figure.win img{width:1300px;height:731px;border-radius:6px}
   figcaption{padding:7px 2px 0}figcaption b{display:block;font-weight:650;font-size:14px}figcaption span{display:block;color:#C8C4D8;margin-top:2px}</style>
-  <h1>airglow · accounts and sync, v1</h1><p class="s">The TV at 960 x 540 (2x), the iPhone at 393 x 852 (3x), the Windows app at 1920 x 1080. One evening: Wed 28 Oct 2026, Reykjavik; the owner signs his living-room TV in from his phone. Spec: SPEC.md.</p><div class="g">${grid}</div>`;
+  <h1>airglow · accounts and sync, v1.2</h1><p class="s">The TV at 960 x 540 (2x), the iPhone at 393 x 852 (3x), the Windows app at 1920 x 1080. One evening: Wed 28 Oct 2026, Reykjavik; the owner signs his living-room TV in from his phone. Spec: SPEC.md.</p><div class="g">${grid}</div>`;
   const tmp = path.join(root, 'tools', '_contact.html'); fs.writeFileSync(tmp, html);
   const p = await b.newPage({ viewport: { width: 28 * 2 + 1300, height: 800 }, deviceScaleFactor: 1 });
   await p.goto('file://' + tmp); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(400);
