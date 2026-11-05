@@ -58,6 +58,8 @@
 .ag-sheet .sub { margin-top: 4px; font: var(--ph-body); color: var(--a-text-2); }
 .ag-sheet .chk { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; font: var(--ph-sub); color: var(--a-text-1); }
 .ag-sheet .chk .ag-tick { margin-top: 1px; }
+.ag-q { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--a-surface-3); color: var(--a-text-1); flex: none; margin-top: 1px; }
+.ag-q svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 .ag-sheet .lbl { margin: 16px 0 8px; font: var(--ph-label); letter-spacing: .1em; text-transform: uppercase; color: var(--a-text-3); }
 .ag-sheet .act { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .ag-sheet .act .pill, .ag-sheet .act .ghost { width: 100%; box-sizing: border-box; }

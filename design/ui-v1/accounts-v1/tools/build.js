@@ -88,10 +88,10 @@ const more = (v) => `${v} ${ic('chevR', 'sm')}`;
 const tv01 = tvHead('TV: sign in on your phone') + `
 <div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
 <div class="abs t-head" style="left:48px;top:96px">Sign in on your phone</div>
-<div class="abs" style="left:48px;top:150px;width:500px"><ol class="ad-steps"><li>Scan the code with your phone's camera, or open <b>${HOST}/tv</b> and type the letters below.</li><li>Sign in to your airglow account there. No account yet? Make one with your invite.</li><li>Tap <b>Sign in the TV</b>. This screen moves on by itself.</li></ol>
+<div class="abs" style="left:48px;top:150px;width:500px"><ol class="ad-steps"><li>Scan the code with your phone's camera, or open <b>${HOST}/tv</b> and type the letters below.</li><li>Sign in to your airglow account there. No account yet? Make one at <b>${HOST}/signup</b> with your invite.</li><li>Tap <b>Sign in the TV</b>. This screen moves on by itself.</li></ol>
   <div class="ag-code"><span>W</span><span>D</span><span>J</span><i></i><span>B</span><span>M</span><span>H</span></div></div>
 <div class="abs" style="left:640px;top:96px;width:272px;text-align:center"><div class="qrbox">${qr(`https://${HOST}/tv/${CODE}#k=3f9a`, 200)}</div><div class="ag-qrcap"><b>${HOST}/tv/${CODE}</b>The code works for 10 minutes</div></div>
-<div class="card ag-wait">${spin(true)}<div class="grow"><b>Waiting for your phone</b><div class="t-cap">Your provider login, add-ons, Saved and history come over encrypted for this TV. airglow's server never sees them.</div></div><span class="btn2 sm f-ring">Type email and password</span></div>
+<div class="card ag-wait">${spin(true)}<div class="grow"><b>Waiting for your phone</b><div class="t-cap">Your provider login, Stremio add-ons, TMDB key, Saved and history come to this TV by themselves, locked for it. Nothing else to sign in to.</div></div><span class="btn2 sm f-ring">Type email and password</span></div>
 <div class="ag-hint"><span><span class="kbd">Back</span>returns to the choices</span></div>
 ` + tvFoot;
 
@@ -99,24 +99,24 @@ const tv01 = tvHead('TV: sign in on your phone') + `
 const tv02 = tvHead('TV: this TV already has things') + `
 <div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
 <div class="abs t-head" style="left:48px;top:96px">Signed in as Birgir</div>
-<div class="ag-ghostrows" style="top:150px;width:520px"><div class="card" style="padding:12px 20px"><div class="vrow"><span class="okdot">${ic('tick')}</span><span class="grow">Account</span><span class="t-cap">${EMAIL}</span></div><div class="vrow"><span class="okdot">${ic('tick')}</span><span class="grow">Your things, unlocked on this TV</span><span class="t-cap">2 providers · 7 add-ons · 31 saved · 1,860 plays</span></div><div class="vrow">${spin(true)}<span class="grow">Putting them together</span><span class="t-cap">waiting for your choice</span></div></div></div>
+<div class="ag-ghostrows" style="top:150px;width:520px"><div class="card" style="padding:12px 20px"><div class="vrow"><span class="okdot">${ic('tick')}</span><span class="grow">Account</span><span class="t-cap">${EMAIL}</span></div><div class="vrow"><span class="okdot">${ic('tick')}</span><span class="grow">Your account, unlocked on this TV</span><span class="t-cap">2 providers · Stremio · TMDB · 7 add-ons · 31 saved · 1,860 plays</span></div><div class="vrow">${spin(true)}<span class="grow">Putting them together</span><span class="t-cap">waiting for your choice</span></div></div></div>
 <div class="ag-blur"></div>
 <div class="menu ag-merge"><h3>This TV already has things</h3><div class="t-body">It was used without an account. Keep both, or make this TV match your account.</div>
   <div class="ag-two"><div><div class="h">${ic('tv')}On this TV</div><div class="l"><b>line.provider.tv</b><small>the same provider</small></div><div class="l">23 saved channels <small>· 14 not in your account</small></div><div class="l">412 plays <small>· Continue watching: Severance</small></div><div class="l">5 add-ons <small>· from your Stremio account</small></div></div>
   <div><div class="h">${ic('user')}In your account</div><div class="l"><b>line.provider.tv</b> + <b>backup.m3u</b></div><div class="l">31 saved channels</div><div class="l">1,860 plays <small>· since 24 Oct</small></div><div class="l">7 add-ons <small>· the same 5 and 2 more</small></div></div></div>
   <div class="ad-lr f-ring"><span class="ico">${ic('merge')}</span><span class="grow"><span class="a">Merge them<span class="ag-rec">Recommended</span></span><span class="b">Keeps everything. The same channel or title saved on both becomes one.</span></span>${ic('chevR', 'sm')}</div>
-  <div class="ad-lr"><span class="ico">${ic('replace')}</span><span class="grow"><span class="a">Use my account's only</span><span class="b">This TV's own 14 saved channels and 412 plays are removed. The provider stays: it's the same one.</span></span>${ic('chevR', 'sm')}</div>
-  <div class="foot">Asked once, on this TV only. Merge can't be undone either way, so the account keeps a copy of today's state for 30 days.</div></div>
+  <div class="ad-lr"><span class="ico">${ic('replace')}</span><span class="grow"><span class="a">Use only what's in my account</span><span class="b">This TV's own 14 saved channels and 412 plays are removed. The provider stays: it's the same one.</span></span>${ic('chevR', 'sm')}</div>
+  <div class="foot">Asked once, on this TV only. Neither choice can be undone here, so your account keeps a copy of today's state for 30 days.</div></div>
 ` + tvFoot;
 
 // ---- 03 TV: Account > airglow account ----
 const tv03 = tvHead('TV: Account › airglow account') + tvTopbar() + tvGroups('airglow account') + `
 <div class="ag-pane"><div class="t-title" style="margin-bottom:10px">airglow account</div>
   ${arow('Birgir', `<span class="pill-ok">${ic('tick', 'sm')}Signed in</span>`, EMAIL, 'f-ring')}
-  ${arow('Synced 2 min ago', more('Sync now'), 'Provider logins, add-ons, Saved, history, Home rows, your settings')}
+  ${arow('Synced 2 min ago', more('Sync now'), 'Provider logins, Stremio add-ons, TMDB key, Saved, history, Home rows, your settings')}
   ${arow('Devices', more('3'), '<span class="ag-dev">' + ic('tv') + 'Living room TV <span class="t-3">· this TV</span></span>')}
   ${arow('What syncs', more('See'), 'Not this TV\'s picture, sound or player settings: those stay here')}
-  ${arow('Sign out of this TV', ic('chevR', 'sm'), 'Your things leave this TV. Your account keeps them')}
+  ${arow('Sign out of this TV', ic('chevR', 'sm'), 'Your provider, add-ons and history leave this TV. Your account keeps them')}
   ${arow('Sign out everywhere', ic('chevR', 'sm'), 'Every device asks for your password or your phone again')}
 </div>
 ` + tvFoot;
@@ -166,10 +166,12 @@ const ph04 = phPage({ title: 'iPhone: sign in this TV?', body: phHomeUnder + `
 <div class="ag-sheet"><div class="hdl"></div>
   <div class="ico">${ic('tv')}</div>
   <h2>Sign in this TV?</h2>
-  <div class="sub">Philips TV · code <b>${CODE_SHOWN}</b> · asked 20 s ago</div>
-  <div class="chk">${tick()}<span>It's the TV you scanned, and the TV is on your Wi-Fi. Only sign in a TV you're looking at.</span></div>
+  <div class="sub">Philips TV · <b>${CODE_SHOWN}</b> · asked 20 s ago</div>
+  <div class="chk"><span class="ag-q">${ic('info')}</span><span>Is this the code on your TV? Only sign in a TV you're looking at. If someone sent you this link, tap Not now.</span></div>
+  <div class="chk" style="margin-top:8px">${tick()}<span>On the same Wi-Fi as this iPhone</span></div>
   <div class="lbl">It gets your</div>
-  <div class="ag-gives"><span>${ic('server')}Provider logins</span><span>${ic('puzzle')}Add-ons</span><span>${ic('bookmark')}Saved</span><span>${ic('hist')}History</span><span>${ic('rows')}Home rows</span><span>${ic('sliders')}Settings</span></div>
+  <div class="ag-gives"><span>${ic('server')}Provider login</span><span>${ic('puzzle')}Stremio add-ons</span><span>${ic('key')}TMDB key</span><span>${ic('bookmark')}Saved</span><span>${ic('hist')}History</span><span>${ic('sliders')}Settings</span></div>
+  <div class="ag-cap" style="margin-top:8px">The TV signs in to nothing else: your provider, Stremio and TMDB logins come with it.</div>
   <div class="act"><span class="pill noicon">Sign in the TV</span><span class="ghost">Not now</span></div>
   <div class="note">Locked on this iPhone for that TV only. airglow's server passes it on without being able to read it.</div>
 </div>` });
@@ -178,14 +180,14 @@ const ph04 = phPage({ title: 'iPhone: sign in this TV?', body: phHomeUnder + `
 const ph05 = phPage({ title: 'iPhone: sign in', body: `
 ${status('20:40')}
 <div class="si-lockup" style="top:104px"><img src="${BRAND}assets/lockup.svg" alt="airglow"><p>Your channels, your team, your films.<br>On every screen you own.</p></div>
-<div class="si-card" style="top:236px"><h2><span class="ico">${ic('user')}</span>Sign in</h2><p>Your provider, add-ons, Saved and history come to this iPhone.</p>
+<div class="si-card" style="top:236px"><h2><span class="ico">${ic('user')}</span>Sign in</h2><p>Your provider login, Stremio add-ons, TMDB key, Saved and history come to this iPhone by themselves. No other sign-in.</p>
   <div class="si-field" style="margin-top:14px"><b>${EMAIL}</b></div>
   <div class="si-field"><b>••••••••••••••</b><span class="eye">Show</span></div>
   <span class="pill noicon">Sign in</span>
   <div class="ag-link">Forgot it? Use your recovery key</div></div>
 <div class="si-or" style="top:566px">or</div>
 <div class="abs" style="left:16px;right:16px;top:592px;display:flex;flex-direction:column;gap:8px"><span class="ghost">${ic('plus')}Create an account with an invite</span><span class="ghost">${ic('server')}Use airglow without an account</span></div>
-<div class="si-note" style="left:24px;right:24px;top:722px">Your password never leaves this iPhone: it unlocks your things here. airglow's server keeps only locked copies it can't open. Without an account, airglow works as before: your provider login stays on this phone.</div>
+<div class="si-note" style="left:24px;right:24px;top:722px">Your password never leaves this iPhone: it unlocks everything here. airglow's server keeps only locked copies it can't open. Without an account, airglow works as before: your provider login stays on this phone.</div>
 ` });
 
 // ---- 06 phone: sign-up, the recovery key (shown once) ----
@@ -193,7 +195,7 @@ const ph06 = phPage({ title: 'iPhone: your recovery key', body: `
 ${status('20:41')}
 <div class="ph-top"><span class="ib" style="color:var(--a-pink-text);margin-left:-10px">${ic('back')}</span><h1>Create an account</h1><span class="sp"></span></div>
 <div class="si-steps" style="top:114px"><span>1 · Account<small>${EMAIL}</small></span><span class="cur">2 · Recovery<small>shown once</small></span><span>3 · Provider<small>or skip for now</small></span></div>
-<div class="si-card" style="top:190px"><h2><span class="ico">${ic('key')}</span>Your recovery key</h2><p>If you forget your password, this key is the only way back in. airglow can't read your things, so it can't reset them. Write it down or save it in Passwords.</p>
+<div class="si-card" style="top:190px"><h2><span class="ico">${ic('key')}</span>Your recovery key</h2><p>If you forget your password, this key is the only way back in. airglow can't read what it keeps for you, so it can't reset it. Write it down or save it in Passwords.</p>
   <div class="ag-keyrow"><span>${RECOVERY[0]}</span><span>${RECOVERY[1]}</span><span>${RECOVERY[2]}</span></div>
   <div class="ag-keyrow" style="margin-top:8px"><span>${RECOVERY[3]}</span><span>${RECOVERY[4]}</span><span style="opacity:0;box-shadow:none"></span></div>
   <div class="ag-btns"><span class="ghost">${ic('copy')}Copy</span><span class="ghost">${ic('share')}Save to Files</span></div>
@@ -208,14 +210,15 @@ ${status('20:43')}
 <div class="ag-safari"><div class="url">${ic('lock')}${HOST}<small>/tv</small></div></div>
 <div class="ag-web" style="top:134px"><img src="${BRAND}assets/lockup.svg" alt="airglow" style="height:30px;width:auto">
   <h1 style="margin-top:18px">Sign in your TV</h1>
-  <div class="lead">Type the letters your TV shows, then your airglow account.</div>
+  <div class="lead">Philips TV · <b>${CODE_SHOWN}</b> · asked 20 s ago</div>
+  <span class="pill noicon" style="margin-top:14px">Open in airglow</span>
+  <div class="ag-cap" style="margin-top:8px">The app signs the TV in with one tap. No app on this phone? Sign in below.</div>
+  <div class="si-or" style="position:static;margin-top:16px">or sign in here</div>
   <div class="lbl">TV code</div><div class="si-field"><b style="letter-spacing:.14em;font-weight:700">${CODE_SHOWN}</b></div>
-  <div class="tvline">${tick()}<span>Philips TV · asked 20 s ago</span></div>
   <div class="lbl">Email</div><div class="si-field"><b>${EMAIL}</b></div>
   <div class="lbl">Password</div><div class="si-field"><b>••••••••••••••</b><span class="eye">Show</span></div>
-  <span class="pill noicon">Sign in the TV</span>
-  <div class="note">Your password is used here, in your browser, to unlock the key your TV needs. It isn't sent anywhere. The TV gets a locked copy only it can open.</div>
-  <div class="alt">Have the airglow app? Open it instead</div></div>
+  <span class="ghost" style="width:100%;box-sizing:border-box;margin-top:14px">Sign in the TV</span>
+  <div class="note">Your password is used here, in your browser, to unlock the key your TV needs. It isn't sent anywhere. The TV gets a locked copy only it can open.</div></div>
 <div class="ag-sbar">${ic('chevL')}${ic('chevR')}${ic('share')}${ic('book')}${ic('tabs')}</div>
 ` });
 
@@ -245,26 +248,26 @@ const dk08 = dkHead('Windows: Account › airglow account, the devices') + `<div
     <div class="pt">airglow account<small>the same things on every screen you sign in</small></div>
     <div class="c1">
     ${dkGroup('Devices', [
-      dkRow({ icon: 'tv', t: 'Living room TV', s: 'Philips 55OLED810 · Google TV · signed in Tue 28 Oct with your phone · watching Sky Cinema Action', v: 'Active now', vcls: 'ok', right: '<span class="ghost">Sign out</span>' }),
+      dkRow({ icon: 'tv', t: 'Living room TV', s: 'Philips 55OLED810 · Google TV · signed in Tue 28 Oct with your phone', v: 'Active now', vcls: 'ok', right: '<span class="ghost">Sign out</span>' }),
       dkRow({ icon: 'phone', t: 'Birgir\'s iPhone', s: 'iOS 26 · signed in Tue 28 Oct with the password · last seen 2 h ago', v: 'Last seen 18:41', right: '<span class="ghost">Sign out</span>' }),
       dkRow({ icon: 'pc', t: 'Laptop<span class="this">This PC</span>', s: 'Windows 11 · signed in Sat 25 Oct with the password', v: 'Active now', vcls: 'ok', hov: true, right: '<span class="ghost">Rename</span>' }),
     ], 'Signing a device out removes your account\'s things from it the next time it is online; the device keeps working without an account until then. <b style="color:var(--a-text-2)">Sign out everywhere</b> does this to all three and asks for your password or your phone on each.', '3 of 10')}
     ${dkGroup('Friends', [
-      dkRow({ icon: 'users', t: 'Invite a friend', s: 'Works once, for 7 days. A friend gets their own account: nothing of yours is shared', right: `<span class="in">${ic('key')}&nbsp; AIRGLOW-KX7R-M2PQ<small>copied</small></span><span class="ghost">New code</span>`, v: '' }),
+      dkRow({ icon: 'users', t: 'Invite a friend', s: 'Works once, for 7 days. A friend gets their own account: nothing of yours is shared', right: `<span class="in">${ic('key')}&nbsp; AIRGLOW-KXWR-MZPQ<small>copied</small></span><span class="ghost">New code</span>`, v: '' }),
     ], '3 invites left this month. Open sign-up is off: only invited people can make an account.')}
     ${dkGroup('', [
-      dkRow({ icon: 'out', t: 'Sign out of this PC', s: 'Your things leave this PC; your account keeps them', chev: true }),
+      dkRow({ icon: 'out', t: 'Sign out of this PC', s: 'Your provider, add-ons and history leave this PC; your account keeps them', chev: true }),
       dkRow({ icon: 'trash', t: 'Delete account', s: 'Asks for your password, then removes everything on the server. Your devices keep what they have, without an account', chev: true }),
     ])}
     </div><div class="c2">
     ${dkGroup('Security', [
-      dkRow({ icon: 'lock', t: 'Change password', s: 'Your other devices keep working: your things are locked with a key the password only unwraps. Signing them out as well is a choice on the next screen', chev: true }),
+      dkRow({ icon: 'lock', t: 'Change password', s: 'Your other devices keep working: everything is locked with a key the password only unwraps. Signing them out as well is a choice on the next screen', chev: true }),
       dkRow({ icon: 'key', t: 'Recovery key', s: 'Shown once when the account was made. Show it again (your password unlocks it), or make a new one, which retires the old', v: 'Set · 28 Oct', chev: true }),
       dkRow({ icon: 'shield', t: 'What the server has', s: 'Your email, a locked copy of your key and locked records. Not your password, your provider passwords, your history or your TMDB key in the clear', chev: true }),
     ])}
     ${dkGroup('Sync', [
       dkRow({ icon: 'sync', t: 'Synced just now', s: '<span class="dk-sync"><span>2 provider logins</span><span>TMDB key</span><span>7 add-ons + your Stremio link</span><span>1,860 plays, Continue watching</span><span>31 saved</span><span>Home rows and your choices</span><span>spoiler shield seen list</span><span>team, shield, languages, replays, skip intro</span><span class="off">not this PC\'s player, window or tray settings</span></span>', right: '<span class="ghost">Sync now</span>' }),
-      dkRow({ icon: 'hist', t: 'Snapshots', s: 'A copy of your account\'s state is kept for 30 days after a merge or a sign-out everywhere, in case something went wrong', v: '1 from Tue 28 Oct', chev: true }),
+      dkRow({ icon: 'hist', t: 'Undo', s: 'The server keeps 30 days of previous versions of every record and a snapshot from each merge, so a bad change can be rolled back from here', v: 'Undo changes since…', chev: true }),
     ])}
     </div>
   </div>
