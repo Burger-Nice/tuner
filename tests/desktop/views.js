@@ -38,6 +38,10 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await p.goto(APP);
   check('the shell loads', await wait(() => window.__desktopReady && window.__tunerTest), JSON.stringify(await state().catch(() => null)));
   // sign in
+  // airglow accounts (design/ui-v1/accounts-v1): the account card leads; the provider card is the second door
+  check('sign in leads with the airglow account', await wait(() => /No other sign-in/.test(document.querySelector('.si-card')?.textContent || '')));
+  await shot('signin-account');
+  await click('[data-act="noacct"]');
   await wait(() => document.querySelector('#siServer'));
   await shot('signin');
   await p.fill('#siServer', H); await p.fill('#siUser', 'demo'); await p.fill('#siPass', 'demo');

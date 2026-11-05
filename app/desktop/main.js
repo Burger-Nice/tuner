@@ -26,6 +26,12 @@ import detail from './detail.js';
 import search from './search.js';
 import account from './account.js';
 import signin from './signin.js';
+import { startLater } from '../tv/js/account/flow.js';
+import * as acct from '../tv/js/account/acct.js';
+import { syncStatus } from '../tv/js/account/sync.js';
+// The sidebar's Account item (SPEC 3.3): synced, offline or sign in
+const acctWord = () => (!acct.me() ? 'Account · sign in' : /offline|error/.test(syncStatus().state) ? 'Account · offline' : 'Account · synced');
+import { endSession } from '../tv/js/state.js';
 
 const T = window.tuner || null;
 window.__dkAcc = () => S.acc?.name || '';
@@ -75,7 +81,7 @@ function drawSide() {
   const upd = (window.TUNER_NATIVE.updates.status() || {}).state === 'ready';
   const items = SECTIONS.map(([k, l, i], n) => `<button class="sb-i${sel === k ? ' sel' : ''}" data-sec="${k}" data-tip="${esc(`${l} · Ctrl ${n + 1}`)}">${ic(i)}<span>${l}</span>${k === 'nba' && lv ? '<span class="a-live compact">Live</span>' : ''}</button>`).join('');
   const np = mini ? `<button class="np" data-act="np" data-tip="Back to the player · Ctrl P"><div class="pic">${mini.pic || ''}<span class="a-live compact">Live</span></div><div class="t">${esc(mini.title)}<small>${esc(mini.sub || 'In the corner')}</small></div></button>` : '';
-  const html = `${items}<div class="gap"></div>${np}${S.acc ? `<button class="acct${current() === 'account' ? ' sel' : ''}" data-act="account" data-tip="Account · Ctrl ,"><span class="avatar">${esc((S.acc.name || '').match(/\p{L}/u)?.[0]?.toUpperCase() || '')}</span><div>${esc(S.acc.name || 'Account')}<small>${upd ? 'update ready' : 'Account'}</small></div>${upd ? '<i class="dotu"></i>' : ''}</button>` : ''}`;
+  const html = `${items}<div class="gap"></div>${np}${S.acc ? `<button class="acct${current() === 'account' ? ' sel' : ''}" data-act="account" data-tip="Account · Ctrl ,"><span class="avatar">${esc((S.acc.name || '').match(/\p{L}/u)?.[0]?.toUpperCase() || '')}</span><div>${esc(S.acc.name || 'Account')}<small>${upd ? 'update ready' : acctWord()}</small></div>${upd ? '<i class="dotu"></i>' : ''}</button>` : ''}`;
   if (side._html !== html) { side.innerHTML = html; side._html = html; }
 }
 side.addEventListener('click', (e) => {
@@ -266,6 +272,11 @@ busy.showing = (k) => current() === (k === 'live' ? 'live' : 'lib');
 busy.gameOn = () => !nba.stale && myGame()?.state === 'in';
 on('session', () => { S.offline = false; offline(false); if (S.acc) startNba(); redraw(); rem.trayNext(); });
 on('signed-out', (msg) => go('signin', { error: msg }));
+// airglow accounts: signed out here or from elsewhere; a provider that left with the account
+on('acct-out', (r) => { if (!S.acc) go('signin', { error: r?.line || '' }); });
+on('acct-provider-gone', () => { store.del('active'); endSession(); go('signin'); });
+on('acct-sync', () => drawSide());
+on('acct', () => drawSide());
 on('nba', () => rem.trayNext());
 let offT = 0;
 function offline(onOff) { document.body.classList.toggle('offline', !!onOff); emit('offline-state'); }
@@ -296,6 +307,7 @@ async function start() {
   } else go('signin');
   redraw();
   rem.trayNext();
+  startLater();
   window.__desktopReady = true;
 }
 start();

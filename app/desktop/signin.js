@@ -6,12 +6,20 @@ import { signIn } from '../tv/js/session.js';
 import { ensure } from '../tv/js/catalog.js';
 import { ic, esc, go } from './ui.js';
 import { teamSheet, shieldSheet } from './nba.js';
+import * as acct from '../tv/js/account/acct.js';
+import { cardHtml, finishSignIn, showToggle } from './acctui.js';
 
 let el, mode = 'xtream', step = 1, busy = false, err = '';
+// airglow accounts (design/ui-v1/accounts-v1 05, 06 on the PC): the sign-in card leads; 'provider' is today's path
+let am = 'in', ast = {};
 const host = (u) => { try { return new URL(/^https?:/i.test(u) ? u : `http://${u}`).host; } catch { return u; } };
 const val = (id) => el.querySelector(`#${id}`)?.value.trim() || '';
 const field = (id, label, attrs) => `<label for="${id}">${label}</label><div class="si-in"><input id="${id}" ${attrs}></div>`;
 function draw() {
+  if (am !== 'provider' && step === 1) {
+    el.innerHTML = `<div class="si"><div class="si-lockup"><img src="tv/brand/assets/lockup.svg" alt="airglow"><p>Your channels, your team, your films.<br>Ad-free, from your own provider.</p></div>${err && am === 'in' && !ast.err ? `<div class="si-err" style="margin:0 0 10px">${esc(err)}</div>` : ''}${cardHtml(am, ast)}</div>`;
+    return;
+  }
   const steps = [['Provider', 'the login you gave the TV'], ['Your team', 'and the spoiler shield'], ['Films', 'TMDB, add-ons']].map(([t, s], i) => `<span class="${step === i + 1 ? 'cur' : ''}">${i + 1} · ${t}<small>${s}</small></span>`).join('');
   let card;
   if (step === 1) {
@@ -25,7 +33,8 @@ function draw() {
         : field('siUrl', 'Playlist link', 'type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="url" placeholder="http://…/get.php?username=…" enterkeyhint="go"')}
       ${err ? `<div class="si-err">${esc(err)}</div>` : ''}
       <button type="submit" class="pill${busy ? '' : ''} noicon" data-act="go" id="siGo">${busy ? 'Signing in…' : 'Sign in'}</button></form></div>
-      <div class="si-next">Then your team and the spoiler shield, as on the TV.</div>`;
+      ${acct.me() ? '<button class="ghost" data-act="skipprov" style="margin-top:12px;width:100%">Skip for now</button>' : ''}
+      <div class="si-next">${acct.me() ? 'Your provider joins your account: your other screens get it by themselves.' : 'Then your team and the spoiler shield, as on the TV.'}</div>`;
   } else {
     const team = window.NBA.team(window.Core.settings().nbaTeam || 'MEM');
     card = `<div class="si-card"><h2><span class="ico">${ic('ball')}</span>Your team</h2><p>Its games lead Home and the NBA tab, and the spoiler shield follows it.</p>
@@ -33,6 +42,20 @@ function draw() {
       <button class="pill noicon" data-act="done">Done</button></div><div class="si-next">Films and series: add your Stremio add-ons and the TMDB key in Account.</div>`;
   }
   el.innerHTML = `<div class="si"><div class="si-lockup"><img src="tv/brand/assets/lockup.svg" alt="airglow"><p>Your channels, your team, your films.<br>Ad-free, from your own provider.</p></div><div class="si-steps">${steps}</div>${card}<div class="si-note">Your login goes only to your provider.</div></div>`;
+}
+const aval = (id) => el.querySelector(`#${id}`)?.value ?? '';
+const keepVals = () => ({ e: aval('agEmail'), n: aval('agName'), i: aval('agInv'), r: aval('agRk') });
+const putVals = (v) => { for (const [id, x] of [['agEmail', v.e], ['agName', v.n], ['agInv', v.i], ['agRk', v.r]]) { const f = el.querySelector(`#${id}`); if (f && x) f.value = x; } };
+async function acctRun(kind) {
+  if (ast.busy) return;
+  const v = keepVals(), pw = aval('agPw');   // (passwords are never trimmed; the invite goes exactly as typed)
+  ast = { busy: true }; draw(); putVals(v);
+  try {
+    if (kind === 'in') await acct.signIn({ email: v.e.trim(), password: pw });
+    else if (kind === 'up') { const r = await acct.signUp({ invite: v.i, email: v.e.trim(), name: v.n.trim(), password: pw }); ast = { key: r.recoveryKey }; am = 'key'; draw(); return; }
+    else if (kind === 'recover') await acct.recover({ email: v.e.trim(), recoveryKey: v.r, password: pw });
+    ast = {}; await finishSignIn(() => { am = 'provider'; step = 1; draw(); });
+  } catch (e) { ast = { err: e.code === 'short' ? 'The password needs 12 characters or more.' : e.message }; draw(); putVals(v); }
 }
 async function submit() {
   if (busy) return;
@@ -66,13 +89,36 @@ export default {
       const b = e.target.closest('[data-act]');
       if (!b) return;
       const a = b.dataset.act;
+      if (a === 'show' && b.dataset.for) return showToggle(el, b);
+      if (a === 'agGo') return acctRun('in');
+      if (a === 'agUp') return acctRun('up');
+      if (a === 'agRec') return acctRun('recover');
+      if (a === 'agForgot') { am = 'recover'; ast = {}; draw(); return; }
+      if (a === 'agUpOpen') { am = 'up'; ast = {}; draw(); return; }
+      if (a === 'agIn') { am = 'in'; ast = {}; draw(); return; }
+      if (a === 'noacct') { acct.clearSignedOutLine(); am = 'provider'; err = ''; draw(); return; }
+      if (a === 'rkcopy') { navigator.clipboard?.writeText(ast.key); b.textContent = 'Copied'; return; }
+      if (a === 'rksave') {   // (Save as…: a text file with the email and the date)
+        const f = new Blob([`airglow recovery key\n\n${ast.key}\n\nEmail: ${acct.me()?.email || ''}\nMade: ${new Date().toDateString()}\n`], { type: 'text/plain' });
+        const l = document.createElement('a'); l.href = URL.createObjectURL(f); l.download = 'airglow recovery key.txt'; l.click(); return;
+      }
+      if (a === 'rkdone') { if (!el.querySelector('#rkok')?.checked) return; ast = {}; am = 'provider'; step = 1; draw(); finishSignIn(() => {}); return; }
+      if (a === 'skipprov') { go('home'); return; }
       if (a === 'show') { const i = el.querySelector('#siPass'); i.type = i.type === 'password' ? 'text' : 'password'; b.textContent = i.type === 'password' ? 'Show' : 'Hide'; return; }
       if (a === 'go') { e.preventDefault(); submit(); return; }
       if (a === 'team') return teamSheet(draw);
       if (a === 'shield') return shieldSheet(draw);
       if (a === 'done') { step = 1; go('home'); }
     });
-    root.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'siPass') submit(); if (e.key === 'Enter' && e.target.id === 'siUrl') submit(); });
+    root.addEventListener('change', (e) => { if (e.target.id === 'rkok') { ast.ticked = e.target.checked; el.querySelector('[data-act="rkdone"]').disabled = !e.target.checked; } });
+    root.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'agPw') { e.preventDefault(); acctRun(am === 'up' ? 'up' : am === 'recover' ? 'recover' : 'in'); return; } if (e.key === 'Enter' && e.target.id === 'siPass') submit(); if (e.key === 'Enter' && e.target.id === 'siUrl') submit(); });
   },
-  enter(root, params) { if (!S.acc) step = 1; err = params.error || ''; draw(); },
+  enter(root, params) {
+    if (!S.acc) step = 1;
+    err = params.error || acct.signedOutLine() || '';
+    am = params.acct || (acct.me() || params.provider ? 'provider' : am === 'provider' && !params.error ? 'provider' : 'in');
+    if (am !== 'provider') ast = {};
+    draw();
+  },
 };

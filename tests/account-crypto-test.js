@@ -96,5 +96,8 @@ await check('recovery keys: 20 characters, five groups, lenient reading, nonsens
 await check('the Worker page\'s copy is the same file', async () => {
   assert.equal(readFileSync(new URL('../worker/pages/crypto.js', import.meta.url), 'utf8'), readFileSync(new URL('../app/tv/js/account/crypto.js', import.meta.url), 'utf8'));
 });
+await check('the iPhone\'s and the Windows app\'s account screens are the same file', async () => {
+  assert.equal(readFileSync(new URL('../app/desktop/acctui.js', import.meta.url), 'utf8'), readFileSync(new URL('../app/phone/acctui.js', import.meta.url), 'utf8'));
+});
 console.log(fails ? `${fails} failed` : 'all passed');
 process.exit(fails ? 1 : 0);

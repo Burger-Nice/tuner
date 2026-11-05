@@ -21,6 +21,7 @@
     platform: 'win32', desktop: true,
     setUserAgent: () => {}, version: async () => '0.4.999', quit: () => log.push('quit'),
     updates: { status: async () => ({ state: 'current' }), check: async () => {}, install: async () => {}, onStatus: () => () => {} },
+    secret: { get: async (k) => sessionStorage.getItem(`stub-secret-${k}`), set: async (k, v) => sessionStorage.setItem(`stub-secret-${k}`, v), clear: async (k) => sessionStorage.removeItem(`stub-secret-${k}`) },   // (safeStorage)
     mpv: {
       available: async () => true,
       create: async (id, o) => { inst.set(id, { t: 0, d: 0, pause: false, mute: !!o?.mute, volume: o?.volume ?? 100, loaded: false, url: '' }); log.push(['create', id]); return { ok: true, plan: 'A', hwnd: 1 }; },

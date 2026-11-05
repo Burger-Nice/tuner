@@ -222,6 +222,18 @@ function moveHost(id, toWin) {
   return true;
 }
 
+// airglow accounts: safeStorage (DPAPI on Windows) for the account's data key and refresh token (SPEC 5.7). Written
+// whole to a temp file, then swapped in, so a crash never leaves half a key.
+const { safeStorage } = require('electron');
+const secretFile = (k) => userFile(`secret-${String(k).replace(/[^a-z0-9_-]/gi, '_')}.bin`);
+ipcMain.handle('secret:get', (_, k) => { try { const f = secretFile(k); return fs.existsSync(f) ? safeStorage.decryptString(fs.readFileSync(f)) : null; } catch { return null; } });
+ipcMain.handle('secret:set', (_, k, v) => {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('no secure storage on this PC');
+  fs.mkdirSync(app.getPath('userData'), { recursive: true });
+  const f = secretFile(k); fs.writeFileSync(`${f}.tmp`, safeStorage.encryptString(String(v))); fs.renameSync(`${f}.tmp`, f);
+  return true;
+});
+ipcMain.handle('secret:clear', (_, k) => { try { fs.unlinkSync(secretFile(k)); } catch { /* none */ } return true; });
 ipcMain.handle('mpv:create', (_, id, o) => createHost(String(id), o || {}));
 ipcMain.handle('mpv:load', async (_, id, o) => { const h = hosts.get(String(id)); return h ? h.mpv.load({ ...o, ua: o?.ua || userAgent }) : { ok: false, error: 'no picture' }; });
 ipcMain.handle('mpv:cmd', (_, id, args) => hosts.get(String(id))?.mpv.command(Array.isArray(args) ? args.map((a) => (typeof a === 'number' ? a : String(a))) : []) || null);

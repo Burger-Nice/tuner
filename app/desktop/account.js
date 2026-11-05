@@ -17,10 +17,12 @@ import { ic, esc, isShown, sheet, confirm, menu, radio } from './ui.js';
 import { subSettings, saveSubSettings } from '../tv/js/subs.js';
 import { teamSheet, shieldSheet } from './nba.js';
 import { streams } from './streams.js';
+import { groupRows, groupAct } from './acctui.js';
+import * as acct from '../tv/js/account/acct.js';
 
 const SUB_LANGS = ['English', 'Icelandic', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Polish', 'Turkish', 'Arabic', 'Hindi'];
-const GROUPS = [['provider', 'Provider', 'server'], ['playback', 'Playback', 'play'], ['nba', 'NBA', 'ball'], ['languages', 'Languages', 'cc'], ['films', 'Films and series', 'film'], ['rows', 'Home rows', 'home'], ['windows', 'Windows', 'win'], ['updates', 'Updates', 'refresh'], ['about', 'About', 'bang']];
-let el, grp = 'provider', prefs = null, strm = null, upd = { state: 'idle' }, devices = null;
+const GROUPS = [['acct', 'airglow account', 'user'], ['provider', 'Provider', 'server'], ['playback', 'Playback', 'play'], ['nba', 'NBA', 'ball'], ['languages', 'Languages', 'cc'], ['films', 'Films and series', 'film'], ['rows', 'Home rows', 'home'], ['windows', 'Windows', 'win'], ['updates', 'Updates', 'refresh'], ['about', 'About', 'bang']];
+let el, grp = acct.me() ? 'acct' : 'provider', prefs = null, strm = null, upd = { state: 'idle' }, devices = null;
 const T = window.tuner;
 
 const row = ({ icon, t, s, v, vcls = '', act, chev = true, tog }) => `<button class="ac-row"${act ? ` data-act="${act}"` : ''}><span class="ico">${ic(icon)}</span><span class="col"><span class="t">${t}</span>${s ? `<span class="s">${s}</span>` : ''}</span>${v != null && v !== '' ? `<span class="v ${vcls}">${v}</span>` : ''}${tog != null ? `<span class="tog${tog ? ' on' : ''}" role="switch" aria-checked="${tog ? 'true' : 'false'}"></span>` : chev && act ? ic('chevR', 'chev') : ''}</button>`;
@@ -120,7 +122,9 @@ function about() {
     row({ icon: 'tv', t: 'mpv', s: 'Plays every copy: HEVC, MKV, AC3 / DTS, every subtitle format', chev: false }),
   ]);
 }
-const BODY = { provider, playback, nba: nbaGroup, languages, films, rows: rowsGroup, windows: windowsGroup, updates: updatesGroup, about };
+// airglow account (design/ui-v1/accounts-v1 3.3, mock 08): devices, friends, security, sync and undo
+const acctGroup = () => box('', groupRows(row), acct.me() ? 'Signing a device out removes your account\'s things from it the next time it is online; the device keeps working without an account until then.' : '');
+const BODY = { acct: acctGroup, provider, playback, nba: nbaGroup, languages, films, rows: rowsGroup, windows: windowsGroup, updates: updatesGroup, about };
 let reminders = [];
 function draw() {
   if (!el) return;
@@ -194,6 +198,7 @@ export default {
       const b = e.target.closest('[data-act]');
       if (!b) return;
       const a = b.dataset.act;
+      if (a.startsWith('ag')) return groupAct(a, draw);
       if (a.startsWith('p:')) { const k = a.slice(2), on0 = (prefs || {})[k] ?? ['closeToTray', 'miniOnLeave', 'miniOnTop', 'notifications', 'hdr'].includes(k); return setPref(k, !on0); }
       if (a === 'signin') return import('./ui.js').then((u) => u.go('signin'));
       if (a === 'conncheck') return connCheck();

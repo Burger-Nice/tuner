@@ -25,9 +25,12 @@ module.exports = async function appFlows(OUT, report, check, plan, { grab, scree
     const shot = async (name) => { await sleep(700); const g = await grab(app, `app-${name}`, {}); report('grab', { name: `app-${name}`, how: g.how }); };
     const scr = await app.evaluate(({ screen }) => screen.getPrimaryDisplay().workAreaSize);
     await app.evaluate((_, b) => { const w = global.__airglow.wins.main; w.setBounds(b); w.show(); w.focus(); }, { x: 0, y: 0, width: Math.min(1280, scr.width), height: Math.min(760, scr.height) });
-    check('app: the desktop shell loads in Electron', await wait(() => window.__desktopReady && document.querySelector('#siServer'), 30000));
+    check('app: the desktop shell loads in Electron', await wait(() => window.__desktopReady && document.querySelector('[data-act="noacct"]'), 30000));
+    check('app: the safeStorage secret store keeps a value', await page.evaluate(async () => { await window.tuner.secret.set('ci-test', 'kept'); const v = await window.tuner.secret.get('ci-test'); await window.tuner.secret.clear('ci-test'); return v === 'kept' && (await window.tuner.secret.get('ci-test')) == null; }));
     await ev((H) => { for (const [k, v] of Object.entries({ nbaBase: `${H}/espn`, nbaWebBase: `${H}/espnweb`, nbaContentBase: `${H}/espncontent`, cinemetaBase: `${H}/addon/cinemeta`, stremioApi: `${H}/stremio-api`, ratingsUrl: `${H}/ratings.json`, tmdbBase: `${H}/tmdb/3`, tmdbImg: `${H}/tmdb-img` })) localStorage.setItem(`tuner.${k}`, JSON.stringify(v)); }, H);
     await page.reload();
+    await wait(() => document.querySelector('[data-act="noacct"]'));
+    await page.click('[data-act="noacct"]');   // (Use airglow without an account: the provider card)
     await wait(() => document.querySelector('#siServer'));
     await page.fill('#siServer', H); await page.fill('#siUser', 'demo'); await page.fill('#siPass', 'demo');
     await page.click('#siGo');

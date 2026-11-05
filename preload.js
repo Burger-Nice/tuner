@@ -11,6 +11,13 @@ contextBridge.exposeInMainWorld('tuner', {
   setUserAgent: (ua) => ipcRenderer.send('set-ua', ua),
   version: () => ipcRenderer.invoke('app-version'),
   quit: () => ipcRenderer.send('app:quit'),
+  // airglow accounts (design/ui-v1/accounts-v1/SPEC.md 5.7): the data key and refresh token under Windows' DPAPI
+  // (Electron's safeStorage), in userData; the page gets them into memory only
+  secret: {
+    get: (key) => ipcRenderer.invoke('secret:get', key),
+    set: (key, value) => ipcRenderer.invoke('secret:set', key, value),
+    clear: (key) => ipcRenderer.invoke('secret:clear', key),
+  },
   updates: {
     status: () => ipcRenderer.invoke('update-status'),
     check: () => ipcRenderer.invoke('update-check'),

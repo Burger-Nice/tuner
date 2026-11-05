@@ -10,6 +10,7 @@ import { switchTo } from '../tv/js/session.js';
 import { toast } from '../tv/js/ui.js';
 import { ic, esc, go, sheet, confirm, radio, isShown } from './ui.js';
 
+const PC = !!window.tuner, ON = PC ? 'PC' : 'iPhone';
 const field = (id, label, attrs) => `<label for="${id}">${label}</label><div class="si-in"><input id="${id}" ${attrs}>${/password/.test(attrs) ? `<button type="button" class="show" data-act="show" data-for="${id}">Show</button>` : ''}</div>`;
 const EMAIL = 'type="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username"';
 const ago = (t) => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : new Date(t).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' }); };
@@ -23,7 +24,7 @@ export function cardHtml(mode, st) {
     return `<div class="si-steps"><span>1 · Account</span><span class="cur">2 · Recovery</span><span>3 · Provider</span></div><div class="si-card"><h2><span class="ico">${ic('key')}</span>Your recovery key</h2>
       <p>If you forget your password, this key is the only way back in. airglow can't read what it keeps for you, so it can't reset it. Write it down or save it in Passwords.</p>
       <div class="ag-key">${st.key.split('-').map((g) => `<span>${esc(g)}</span>`).join('')}</div>
-      <div class="ag-btns"><button class="ghost" data-act="rkcopy">Copy</button><button class="ghost" data-act="rksave">Save to Files</button></div>
+      <div class="ag-btns"><button class="ghost" data-act="rkcopy">Copy</button><button class="ghost" data-act="rksave">${PC ? 'Save as…' : 'Save to Files'}</button></div>
       <label class="ag-ck"><input type="checkbox" id="rkok"${st.ticked ? ' checked' : ''}> I've put it somewhere safe</label>
       <button class="pill noicon" data-act="rkdone" style="width:100%;margin-top:14px"${st.ticked ? '' : ' disabled'}>Continue</button>
       <div class="ag-cap" style="margin-top:10px">You can see it again later in Account › airglow account › Recovery key; your password unlocks it. A new key can be made there too, which retires this one.</div></div>`;
@@ -32,7 +33,7 @@ export function cardHtml(mode, st) {
     return `<div class="si-steps"><span class="cur">1 · Account</span><span>2 · Recovery</span><span>3 · Provider</span></div><div class="si-card"><h2><span class="ico">${ic('user')}</span>Create an account</h2>
       <form onsubmit="return false" autocomplete="on">${field('agInv', 'Invite code', 'type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"')}${field('agEmail', 'Email', EMAIL)}${field('agName', 'Name (optional)', 'type="text" autocomplete="nickname"')}${field('agPw', 'Password · 12 characters or more', 'type="password" autocomplete="new-password"')}
       ${err}<button class="pill noicon" data-act="agUp" style="width:100%;margin-top:14px">${st.busy ? 'Making your keys…' : 'Continue'}</button></form>
-      <div class="ag-cap" style="margin-top:10px">Your password never leaves this iPhone: it unlocks everything here. airglow's server keeps only locked copies it can't open.</div>
+      <div class="ag-cap" style="margin-top:10px">Your password never leaves this ${ON}: it unlocks everything here. airglow's server keeps only locked copies it can't open.</div>
       <button class="ag-link" data-act="agIn">I have an account · Sign in</button></div>`;
   }
   if (mode === 'recover') {
@@ -41,7 +42,7 @@ export function cardHtml(mode, st) {
       ${err}<button class="pill noicon" data-act="agRec" style="width:100%;margin-top:14px">${st.busy ? 'Working…' : 'Set the new password'}</button></form>
       <button class="ag-link" data-act="agIn">Back to Sign in</button></div>`;
   }
-  return `<div class="si-card"><h2><span class="ico">${ic('user')}</span>Sign in</h2><p>Your provider login, Stremio add-ons, TMDB key, Saved and history come to this iPhone by themselves. No other sign-in.</p>
+  return `<div class="si-card"><h2><span class="ico">${ic('user')}</span>Sign in</h2><p>Your provider login, Stremio add-ons, TMDB key, Saved and history come to this ${ON} by themselves. No other sign-in.</p>
     <form onsubmit="return false" autocomplete="on">${field('agEmail', 'Email', EMAIL)}${field('agPw', 'Password', 'type="password" autocomplete="current-password" enterkeyhint="go"')}
     ${err}<button class="pill noicon" data-act="agGo" style="width:100%;margin-top:14px">${st.busy ? 'Signing in…' : 'Sign in'}</button></form>
     <button class="ag-link" data-act="agForgot">Forgot it? Use your recovery key</button></div>
@@ -51,10 +52,10 @@ export function cardHtml(mode, st) {
 export function askMergePhone(sum) {
   return new Promise((done) => {
     const h = sum.here;
-    const s = sheet(`<h3>This iPhone already has things</h3><p class="tx">It was used without an account. Keep both, or make this iPhone match your account.</p>
-      <p class="tx">On this iPhone: ${h.providers.length ? esc(h.providers.map((p) => p.name).join(', ')) : 'no provider'} · ${h.saved} saved · ${h.plays} plays · ${h.addons} add-ons</p>
+    const s = sheet(`<h3>This ${ON} already has things</h3><p class="tx">It was used without an account. Keep both, or make this ${ON} match your account.</p>
+      <p class="tx">On this ${ON}: ${h.providers.length ? esc(h.providers.map((p) => p.name).join(', ')) : 'no provider'} · ${h.saved} saved · ${h.plays} plays · ${h.addons} add-ons</p>
       <div class="act2" style="flex-direction:column;gap:8px;padding:0 16px"><button class="pill noicon" data-act="merge" style="width:100%">Merge them · Recommended</button><button class="ghost" data-act="replace" style="width:100%">Use only what's in my account</button></div>
-      <p class="tx" style="color:var(--a-text-3)">Asked once, on this iPhone only. Neither choice can be undone here, so your account keeps a copy of today's state for 30 days.</p>`, {
+      <p class="tx" style="color:var(--a-text-3)">Asked once, on this ${ON} only. Neither choice can be undone here, so your account keeps a copy of today's state for 30 days.</p>`, {
       onClick: (a, t, close) => { if (a === 'merge' || a === 'replace') { picked = true; close(); done(a); } },
       onClose: () => { if (!picked) { toast('Pick one to finish signing in'); setTimeout(() => askMergePhone(sum).then(done), 300); } },
     });
@@ -81,7 +82,10 @@ export function openLink(url) {
   if (!acct.me()) { pendingLink = { code, k }; toast('Sign in first, then the TV'); go('signin'); return; }
   approveSheet(code, k);
 }
+// The same-network tick needs Wi-Fi (never mobile data: a carrier's CGNAT puts strangers behind one address). A PC
+// is on a fixed line.
 async function onWifi() {
+  if (PC) return true;
   try { const N = window.Capacitor?.Plugins?.Network; if (!N) return false; return (await N.getStatus()).connectionType === 'wifi'; } catch { return false; }
 }
 export async function approveSheet(code, k = '') {
@@ -94,13 +98,13 @@ export async function approveSheet(code, k = '') {
   const shown = acct.showCode(code);
   const s = sheet(`<div class="agp"><span class="ico">${ic('tv')}</span><h2>Sign in this TV?</h2><div class="sub">${esc(tv.name)} · ${same || typed ? esc(shown) : `${esc(shown.slice(0, 4))}___`} · asked ${secs < 90 ? `${secs} s` : `${Math.round(secs / 60)} min`} ago</div>
     <div class="chk"><span class="ag-q">i</span><span>Is this the code on your TV? Only sign in a TV you're looking at. If someone sent you this link, tap Not now.</span></div>
-    ${same ? `<div class="chk"><span class="ag-tick">${ic('tick')}</span><span>On the same network as this iPhone</span></div>` : ''}
+    ${same ? `<div class="chk"><span class="ag-tick">${ic('tick')}</span><span>On the same network as this ${ON}</span></div>` : ''}
     ${typed ? '<div class="chk"><span class="ag-q">i</span><span>Make sure the code is the one on your TV.</span></div>' : ''}
-    ${!same && !typed ? `<div class="lbl">The last three letters on your TV</div><div class="si-in" style="width:140px"><input id="agLast" class="three" maxlength="3" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off"></div><div class="ag-cap" style="margin-top:8px">airglow can't tell this iPhone is on the TV's network, so the letters make sure it's your TV.</div>` : ''}
+    ${!same && !typed ? `<div class="lbl">The last three letters on your TV</div><div class="si-in" style="width:140px"><input id="agLast" class="three" maxlength="3" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off"></div><div class="ag-cap" style="margin-top:8px">airglow can't tell this ${ON} is on the TV's network, so the letters make sure it's your TV.</div>` : ''}
     <div class="lbl">It gets your</div><div class="ag-gives">${['Provider login', 'Stremio add-ons', 'TMDB key', 'Saved', 'History', 'Settings'].map((x) => `<span>${x}</span>`).join('')}</div>
     <div class="ag-cap" style="margin-top:10px">The TV signs in to nothing else: your provider, Stremio and TMDB logins come with it.</div>
     <div class="act"><button class="pill noicon" data-act="yes"${!same && !typed ? ' disabled' : ''}>Sign in the TV</button><button class="ghost" data-act="no">Not now</button></div>
-    <div class="note">Locked on this iPhone for that TV only. airglow's server passes it on without being able to read it.</div></div>`, {
+    <div class="note">Locked on this ${ON} for that TV only. airglow's server passes it on without being able to read it.</div></div>`, {
     onClick: async (a, t, close) => {
       if (a === 'no') { acct.denyTv(code); close(); return; }
       if (a !== 'yes' || t.disabled) return;
@@ -124,12 +128,12 @@ export function groupRows(row) {
     y.held ? row({ icon: 'info', t: 'Some changes weren\'t synced', s: `${y.held} deletions wait for a confirm`, act: 'agHeld' }) : '',
     row({ icon: 'phone', t: 'Devices', act: 'agDevices' }),
     acct.canApprove() ? row({ icon: 'tv', t: 'Sign in a TV', s: 'Type the six letters it shows', act: 'agTv' }) : '',
-    ...localOnly().map((a) => row({ icon: 'server', t: esc(a.name), s: `${esc(a.name)} stays on the iPhone it was pasted on`, chev: false })),
+    ...localOnly().map((a) => row({ icon: 'server', t: esc(a.name), s: `${esc(a.name)} stays on the ${ON} it was pasted on`, chev: false })),
     row({ icon: 'key', t: 'Recovery key', act: 'agRk' }),
     row({ icon: 'key', t: 'Change password', act: 'agPw' }),
     m.owner ? row({ icon: 'plus', t: 'Invite a friend', s: 'Works once, for 7 days. A friend gets their own account: nothing of yours is shared', act: 'agInvite' }) : '',
     row({ icon: 'refresh', t: 'Undo changes since…', s: 'Restores each item as it was at the start of that day', act: 'agUndo' }),
-    row({ icon: 'out', t: 'Sign out of this iPhone', act: 'agOut' }),
+    row({ icon: 'out', t: `Sign out of this ${ON}`, act: 'agOut' }),
     row({ icon: 'out', t: 'Sign out everywhere', act: 'agAll' }),
     row({ icon: 'close', t: 'Delete account', act: 'agDelete' }),
   ];
@@ -187,7 +191,7 @@ export async function groupAct(a, redraw) {
       try { if (v[0] === 'd') { const n = await Y.undoSince(Date.now() - +v.slice(1) * 864e5); toast(`${n} item${n === 1 ? '' : 's'} restored`); } else { await restoreSnap(snaps[+v.slice(1)]); toast('Restored'); } redraw(); } catch (e) { toast(e.message); }
     }, { sub: 'Restores each item as it was at the start of that day. Forgotten history (Forget my taste) can\'t come back.' });
   }
-  if (a === 'agOut') return confirm({ title: 'Sign out of this iPhone?', text: 'Your provider, add-ons and history leave this iPhone; your account keeps them.', yes: 'Sign out', onYes: async () => { if (!(await acct.signOut())) confirm({ title: 'Changes made offline will be lost', text: 'airglow\'s server didn\'t answer.', yes: 'Sign out anyway', onYes: () => acct.signOut({ force: true }) }); } });
+  if (a === 'agOut') return confirm({ title: `Sign out of this ${ON}?`, text: `Your provider, add-ons and history leave this ${ON}; your account keeps them.`, yes: 'Sign out', onYes: async () => { if (!(await acct.signOut())) confirm({ title: 'Changes made offline will be lost', text: 'airglow\'s server didn\'t answer.', yes: 'Sign out anyway', onYes: () => acct.signOut({ force: true }) }); } });
   if (a === 'agAll') return passwordSheet('Sign out everywhere?', 'Every device asks for your password or your phone again.', 'Sign out everywhere', async (pw, close) => { await acct.signOutEverywhere(pw); close(); });
   if (a === 'agDelete') return passwordSheet('Delete account', 'Everything on the server goes. Your devices keep what they have, as if they had never signed in.', 'Delete it', async (pw, close) => { await acct.deleteAccount(pw); close(); });
 }
@@ -204,7 +208,7 @@ async function devicesSheet() {
   try {
     const r = await acct.devices(); list = r.devices;
     const how = (d) => (d.how === 'phone' ? `with ${d.approvedBy || 'a phone'}` : d.how === 'recovery' ? 'with the recovery key' : 'with the password') + (d.approverSignedOut ? ' · approved by a device that was signed out' : '');
-    s.el.querySelector('.body').innerHTML = `<div class="ac-list"><div class="ac-group"><div class="h">${list.length} of ${r.max}</div><div class="box">${list.map((d) => `<button class="ac-row" data-act="${esc(d.id)}"><span class="ico">${ic(d.kind === 'tv' ? 'tv' : 'phone')}</span><span class="col"><span class="t">${esc(d.name)}${d.this ? ' · This iPhone' : ''}</span><span class="s">Signed in ${new Date(d.createdAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} ${esc(how(d))}</span></span><span class="v${d.active ? ' ag-dot' : ''}">${d.active ? 'Active now' : `Last seen ${ago(d.lastSeen)}`}</span></button>`).join('')}</div>${r.recoveryAttempts.length ? `<div class="foot">Recovery attempted · ${r.recoveryAttempts.map((t) => new Date(t).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })).join(', ')}</div>` : ''}<div class="foot">Tap a device to sign it out. Tap this iPhone to rename it.</div></div></div>`;
+    s.el.querySelector('.body').innerHTML = `<div class="ac-list"><div class="ac-group"><div class="h">${list.length} of ${r.max}</div><div class="box">${list.map((d) => `<button class="ac-row" data-act="${esc(d.id)}"><span class="ico">${ic(d.kind === 'tv' ? 'tv' : 'phone')}</span><span class="col"><span class="t">${esc(d.name)}${d.this ? ` · This ${ON}` : ''}</span><span class="s">Signed in ${new Date(d.createdAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} ${esc(how(d))}</span></span><span class="v${d.active ? ' ag-dot' : ''}">${d.active ? 'Active now' : `Last seen ${ago(d.lastSeen)}`}</span></button>`).join('')}</div>${r.recoveryAttempts.length ? `<div class="foot">Recovery attempted · ${r.recoveryAttempts.map((t) => new Date(t).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })).join(', ')}</div>` : ''}<div class="foot">Tap a device to sign it out. Tap this ${ON} to rename it.</div></div></div>`;
   } catch (e) { s.el.querySelector('.body').innerHTML = `<p class="tx">${esc(e.message)}</p>`; }
 }
 function renameSheet(d) {
