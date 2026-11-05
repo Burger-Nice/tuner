@@ -1,0 +1,34 @@
+/* airglow accounts: the Worker's pages (design/ui-v1/accounts-v1/SPEC.md 3.4, mock 07). On tokens.css (copied from
+   app/tv/brand). Errors are neutral: an icon and a sentence, never red. */
+@font-face { font-family: "Outfit"; font-weight: 700; font-display: swap; src: url(fonts/outfit-latin-700-normal.woff2) format("woff2"); }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--a-bg-0); color: var(--a-text-1); font: 400 16px/22px var(--a-font-text); -webkit-text-size-adjust: 100%; }
+main { max-width: 440px; margin: 0 auto; padding: 32px 16px 48px; }
+.logo { height: 30px; width: auto; display: block; }
+h1 { font: 700 26px/32px var(--a-font-display); margin: 18px 0 4px; }
+.lead { color: var(--a-text-2); margin: 0 0 6px; }
+.lead b { color: var(--a-text-1); letter-spacing: .06em; }
+.cap { font-size: 14px; line-height: 20px; color: var(--a-text-3); margin-top: 8px; }
+.pill, .ghost { display: flex; align-items: center; justify-content: center; width: 100%; height: 50px; border-radius: 999px; border: 0; font: 650 17px/1 var(--a-font-text); text-decoration: none; cursor: pointer; margin-top: 14px; }
+.pill { background: var(--a-grad); color: var(--a-ink); }
+.ghost { background: var(--a-surface-2); color: var(--a-text-1); }
+.pill[disabled], .ghost[disabled] { background: var(--a-surface-1); color: var(--a-text-3); cursor: default; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--a-text-3); font-size: 14px; margin: 22px 0 6px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--a-border); }
+label { display: block; font: 650 13px/18px var(--a-font-text); letter-spacing: .06em; text-transform: uppercase; color: var(--a-text-3); margin: 14px 0 6px; }
+.field { display: flex; align-items: center; height: 50px; border-radius: 14px; background: var(--a-surface-1); box-shadow: inset 0 0 0 1px var(--a-border); padding: 0 14px; }
+.field:focus-within { box-shadow: inset 0 0 0 2px var(--a-focus); }
+.field input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--a-text-1); font: 500 17px/1 var(--a-font-text); }
+.field button { background: none; border: 0; color: var(--a-pink-text); font: 600 15px/1 var(--a-font-text); cursor: pointer; }
+.code input { letter-spacing: .14em; font-weight: 700; text-transform: uppercase; }
+.err { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; color: var(--a-text-1); font-size: 15px; }
+.err::before { content: "i"; flex: none; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--a-font-text); background: var(--a-surface-2); color: var(--a-text-2); margin-top: 2px; }
+.note { margin-top: 16px; font-size: 14px; line-height: 20px; color: var(--a-text-3); }
+.done { margin-top: 24px; padding: 16px; border-radius: 16px; background: var(--a-surface-1); }
+.key { display: flex; flex-wrap: wrap; gap: 8px 10px; font: 700 22px/30px var(--a-font-display); letter-spacing: .08em; margin: 14px 0; }
+.key span { padding: 4px 10px; border-radius: 10px; background: var(--a-bg-1); box-shadow: inset 0 0 0 1px var(--a-border-strong); }
+.tick { display: flex; gap: 10px; align-items: center; margin-top: 14px; font-size: 16px; }
+.tick input { width: 22px; height: 22px; accent-color: var(--a-pink); }
+.row { display: flex; gap: 10px; }
+.row .ghost { margin-top: 10px; }
+[hidden] { display: none !important; }

@@ -64,7 +64,7 @@ export async function handle(req, env) {
   if (path === '/v1/health') return json({ ok: true, version: VERSION, ready: ready(env) });
   if (path.startsWith('/tv/') && env.ASSETS) {
     // /tv/<code> is the same page with the code filled in from the address (pages/tv.html reads it)
-    return env.ASSETS.fetch(new Request(new URL('/tv.html', url), req));
+    return env.ASSETS.fetch(new Request(new URL('/tv', url), req));
   }
   if (!path.startsWith('/v1/')) return env.ASSETS ? env.ASSETS.fetch(req) : json({ error: 'not_found' }, 404);
   if (!ready(env)) return json({ error: 'not_ready' }, 503);

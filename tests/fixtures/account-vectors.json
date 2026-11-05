@@ -1,0 +1,22 @@
+{
+  "wk": "6597d695f037741c1b4111ba0739e485f301b9aa122872bd71221d2e29b4360d",
+  "ak": "d5e17597cdbbae3b3774fc55cdd7ed6cfa5dea126a08e9c55fafe557bce812cc",
+  "rwk": "6971488e382c23fc5b59f8a346fb76ff0cc4138a1fc9c4c43f913134c0f00d8c",
+  "rak": "dcd78f836de8b632994b15230f5ce94c1a0dd9af04b9f819fbaa909188dca0e8",
+  "rkText": "M6SC-7N75-YR3H-GA9T-9DE6",
+  "wrappedKey": "CgsMDQ4PEBESExQV.PkLGqFmJoxnB4IfcbJRIrEgc1KP9IN-W7NIPS0VP2-uiRLOodh8hm1WPhzEjLZQW",
+  "recoveryWrappedKey": "CgsMDQ4PEBESExQV.XDGHIbA17PeDHi5iUf-2gqUqFMxTZsLWK5CszlOW_Mtn2KaH7DlH-rfwlmjgvpY9",
+  "recoveryKeyWrappedByPw": "CgsMDQ4PEBESExQV.n-EnT_gqwnZgQ2Y7wArCnQ5Y8kuWaqJ6mq3i7OI",
+  "dkCheck": "CgsMDQ4PEBESExQV.Mg4GCO9svLiZDIQh9XilVcWpnpcmb5w",
+  "recordId": "wVTl7f_2SJWyCOIylFVbGp",
+  "record": {
+    "iv": "CgsMDQ4PEBESExQV",
+    "blob": "KEUfBu1n6Xgo5v1Os_ALi9nAPMXUVCdMQQ3Ev-ylKG4C8Hy-vNTOvizZ-KjHrqUi"
+  },
+  "handover": {
+    "ePub": "BBGg-oyr8_8DdoMhsHXPnw-D4uGwErVCTZ8iqCU_5S_bT19k7ufnGK21FP0biXYzzzZfKcwbH9biyjBWzNmPTfQ",
+    "iv": "CgsMDQ4PEBESExQV",
+    "ct": "taQZ4hVjIMgPs6RzE09PRht0QebrKp9mCwPqETf5FNSQq3JE7BNK-Nlf7jAnALEP"
+  },
+  "tvPub": "BICNBgCCwXbu0-d2pKxZjMhnLBd5-XTuzJsDQRyluUldSLW_xSffzlPWrHEVI30DHM_4egVwt3NQqeUD7nMFpps"
+}
