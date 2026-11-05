@@ -28,6 +28,17 @@ per copy, add-ons (Stremio protocol, direct links only).
   provider has" counting add-ons that give no copies (S10); Back from the Add-ons list landing on the avatar (SPEC 2.2).
 - **Out of scope for now:** VOD "Pause and load ahead".
 
+## airglow accounts (built, design/ui-v1/accounts-v1)
+
+The Worker is live at `https://acct.airglow-tv.workers.dev` (CI's `accounts` job deploys it on manual runs of
+`tv-redesign` and on `main`). What the owner does once: make his account on the iPhone or the PC with
+`Create an account with an invite`, typing his `AIRGLOW_OWNER_CODE` phrase in the invite field; keep the recovery key.
+Then the TV: Account › airglow account › Sign in on your phone (or the first screen). Open items: SPEC §11 (an
+`airglow://` QR, whether the three-letter step shows on his home network, the in-app scanner, Argon2id).
+
+**Never rename or delete the `acct` Worker:** its `PEPPER` goes with it, and then nobody can sign in again or recover
+(signed-in devices keep working; the data stays safe). Rotate with `PEPPER_PREV`, never by deleting.
+
 ## Next features
 
 The owner's pick list (29 Oct), in my suggested order:

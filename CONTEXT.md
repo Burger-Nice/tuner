@@ -196,6 +196,9 @@ CI 45/45 before the release:
 
 ## Things that are true but easy to miss
 
+- **airglow accounts' Worker is `acct` on the owner's Cloudflare** (`https://acct.airglow-tv.workers.dev`, made by CI
+  with its D1 database, PEPPER and TOKEN_SECRET). Renaming or deleting it loses the pepper: nobody can sign in again.
+
 - **Pushing `tv-redesign` to `main` = a release.** The release job does **not** wait for the emulator test, so run CI
   on the branch first and only merge on the owner's "release".
 - **What CI can and can't test:** the emulator test can't judge feel (sounds, intro smoothness), the real provider, or

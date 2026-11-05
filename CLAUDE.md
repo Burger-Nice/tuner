@@ -44,6 +44,16 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   - `js/screens/` home, live (the guide), nba (the NBA tab host), team, game, lib (Movies/Series: the add-on library,
     never the provider's VOD), detail, search, saved, account, first (sign-in).
   - Styles: `ui.css` (the design kit) and `app.css` (app-specific), `launch.css`, `nba*.css` (the NBA pages).
+- airglow accounts (`design/ui-v1/accounts-v1/SPEC.md`, its "As built"): `app/tv/js/account/` shared by all three apps:
+  `crypto.js` (WebCrypto: KDF with floor/ceiling, wraps, records, the TV handover, recovery keys), `acct.js` (session,
+  tokens, the per-platform secure store: TV Keystore `Secret.java`, iPhone Keychain plugin, Windows safeStorage),
+  `sync.js` (the collections over the device's own stores, §4.2a; CAS, held deletes, wipe, undo, snapshots),
+  `rules.js` (the merge rules, `tests/account-merge-test.js`), `merge.js` (the first sign-in's question), `device.js`
+  (the TV's code flow), `flow.js`. `state.js` `scoped()` puts person keys under `u:<account>:` when signed in. Screens:
+  TV `screens/first.js` (door, code, typed), `screens/merge.js`, Account's first group; iPhone and Windows
+  `acctui.js` (one file, copied). `worker/` the Cloudflare Worker + D1 (`npm test` there; `tests/mock-accounts.js` runs
+  it on :8790 for the app tests, started by serve.sh); flows: `tests/tv/account-code.js`, `tests/phone/account.js`,
+  `tests/desktop/account.js`. Host `https://acct.airglow-tv.workers.dev`; never rename the `acct` Worker (its PEPPER).
 - `app/core.js` providers (Xtream + M3U, with `catchup()` replay links), settings and storage. `app/nba.js` ESPN's public JSON. `app/titles.js` title matching.
 - `android/app/src/main/java/app/tuner/player/`: `PlayerActivity` (Media3 player and its overlays: channel list,
   game panel, options, quality, subtitles…), `TunerPlayerPlugin` (the JS bridge, updater, UI sounds), `ListPanel`,

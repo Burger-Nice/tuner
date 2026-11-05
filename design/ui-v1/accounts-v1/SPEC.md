@@ -16,6 +16,31 @@ sign-in with the code and the QR (`01`), the TV's merge-or-replace question (`02
 (`03`), the iPhone approving a TV (`04`, and `04b` from another network), the iPhone sign-in (`05`) and the recovery key at sign-up (`06`), the page the
 QR opens on a phone (`07`), and the Windows Account page with the devices (`08`).
 
+## As built (v1.2 with `REVIEW-independent-3.md` folded in)
+
+Where the build departs from the text below, and why:
+- **Refresh tokens (M1):** access tokens carry the refresh generation (`gen`); "used" = the first authenticated call
+  with the current generation, or a refresh that presents the current token. Refresh tokens are `<deviceId>.<secret>`;
+  a token older than the previous one also revokes. Clients store the new refresh token (the write finished) before
+  the new access token is used. Tests: thief refreshes first → revoked; crash before use → re-issued.
+- **No ratchets (M2):** `shield/nbaSeen` is `{ since, upTo, ids }` (`setShield` and `revealAll` set `since`; the higher
+  `since` wins outright); every sync answer carries the server's `now`; `upTo`, `since` and `forget.upTo` are clamped
+  to it + 5 min.
+- **S1:** a play made from Continue watching has the id `m:<imdb>:<s>:<e>`, a play from before accounts an id from its
+  content; union dedupes them. **S3:** held deletes keep the last plaintext locally (Undo them is local); a by-ids read
+  `POST /v1/sync/get` exists too. **S4:** `wipe` is a list of collections; deletes in other collections stay guarded.
+  **S5:** the invite field is sent as typed; owner-code tries are capped at 20 an hour across all addresses.
+  **S8:** a `plays` wipe drops the server's previous copies of those parts. **The cap:** previous versions count
+  (`prev_bytes`) and the oldest go first. **04b:** `airglow can't tell this iPhone is on the TV's network, so the
+  letters make sure it's your TV.` Scopes are deny-by-default in the router.
+- **Recovery** needs the recovery wrap before the new password's wraps can be made, so it is two calls:
+  `POST /v1/recover/start { email, recoveryAuthKey } → { recoveryWrappedKey, kdf }`, then `POST /v1/recover`.
+- **Record ids** are all HMACs of a natural key (`prov|<pid>`, `fav|<pid>|<key>`, `plays|<month>:<part>`, …); the
+  plaintext is `{ n, at, v }`. The IMDb notes travel in 16 parts.
+- **The host** is `https://acct.airglow-tv.workers.dev` (`airglow` was taken; CI registered `airglow-tv` once).
+- **iPhone:** the Keychain is the app's own small plugin (`AirglowSecret`, in `SceneDelegate.swift`); the Wi-Fi check is
+  `@capacitor/network`. A PC counts as on a fixed line for the same-network tick.
+
 ## v1.2 changes (an answer to `REVIEW-independent-2.md`; the build starts from this)
 
 Spec text only, plus one new mock (`04b`) and four words on screens. The six must-fixes:
@@ -940,7 +965,7 @@ planned path (`PEPPER_PREV`, §5.4), not a delete.
 
 1. In the GitHub repository's settings › Secrets and variables › Actions, add three secrets: `CLOUDFLARE_API_TOKEN` (a
    token with Workers Scripts Edit, D1 Edit, Account Settings Read), `CLOUDFLARE_ACCOUNT_ID`, and `AIRGLOW_OWNER_CODE`:
-   a phrase he makes up (three or four words, say `grizzlies at portland tonight`; it is compared after NFKC and trim,
+   a phrase he makes up (three or four words, four random words, or `openssl rand -base64 12`, never anything about his team; it is compared after NFKC and trim,
    case-sensitive). His email is not a secret (it is on every commit), so it is not the key to the first account; the
    phrase is, and it lives only there and in the Worker.
 2. Run the workflow (or push `worker/**`). CI creates the database, deploys, makes the pepper and the token secret, puts
