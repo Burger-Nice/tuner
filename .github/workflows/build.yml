@@ -140,6 +140,23 @@ jobs:
           [ -n "$id" ] || { echo "::error::no airglow database"; exit 1; }
           sed -i "s/^database_id = .*/database_id = \"$id\"/" wrangler.toml
           npx wrangler d1 migrations apply airglow --remote
+      # The account's workers.dev subdomain (the Worker answers at acct.<subdomain>.workers.dev). A brand-new account
+      # has none: it is registered once, as "airglow" (or "airglow-tv" when that is taken). Never changed afterwards.
+      - name: The workers.dev address
+        if: env.DEPLOY == 'true'
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
+          sub=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api" | jq -r '.result.subdomain // empty')
+          if [ -z "$sub" ]; then
+            for want in airglow airglow-tv airglow-app; do
+              r=$(curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' --data "{\"subdomain\":\"$want\"}" "$api")
+              if [ "$(echo "$r" | jq -r '.success')" = "true" ]; then sub=$want; echo "::notice title=workers.dev::registered the subdomain $sub"; break; fi
+              echo "$r" | jq -c '.errors' || true
+            done
+          fi
+          [ -n "$sub" ] || { echo "::error::no workers.dev subdomain, and registering one failed (the token needs Workers Scripts Edit)"; exit 1; }
+          echo "HOST=https://acct.$sub.workers.dev" >> "$GITHUB_ENV"
       - name: Deploy
         id: deploy
         if: env.DEPLOY == 'true'
@@ -154,18 +171,11 @@ jobs:
         if: env.DEPLOY == 'true'
         env:
           AIRGLOW_OWNER_CODE: ${{ secrets.AIRGLOW_OWNER_CODE }}
-          OUT: ${{ steps.deploy.outputs.command-output }}
-          URL: ${{ steps.deploy.outputs.deployment-url }}
-        run: |
-          set -euo pipefail
-          HOST="${URL:-}"; [ -n "$HOST" ] || HOST=$(grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' <<< "$OUT" | head -1)
-          [ -n "$HOST" ] || { echo "::error::no workers.dev address in the deploy's output"; exit 1; }
-          echo "HOST=$HOST" >> "$GITHUB_ENV"
-          HOST="$HOST" bash scripts/secrets.sh
+        run: bash scripts/secrets.sh
       - name: Health
         if: env.DEPLOY == 'true'
         run: |
-          for i in $(seq 1 12); do
+          for i in $(seq 1 30); do
             if curl -fsS "$HOST/v1/health" | tee health.json | jq -e '.ready == true' > /dev/null; then echo "::notice title=airglow accounts::$HOST answers ready"; exit 0; fi
             sleep 10
           done

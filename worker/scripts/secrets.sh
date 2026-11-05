@@ -10,9 +10,9 @@ list=$($WR secret list --format json)
 echo "$list" | jq -e 'type == "array"' > /dev/null || { echo "secret list did not answer a JSON list: touching nothing"; exit 1; }
 have=$(echo "$list" | jq -r '.[].name')
 ready=""
-for i in 1 2 3 4 5 6 7 8; do
+for i in $(seq 1 18); do
   if out=$(curl -fsS --max-time 10 "$HOST/v1/health"); then ready=$(echo "$out" | jq -r '.ready'); break; fi
-  sleep 10   # (a brand-new workers.dev host can take a minute to answer)
+  [ -n "${FAST:-}" ] && break; sleep 10   # (a brand-new workers.dev host can take minutes to answer)
 done
 [ "$ready" = "true" ] || [ "$ready" = "false" ] || { echo "the Worker's health didn't answer: touching nothing"; exit 1; }
 for name in PEPPER TOKEN_SECRET; do

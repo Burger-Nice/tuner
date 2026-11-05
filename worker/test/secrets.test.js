@@ -19,7 +19,7 @@ function fake(listOut, listCode = 0) {
 const health = (ready) => new Promise((ok) => { const s = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'application/json' }); r.end(JSON.stringify({ ok: true, version: '1', ready })); }); s.listen(0, '127.0.0.1', () => ok(s)); });
 // (async: the health server answers from this same process)
 const run = (w, host, owner = '') => new Promise((ok) => {
-  const p = spawn('bash', [SCRIPT], { env: { ...process.env, WRANGLER: w.cmd, HOST: host, AIRGLOW_OWNER_CODE: owner, NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1' } });
+  const p = spawn('bash', [SCRIPT], { env: { ...process.env, WRANGLER: w.cmd, HOST: host, FAST: '1', AIRGLOW_OWNER_CODE: owner, NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1' } });
   let stdout = '', stderr = ''; p.stdout.on('data', (d) => (stdout += d)); p.stderr.on('data', (d) => (stderr += d));
   p.on('close', (status) => ok({ status, stdout, stderr }));
 });
