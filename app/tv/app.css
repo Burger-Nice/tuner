@@ -229,3 +229,52 @@ input.field[readonly]{caret-color:transparent}
 /* the channel number being typed in the guide: top right, over the clock, like a TV's own */
 #chnum{position:fixed;top:27px;right:48px;z-index:60;min-width:64px;height:44px;padding:0 16px;border-radius:12px;background:var(--a-bg-1);border:1px solid var(--a-border);color:var(--a-text-1);font:700 26px/44px var(--a-font-display,var(--a-font-text));text-align:center;font-variant-numeric:tabular-nums}
 #chnum[hidden]{display:none}
+
+/* ---------- airglow accounts (design/ui-v1/accounts-v1/accounts.css: shared and TV) ---------- */
+.ag-key { display: inline-flex; flex-wrap: wrap; gap: 8px 10px; font: 700 26px/32px var(--a-font-display); color: var(--a-text-1); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.ag-key span { display: inline-block; padding: 4px 10px; border-radius: 10px; background: var(--a-bg-1); box-shadow: inset 0 0 0 1px var(--a-border-strong); }
+.ag-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--a-ok); flex: none; }
+.ag-tick svg { width: 11px; height: 11px; fill: none; stroke: var(--a-ink); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+.ag-gives { display: flex; flex-wrap: wrap; gap: 6px; }
+.ag-gives span { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--a-surface-2); font: 650 13px/1 var(--a-font-text); color: var(--a-text-1); white-space: nowrap; }
+.ag-gives span svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ag-spin { width: 18px; height: 18px; color: var(--a-pink); flex: none; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.ag-spin.lg { width: 26px; height: 26px; }
+
+/* ---------- TV ---------- */
+.ag-code { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; }
+.ag-code span { width: 50px; height: 60px; border-radius: 12px; background: var(--a-surface-2); display: grid; place-items: center; font: 700 34px/1 var(--a-font-display); color: var(--a-text-1); }
+.ag-code i { width: 10px; height: 4px; border-radius: 2px; background: var(--a-border-strong); margin: 0 2px; }
+.ag-qrcap { margin-top: 10px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); }
+.ag-qrcap b { display: block; color: var(--a-text-1); font-weight: 650; }
+.ag-wait { position: absolute; left: 48px; top: 420px; width: 864px; height: 64px; padding: 0 20px; gap: 14px; display: flex; align-items: center; box-sizing: border-box; }
+.ag-wait b { display: block; font: 650 16px/20px var(--a-font-text); }
+.ag-hint { position: absolute; left: 48px; right: 48px; top: 492px; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); display: flex; gap: 22px; }
+.ag-hint .kbd { margin-right: 6px; }
+.ag-pane { position: absolute; left: 260px; top: 84px; width: 658px; height: 435px; padding: 6px 12px; box-sizing: border-box; }
+.arow .ag-dev { display: flex; align-items: center; gap: 8px; }
+.arow .ag-dev .ic { width: 18px; height: 18px; color: var(--a-text-2); }
+.ag-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 14px; }
+.ag-two > div { border-radius: 12px; background: var(--a-surface-1); border: 1px solid var(--a-border); padding: 10px 14px 12px; }
+.ag-two .h { font: 650 14px/18px var(--a-font-text); letter-spacing: .08em; text-transform: uppercase; color: var(--a-text-3); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.ag-two .h .ic { width: 16px; height: 16px; }
+.ag-two .l { font: 500 15px/22px var(--a-font-text); color: var(--a-text-2); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-two .l b { color: var(--a-text-1); font-weight: 650; }
+.ag-two .l small { font: 500 13px/18px var(--a-font-text); color: var(--a-text-3); margin-left: 6px; }
+.menu.ag-merge { left: 50%; top: 50%; width: 640px; transform: translate(-50%, -50%); padding: 20px 18px 14px; }
+.menu.ag-merge h3 { padding: 0 6px 4px; }
+.menu.ag-merge .t-body { padding: 0 6px; }
+.ag-merge .ad-lr { height: 66px; }
+.ag-merge .ad-lr .a { font: 650 17px/22px var(--a-font-text); }
+.ag-merge .ad-lr .b { white-space: normal; }
+.ag-merge .ad-lr .ico { width: 36px; height: 36px; border-radius: 10px; background: var(--a-surface-2); display: grid; place-items: center; color: var(--a-text-1); }
+.ag-merge .ad-lr .ico svg { width: 20px; height: 20px; }
+.ag-merge .ad-lr.f-ring .ico { background: var(--a-grad); color: var(--a-ink); }
+.ag-merge .foot { padding: 10px 6px 0; font: 500 14px/18px var(--a-font-text); color: var(--a-text-3); }
+.ag-rec { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 5px; background: var(--a-pink-soft); color: var(--a-pink-text); font: 700 11px/1 var(--a-font-text); letter-spacing: .08em; text-transform: uppercase; margin-left: 8px; vertical-align: 2px; }
+.ag-blur { position: absolute; inset: 0; background: var(--a-scrim); z-index: 20; }
+.ag-ghostrows { position: absolute; left: 48px; right: 48px; top: 96px; }
+.ag-ghostrows .vrow { border-bottom: 1px solid var(--a-border); }
+
+.ag-qr { width: 216px; height: 216px; padding: 8px; border-radius: 12px; background: #fff; display: inline-block; }
+.ag-qr svg { width: 200px; height: 200px; display: block; }

@@ -11,11 +11,61 @@ import * as R from '../rows.js';
 import { go, current } from '../router.js';
 import { focus } from '../focus.js';
 import { toast } from '../ui.js';
+import * as acct from '../account/acct.js';
+import { startTvSignIn } from '../account/device.js';
+import { afterSignIn, accountProvider, accountLine } from '../account/flow.js';
+import { askMerge } from './merge.js';
+import { qrSvg } from '../qr.js';
 
-let el, step = 'welcome', err = '', errAt = '', add = false;
+// Steps: 'door' (Sign in on your phone · Use airglow without an account), 'welcome' (the provider's choices), 'type',
+// 'm3u', 'verify', 'choices'; and for an airglow account (design/ui-v1/accounts-v1, 01): 'code', 'acctType', 'acctVerify'.
+let el, step = 'door', err = '', errAt = '', add = false;
+let codeState = null, stopCode = null, acctBusy = false;
 let seq = 0, tried = null, connected = false;   // the sign-in in flight (Back while connecting cancels it)
 const TEAMS = window.NBA.TEAMS;
 const lockup = (h) => `<img src="tv/brand/assets/lockup.svg" height="${h}" alt="airglow">`;
+
+// The first screen's two doors (accounts SPEC 2.1): the account first, today's path second
+function door() {
+  const line = acct.signedOutLine();
+  return `<div class="center-col" style="top:96px">${lockup(64)}
+    <div class="t-head" style="margin-top:34px">Welcome to airglow</div>
+    ${line || err ? `<div class="t-body" style="margin-top:10px;color:var(--a-text-1);display:flex;align-items:center;gap:6px">${ic('info', 'sm')}<span>${esc(line || err)}</span></div>` : ''}
+    <div class="row-flex" data-row style="gap:14px;margin-top:34px"><span class="btn fx" tabindex="-1" data-act="phone">${ic('phone')}Sign in on your phone</span><span class="btn2 fx" tabindex="-1" data-act="noacct">Use airglow without an account</span></div>
+    <div class="t-body" style="margin-top:14px">Your provider, add-ons and history come with it</div>
+  </div>`;
+}
+const LETTER = (c) => `<span>${esc(c)}</span>`;
+// 01: the code, the QR, the three steps, the waiting card (SPEC 3.1)
+function codeScreen() {
+  const c = codeState, h = esc(c?.host || acct.host().replace(/^https?:\/\//, ''));
+  const code = c?.code || '';
+  const letters = code ? `${[...code.slice(0, 3)].map(LETTER).join('')}<i></i>${[...code.slice(3)].map(LETTER).join('')}` : '<span>·</span><span>·</span><span>·</span><i></i><span>·</span><span>·</span><span>·</span>';
+  return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
+    <div class="abs t-head" style="left:48px;top:84px">Sign in on your phone</div>
+    <div class="abs" style="left:48px;top:132px;width:540px"><ol class="ad-steps"><li>Scan the code with your phone's camera, or open <b>${h}/tv</b> and type the letters below.</li><li>Sign in to your airglow account there. No account yet? Make one at <b>${h}/signup</b> with your invite.</li><li>Tap <b>Sign in the TV</b>. This screen moves on by itself.</li></ol>
+      <div class="ag-code" id="agCode">${letters}</div>
+      <div class="t-cap" style="margin-top:10px;display:flex;align-items:center;gap:6px">${c?.expired ? `${ic('info', 'sm')}<span>The code ran out · here is a new one</span>` : c?.error ? `${ic('info', 'sm')}<span>${esc(c.error)}</span>` : 'The code works for 10 minutes'}</div></div>
+    <div class="abs" style="left:664px;top:84px;width:248px;text-align:center">${c?.link ? `<span class="ag-qr">${qrSvg(c.link, 200)}</span>` : '<span class="ag-qr"></span>'}<div class="ag-qrcap"><b>${h}/tv/${esc(code)}</b>The code works for 10 minutes</div></div>
+    <div class="card ag-wait" data-row><svg class="ag-spin lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/></svg><div class="grow" style="min-width:0"><b>Waiting for your phone</b><div class="t-cap">Your provider login, Stremio add-ons, TMDB key, Saved and history come to this TV by themselves, locked for it. Nothing else to sign in to.</div></div><span class="btn2 sm fx" tabindex="-1" data-act="acctType">Type email and password</span></div>
+    <div class="ag-hint"><span>Back returns to the choices</span></div>`;
+}
+// The typed fallback: today's field screen with Email and Password
+function acctTypeScreen() {
+  return `<div class="abs" style="left:48px;top:27px">${lockup(40)}</div>
+    <div class="abs t-head" style="left:48px;top:96px">Sign in to airglow</div>
+    <div class="abs t-body" style="left:48px;top:132px;width:600px">Your provider, add-ons and history come with it. Easier from your phone: Back, then Sign in on your phone.</div>
+    <div class="abs" data-col style="left:48px;top:176px;width:520px">${fld('fEmail', 'Email', 'you@example.com', 'email')}${fld('fAPass', 'Password', 'Password', 'password')}${errLine('pass')}</div>
+    <div class="abs row-flex" data-row style="left:48px;top:${err ? 400 : 380}px;gap:14px"><span class="btn fx" tabindex="-1" data-act="acctGo" style="transform-origin:0 50%">${acctBusy ? 'Signing in…' : 'Sign in'}</span><span class="t-cap">Back returns to the code</span></div>`;
+}
+function acctVerify(st) {
+  const spin = '<svg class="ic" viewBox="0 0 24 24" style="width:28px;height:28px;color:var(--a-pink)"><path d="M12 3a9 9 0 1 0 9 9"/></svg>';
+  const r = (done, t, v) => `<div class="vrow">${done ? `<span class="okdot">${ic('check')}</span>` : spin}<span class="grow">${t}</span><span class="t-cap">${esc(v)}</span></div>`;
+  const m = acct.me();
+  return `<div class="center-col" style="top:96px"><div class="t-head">${esc(st.name ? `Signed in as ${st.name}` : 'Signing in')}</div>
+    <div class="card" style="width:560px;margin-top:24px;padding:12px 20px">${r(true, 'Account', m?.email || '')}${r(st.synced, st.synced ? 'Your account, unlocked on this TV' : 'Putting them together', st.synced ? accountLine() : '')}${r(st.ch, 'Channels', st.ch ? st.ch.toLocaleString() : st.synced ? 'loading' : '')}</div>
+    <div class="t-body" style="margin-top:18px">${esc(st.note || 'Home opens as soon as channels are in.')}</div></div>`;
+}
 
 function welcome() {
   const saved = S.accounts;
@@ -72,10 +122,12 @@ function choices() {
 }
 
 function draw(state) {
-  const html = step === 'type' ? typeIt() : step === 'm3u' ? m3u() : step === 'verify' ? verifying(state || {}) : step === 'choices' ? choices() : welcome();
+  const html = step === 'type' ? typeIt() : step === 'm3u' ? m3u() : step === 'verify' ? verifying(state || {}) : step === 'choices' ? choices()
+    : step === 'door' ? door() : step === 'code' ? codeScreen() : step === 'acctType' ? acctTypeScreen() : step === 'acctVerify' ? acctVerify(state || {}) : welcome();
   el.innerHTML = html;
   el._html = html;
-  const entry = step === 'type' ? '#fServer' : step === 'm3u' ? '#fUrl' : step === 'choices' ? '[data-act="done"]' : step === 'verify' ? null : '.btn';
+  const entry = step === 'type' ? '#fServer' : step === 'm3u' ? '#fUrl' : step === 'choices' ? '[data-act="done"]' : step === 'verify' || step === 'acctVerify' ? null
+    : step === 'code' ? '[data-act="acctType"]' : step === 'acctType' ? (err ? '#fAPass' : '#fEmail') : '.btn';
   if (entry) focus(el.querySelector(entry));
   else document.activeElement?.blur();   // the progress screen takes no focus, so a stray OK can't cancel it
 }
@@ -141,6 +193,43 @@ function splitLink(input) {
   if (!/username=/.test(v)) return;
   try { const p = window.Core.parseLogin(v); input.value = p.server; if (p.username) el.querySelector('#fUser').value = p.username; if (p.password) el.querySelector('#fPass').value = p.password; } catch {}
 }
+// ---------- the airglow account (design/ui-v1/accounts-v1 2.3, 3.1) ----------
+function showCode() {
+  step = 'code'; err = ''; codeState = null; draw();
+  stopCode?.();
+  stopCode = startTvSignIn({
+    onCode: (c) => { const exp = codeState?.renew; codeState = { ...c, expired: !!exp }; if (step === 'code') redrawCode(); },
+    onExpired: () => { codeState = { ...(codeState || {}), renew: true }; },
+    onDenied: () => { stopCode = null; step = 'door'; err = 'The phone said Not now'; draw(); },
+    onError: (e) => { if (step !== 'code') return; codeState = { ...(codeState || {}), error: e.code === 'offline' || e.code === 'server' || e.code === 'not_ready' ? acct.WORDS.offline : e.message }; redrawCode(); },
+    onDone: () => { stopCode = null; accountIn(); },
+  });
+}
+// (only the code and the QR change: focus stays on the button)
+function redrawCode() { const f = document.activeElement?.dataset?.act; draw(); if (f) focus(el.querySelector(`[data-act="${f}"]`)); }
+function stopCodeFlow() { stopCode?.(); stopCode = null; codeState = null; }
+async function signInTypedAcct() {
+  if (acctBusy) return;
+  const email = val('fEmail'), pw = el.querySelector('#fAPass')?.value || '';   // (passwords are never trimmed)
+  if (!email || !pw) { err = 'Enter the email and the password.'; errAt = 'pass'; draw(); return; }
+  acctBusy = true; err = ''; draw(); el.querySelector('#fEmail').value = email;
+  try { stopCodeFlow(); await acct.signIn({ email, password: pw }); acctBusy = false; accountIn(); }
+  catch (e) { acctBusy = false; err = e.message; errAt = 'pass'; draw(); el.querySelector('#fEmail').value = email; }
+}
+// Signed in: the merge question if this TV has things, the account's records, then its provider and Home
+async function accountIn() {
+  const st = { name: acct.displayName() };
+  step = 'acctVerify'; draw(st);
+  try {
+    await afterSignIn((sum) => askMerge(sum));
+  } catch (e) { st.note = e.code === 'offline' ? 'Your account is signed in. It syncs when airglow\'s server answers.' : acct.WORDS.server; }
+  st.synced = true; st.name = acct.displayName(); draw(st);
+  if (S.acc) return go('home');
+  const p = accountProvider();
+  if (!p) { step = 'welcome'; err = 'Your account has no provider yet. Add it here, or on your phone.'; draw(); return; }
+  run({ name: p.name, saved: p });
+}
+
 let opening = false;
 function openField(f) {
   opening = true;
@@ -179,6 +268,10 @@ export default {
       if (b.dataset.acc != null) { const a = S.accounts[+b.dataset.acc]; run({ name: a.name, saved: a }); return; }
       const a = b.dataset.act;
       if (a === 'picks') { import('./home.js').then((H) => H.pickSheet(() => { draw(); focus(el.querySelector('[data-act="done"]')); })); return; }   // (home-final SPEC 10: skippable)
+      if (a === 'phone') { showCode(); return; }
+      if (a === 'noacct') { acct.clearSignedOutLine(); step = 'welcome'; err = ''; draw(); return; }
+      if (a === 'acctType') { step = 'acctType'; err = ''; draw(); return; }
+      if (a === 'acctGo') { signInTypedAcct(); return; }
       if (a === 'type') { step = 'type'; err = ''; draw(); }
       else if (a === 'm3u') { step = 'm3u'; err = ''; draw(); }
       else if (a === 'signin') signInTyped();
@@ -189,17 +282,23 @@ export default {
     root.addEventListener('keydown', (e) => {
       const f = e.target.closest?.('input.field');
       if (!f || f.readOnly) return;
-      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); const order = ['fServer', 'fUser', 'fPass']; const i = order.indexOf(f.id); closeField(f, i >= 0 && i < 2 ? el.querySelector('#' + order[i + 1]) : el.querySelector('.btn')); }
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); const order = f.id.startsWith('fE') || f.id === 'fAPass' ? ['fEmail', 'fAPass'] : ['fServer', 'fUser', 'fPass']; const i = order.indexOf(f.id); closeField(f, i >= 0 && i < order.length - 1 ? el.querySelector('#' + order[i + 1]) : el.querySelector('.btn')); }
       if (e.key === 'Escape' || e.keyCode === 4) { e.preventDefault(); e.stopPropagation(); closeField(f); }
     }, true);
     root.addEventListener('focusout', (e) => { const f = e.target.closest?.('input.field'); if (f && !f.readOnly && !opening) { f.readOnly = true; if (f.id === 'fServer') splitLink(f); } });
   },
   enter(root, params) {
     add = !!params.add; err = params.error || '';
-    step = 'welcome';
+    // (adding a provider, or signed in to an account with none yet: the provider's choices; otherwise the two doors)
+    step = add || acct.me() || params.provider ? 'welcome' : 'door';
+    if (params.code) { showCode(); return; }
     draw();
   },
   back() {
+    if (step === 'code') { stopCodeFlow(); step = 'door'; err = ''; draw(); return true; }
+    if (step === 'acctType') { err = ''; showCode(); return true; }
+    if (step === 'acctVerify') return true;
+    if (step === 'welcome' && !add && !acct.me() && !S.acc) { step = 'door'; err = ''; draw(); return true; }
     if (step === 'type' || step === 'm3u') { step = 'welcome'; err = ''; draw(); return true; }
     if (step === 'choices') { saveSettings({ setupDone: true }); go('home'); return true; }
     if (step === 'welcome' && add && S.acc) { go('account'); return true; }

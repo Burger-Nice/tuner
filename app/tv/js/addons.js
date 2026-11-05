@@ -64,10 +64,12 @@ let list = null, listFor = null;
 const LKEY = () => scoped('addons');
 export function addons() {
   if (!S.acc) return [];
-  if (listFor !== S.acc.id) { list = store.get(LKEY(), []); listFor = S.acc.id; }
+  if (listFor !== LKEY()) { list = store.get(LKEY(), []); listFor = LKEY(); }
   return list;
 }
 function saveList() { if (S.acc) store.set(LKEY(), list); emit('addons'); }
+on('acct-data', () => { list = null; listFor = null; emit('addons'); });   // (a sync changed the list)
+on('acct', () => { list = null; listFor = null; });
 on('session', () => {
   list = null; listFor = null; streamCache.clear();
   // keeping in step with Stremio: at every start (a little after, so the start-up stays quick)

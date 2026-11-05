@@ -5,8 +5,9 @@
 
   const store = {
     get(k, d) { try { const v = localStorage.getItem('tuner.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem('tuner.' + k, JSON.stringify(v)); return true; } catch { return false; } },
-    del(k) { try { localStorage.removeItem('tuner.' + k); } catch {} },
+    set(k, v) { try { localStorage.setItem('tuner.' + k, JSON.stringify(v)); } catch { return false; } store.onChange?.(k); return true; },
+    del(k) { try { localStorage.removeItem('tuner.' + k); } catch {} store.onChange?.(k); },
+    onChange: null,   // (accounts: account/sync.js notes when a synced key changed)
   };
 
   // Channel, movie and series lists can be tens of thousands of entries, too big for localStorage.
@@ -28,16 +29,25 @@
         t.onerror = t.onabort = () => reject(t.error);
       });
     };
-    return {
+    const api = {
       get: (k) => run('readonly', (st) => st.get(k)).catch(() => null),
-      set: (k, v) => run('readwrite', (st) => st.put(v, k)).catch(() => {}),
+      set: (k, v) => run('readwrite', (st) => st.put(v, k)).then(() => api.onChange?.(k)).catch(() => {}),
+      onChange: null,
       clear: () => run('readwrite', (st) => st.clear()).catch(() => {}),
     };
+    return api;
   })();
 
   const DEFAULTS = { liveFormat: 'hls', ua: '', scale: 'standard', player: 'mpv', nbaTeam: 'MEM' };
   const settings = () => ({ ...DEFAULTS, ...store.get('settings', {}) });
-  const saveSettings = (patch) => { const s = { ...settings(), ...patch }; store.set('settings', s); return s; };
+  // Each changed key gets its time (the account's shared settings merge key by key, the newer wins)
+  const saveSettings = (patch) => {
+    const was = settings(), s = { ...was, ...patch }, at = store.get('settingsAt', {}), t = Date.now();
+    for (const k of Object.keys(patch || {})) if (JSON.stringify(was[k]) !== JSON.stringify(s[k])) at[k] = t;
+    store.set('settingsAt', at); store.set('settings', s); return s;
+  };
+  // airglow accounts (design/ui-v1/accounts-v1): the Worker. `store 'acctHost'` overrides it (the tests' local Worker).
+  const ACCOUNTS_HOST = 'https://acct.airglow.workers.dev';
 
   async function fetchT(url, ms = 20000) {
     const ctl = new AbortController();
@@ -399,5 +409,5 @@
     };
   }
 
-  global.Core = { store, cache, settings, saveSettings, parseLogin, parseM3U, xtream, m3u, fillCatchup, rawStamp, panelStamp };
+  global.Core = { store, cache, settings, saveSettings, ACCOUNTS_HOST, parseLogin, parseM3U, xtream, m3u, fillCatchup, rawStamp, panelStamp };
 })(window);

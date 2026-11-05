@@ -17,6 +17,9 @@ import { forgetReplays, keptWords, NOT_KEPT } from '../catchup.js';
 import { addonsPane, addonsAct, addonsHold, addonsEnter, addonsEntry, tmdbKeyScreen, tmdbTypeKey, phoneKeyReady } from './addons.js';
 import * as TMDB from '../tmdb.js';
 import * as R from '../rows.js';
+import * as acct from '../account/acct.js';
+import * as Y from '../account/sync.js';
+import { localOnly } from '../account/flow.js';
 // When Home's rows were worked out and from what (Account > Home rows)
 function rowsLine() {
   const pg = R.pageNow();
@@ -34,12 +37,12 @@ function tmdbLine() {
   return st.ok ? 'TMDB: working · Home rows not worked out yet' : 'TMDB: set · Home asks it on its next visit';
 }
 
-const GROUPS = [['provider', 'Provider'], ['addons', 'Add-ons'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
+const GROUPS = [['acct', 'airglow account'], ['provider', 'Provider'], ['addons', 'Add-ons'], ['playback', 'Playback'], ['sound', 'Sound'], ['nba', 'NBA'], ['languages', 'Languages'], ['home', 'Home rows'], ['updates', 'Updates'], ['about', 'About']];
 const TEAMS = window.NBA.TEAMS;
 // Owner decision 13.1 (catch-up): which source Watch from tip-off plays
 const REPLAYS = { channel: ['Channel replay first', 'Quarter skips and the as-aired score'], video: ['Full-game video first', 'From Movies, when there is one'], ask: ['Ask each time', 'Lists the sources'] };
 const LANGS = ['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Icelandic', 'Polish', 'Turkish', 'Arabic', 'Hindi'];
-let el, group = 'provider', scroll = 0;
+let el, group = acct.me() ? 'acct' : 'provider', scroll = 0;
 
 const toggle = (on) => `<span class="onoff">${on ? 'On' : 'Off'}</span><span class="tg${on ? ' on' : ''}"><i></i></span>`;
 const row = (act, t, v, sub = '', dis = false) => `<div class="arow fx${dis ? ' dis' : ''}" tabindex="-1" data-act="${act}"><span class="grow" style="min-width:0">${t}${sub ? `<div class="t-cap" style="margin-top:0">${sub}</div>` : ''}</span><span class="av">${v}</span></div>`;
@@ -47,8 +50,65 @@ const more = (v) => `${esc(v)} ${ic('chevR', 'sm')}`;
 const short = (t, n) => (t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t);
 const upd = () => native?.updates.status() || { state: 'idle' };
 
+// ---------- airglow account (design/ui-v1/accounts-v1 3.1, mock 03) ----------
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : new Date(t).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' }); };
+const WHAT = 'Provider logins, Stremio add-ons, TMDB key, Saved, history, Home rows, your settings';
+let devCount = null;
+function acctBody() {
+  const m = acct.me();
+  if (!m) return `<div class="t-title" style="margin-bottom:10px">airglow account</div>
+    ${row('acctin', 'Sign in on your phone', more(''), 'Your provider, add-ons, Saved and history on every screen you own')}`;
+  const y = Y.syncStatus();
+  const syncT = y.state === 'syncing' ? 'Syncing…' : y.state === 'offline' ? `Last synced ${y.lastSync ? ago(y.lastSync) : 'never'} · offline` : y.state === 'error' ? 'airglow\'s server didn\'t answer · trying again in 2 min' : y.lastSync ? `Synced ${ago(y.lastSync)}` : 'Not synced yet';
+  return `<div class="t-title" style="margin-bottom:10px">airglow account</div>
+    ${row('acctdevices', esc(acct.displayName() || m.email), `<span class="pill-ok">${ic('check', 'sm')}Signed in</span>`, esc(m.email))}
+    ${row('acctsync', esc(syncT), more(y.state === 'offline' ? '' : 'Sync now'), WHAT, y.state === 'offline')}
+    ${y.held ? row('acctheld', 'Some changes weren\'t synced', more(`${y.held} deletions wait for a confirm`), 'Sync them, or Undo them') : ''}
+    ${row('acctdevices', 'Devices', more(devCount == null ? '' : String(devCount)), esc(acct.deviceInfo().name + ' · this TV'))}
+    ${localOnly().map((a) => row('info', esc(a.name), '', `${esc(a.name)} stays on the TV it was pasted on`)).join('')}
+    ${row('acctwhat', 'What syncs', more('See'), 'Not this TV\'s picture, sound or player settings: those stay here')}
+    ${row('info', 'Recovery key', '', 'On your phone or PC', true)}
+    ${row('acctout', 'Sign out of this TV', ic('chevR', 'sm'), 'Your provider, add-ons and history leave this TV. Your account keeps them')}
+    ${row('acctall', 'Sign out everywhere', ic('chevR', 'sm'), 'Every device asks for your password or your phone again')}`;
+}
+function devicesSheet() {
+  const ov = openOverlay(`<div class="sheet"><h3>Devices</h3><div class="sheet-body"><div class="inner" data-col><div class="lr fx" tabindex="-1"><span class="grow">Asking airglow's server…</span></div></div></div></div>`, {
+    onClick: (id, t) => {
+      const d = list.find((x) => x.id === id); if (!d || d.this) return;
+      ov.close();
+      confirmMenu({ title: `Sign out ${d.name}?`, text: 'Your account\'s things leave it the next time it is online. It keeps working without an account.', yes: 'Sign out', onYes: () => acct.removeDevice(d.id).then(() => toast(`${d.name} is signed out`)).catch((e) => toast(e.message, 4000)) });
+      void t;
+    },
+  });
+  let list = [];
+  const how = (d) => `${d.how === 'phone' ? `with ${d.approvedBy || 'a phone'}` : d.how === 'recovery' ? 'with the recovery key' : 'with the password'}${d.approverSignedOut ? ' · approved by a device that was signed out' : ''}`;
+  acct.devices().then((r) => {
+    list = r.devices; devCount = list.length;
+    if (!ov.el.isConnected) return;
+    ov.el.querySelector('.inner').innerHTML = list.map((d) => `<div class="lr fx" tabindex="-1" data-act="${esc(d.id)}" style="height:auto;min-height:56px"><span class="grow" style="white-space:normal;line-height:20px;padding:6px 0"><b>${esc(d.name)}</b>${d.this ? ' · this TV' : ''}<br><span class="t-cap">Signed in ${new Date(d.createdAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} ${esc(how(d))} · ${d.active ? 'Active now' : `Last seen ${ago(d.lastSeen)}`}</span></span>${d.this ? '' : '<small>Sign out</small>'}</div>`).join('')
+      + '<div class="t-cap" style="padding:8px">Signing a device out removes your account\'s things from it the next time it is online; the device keeps working without an account until then.</div>';
+    focus(ov.el.querySelector('.lr')); scrollList(ov.el);
+  }).catch((e) => { if (ov.el.isConnected) ov.el.querySelector('.inner').innerHTML = `<div class="lr fx" tabindex="-1"><span class="grow">${esc(e.message)}</span></div>`; focus(ov.el.querySelector('.lr')); });
+}
+function whatSheet() {
+  const L = (t) => `<div class="lr fx" tabindex="-1" style="height:auto;min-height:40px"><span class="grow" style="white-space:normal;line-height:20px;padding:4px 0">${t}</span></div>`;
+  const ov = openOverlay(`<div class="sheet"><h3>What syncs</h3><div class="sheet-body"><div class="inner" data-col>
+    <div class="t-label" style="margin:4px 8px">Comes with your account, locked</div>
+    ${['Provider logins', 'Stremio add-ons and the Stremio link', 'TMDB key', 'Saved and the order', 'Continue watching and history', 'Home rows: what you picked, hid and said Not interested to', 'Spoiler shield: the games you have seen', 'Your team, languages, subtitles and replays settings'].map(L).join('')}
+    <div class="t-label" style="margin:12px 8px 4px">Stays on this TV</div>
+    ${['Picture, sound and player settings', 'Up arrow in the player, stream format, user agent', 'Score delays per channel', 'The guide and the channel lists (fetched again)'].map(L).join('')}
+  </div></div></div>`, {});
+  focus(ov.el.querySelector('.lr')); scrollList(ov.el);
+}
+function heldMenu() {
+  radioMenu({ title: 'Deletions waiting', value: null, style: 'right:48px;top:120px;width:440px', rows: [{ v: 'sync', l: 'Sync them', sub: 'Delete them everywhere' }, { v: 'undo', l: 'Undo them', sub: 'Bring them back here' }],
+    extra: '<div class="t-cap" style="padding:8px 8px 2px">One change would have removed most of a list on every device, so airglow held it back.</div>',
+    onPick: (v) => { (v === 'sync' ? Y.syncHeld() : Y.undoHeld()).then(() => { toast(v === 'sync' ? 'Synced' : 'Undone'); draw(); }); } });
+}
+
 function body() {
   const s = settings();
+  if (group === 'acct') return acctBody();
   if (group === 'provider') {
     const f = accountFacts();
     const name = S.acc ? (S.acc.type === 'xtream' ? host(S.acc.server) : S.acc.name) : '';
@@ -62,7 +122,7 @@ function body() {
       ${row('conncheck', 'Check the connection', more('Run'), 'Tests your Wi-Fi, internet and provider, and how fast a channel arrives')}
       ${row('tmdb', 'TMDB key', more(TMDB.keyLabel()), TMDB.tmdbKey() && !TMDB.hasKey() ? 'TMDB refused this key · set it again' : TMDB.tmdbKey() ? tmdbLine() : 'Your own free key: better rows on Home and in Movies and Series')}
       ${row('refresh', 'Refresh channels and guide', esc(catalog.live?._at ? `Updated ${new Date(catalog.live._at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : ''))}
-      ${row('signout', 'Sign out', ic('chevR', 'sm'))}`;
+      ${S.acc?.pid && acct.me() ? row('signout', 'Remove provider', ic('chevR', 'sm'), 'From your airglow account, on every device') : row('signout', 'Sign out', ic('chevR', 'sm'))}`;
   }
   if (group === 'addons') return addonsPane();
   if (group === 'playback') {
@@ -203,7 +263,18 @@ function act(a) {
     } });
   } else if (a === 'add') go('first', { add: true });
   else if (a === 'refresh') { toast('Refreshing channels, movies and series…'); refreshNow().then(() => { resetGuides(); draw(); toast('Channels are up to date'); }).catch((e) => toast(e.message, 5000)); }
-  else if (a === 'signout') confirmMenu({ title: 'Sign out?', text: `airglow forgets ${S.acc?.name || 'this account'} on this TV. Your saved channels and progress go with it.`, yes: 'Sign out', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first'); } });
+  else if (a === 'signout') confirmMenu(S.acc?.pid && acct.me()
+    ? { title: 'Remove this provider?', text: `airglow forgets ${S.acc?.name || 'this provider'} on every device signed in to your account. Its saved channels and progress go with it.`, yes: 'Remove', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first', { provider: true }); } }
+    : { title: 'Sign out?', text: `airglow forgets ${S.acc?.name || 'this account'} on this TV. Your saved channels and progress go with it.`, yes: 'Sign out', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first'); } });
+  else if (a === 'acctin') go('first', { code: true });
+  else if (a === 'acctsync') { Y.syncNow().then(() => { draw(); toast(Y.syncStatus().error ? acct.WORDS[Y.syncStatus().error] || 'Not synced' : 'Synced'); }); draw(); }
+  else if (a === 'acctheld') heldMenu();
+  else if (a === 'acctdevices') devicesSheet();
+  else if (a === 'acctwhat') whatSheet();
+  else if (a === 'acctout') confirmMenu({ title: 'Sign out of this TV?', text: 'Your provider, add-ons and history leave this TV. Your account keeps them.', yes: 'Sign out', onYes: async () => {
+    if (!(await acct.signOut())) return confirmMenu({ title: 'Changes made offline will be lost', text: 'airglow\'s server didn\'t answer, so what changed on this TV since the last sync stays here only.', yes: 'Sign out anyway', onYes: () => acct.signOut({ force: true }) });
+  } });
+  else if (a === 'acctall') confirmMenu({ title: 'Sign out everywhere?', text: 'Every device asks for your password or your phone again. The TV keeps working without an account.', yes: 'Sign out everywhere', onYes: () => acct.signOutEverywhere().catch((e) => toast(e.message, 4000)) });
   else if (a === 'skip') radioMenu({ title: 'Skip intros and recaps', value: s.skipIntro || 'button', rows: [{ v: 'button', l: 'Show a button', sub: 'One press skips it' }, { v: 'auto', l: 'Skip by itself', sub: 'You can go back for 5 s' }, { v: 'off', l: 'Off', sub: 'No buttons' }], onPick: (v) => { saveSettings({ skipIntro: v }); draw(); } });   // (design/ui-v1/skip/SPEC.md 4.1)
   else if (a === 'zap') radioMenu({ title: 'Up arrow in the player', value: s.zapUp || 'next', rows: [{ v: 'next', l: 'Next channel' }, { v: 'prev', l: 'Previous channel' }], onPick: (v) => { saveSettings({ zapUp: v }); draw(); } });
   else if (a === 'format') radioMenu({ title: 'Stream format', value: s.liveFormat, rows: [{ v: 'hls', l: 'HLS', sub: 'Most providers' }, { v: 'ts', l: 'Transport stream', sub: 'Steadier on some' }], onPick: (v) => { if (v === s.liveFormat) return; saveSettings({ liveFormat: v }); resetCatalogs(); draw(); } });   // (the lists are made again only for a real change)
@@ -281,6 +352,8 @@ export default {
     });
     native?.updates.onStatus(() => { if (current() === 'account') draw(); });
     on('info', () => { if (current() === 'account') draw(); });
+    on('acct-sync', () => { if (current() === 'account' && group === 'acct') draw(); });
+    on('acct', () => { if (current() === 'account') draw(); });
     on('rows', () => { if (current() === 'account' && (group === 'home' || group === 'provider')) draw(); });
   },
   enter(root, params) { if (params?.group && GROUPS.some(([k]) => k === params.group)) { group = params.group; scroll = 0; } draw(); if (group === 'addons') addonsEnter(draw); },

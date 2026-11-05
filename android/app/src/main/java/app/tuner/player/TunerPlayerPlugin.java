@@ -134,6 +134,9 @@ public class TunerPlayerPlugin extends Plugin {
         // the phone page also takes the owner's TMDB key (home-final SPEC 6a): start it with kind "tmdb"
         r.put("phoneKey", true);
         r.put("openApp", true);
+        // airglow accounts (design/ui-v1/accounts-v1/SPEC.md 5.7): the Keystore-wrapped store (secretGet/Set/Clear)
+        r.put("secret", true);
+        r.put("model", Build.MODEL);
         String region = java.util.Locale.getDefault().getCountry();
         if (region != null && region.matches("[A-Za-z]{2,3}")) r.put("region", region);
         // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).
@@ -145,6 +148,22 @@ public class TunerPlayerPlugin extends Plugin {
         } catch (Exception ignored) {}
         call.resolve(r);
     }
+
+    // ---------- airglow accounts: the secure store (Secret.java) ----------
+    @PluginMethod
+    public void secretGet(PluginCall call) {
+        try { JSObject r = new JSObject(); r.put("value", Secret.get(getContext(), call.getString("key", "acct"))); call.resolve(r); }
+        catch (Exception e) { call.reject("secret: " + e.getClass().getSimpleName()); }
+    }
+    @PluginMethod
+    public void secretSet(PluginCall call) {
+        String v = call.getString("value");
+        if (v == null) { call.reject("no value"); return; }
+        try { Secret.set(getContext(), call.getString("key", "acct"), v); call.resolve(); }
+        catch (Exception e) { call.reject("secret: " + e.getClass().getSimpleName()); }
+    }
+    @PluginMethod
+    public void secretClear(PluginCall call) { Secret.clear(getContext(), call.getString("key", "acct")); call.resolve(); }
 
     /** The playlist the player works through. Kept here rather than in the Intent, which can't carry thousands of channels. */
     static final class Playlist {

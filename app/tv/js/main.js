@@ -24,6 +24,10 @@ import first from './screens/first.js';
 import { launchOpen, launchReady, launchKey } from './launch.js';
 import { sfx } from './sfx.js';
 import { initSubs } from './subs.js';
+import * as acct from './account/acct.js';
+import { setBusy } from './account/sync.js';
+import { startLater } from './account/flow.js';
+import { endSession } from './state.js';
 
 const app = $('#app');
 setBase(app);
@@ -152,11 +156,17 @@ on('session', () => {
   S.offline = false; clearTimeout(offlineT);
   setBar({ offline: false });
   if (!S.acc) return;
-  const n = S.acc.name || '';
+  const n = acct.displayName() || S.acc.name || '';   // (signed in to airglow: the account's initial)
   setBar({ avatar: (n.match(/\p{L}/u)?.[0] || '').toUpperCase() });
   startNba();
 });
 on('signed-out', (msg) => go('first', { error: msg }));
+// airglow accounts: signed out here or from elsewhere (design/ui-v1/accounts-v1 3.5). A provider that came with the
+// account leaves with it; then the first screen comes back with the one-time line.
+on('acct-out', (r) => { if (!S.acc) go('first', { error: r?.line || '' }); else if (r?.line) toast(r.line, 6000); });
+on('acct-provider-gone', () => { store.del('active'); endSession(); go('first', { provider: true }); });
+on('acct', () => { if (S.acc) { const n = acct.displayName() || S.acc.name || ''; setBar({ avatar: (n.match(/\p{L}/u)?.[0] || '').toUpperCase() }); } });
+setBusy(() => watching());
 // Offline: a slim bar that stays while the provider can't be reached (a toast went by unseen under the launch),
 // and a quiet retry every 30 s; when it answers again the bar goes and the guide is asked again.
 // (a pill in the top bar, by the avatar: inside the safe area and over nothing you can focus; the guide's cells say
@@ -188,6 +198,7 @@ async function start() {
     go('home');
   } else go('first');
   requestAnimationFrame(() => requestAnimationFrame(launchReady));   // drawn: the launch can wipe to it
+  startLater();   // (signed in to airglow: the first sync after Home is drawn)
 }
 start();
 

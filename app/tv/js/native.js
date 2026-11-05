@@ -76,6 +76,12 @@ function bridge() {
       onEvent: (f) => TP.addListener('phone', f),
     },
     openApp: (o) => TP.openApp(o),
+    // airglow accounts (SPEC 5.7): the Keystore-wrapped store; null on an older build without it (memory only then)
+    secret: {
+      get: async (key) => { if (!(await ready).secret) throw new Error('no secret store'); return (await TP.secretGet({ key })).value ?? null; },
+      set: async (key, value) => { if (!(await ready).secret) throw new Error('no secret store'); await TP.secretSet({ key, value }); },
+      clear: (key) => TP.secretClear({ key }).catch(() => {}),
+    },
     onBack: (f) => AppPlugin.addListener('backButton', f),
     onResume: (f) => resumeSubs.push(f),
     exit: () => AppPlugin.exitApp?.() ?? AppPlugin.minimizeApp(),

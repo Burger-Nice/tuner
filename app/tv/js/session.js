@@ -4,6 +4,8 @@ import { S, store, startSession, endSession, emit } from './state.js';
 import { resetCatalogs } from './catalog.js';
 import { resetGuides } from './guide.js';
 import { toast } from './ui.js';
+import { wipeCollection } from './account/sync.js';
+import { natural } from './account/rules.js';
 
 const { Core } = window;
 const withText = (a) => (a.type === 'm3u' && !a.url ? { ...a, text: store.get('m3u:' + a.id, '') } : { ...a });
@@ -52,6 +54,9 @@ export async function signIn(a, gone) {
   a.tz = d?.server_info?.timezone || null;
   const same = S.accounts.find((x) => x.type === a.type && x.server === a.server && x.username === a.username && x.url === a.url && (a.url || x.name === a.name));
   a.id = a.id || same?.id || Math.random().toString(36).slice(2, 10);
+  // Signed in to airglow: the provider joins the account under an id every device agrees on (its pid, assigned once;
+  // the same login already in the account keeps that one). A pasted M3U with no link stays on this device.
+  if (S.user && !(a.type === 'm3u' && !a.url)) a.pid = a.pid || same?.pid || S.accounts.find((x) => x.pid && natural(x) === natural(a))?.pid || crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, '0'), '');
   const { text, ...slim } = a;
   if (text && !store.set('m3u:' + a.id, text)) toast('This playlist is too large to remember. You will need to load it again next time.', 5000);
   S.accounts = [slim, ...S.accounts.filter((x) => x.id !== a.id)];
@@ -68,7 +73,10 @@ export function signOut(keepAccount = true) {
   endSession();
   if (!keepAccount) return;
 }
+// (signed in to airglow, Remove provider is a confirmed action: its Saved and progress go from the account as well, so
+// those deletes are sent with `wipe` naming the two collections)
 export function removeAccount(a) {
+  if (a.pid && S.user) { wipeCollection('favs'); wipeCollection('progress'); wipeCollection('providers'); }
   S.accounts = S.accounts.filter((x) => x.id !== a.id);
   store.set('accounts', S.accounts);
   ['favs', 'favOrder', 'progress', 'recents', 'liveCat', 'lastLive', 'movieView', 'seriesView', 'delays', 'teamCh', 'ver'].forEach((k) => store.del(`a:${a.id}:${k}`));

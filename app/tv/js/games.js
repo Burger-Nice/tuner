@@ -284,8 +284,11 @@ const maybePlayed = (g) => played(g) || (g.state === 'pre' && Date.now() - g.dat
 // watched counts as seen after a while: 3 days in All games mode (most games are never watched), 7 days for your team.
 const SEEN = 'nbaSeen';
 // (with none kept, it starts 12 h back, and that's stored at once so it doesn't move on with the clock)
-const seenStore = () => seenMem || (seenMem = store.get(SEEN, null)) || saveSeen({ upTo: Date.now() - 12 * 3600e3, ids: [] });
-function saveSeen(s) { seenMem = s; store.set(SEEN, s); bump(); return s; }
+// `since` (design/ui-v1/accounts-v1, review 3 M2): when the shield was last turned on or made stricter, or Reveal all;
+// across devices the higher `since` wins outright, so turning the shield back on hides games everywhere again.
+const seenStore = () => seenMem || (seenMem = store.get(SEEN, null)) || saveSeen({ since: 0, upTo: Date.now() - 12 * 3600e3, ids: [] });
+function saveSeen(s) { seenMem = { since: 0, ...s }; store.set(SEEN, seenMem); bump(); return seenMem; }
+on('acct-data', () => { const was = seenMem; seenMem = null; if (was && JSON.stringify(was) !== JSON.stringify(seenStore())) { bump(); emit('nba'); } });
 export function isSeen(g) {
   if (!g) return true;
   return revealed.has(g.id) || seenForGood(g);
@@ -323,7 +326,7 @@ export function markSeenMany(ids) {
 }
 // "Reveal n results": everything up to now is seen.
 export function revealAll() {
-  saveSeen({ upTo: Date.now(), ids: [] });
+  saveSeen({ since: Date.now(), upTo: Date.now(), ids: [] });
   for (const g of knownGames()) revealed.add(g.id);
   for (const t of store.get(PINS, [])) window.Core.cache.set(pinKey(t), null);   // nothing is unseen: no copy is needed
   store.set(PINS, []);
@@ -486,7 +489,7 @@ export const setShield = (m) => {
   if (m !== 'off' && m !== shieldMode()) {
     for (const id of [...revealed]) if (id !== watch.gameId) revealed.delete(id);
     // (never later than it was: a stricter mode, or turning it back on, mustn't count anything new as seen)
-    saveSeen({ upTo: Math.min(seenStore().upTo, Date.now() - 12 * 3600e3), ids: watch.gameId ? [[watch.gameId, gameById(watch.gameId)?.date || Date.now()]] : [] });
+    saveSeen({ since: Date.now(), upTo: Math.min(seenStore().upTo, Date.now() - 12 * 3600e3), ids: watch.gameId ? [[watch.gameId, gameById(watch.gameId)?.date || Date.now()]] : [] });
   }
   saveSettings({ shield: m }); emit('nba');
   if (m === 'all' && nba.started) recentNights();

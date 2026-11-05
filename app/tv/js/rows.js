@@ -5,7 +5,9 @@
 // Where it departs from the SPEC: the profile is worked out on the main thread after the launch (it is a few
 // milliseconds for 2,000 plays, so a worker would cost more than it saves); the grip in Account > Home rows is left out
 // (rows are switched on and off; their order is the engine's).
-import { S, store, scoped, on, emit, continueRows } from './state.js';
+import { S, store, scoped, on, emit, continueRows, PERSON } from './state.js';
+import { forgetTaste as acctForget } from './account/sync.js';
+import { plays as unionPlays, newPlayId, migratedPlayId, withIds } from './account/rules.js';
 import { catalog } from './catalog.js';
 import * as AD from './addons.js';
 import * as TM from './tmdb.js';
@@ -26,31 +28,48 @@ function seeded(list, seed) {
   for (let i = a.length - 1; i > 0; i--) { x = Math.imul(x ^ (x >>> 15), 2246822507) ^ Math.imul(x ^ (x >>> 13), 3266489909); x >>>= 0; const j = x % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
-const k = (n) => (S.acc ? scoped(n) : `x:${n}`);
+const k = (n) => (S.acc || (S.user && PERSON.has(n)) ? scoped(n) : `x:${n}`);
 const shortName = (n) => String(n || '').replace(/^It's\s+/i, '').replace(/\s+in Philadelphia$/i, '').replace(/\s*[:–-]\s.*$/, '').trim();
 
 // ---------- the play log (SPEC 6: Signals) ----------
 // One record per playback longer than 3 minutes: { imdb, type, name, year, season, episode, from, to, completion, at,
 // source }; one that resumes within 30 minutes extends the last. Kept in IndexedDB, the newest 2,000.
 let plays = [], playsFor = null, loading = null;
-const PKEY = () => `a:${S.acc.id}:plays`;
+// (each play has a playId: union by it across devices, design/ui-v1/accounts-v1/SPEC.md 4.2; signed in, the log is
+// the person's, u:<account>:plays)
+const PKEY = () => scoped('plays');
 export function loadPlays() {
   if (!S.acc) return Promise.resolve([]);
-  if (playsFor === S.acc.id && loading) return loading;
-  playsFor = S.acc.id; plays = [];
-  const acc = S.acc.id;
+  if (playsFor === PKEY() && loading) return loading;
+  playsFor = PKEY(); plays = [];
+  const acc = PKEY();
   loading = (async () => {
     const v = await window.Core.cache.get(PKEY());
-    if (S.acc?.id !== acc) return plays;
-    plays = Array.isArray(v) ? v : [];
+    if (PKEY() !== acc) return plays;
+    plays = withIds(Array.isArray(v) ? v : []);
     if (!store.get(k('playsFrom'))) { migrate(); store.set(k('playsFrom'), Date.now()); savePlays(); }
     return plays;
   })();
   return loading;
 }
 let saveT = 0;
-function savePlays() { clearTimeout(saveT); const acc = S.acc?.id; saveT = setTimeout(() => { if (S.acc?.id === acc) window.Core.cache.set(PKEY(), plays.slice(-2000)); }, 800); }
+// Saved as the union with what is stored (a sync may have added plays in between); Forget my taste's upTo applies
+function savePlays() {
+  clearTimeout(saveT); const acc = S.acc && PKEY();
+  saveT = setTimeout(async () => {
+    saveT = 0;
+    if (!S.acc || PKEY() !== acc) return;
+    const stored = S.user ? withIds((await window.Core.cache.get(acc)) || []) : [];
+    if (!S.acc || PKEY() !== acc) return;
+    const upTo = S.user ? store.get(`u:${S.user}:forget`, null)?.upTo || 0 : 0;
+    plays = unionPlays([stored, withIds(plays)], upTo);
+    window.Core.cache.set(acc, plays.slice(-2000));
+  }, 800);
+}
 on('session', () => { playsFor = null; loading = null; plays = []; prof = null; page = null; cur = null; });
+on('acct', () => { playsFor = null; loading = null; plays = []; prof = null; page = null; });
+// (a sync brought plays or rows from another device: read them again; the page is worked out on its next visit)
+on('acct-data', () => { if (saveT) return; playsFor = null; loading = null; prof = null; });
 // An item's identity in the log: its IMDb id (an add-on copy carries it; a provider copy through its match), the
 // series' for an episode. Live channels and replays are not titles.
 const matchOf = (kind, id) => {
@@ -75,7 +94,8 @@ function migrate() {
   for (const p of Object.values(S.progress || {})) {
     const id = idOf(p.item);
     if (!id || !p.d) continue;
-    out.push({ ...id, from: 0, to: p.t, completion: p.done ? 1 : Math.min(1, p.t / p.d), at: p.at || Date.now(), source: 'history' });
+    const rec = { ...id, from: 0, to: p.t, completion: p.done ? 1 : Math.min(1, p.t / p.d), at: p.at || Date.now(), source: 'history' };
+    out.push({ ...rec, playId: migratedPlayId(rec) });   // (the same title migrated on two devices is one play: review 3, S1)
   }
   plays = [...out.sort((a, b) => a.at - b.at), ...plays];
 }
@@ -105,7 +125,7 @@ function add(rec, span) {
   const last = [...plays].reverse().find((p) => p.imdb === rec.imdb && p.season === rec.season && p.episode === rec.episode);
   if (last && rec.at - last.at < 30 * 60e3) { last.to = Math.max(last.to, rec.to); last.completion = Math.max(last.completion, rec.completion); last.at = rec.at; savePlays(); return true; }
   if (span < 180 && rec.completion < 0.9) return false;
-  plays.push(rec);
+  plays.push({ ...rec, playId: newPlayId() });
   if (plays.length > 2200) plays = plays.slice(-2000);
   savePlays();
   return true;
@@ -113,7 +133,7 @@ function add(rec, span) {
 // A finish: the profile and the page are worked out again (between visits: Home never reorders under his thumb)
 function finished() { prof = null; store.set(k('finishes'), (store.get(k('finishes'), 0) || 0) + 1); emit('rows-stale'); }
 export const playsNow = () => plays;
-export const forTest = { add: (r) => { plays.push({ from: 0, to: 0, completion: 1, at: Date.now(), source: 'test', season: 0, episode: 0, year: 0, ...r }); savePlays(); prof = null; }, clear: () => { plays = []; savePlays(); prof = null; page = null; }, flush };
+export const forTest = { add: (r) => { plays.push({ from: 0, to: 0, completion: 1, at: Date.now(), source: 'test', season: 0, episode: 0, year: 0, playId: newPlayId(), ...r }); savePlays(); prof = null; }, clear: () => { plays = []; window.Core.cache.set(PKEY(), []); prof = null; page = null; }, flush };
 
 // ---------- what a title in his history is (Cinemeta's meta, TMDB's keywords for anime) ----------
 async function animeOf(type, m) {
@@ -207,7 +227,8 @@ async function compute() {
 // The genres he picked on a first evening (Pick what you like)
 export const picked = () => (S.acc ? store.get(k('picks'), []) : []);
 export function setPicks(list) { store.set(k('picks'), list.slice(0, 3)); prof = null; page = null; emit('rows-stale'); }
-export function forgetTaste() { store.set(k('picks'), []); loadPlays().then(() => { plays = []; savePlays(); prof = null; page = null; emit('rows-stale'); }); }
+// Signed in, it forgets on every device and the server keeps no copy (acctForget: design/ui-v1/accounts-v1 4.4)
+export function forgetTaste() { store.set(k('picks'), []); loadPlays().then(async () => { plays = []; clearTimeout(saveT); saveT = 0; await window.Core.cache.set(PKEY(), []); if (S.user) await acctForget(); prof = null; page = null; emit('rows-stale'); }); }
 
 // ---------- what is new in his shows (home-v2 9.3) ----------
 // Followed series: the ones in his log (the last 90 days) and Continue watching. For each, the episodes after the
@@ -497,7 +518,7 @@ function candidates(p, { key, gameDay }) {
 // { day, at, rows: [{ id, kind, type, name, reason, items?, isNew, see, live? }] }; live rows (Your shows, the NBA,
 // Saved, the doors, Channels) are drawn from what the app has at the time, not kept.
 let page = null, building = null;
-const PAGE = () => `a:${S.acc.id}:homePage`;
+const PAGE = () => scoped('homePage');
 const sig = () => `v${PAGE_VER}|${TM.hasKey() ? 'k' : 'n'}|${anyStreamAddon() ? 'a' : '-'}|${store.get(k('finishes'), 0)}|${picked().join(',')}|${Object.keys(rowsOff()).join(',')}|${AD.chipCatalogs('movie').length + AD.chipCatalogs('series').length}`;
 export async function cachedPage() {
   if (page && page.acc === S.acc?.id) return page;

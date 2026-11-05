@@ -14,7 +14,11 @@ export const S = {
   acc: null, src: null, info: null, epoch: 0,
   favs: {}, favOrder: [], progress: {}, recents: [],
 };
-export const scoped = (k) => `a:${S.acc.id}:${k}`;
+// airglow accounts (design/ui-v1/accounts-v1/SPEC.md 4.2a): when signed in, the per-person stores live under the
+// account (u:<accountId>:key) and follow it across providers and devices; the per-provider ones stay a:<acc.id>:key.
+export const PERSON = new Set(['addons', 'stremio', 'picks', 'hiddenRows', 'rowsOff', 'finishes', 'playsFrom', 'notInterested', 'rowStats', 'imdb', 'skipShows', 'plays', 'homePage']);
+S.user = store.get('acct', null)?.id || null;
+export const scoped = (k) => (S.user && PERSON.has(k) ? `u:${S.user}:${k}` : S.acc ? `a:${S.acc.id}:${k}` : `x:${k}`);
 
 export function startSession(acc, src, info) {
   S.epoch++;
