@@ -260,13 +260,17 @@ export function unhideRow(id) { const m = hiddenRows(); delete m[id]; store.set(
 export function notWanted(it) { const m = notInterested(); m[it.imdb || dkey(it)] = Date.now() + 30 * DAY; m[dkey(it)] = Date.now() + 30 * DAY; store.set(hiddenKey(), m); }
 const unwanted = () => { const m = notInterested(), now = Date.now(); return new Set(Object.entries(m).filter(([, t]) => t > now).map(([x]) => x)); };
 const stats = () => (S.acc ? store.get(k('rowStats'), {}) : {});
-export function enteredRow(id) { const s = stats(); (s[id] ||= { first: Date.now() }).entered = Date.now(); store.set(k('rowStats'), s); }
-export function scrolledEnd(id) { const s = stats(); (s[id] ||= { first: Date.now() }).end = dayNo(); store.set(k('rowStats'), s); }
+// (Home calls these on every press in a row: the saved stats are read and written at most once a minute per row, a
+// day's resolution is what the rules use; a read and a write of the whole stats on every Right was in each key's frame)
+const noted = new Map();
+const seldom = (key) => { const t = noted.get(key), now = Date.now(); if (t && now - t < 60e3) return true; noted.set(key, now); return false; };
+export function enteredRow(id) { if (seldom(`e:${S.acc?.id}:${id}`)) return; const s = stats(); (s[id] ||= { first: Date.now() }).entered = Date.now(); store.set(k('rowStats'), s); }
+export function scrolledEnd(id) { if (seldom(`x:${S.acc?.id}:${id}:${dayNo()}`)) return; const s = stats(); (s[id] ||= { first: Date.now() }).end = dayNo(); store.set(k('rowStats'), s); }
 // Hints that go away: each one shows until that key was used on that kind of line five times (SPEC 5)
 export const hintShown = (kind, keyName) => (store.get('hfHints', {})[`${kind}:${keyName}`] || 0) < 5;
 export function hintUsed(kind, keyName) { const m = store.get('hfHints', {}); m[`${kind}:${keyName}`] = (m[`${kind}:${keyName}`] || 0) + 1; store.set('hfHints', m); }
 export const resetHints = () => store.set('hfHints', {});
-export function resetRows() { store.set(k('hiddenRows'), {}); store.set(hiddenKey(), {}); store.set(k('rowStats'), {}); store.set(k('rowsOff'), {}); page = null; emit('rows-stale'); }
+export function resetRows() { noted.clear(); store.set(k('hiddenRows'), {}); store.set(hiddenKey(), {}); store.set(k('rowStats'), {}); store.set(k('rowsOff'), {}); page = null; emit('rows-stale'); }
 // Account > Home rows: a kind of row switched off
 // (the add-ons' own lists start off: the owner chose TMDB's and his own rows for Home; his Stremio watchlist and an
 // Icelandic list stay. Stored: kind -> true (off) or false (switched on))

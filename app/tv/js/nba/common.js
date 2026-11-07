@@ -1,6 +1,6 @@
 // Shared by the NBA tab's sections and the team page (design/ui-v1/nba-pages/SPEC.md): crests, the night rule for
 // tip-off times, game names, Reveal buttons, the copies kept from before a game (the shield's tables), state cards.
-import { esc, ic, crest, hm } from '../util.js';
+import { esc, ic, crest, hm, dateText } from '../util.js';
 import { emit, on } from '../state.js';
 import { confirmMenu } from '../ui.js';
 import { unseenFor, markSeen, markSeenMany, revealAll, pinFor, pinBusy, shieldMode } from '../games.js';
@@ -21,8 +21,8 @@ const DAY = 864e5;
 const night = (t) => new Date(t - 6 * 3600e3);
 const late = (t) => new Date(t).getHours() < 6;
 const sameDay = (a, b) => a.toDateString() === b.toDateString();
-const wd = (d) => d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase();
-const dm = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase();
+const wd = (d) => dateText(d, { weekday: 'short' }).toUpperCase();
+const dm = (d) => dateText(d, { day: 'numeric', month: 'short' }).toUpperCase();
 // Tile date: 'THU 29 OCT · LATE' (the time goes on its own line: hm(t)).
 export const tileDate = (t) => `${wd(night(t))} ${dm(night(t))}${late(t) ? ' · LATE' : ''}`;
 // 'TONIGHT', 'TOMORROW', 'TUE NIGHT' / 'TUE', or the date when it's over a week away.
@@ -37,7 +37,7 @@ export function whenWord(t) {
 // The team header's next game: 'NEXT · TONIGHT 01:00', 'NEXT · TUE NIGHT 00:00'.
 export const nextLabel = (t) => `NEXT · ${whenWord(t)} ${hm(t)}`;
 // Short day for labels: 'Sun' (of the evening the game belongs to).
-export const shortDay = (t) => night(t).toLocaleDateString('en-GB', { weekday: 'short' });
+export const shortDay = (t) => dateText(night(t), { weekday: 'short' });
 // 'Tips off in 1 h 20 min' / 'Tips off in 3 days'.
 export function tipsIn(t) {
   const m = Math.round((t - Date.now()) / 60000);

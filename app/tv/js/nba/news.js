@@ -3,7 +3,7 @@
 // display only). OK opens the reader over the scrim; a story that would give away a game you haven't seen is covered
 // (SPEC 8.3): its row and preview say so, and OK opens a card that names the game, with Keep it hidden focused.
 // The team page's News rail uses storyCard() and openStory() from here.
-import { esc, ic, dot, setHtml } from '../util.js';
+import { esc, ic, dot, setHtml, dateText } from '../util.js';
 import { on } from '../state.js';
 import { storyCover, shieldParagraphs, unseenFor, favTeam, shieldMode, knownGames } from '../games.js';
 import { peek, want, failed } from '../league.js';
@@ -27,7 +27,7 @@ export function ago(t) {
   if (h < 24) return `${h} h ago`;
   if (h < 48) return 'Yesterday';
   const d = Math.floor(h / 24);
-  return d < 7 ? `${d} days ago` : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return d < 7 ? `${d} days ago` : dateText(new Date(t), { day: 'numeric', month: 'short' });
 }
 // Whose story: your team when it's tagged, else the first team; 'NBA' with none or 4 and more (round-ups).
 function who(s) {
@@ -41,7 +41,7 @@ function coverWho(s, g) {
   const a = both.includes(favTeam()) ? favTeam() : both[0];
   return a ? `A ${names(a).name} story` : 'A story';
 }
-const nightDay = (t) => new Date(t - 6 * 3600e3).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+const nightDay = (t) => dateText(new Date(t - 6 * 3600e3), { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
 const hiddenNote = (n) => `${ic('eyeOff')}<span>Shield: ${n} paragraph${n === 1 ? '' : 's'} hidden</span>`;
 
 // ---------- pictures ----------

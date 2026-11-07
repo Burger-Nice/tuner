@@ -1,7 +1,7 @@
 // Catch-up data (design/ui-v1/catchup/SPEC.md 3, 4.3, 5.1, 5.7, 5.8): which sources replay a game (channel archives and
 // full-game videos in the provider's Movies), matching videos to games, the shield's masks for guide text and video
 // titles, the hero state rows and the one "replays until" formatter. No DOM in here; replay.js plays what this finds.
-import { esc } from './util.js';
+import { esc, dateText } from './util.js';
 import { S, settings, emit, on } from './state.js';
 import { catalog, ensure, qualityOf, langOf, prefLangs, prettyCat } from './catalog.js';
 import { pastFor, pastNow } from './guide.js';
@@ -26,12 +26,12 @@ export function etDate(t) {
 const late = (t) => new Date(t).getHours() < 6;
 const night = (t) => new Date(t - 6 * H);
 // A game's night: 'Mon 26 Oct · late' (the night rule: a tip-off before 06:00 belongs to the evening before).
-export const nightLabel = (t) => `${night(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}${late(t) ? ' · late' : ''}`;
+export const nightLabel = (t) => `${dateText(night(t), { weekday: 'short', day: 'numeric', month: 'short' })}${late(t) ? ' · late' : ''}`;
 // The one "until" formatter (S2): the window start + the channel's days, read with the night rule. Long:
 // 'Thu 29 Oct · late'; short (heroes, whose caption is two lines): 'Thu 29 · late'.
 export function keptUntil(start, days, short = false) {
   const u = start + days * DAY, n = night(u);
-  return `${n.toLocaleDateString('en-GB', short ? { weekday: 'short', day: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' })}${late(u) ? ' · late' : ''}`;
+  return `${dateText(n, short ? { weekday: 'short', day: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' })}${late(u) ? ' · late' : ''}`;
 }
 // Owner decision 13.8: 'Replays for 3 days' / 'No replays on this channel'.
 export const keptWords = (days) => `Replays for ${days} day${days === 1 ? '' : 's'}`;

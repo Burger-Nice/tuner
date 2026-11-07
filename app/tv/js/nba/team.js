@@ -4,7 +4,7 @@
 // section's title sits at y 52 (the bar and the row above step away). Under the shield nothing here tells the result of
 // a game you haven't seen: the record counts seen finals, the tile says `Result hidden`, Season ranks are the copy from
 // before tip-off, the roster hides points and shooting, and so does the player sheet.
-import { esc, ic, dot, liveP, hm, teamVars, setHtml } from '../util.js';
+import { esc, ic, dot, liveP, hm, teamVars, setHtml, dateText } from '../util.js';
 import { on, emit, saveSettings } from '../state.js';
 import { nba, favTeam, bestChannel, findFeeds, unseenFor, recordFor, show, clockText, storyCover, shielded, behindReplay, liveByClock, replayProgress } from '../games.js';
 import { peek, want, failed, loading } from '../league.js';
@@ -77,7 +77,7 @@ function ago(t) {
   const m = Math.max(1, Math.round((Date.now() - t) / 60000));
   if (m < 60) return `${m} min ago`;
   if (m < 24 * 60) return `${Math.round(m / 60)} h ago`;
-  return m < 48 * 60 ? 'Yesterday' : new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return m < 48 * 60 ? 'Yesterday' : dateText(new Date(t), { weekday: 'short', day: 'numeric', month: 'short' });
 }
 const has = (g, abbr) => g && (g.home.abbr === abbr || g.away.abbr === abbr);
 const hidHtml = `<span class="nb-hid" style="justify-content:flex-end">${ic('eyeOff')}</span>`;

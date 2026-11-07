@@ -1,7 +1,7 @@
 // Live guide: the Now panel, a ruler with the group chip and "Now", and six channel rows whose programmes sit by time
 // (656 px = 2.5 h from now). ◀▶ move along time, ▲▼ between channels, OK tunes the programme on now (or shows a later
 // one), hold OK favourites with an undo toast, CH± pages, digits jump. The group you pick is the player's zap ring.
-import { $, esc, ic, dot, liveP, logo, hm, setHtml, patchList } from '../util.js';
+import { $, esc, ic, dot, liveP, logo, hm, setHtml, patchList, dateText } from '../util.js';
 import { S, on, store, scoped, favList, toggleFav, isFav } from '../state.js';
 import { catalog, ensure, takeFresh } from '../catalog.js';
 import { guideFor, guideNow, guideFailed, onNow, warm, known, pastFor, pastNow, pastFailed, pastKnown } from '../guide.js';
@@ -155,13 +155,13 @@ function ruler() {
   // the Now pill sits at the right end (ticks within 150 px of it dropped); a tick on another day than the pill names it
   const pastDay = winStart < floor30(n), nowRight = n >= winStart + SPAN;
   const dayOf = (t) => new Date(t).toDateString();
-  const day = pastDay ? `<span class="cu-day">${esc(new Date(winStart).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }))}</span>` : '';
+  const day = pastDay ? `<span class="cu-day">${esc(dateText(new Date(winStart), { weekday: 'short', day: 'numeric', month: 'short' }))}</span>` : '';
   let named = false;
   for (let t = Math.ceil((winStart + 1) / 1800e3) * 1800e3; t < winStart + SPAN; t += 1800e3) {
     if (x(t) <= (pastDay ? 112 : 40) || x(t) >= AXIS - (nowRight ? 150 : 40) || Math.abs(x(t) - nx) <= 64) continue;
     const other = !named && dayOf(t) !== dayOf(pastDay ? winStart : n);   // (ahead: the first tick on tomorrow says so)
     if (other) named = true;
-    ticks.push(`<span style="left:${x(t)}px">${other ? `${new Date(t).toLocaleDateString('en-GB', { weekday: 'short' })} ` : ''}${hm(t)}</span>`);
+    ticks.push(`<span style="left:${x(t)}px">${other ? `${dateText(new Date(t), { weekday: 'short' })} ` : ''}${hm(t)}</span>`);
   }
   const flag = n >= winStart && n < winStart + SPAN ? `<span class="g-nowflag" style="left:${x(n)}px">Now</span>` : nowRight ? `<span class="cu-nowr">Now ${hm(n)}${ic('chevR')}</span>` : '';
   return `<div class="g-ruler"><div class="g-corner" data-row><span class="chip lg fx" tabindex="-1" data-act="group">${ic(group === 'fav' ? 'star' : 'tv')}<span class="ellipsis" style="max-width:104px">${esc(groupName())}</span><span class="t-3" style="font-weight:500">${chans.length}</span></span></div><div class="g-time">${day}${flag}${ticks.join('')}</div></div>`;
@@ -180,11 +180,11 @@ function pastPanel(ch, f) {
   if (!p) return `${tile(true)}<div class="grow"></div>`;
   const v = programmeView(ch, p);
   const g = v.game && window.NBA.matchScore(p.title, v.game) >= 10 && Math.abs(v.game.date - p.start) < 3 * 3600e3 ? v.game : null;
-  const day = new Date(p.start).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const day = dateText(new Date(p.start), { weekday: 'short', day: 'numeric', month: 'short' });
   const wp = programmeProgress(ch, p), mins = wp && !wp.done ? Math.round(wp.t / 60) : 0;
   const badge = `<span class="cu-badge">${ic('hist')}Replay</span>`;
   if (g) {
-    return `${tile(true)}<div class="grow"><div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(v.title)}</span>${badge}</div>${line(`${dot}${new Date(p.start).toLocaleDateString('en-GB', { weekday: 'short' })} ${hm(p.start)} to ${hm(p.end)}${dot}the ${esc(nightLabel(g.date))} game`, third(hidden(g) ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : esc(p.desc || ''), hidden(g)))}</div>${hint('OK watch from tip-off')}`;
+    return `${tile(true)}<div class="grow"><div class="row-flex" style="gap:12px"><span class="t-title ellipsis">${esc(v.title)}</span>${badge}</div>${line(`${dot}${dateText(new Date(p.start), { weekday: 'short' })} ${hm(p.start)} to ${hm(p.end)}${dot}the ${esc(nightLabel(g.date))} game`, third(hidden(g) ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : esc(p.desc || ''), hidden(g)))}</div>${hint('OK watch from tip-off')}`;
   }
   const desc = v.mask === 'results' ? `${ic('eyeOff', 'sm')}May show last night's results (spoiler shield)` : v.mask === 'desc' ? `${ic('eyeOff', 'sm')}Description hidden (spoiler shield)` : esc(v.desc || '');
   const watched = mins ? `${dot}watched ${mins} min<span class="prog" style="width:70px;margin-left:14px"><i style="width:${Math.min(100, (wp.t / wp.d) * 100)}%"></i></span>` : '';

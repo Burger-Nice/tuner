@@ -4,7 +4,7 @@
 // Under the shield a conference with an unseen final shows the copy kept from before its tip-off, or a cover card when
 // none was kept (SPEC 8.2). OK on a row: that team's page; hold OK: its page, or make it your team.
 // Also the League sections' shared bits (Leaders and Team stats import them): ord, edge, coverCard, onFinal, dayDate.
-import { esc, ic, dot, liveP, setHtml, teamPalette, hm } from '../util.js';
+import { esc, ic, dot, liveP, setHtml, teamPalette, hm, dateText } from '../util.js';
 import { on, emit, saveSettings } from '../state.js';
 import { nba, favTeam } from '../games.js';
 import { peek, want, failed, fetchedAt } from '../league.js';
@@ -20,7 +20,7 @@ export const ord = (n) => { const s = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['
 // Your team's bar at a row's left edge (its secondary colour).
 export const edge = (abbr) => `<span class="tedge" style="background:${teamPalette(abbr).a}"></span>`;
 // 'Sun 25 Oct' for the evening a game belongs to (the night rule).
-export const dayDate = (t) => new Date(t - 6 * 3600e3).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+export const dayDate = (t) => dateText(new Date(t - 6 * 3600e3), { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
 // No copy from before the unseen game: the table is covered. btns: the card's buttons (Reveal never first).
 export function coverCard(title, v, btns = '', top = 196) {
   const more = v.games.length > 1 ? ` and ${v.games.length - 1} more result${v.games.length > 2 ? 's' : ''}` : '';

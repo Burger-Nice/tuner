@@ -82,6 +82,16 @@ export const liveP = (compact) => `<span class="a-live${compact ? ' compact' : '
 export const tag = (t, c = '') => `<span class="tag ${c}">${esc(t)}</span>`;
 
 // Times are 24 h (brand rule).
+// A date in words ('Mon 26 Oct'): one Intl.DateTimeFormat per set of options, kept. toLocaleDateString builds a new one
+// on every call (about 30x the cost; MDN, Date.prototype.toLocaleDateString: "create an Intl.DateTimeFormat object and
+// use its format() method" when formatting many dates). Same output for date options.
+const dtfs = new Map();
+export function dateText(d, opts) {
+  const k = JSON.stringify(opts);
+  let f = dtfs.get(k);
+  if (!f) dtfs.set(k, (f = new Intl.DateTimeFormat('en-GB', opts)));
+  return f.format(d);
+}
 export const hm = (t) => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 export const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
 export const leftText = (sec) => { const m = Math.max(1, Math.round(sec / 60)); return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m left` : `${m} min left`; };

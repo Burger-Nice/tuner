@@ -1,6 +1,6 @@
 // An NBA game: compact header (status, team plates, score, Watch live), tabs for each team's box score, the plays and
 // team stats. Tables are upright (only the plates slant). Under the shield the body is a Reveal card, never a score.
-import { esc, ic, dot, liveP, crest, teamVars, setHtml, hm } from '../util.js';
+import { esc, ic, dot, liveP, crest, teamVars, setHtml, hm, dateText } from '../util.js';
 import { on } from '../state.js';
 import { catalog } from '../catalog.js';
 import { nba, bestChannel, gameById, show, clockText, ordinal, wantSummary, reveal, isMine, mySide, teamChannel, feedsNow, findFeeds, favTeam } from '../games.js';
@@ -80,7 +80,7 @@ function draw() {
     const what = best.kind === 'channel' ? `${esc(best.name)}${dot}replays until ${esc(until)}` : `${esc(best.name)}${pick?.kind === 'video' ? '' : `${dot}${esc(best.detail)}`}`;
     body = card(`${name} is hidden`, 'Watch it from tip-off: it counts as seen at the replay’s final buzzer.', `<span class="btn fx" tabindex="-1" data-act="tipoff" data-hold>${ic('play')}Watch from tip-off</span>${revealB}`, `${what}${dot}hold OK: other sources`);
   } else if (v.hidden && g.state === 'post' && reps) {
-    const lk = replaysLooked(g0), day = new Date(g0.date + 3 * 864e5 - 6 * 3600e3).toLocaleDateString('en-GB', { weekday: 'short' });
+    const lk = replaysLooked(g0), day = dateText(new Date(g0.date + 3 * 864e5 - 6 * 3600e3), { weekday: 'short' });
     const still = Date.now() < g0.date + 3 * 864e5;
     body = card('No replay of this game yet', `Full games often reach Movies a few hours after the final. ${still ? `airglow looks every hour until ${day}.` : 'Look again when one may have arrived.'}`,
       `<span class="btn fx" tabindex="-1" data-act="pickch">${ic('live')}Pick the channel</span><span class="btn2 fx" tabindex="-1" data-act="look">${ic('refresh')}${replaysBusy(g0) ? 'Looking…' : 'Look again'}</span><span class="btn2 fx" tabindex="-1" data-act="choose">${ic('search')}Choose a video</span>${revealB}`,

@@ -1,6 +1,7 @@
 // NBA: today's games, box scores, the spoiler shield, the per-channel score delay, and which channels carry a game.
 // Every surface that shows a score asks `show(g)` for it, so the shield and the synced delay hold everywhere.
 import { launchDone } from './launch.js';
+import { dateText } from './util.js';
 import { S, store, settings, saveSettings, scoped, emit, on } from './state.js';
 import { catalog, ensure } from './catalog.js';
 import { guideFor, onNow, warm } from './guide.js';
@@ -144,7 +145,7 @@ export function dayLabel(offset) {
   const d = nba.todayDay ? new Date(nba.todayDay + 'T12:00:00') : new Date();
   d.setDate(d.getDate() + offset);
   const rel = { '-1': 'Yesterday', 0: 'Today', 1: 'Tomorrow' }[offset];
-  const date = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });   // 'Mon 26 Oct'
+  const date = dateText(d, { weekday: 'short', day: 'numeric', month: 'short' });   // 'Mon 26 Oct'
   return rel ? `${rel} · ${date}` : date;
 }
 

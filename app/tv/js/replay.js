@@ -4,7 +4,7 @@
 // design/ui-v1/catchup/PORT-NATIVE.md. Until the native player speaks it (player.js replayNative()), a replay plays its
 // first link through the native VOD mode as a stand-in, so the flows can be tried end to end.
 import { chName } from './names.js';
-import { esc, ic, dot, hm, teamPalette } from './util.js';
+import { esc, ic, dot, hm, teamPalette, dateText } from './util.js';
 import { S, on, emit, settings, recordProgress, store, scoped } from './state.js';
 import { catalog, ensure, prefLangs } from './catalog.js';
 import { native } from './native.js';
@@ -440,7 +440,7 @@ export function chooseVideo(g, { focusId } = {}) {
   ensure('movie').then(() => {
     const vids = videosNaming(g);
     const H2 = (m) => videoMask(m);
-    const added = (m) => (m.added ? `added ${new Date(m.added * 1000).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}${H2(m) ? ` ${hm(m.added * 1000)}` : ''}` : '');
+    const added = (m) => (m.added ? `added ${dateText(new Date(m.added * 1000), { weekday: 'short', day: 'numeric', month: 'short' })}${H2(m) ? ` ${hm(m.added * 1000)}` : ''}` : '');
     const qOf = (m) => (/\b(2160p?|4k|uhd)\b/i.test(m.name) ? '4K' : /\b(1080p?|fhd)\b/i.test(m.name) ? '1080p' : /\b(720p?|hd)\b/i.test(m.name) ? '720p' : '');
     // a video of a game you've seen (or that isn't hidden): its night and 'a game you've seen'
     const known = [...new Set([...(nba.today || []), ...[...nba.other.values()].flat()])];

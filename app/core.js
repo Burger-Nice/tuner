@@ -39,7 +39,14 @@
   })();
 
   const DEFAULTS = { liveFormat: 'hls', ua: '', scale: 'standard', player: 'mpv', nbaTeam: 'MEM' };
-  const settings = () => ({ ...DEFAULTS, ...store.get('settings', {}) });
+  // (read many times a frame: parsed again only when the saved text changed; each caller gets its own copy of the top level)
+  let setMemo = { raw: undefined, v: {} };
+  const settings = () => {
+    let raw = null;
+    try { raw = localStorage.getItem('tuner.settings'); } catch {}
+    if (raw !== setMemo.raw) { let v = {}; try { v = raw == null ? {} : JSON.parse(raw) || {}; } catch {} setMemo = { raw, v }; }
+    return { ...DEFAULTS, ...setMemo.v };
+  };
   // Each changed key gets its time (the account's shared settings merge key by key, the newer wins)
   const saveSettings = (patch) => {
     const was = settings(), s = { ...was, ...patch }, at = store.get('settingsAt', {}), t = Date.now();
