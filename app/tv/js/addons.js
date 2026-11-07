@@ -79,10 +79,12 @@ let list = null, listFor = null;
 const LKEY = () => scoped('addons');
 export function addons() {
   if (!S.acc) return [];
-  if (listFor !== LKEY()) { list = store.get(LKEY(), []); listFor = LKEY(); }
+  if (listFor !== LKEY()) { const v = store.get(LKEY(), []); list = Array.isArray(v) ? v : []; listFor = LKEY(); }
   return list;
 }
-function saveList() { if (S.acc) store.set(LKEY(), list); emit('addons'); }
+// (a sync can drop the list in memory while an await is under way: never write the dropped list over the saved one,
+// which once left a null there and stopped every later sync)
+function saveList() { if (S.acc && Array.isArray(list) && listFor === LKEY()) store.set(LKEY(), list); emit('addons'); }
 on('acct-data', () => { list = null; listFor = null; emit('addons'); });   // (a sync changed the list)
 on('acct', () => { list = null; listFor = null; });
 on('session', () => {

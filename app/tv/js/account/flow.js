@@ -32,7 +32,7 @@ export const accountProvider = () => S.accounts.find((a) => a.pid && a.id === st
 export function startLater(ms = 4000) { if (!acct.me()) return; if (!store.get(`acctMerged:${acct.me().id}`, false)) mergeLater(ms); setTimeout(() => Y.start(), ms); }
 // The account's facts for the verifying rows and Account (02's background, 03)
 export function accountLine() {
-  const prov = S.accounts.filter((a) => a.pid).length, ads = store.get(`u:${acct.me()?.id}:addons`, []).length;
+  const prov = S.accounts.filter((a) => a.pid).length, ads = ((x) => (Array.isArray(x) ? x.length : 0))(store.get(`u:${acct.me()?.id}:addons`, []));
   const saved = S.accounts.filter((a) => a.pid).reduce((n, a) => n + Object.keys(store.get(`a:${a.id}:favs`, {})).length, 0);
   const parts = [`${prov} provider${prov === 1 ? '' : 's'}`];
   if (store.get(`u:${acct.me()?.id}:stremio`, null)) parts.push('Stremio');

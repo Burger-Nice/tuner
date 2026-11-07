@@ -26,6 +26,14 @@ const bucket = (k) => parseInt(fnv(k).slice(0, 4), 36) % 16;
 // read(): Map natural -> value; write(Map natural -> value | null); merge(local, remote, ctx); keyOf(natural): the
 // store key behind it (its change time stands for the local value's `at`).
 function providerFields(a) { return strip({ pid: a.pid, natural: R.natural(a), type: a.type, server: a.server, username: a.username, password: a.password, url: a.url, name: a.name, tz: a.tz }); }
+// The add-ons as the last sync saw them (each record's value is kept in the state), in the synced order
+function addonsFromSync() {
+  const recs = Object.values(st?.recs || {}).filter((r) => r.col === 'addons' && !r.deleted && r.v);
+  const ord = recs.find((r) => r.n === 'addons-order')?.v?.keys || [];
+  const list = recs.filter((r) => String(r.n).startsWith('addon|') && r.v.url).map((r) => r.v);
+  const at = (a) => { const i = ord.indexOf(a.url); return i < 0 ? 1e9 : i; };
+  return list.sort((a, b) => at(a) - at(b));
+}
 const ADAPTERS = {
   providers: {
     read: () => new Map(withPid().filter((a) => !(a.type === 'm3u' && !a.url)).map((a) => [`prov|${a.pid}`, providerFields(a)])),
@@ -60,7 +68,10 @@ const ADAPTERS = {
   },
   addons: {
     read() {
-      const list = store.get(uKey('addons'), []), m = new Map();
+      let list = store.get(uKey('addons'), []);
+      // (a list that isn't one: rebuilt from what the last sync left here, never read as "every add-on deleted")
+      if (!Array.isArray(list)) { list = addonsFromSync(); store.set(uKey('addons'), list); emit('acct-data'); }
+      const m = new Map();
       for (const a of list) { if (!a?.url) continue; let v = strip({ ...a, health: undefined }); if (JSON.stringify(v).length > 60000) v = { ...v, manifest: undefined }; m.set(`addon|${a.url}`, v); }
       if (list.length) m.set('addons-order', { keys: list.map((a) => a.url) });
       return m;
@@ -69,6 +80,7 @@ const ADAPTERS = {
     merge: (l, r, c) => (c.n === 'addons-order' ? R.order(l, r, c.localAt, c.remoteAt) : R.lww(l, r, c.localAt, c.remoteAt)),
     write(ch) {
       let list = store.get(uKey('addons'), []);
+      if (!Array.isArray(list)) list = addonsFromSync();
       for (const [n, v] of ch) {
         if (n === 'addons-order') continue;
         const url = n.slice(6), i = list.findIndex((a) => a.url === url);
@@ -359,6 +371,8 @@ async function push() {
 
 // ---------- running it ----------
 let busy = null, timer = 0, paused = false, again = false;
+// (a JS error's first frame in the app: file and line, so the Account line names it)
+const where = (e) => { const m = String(e?.stack || '').match(/\/(\w+\.js):(\d+)/); return m ? ` @${m[1]}:${m[2]}` : ''; };
 export function syncNow() {
   if (busy) { again = true; return busy; }
   busy = run().finally(() => { busy = null; if (again) { again = false; schedule(1000); } });
@@ -377,7 +391,7 @@ async function run() {
     setStatus({ state: 'idle', error: null, detail: '', lastSync: st.lastSync });
   } catch (e) {
     console.warn('airglow sync failed', e?.code || e?.message || e);
-    setStatus({ state: e.code === 'offline' ? 'offline' : 'error', error: e.code || 'app', detail: e.code ? (e.status ? `${e.code} ${e.status}` : e.code) : String(e?.message || e).slice(0, 80) });
+    setStatus({ state: e.code === 'offline' ? 'offline' : 'error', error: e.code || 'app', detail: e.code ? (e.status ? `${e.code} ${e.status}` : e.code) : `${String(e?.message || e).slice(0, 60)}${where(e)}` });
     if (e.code !== 'revoked') schedule(2 * 60e3);
   }
 }

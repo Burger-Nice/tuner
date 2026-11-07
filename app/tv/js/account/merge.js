@@ -60,7 +60,7 @@ async function localState() {
 async function fold(extra) {
   const accs = store.get('accounts', []), act = store.get('active', null);
   const copies = (k) => [...accs.sort((a, b) => (a.id === act ? -1 : b.id === act ? 1 : 0)).map((a) => store.get(`a:${a.id}:${k}`, null)), store.get(`x:${k}`, null), store.get(uKey(k), null), extra?.[k]].filter((x) => x != null);
-  const addons = []; for (const list of copies('addons')) for (const a of list || []) if (a?.url && !addons.some((x) => x.url === a.url)) addons.push(a);
+  const addons = []; for (const list of copies('addons')) for (const a of Array.isArray(list) ? list : []) if (a?.url && !addons.some((x) => x.url === a.url)) addons.push(a);
   if (addons.length) store.set(uKey('addons'), addons);
   const strem = copies('stremio').find((s) => s?.authKey); if (strem) store.set(uKey('stremio'), strem);
   for (const k of ['picks', 'hiddenRows', 'rowsOff']) { const c = copies(k)[0]; if (c != null) store.set(uKey(k), c); }

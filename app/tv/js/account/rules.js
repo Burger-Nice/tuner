@@ -50,7 +50,7 @@ export function shield(local, remote, serverNow) {
 // before forget.upTo, sorted by `at`.
 export function plays(lists, forgetUpTo = 0) {
   const by = new Map();
-  for (const list of lists) for (const p of list || []) {
+  for (const list of lists) for (const p of Array.isArray(list) ? list : []) {
     if (!p || !p.playId || (p.at || 0) <= forgetUpTo) continue;
     const had = by.get(p.playId);
     if (!had || (p.at || 0) > (had.at || 0) || ((p.at || 0) === (had.at || 0) && (p.to || 0) > (had.to || 0))) by.set(p.playId, p);
@@ -63,7 +63,7 @@ const fnv = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = 
 export const migratedPlayId = (p) => `m:${p.imdb}:${p.season || 0}:${p.episode || 0}`;
 export const oldPlayId = (p) => `h:${fnv(`${p.imdb}|${p.season || 0}|${p.episode || 0}|${p.at}|${p.source || ''}`)}`;
 export const newPlayId = () => `p:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-export const withIds = (list) => (list || []).map((p) => (p.playId ? p : { ...p, playId: p.source === 'history' ? migratedPlayId(p) : oldPlayId(p) }));
+export const withIds = (list) => (Array.isArray(list) ? list : []).map((p) => (p.playId ? p : { ...p, playId: p.source === 'history' ? migratedPlayId(p) : oldPlayId(p) }));
 // Parts of at most `per` plays, by month: { 'YYYY-MM:n': [plays] }
 export function partsOf(list, per = 200) {
   const months = {};

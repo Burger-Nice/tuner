@@ -61,6 +61,21 @@ module.exports = async ({ p, shot, key, log }) => {
   const r2 = require('child_process').spawnSync(process.execPath, ['--no-warnings', require('path').join(__dirname, 'account-phone.mjs'), '--count'], { encoding: 'utf8' });
   console.log(r2.stdout.trim());
   check('... and the add-on (without its manifest) and the saved channel after it reached the server', /addons:[1-9]/.test(r2.stdout) && /favs:[2-9]/.test(r2.stdout), r2.stdout.trim());
+  // The owner's TV: the add-on list saved as null (a sync dropped the list in memory while an add-on step was saving):
+  // every sync then stopped with "list is not iterable". It is rebuilt from the last sync and nothing is deleted
+  const nul = await ev(async () => {
+    const Y = await import('/tv/js/account/sync.js'), A = await import('/tv/js/account/acct.js'), st = await import('/tv/js/state.js');
+    const u = A.me().id, before = st.store.get(`u:${u}:addons`, []).length;
+    localStorage.setItem(`tuner.u:${u}:addons`, 'null');
+    await Y.syncNow();
+    const y = Y.syncStatus(), after = st.store.get(`u:${u}:addons`, []);
+    return { before, after: Array.isArray(after) ? after.length : String(after), state: y.state, error: y.error, detail: y.detail };
+  });
+  console.log('null list:', JSON.stringify(nul));
+  check('a null add-on list: the sync finishes and the add-ons come back from the last sync', nul.state === 'idle' && !nul.error && nul.after === nul.before && nul.before >= 1);
+  const r3 = require('child_process').spawnSync(process.execPath, ['--no-warnings', require('path').join(__dirname, 'account-phone.mjs'), '--count'], { encoding: 'utf8' });
+  console.log(r3.stdout.trim());
+  check('... and the account still holds them', /addons:[2-9]/.test(r3.stdout));
   // Devices sheet
   await ev(() => document.querySelector('[data-act="acctdevices"]')?.focus()); await key('Enter'); await p.waitForTimeout(1500);
   await shot('devices');
