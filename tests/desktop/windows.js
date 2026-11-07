@@ -104,14 +104,24 @@ async function spike(plan) {
     page.on('pageerror', (e) => console.log('page exception:', e.message));
     await page.waitForFunction(() => !!window.spike, null, { timeout: 20000 });
     // (now and then the first page comes up without window.tuner: a preload that didn't run on that load. Once more.)
-    if (!(await page.evaluate(() => !!window.tuner?.mpv))) { console.log(`plan ${plan}: no window.tuner on the first load, reloading`); await page.reload(); await page.waitForFunction(() => !!window.spike && !!window.tuner?.mpv, null, { timeout: 20000 }); }
+    // (seen again with the bridge gone a moment later, on plan C: up to three reloads, and Play tried again once)
+    const bridged = async () => {
+      for (let i = 0; i < 3; i++) {
+        if (await page.evaluate(() => !!window.spike && !!window.tuner?.mpv).catch(() => false)) return;
+        console.log(`plan ${plan}: no window.tuner on this load, reloading`);
+        await page.reload().catch(() => {}); await page.waitForFunction(() => !!window.spike && !!window.tuner?.mpv, null, { timeout: 20000 }).catch(() => {});
+      }
+    };
+    await bridged();
     const scr = await app.evaluate(({ screen }) => ({ ...screen.getPrimaryDisplay().workAreaSize, scale: screen.getPrimaryDisplay().scaleFactor }));
     report('screen', scr);
     const W = Math.min(1000, scr.width), Hh = Math.min(680, scr.height - 20);
     await app.evaluate((_, b) => { const w = global.__airglow.wins.main; w.setBounds(b); w.show(); w.focus(); }, { x: 0, y: 0, width: W, height: Hh });
     await sleep(800);
     const big = { x: 24, y: 40, w: W - 48, h: Math.round((W - 48) * 9 / 16) };
-    const r = await page.evaluate(([u, r]) => window.spike.play('p1', u, r), [MOVIE, big]);
+    let r;
+    try { r = await page.evaluate(([u, r]) => window.spike.play('p1', u, r), [MOVIE, big]); }
+    catch (e) { if (!/reading 'mpv'/.test(e.message)) throw e; console.log(`plan ${plan}: the bridge went away before Play, once more`); await bridged(); await sleep(800); r = await page.evaluate(([u, r]) => window.spike.play('p1', u, r), [MOVIE, big]); }
     check(`${plan}: mpv starts in a host window`, r.ok, JSON.stringify(r));
     const adv = await advancing(page, 'p1');
     check(`${plan}: mpv reports playback (time-pos advancing over IPC)`, adv.ok, `t=${adv.t} hwdec=${adv.s?.hwdec || 'none'} ${adv.s?.w}x${adv.s?.h} err=${adv.s?.error || ''}`);
