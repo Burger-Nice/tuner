@@ -59,7 +59,7 @@ function acctBody() {
   if (!m) return `<div class="t-title" style="margin-bottom:10px">airglow account</div>
     ${row('acctin', 'Sign in on your phone', more(''), 'Your provider, add-ons, Saved and history on every screen you own')}`;
   const y = Y.syncStatus();
-  const syncT = y.state === 'syncing' ? 'Syncing…' : y.state === 'offline' ? `Last synced ${y.lastSync ? ago(y.lastSync) : 'never'} · offline` : y.state === 'error' ? 'airglow\'s server didn\'t answer · trying again in 2 min' : y.lastSync ? `Synced ${ago(y.lastSync)}` : 'Not synced yet';
+  const syncT = y.state === 'syncing' ? 'Syncing…' : y.state === 'offline' ? `Last synced ${y.lastSync ? ago(y.lastSync) : 'never'} · offline` : y.state === 'error' ? Y.problemText(y) : y.lastSync ? `Synced ${ago(y.lastSync)}` : 'Not synced yet';
   return `<div class="t-title" style="margin-bottom:10px">airglow account</div>
     ${row('acctdevices', esc(acct.displayName() || m.email), `<span class="pill-ok">${ic('check', 'sm')}Signed in</span>`, esc(m.email))}
     ${row('acctsync', esc(syncT), more(y.state === 'offline' ? '' : 'Sync now'), WHAT, y.state === 'offline')}
@@ -267,7 +267,7 @@ function act(a) {
     ? { title: 'Remove this provider?', text: `airglow forgets ${S.acc?.name || 'this provider'} on every device signed in to your account. Its saved channels and progress go with it.`, yes: 'Remove', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first', { provider: true }); } }
     : { title: 'Sign out?', text: `airglow forgets ${S.acc?.name || 'this account'} on this TV. Your saved channels and progress go with it.`, yes: 'Sign out', onYes: () => { const x = S.acc; signOut(); if (x) removeAccount(x); go('first'); } });
   else if (a === 'acctin') go('first', { code: true });
-  else if (a === 'acctsync') { Y.syncNow().then(() => { draw(); toast(Y.syncStatus().error ? acct.WORDS[Y.syncStatus().error] || 'Not synced' : 'Synced'); }); draw(); }
+  else if (a === 'acctsync') { Y.syncNow().then(() => { draw(); toast(Y.syncStatus().error ? Y.problemText(Y.syncStatus()) : 'Synced', 5000); }); draw(); }
   else if (a === 'acctheld') heldMenu();
   else if (a === 'acctdevices') devicesSheet();
   else if (a === 'acctwhat') whatSheet();

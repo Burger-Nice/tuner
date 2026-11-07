@@ -43,6 +43,24 @@ module.exports = async ({ p, shot, key, log }) => {
   const r = require('child_process').spawnSync(process.execPath, ['--no-warnings', require('path').join(__dirname, 'account-phone.mjs'), '--count'], { encoding: 'utf8' });
   console.log(r.stdout.trim());
   check('the server holds this TV\'s provider and saved channels (encrypted)', /providers:1/.test(r.stdout) && /favs:[1-9]/.test(r.stdout));
+  // A record too big for the server (an add-on with a 300 KB manifest, a 200 KB Home picks list) never stops the rest:
+  // the add-on goes without its manifest, the picks wait on this TV, and a saved channel added after them still syncs
+  const big = await ev(async () => {
+    const Y = await import('/tv/js/account/sync.js'), A = await import('/tv/js/account/acct.js'), st = await import('/tv/js/state.js');
+    const u = A.me().id, txt = 'Íslenskt efni á íslensku ✨ '.repeat(11000);
+    st.store.set(`u:${u}:addons`, [...st.store.get(`u:${u}:addons`, []), { url: 'https://big.example/manifest.json', manifest: { id: 'big', name: 'Big', description: txt, resources: [], types: [], catalogs: [] } }]);
+    st.store.set(`u:${u}:picks`, { genres: [txt.slice(0, 200000)] });
+    const acc = st.store.get('accounts', [])[0], favs = st.store.get(`a:${acc.id}:favs`, {});
+    favs['live:after-big'] = { kind: 'live', id: 'after-big', name: 'After big' }; st.store.set(`a:${acc.id}:favs`, favs);
+    await Y.syncNow();
+    const y = Y.syncStatus();
+    return { state: y.state, error: y.error, waiting: y.waiting };
+  });
+  console.log('big:', JSON.stringify(big));
+  check('a record too big for the server waits; the sync still finishes', big.state === 'idle' && !big.error && big.waiting === 1, JSON.stringify(big));
+  const r2 = require('child_process').spawnSync(process.execPath, ['--no-warnings', require('path').join(__dirname, 'account-phone.mjs'), '--count'], { encoding: 'utf8' });
+  console.log(r2.stdout.trim());
+  check('... and the add-on (without its manifest) and the saved channel after it reached the server', /addons:[1-9]/.test(r2.stdout) && /favs:[2-9]/.test(r2.stdout), r2.stdout.trim());
   // Devices sheet
   await ev(() => document.querySelector('[data-act="acctdevices"]')?.focus()); await key('Enter'); await p.waitForTimeout(1500);
   await shot('devices');

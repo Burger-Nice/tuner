@@ -60,15 +60,16 @@ const typing = () => { const a = document.activeElement; return a && (a.tagName 
 let okDown = null;   // { el, t, held, timer }
 // OK held down: the remote sends keydowns every ~50 ms until it is let go, and a TV's WebView doesn't always mark them
 // as repeats. Only the first counts; the rest are dropped everywhere (so a hold opens its menu and never also presses
-// the menu's first row, and never starts a film several times). A press more than 400 ms after the last keydown is a
-// new press even if its keyup went missing (the player took the key).
+// the menu's first row, and never starts a film several times). A remote waits about 500 ms before its first repeat
+// (Android's key repeat timeout), so a keydown within 700 ms of the last, with no keyup between, is the same press; one
+// later than that is a new press even if its keyup went missing (the player took the key).
 let okIsDown = false, okLast = 0;
 document.addEventListener('keydown', (e) => {
   const k = keyName(e);
   if (!k) return;
   remote.at = performance.now();
   if (k === 'ok') {
-    const now = performance.now(), again = e.repeat || (okIsDown && now - okLast < 400);
+    const now = performance.now(), again = e.repeat || (okIsDown && now - okLast < 700);
     okIsDown = true; okLast = now;
     if (again) { e.preventDefault(); e.stopPropagation(); return; }
   }
@@ -111,13 +112,16 @@ function okPress(e) {
   if (!el || el === document.body || !topLayer()?.contains(el)) { focus(entryOf(topLayer())); return; }
   if (e.repeat) return;
   if (!el.hasAttribute('data-hold')) { okSound(el); el.click(); return; }
+  if (okDown) { if (!okDown.held && okDown.el === el) return; clearTimeout(okDown.timer); }   // (one press, one menu: never two timers)
   el.classList.add('pressing');
-  okDown = { el, held: false, timer: setTimeout(() => {
-    if (okDown?.el !== el) return;
+  const mine = { el, held: false, timer: 0 };
+  okDown = mine;
+  mine.timer = setTimeout(() => {
+    if (okDown !== mine) return;
     const a = document.activeElement, to = el.isConnected ? el : a?.dataset?.key && a.dataset.key === el.dataset.key ? a : null;
     okDown.held = true; el.classList.remove('pressing');
     to?.dispatchEvent(new CustomEvent('tvhold', { bubbles: true }));
-  }, 500) };
+  }, 500);
   setTimeout(() => el.classList.remove('pressing'), 600);
 }
 

@@ -9,14 +9,27 @@ import * as Y from './sync.js';
 export async function afterSignIn(ask) {
   const id = acct.me()?.id;
   if (!id) return;
-  if (!store.get(`acctMerged:${id}`, false)) await M.firstSync(ask);
-  else await Y.syncNow();
-  Y.start();
+  try {
+    if (!store.get(`acctMerged:${id}`, false)) await M.firstSync(ask);
+    else await Y.syncNow();
+  } finally { Y.start(); if (!store.get(`acctMerged:${id}`, false)) mergeLater(); }
+}
+// The first sign-in's merge didn't finish (the server didn't answer): this device's own add-ons, Saved and history
+// aren't in the account's set yet, so the device would look empty. It is tried again (Merge: nothing is lost) every
+// 2 minutes and at each start until it finishes.
+let mergeT = 0;
+function mergeLater(ms = 2 * 60e3) {
+  clearTimeout(mergeT);
+  mergeT = setTimeout(async () => {
+    const id = acct.me()?.id;
+    if (!id || store.get(`acctMerged:${id}`, false)) return;
+    try { await M.firstSync(async () => 'merge'); emit('acct'); } catch (e) { console.warn('airglow: the merge is waiting', e?.code); mergeLater(); }
+  }, ms);
 }
 // The account's provider to open on a device with none open (the active one first, then the first in the list)
 export const accountProvider = () => S.accounts.find((a) => a.pid && a.id === store.get('active', null)) || S.accounts.find((a) => a.pid && !(a.type === 'm3u' && !a.url)) || null;
 // At launch: a signed-in device syncs after Home is drawn (never before: the launch budget stays)
-export function startLater(ms = 4000) { if (acct.me()) setTimeout(() => Y.start(), ms); }
+export function startLater(ms = 4000) { if (!acct.me()) return; if (!store.get(`acctMerged:${acct.me().id}`, false)) mergeLater(ms); setTimeout(() => Y.start(), ms); }
 // The account's facts for the verifying rows and Account (02's background, 03)
 export function accountLine() {
   const prov = S.accounts.filter((a) => a.pid).length, ads = store.get(`u:${acct.me()?.id}:addons`, []).length;

@@ -10,7 +10,8 @@ import * as R from './rules.js';
 
 const Core = window.Core;
 export const SHARED = ['name', 'nbaTeam', 'shield', 'langs', 'subLang', 'subMode', 'subLangs', 'subSounds', 'subOnline', 'replaysPlay', 'skipIntro', 'heroGame', 'gameNight', 'scoreBug', 'liveAlert'];
-const YEAR = 365 * 864e5, MAX_REQ = 100, MAX_BYTES = 230 * 1024;
+const YEAR = 365 * 864e5, MAX_REQ = 100, MAX_BYTES = 230 * 1024, BLOB_MAX = 88000;   // (the server takes a record's blob up to 90,000)
+const waiting = new Map();   // records the server refused: key -> the value's hash (tried again once the value changes)
 const user = () => acct.me()?.id;
 const uKey = (k) => `u:${user()}:${k}`;
 const stable = (v) => (v === undefined ? 'u' : JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((y) => [y, x[y]])) : x)));
@@ -231,7 +232,16 @@ const localAt = (a, n) => changed()[a.keyOf(n)] || 0;
 
 // ---------- status for the screens ----------
 let status = { state: 'idle', lastSync: 0, error: null, held: 0 };
-export const syncStatus = () => ({ ...status, lastSync: st.lastSync || status.lastSync, held: Object.keys(st.held || {}).length });
+export const syncStatus = () => ({ ...status, lastSync: st.lastSync || status.lastSync, held: Object.keys(st.held || {}).length, waiting: waiting.size });
+// The Account line for a sync that stopped: what happened in plain words, with the short reason in brackets (so a
+// report from the owner says which one it was)
+export function problemText(y) {
+  const e = y?.error || '';
+  const w = e === 'slow_down' ? 'airglow\'s server asked to slow down' : e === 'quota' || e === 'too_many_records' ? 'Your airglow account is full'
+    : e === 'server' || e === 'not_ready' ? 'airglow\'s server didn\'t answer' : e === 'unauthorized' || e === 'scope' ? 'airglow couldn\'t sign this device in to sync'
+      : 'Syncing stopped on this device';
+  return `${w} · trying again in 2 min${y?.detail ? ` (${y.detail})` : ''}`;
+}
 function setStatus(p) { status = { ...status, ...p }; emit('acct-sync', syncStatus()); }
 
 // ---------- pull ----------
@@ -294,6 +304,25 @@ async function push() {
   }
   for (const [key, h] of Object.entries(st.held)) if (h.release) wipeOut.push({ col: h.col, id: key.slice(h.col.length + 1), n: h.n, v: null, baseVer: h.ver });
   let conflict = false;
+  // One record the server refuses (too big, or anything else it calls a bad request) never stops the rest: the batch is
+  // sent again one record at a time and that record waits here (kept in memory by its value, so it isn't tried on every
+  // round). An add-on too big for one record goes without its manifest (each device reads the manifest itself).
+  const seal = async (o, ver, v) => ({ col: o.col, id: o.id, baseVer: o.baseVer, ver, ...(await K.encryptRecord(keys, u, o.col, o.id, ver, { n: o.n, at: R.clamp(Date.now(), acct.now()), v })) });
+  const refused = (e) => e?.status === 400 || e?.status === 413;
+  const apply = (r, batch) => {
+    const bad = new Set(r.conflict.map((c) => `${c.col}/${c.id}`)), held = new Set(r.held.map((c) => `${c.col}/${c.id}`));
+    if (bad.size) conflict = true;
+    for (const [o, b] of batch) {
+      const key = `${o.col}/${o.id}`;
+      if (bad.has(key)) continue;
+      if (held.has(key)) { const rec = st.recs[key]; st.held[key] = { col: o.col, n: o.n, v: rec?.v, ver: rec?.ver || o.baseVer }; continue; }
+      if (st.held[key]) delete st.held[key];
+      st.recs[key] = { col: o.col, n: o.n, ver: b.ver, h: hash(o.v === null ? null : o.v), v: o.v === null ? null : o.v, at: Date.now(), deleted: o.v === null };
+    }
+    if (r.seq === st.cursor + batch.length - bad.size - held.size) st.cursor = r.seq;   // (nobody else wrote in between)
+    saveState();
+  };
+  const wait = (o) => { waiting.set(`${o.col}/${o.id}`, hash(o.v)); };
   const send = async (list, wipe) => {
     let i = 0;
     while (i < list.length) {
@@ -301,24 +330,24 @@ async function push() {
       let bytes = 0;
       while (i < list.length && batch.length < MAX_REQ) {
         const o = list[i], ver = o.baseVer + 1;
-        const body = o.v === null ? { col: o.col, id: o.id, baseVer: o.baseVer, ver, deleted: true }
-          : { col: o.col, id: o.id, baseVer: o.baseVer, ver, ...(await K.encryptRecord(keys, u, o.col, o.id, ver, { n: o.n, at: R.clamp(Date.now(), acct.now()), v: o.v })) };
+        if (o.v !== null && waiting.get(`${o.col}/${o.id}`) === hash(o.v)) { i++; continue; }
+        let body = o.v === null ? { col: o.col, id: o.id, baseVer: o.baseVer, ver, deleted: true } : await seal(o, ver, o.v);
+        if (body.blob && body.blob.length > BLOB_MAX && o.col === 'addons' && o.v?.manifest) body = await seal(o, ver, { ...o.v, manifest: undefined });
+        if (body.blob && body.blob.length > BLOB_MAX) { wait(o); i++; continue; }
         const size = JSON.stringify(body).length;
         if (batch.length && bytes + size > MAX_BYTES) break;
         batch.push([o, body]); bytes += size; i++;
       }
-      const r = await acct.authed('POST', '/v1/sync', { records: batch.map(([, b]) => b), ...(wipe ? { wipe } : {}) });
-      const bad = new Set(r.conflict.map((c) => `${c.col}/${c.id}`)), held = new Set(r.held.map((c) => `${c.col}/${c.id}`));
-      if (bad.size) conflict = true;
-      for (const [o, b] of batch) {
-        const key = `${o.col}/${o.id}`;
-        if (bad.has(key)) continue;
-        if (held.has(key)) { const rec = st.recs[key]; st.held[key] = { col: o.col, n: o.n, v: rec?.v, ver: rec?.ver || o.baseVer }; continue; }
-        if (st.held[key]) delete st.held[key];
-        st.recs[key] = { col: o.col, n: o.n, ver: b.ver, h: hash(o.v === null ? null : o.v), v: o.v === null ? null : o.v, at: Date.now(), deleted: o.v === null };
+      if (!batch.length) continue;
+      try { apply(await acct.authed('POST', '/v1/sync', { records: batch.map(([, b]) => b), ...(wipe ? { wipe } : {}) }), batch); }
+      catch (e) {
+        if (!refused(e)) throw e;
+        if (batch.length === 1) { wait(batch[0][0]); console.warn('airglow sync: a record was refused', batch[0][0].col, e.code); continue; }
+        for (const one of batch) {
+          try { apply(await acct.authed('POST', '/v1/sync', { records: [one[1]], ...(wipe ? { wipe } : {}) }), [one]); }
+          catch (e2) { if (!refused(e2)) throw e2; wait(one[0]); console.warn('airglow sync: a record was refused', one[0].col, e2.code); }
+        }
       }
-      if (r.seq === st.cursor + batch.length - bad.size - held.size) st.cursor = r.seq;   // (nobody else wrote in between)
-      saveState();
     }
   };
   await send(out, null);
@@ -345,9 +374,10 @@ async function run() {
   try {
     for (let round = 0; round < 3; round++) { await pull(); if (!(await push())) break; }
     st.lastSync = Date.now(); saveState();
-    setStatus({ state: 'idle', error: null, lastSync: st.lastSync });
+    setStatus({ state: 'idle', error: null, detail: '', lastSync: st.lastSync });
   } catch (e) {
-    setStatus({ state: e.code === 'offline' ? 'offline' : 'error', error: e.code || 'server' });
+    console.warn('airglow sync failed', e?.code || e?.message || e);
+    setStatus({ state: e.code === 'offline' ? 'offline' : 'error', error: e.code || 'app', detail: e.code ? (e.status ? `${e.code} ${e.status}` : e.code) : String(e?.message || e).slice(0, 80) });
     if (e.code !== 'revoked') schedule(2 * 60e3);
   }
 }
@@ -420,15 +450,17 @@ export async function undoSince(t) {
   return n;
 }
 
-// ---------- snapshots (SPEC 2.6): the device's local state before the merge question, 64 KB parts ----------
+// ---------- snapshots (SPEC 2.6): the device's local state before the merge question, in 24,000-character parts ----------
 export async function uploadSnapshot(data) {
   await loadState();
   const u = user(), keys = acct.keys(), dev = acct.me().deviceId, day = new Date().toISOString().slice(0, 10);
   const text = JSON.stringify(data), parts = [];
-  for (let i = 0; i * 48000 < text.length; i++) parts.push(text.slice(i * 48000, (i + 1) * 48000));
-  for (let i = 0; i < parts.length; i += 4) {
+  // (each part is stringified again inside its record, which escapes every quote, then sealed and written in base64:
+  // 24,000 characters stay under the server's 90,000 per record even when most are escaped; one part per request)
+  for (let i = 0; i * 24000 < text.length; i++) parts.push(text.slice(i * 24000, (i + 1) * 24000));
+  for (let i = 0; i < parts.length; i += 1) {
     const batch = [];
-    for (let j = i; j < Math.min(parts.length, i + 4); j++) {
+    for (let j = i; j < Math.min(parts.length, i + 1); j++) {
       const n = `snap|${dev}|${day}|${j + 1}|${parts.length}`, id = await idOf(n), ver = (st.recs[`snapshots/${id}`]?.ver || 0) + 1;
       batch.push({ col: 'snapshots', id, baseVer: ver - 1, ver, ...(await K.encryptRecord(keys, u, 'snapshots', id, ver, { n, at: Date.now(), v: { name: acct.deviceInfo().name, day, part: j + 1, of: parts.length, text: parts[j] } })) });
     }

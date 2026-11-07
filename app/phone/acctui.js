@@ -121,7 +121,7 @@ export function groupRows(row) {
   const m = acct.me();
   if (!m) return [row({ icon: 'user', g: true, t: 'Sign in to airglow', s: 'Your provider, add-ons, Saved and history on every screen you own', act: 'agSignin' })];
   const y = Y.syncStatus();
-  const line = y.state === 'syncing' ? 'Syncing…' : y.state === 'offline' ? `Last synced ${y.lastSync ? ago(y.lastSync) : 'never'} · offline` : y.state === 'error' ? 'airglow\'s server didn\'t answer · trying again in 2 min' : y.lastSync ? `Synced ${ago(y.lastSync)}` : 'Not synced yet';
+  const line = y.state === 'syncing' ? 'Syncing…' : y.state === 'offline' ? `Last synced ${y.lastSync ? ago(y.lastSync) : 'never'} · offline` : y.state === 'error' ? Y.problemText(y) : y.lastSync ? `Synced ${ago(y.lastSync)}` : 'Not synced yet';
   return [
     row({ icon: 'user', g: true, t: esc(acct.displayName() || m.email), s: esc(m.email), v: 'Signed in', vcls: 'ok', chev: false }),
     row({ icon: 'refresh', t: esc(line), s: 'Provider logins, Stremio add-ons, TMDB key, Saved, history, Home rows, your settings', v: 'Sync now', act: 'agSync' }),
