@@ -55,7 +55,7 @@ class MpvInstance extends EventEmitter {
       `--input-ipc-server=${this.ipc}`,
       '--idle=yes', '--keep-open=yes', '--force-window=yes', '--terminal=no',
       '--osc=no', '--osd-level=0', '--input-default-bindings=no', '--input-vo-keyboard=no', '--input-cursor=no', '--window-dragging=no', '--cursor-autohide=no',
-      '--ytdl=no', '--audio-display=no', '--msg-level=all=error',
+      '--ytdl=no', '--audio-display=no', '--msg-level=all=error', '--alang=en,eng,English',   // English sound first when a file has it
       `--hwdec=${o.hwdec || 'auto-safe'}`,
       '--cache=yes', '--demuxer-max-bytes=200MiB', '--demuxer-max-back-bytes=60MiB', '--network-timeout=20',
       '--stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5',

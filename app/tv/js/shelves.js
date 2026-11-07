@@ -19,7 +19,7 @@ export function fromCinemeta(m, kind) {
   return {
     kind: m.type === 'series' || kind === 'series' ? 'series' : 'movie', id: m.id, imdb: String(m.id).startsWith('tt') ? m.id : '', tmdb: +m.moviedb || 0,
     name: m.name, year: +m.year || 0, poster: m.poster || '', background: m.background || '', logo: m.logo || '', genres: m.genres || [],
-    rating: parseFloat(m.imdbRating) || 0, overview: m.description || '', country: m.country || '', lang: '', runtime: +m.runtime || 0,
+    rating: parseFloat(m.imdbRating) || 0, overview: AD.looksEnglish(m.description) ? m.description || '' : '', country: m.country || '', lang: '', runtime: +m.runtime || 0,
     director: m.director || [], cast: m.cast || [], anime: false, src: 'cinemeta',
   };
 }

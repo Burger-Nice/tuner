@@ -71,6 +71,12 @@ host.impl = {
   stop: () => end({}),
 };
 let lastRing = null;
+// English sound first when the stream has more than one (the owner's rule); a pick in Audio still wins after this
+function englishSound() {
+  const at = [...(video?.audioTracks || [])]; if (at.length < 2) return;
+  const en = at.find((t) => /^en\b|^eng|english/i.test(t.language || t.label || ''));
+  if (en && !en.enabled) { en.enabled = true; at.forEach((t) => { if (t !== en) t.enabled = false; }); }
+}
 // the TV's packed ring: { tpl: '…/live/u/p/{id}.ts', entries: [[id, name, num, logo, url?]] }
 function unpack(o) {
   const [pre, post] = (o.tpl || '').split('{id}');
@@ -88,7 +94,7 @@ function open() {
   video.addEventListener('waiting', () => { if (P) { P.waiting = true; drawMsg(); } });
   video.addEventListener('pause', () => draw());
   video.addEventListener('play', () => draw());
-  video.addEventListener('loadedmetadata', () => { if (P?.startAt && isFinite(video.duration) && video.duration > P.startAt) { try { video.currentTime = P.startAt; } catch { /* (seeks after) */ } } P && (P.startAt = 0); draw(); syncSubs(); });
+  video.addEventListener('loadedmetadata', () => { if (P?.startAt && isFinite(video.duration) && video.duration > P.startAt) { try { video.currentTime = P.startAt; } catch { /* (seeks after) */ } } P && (P.startAt = 0); englishSound(); draw(); syncSubs(); });
   video.addEventListener('error', () => fail(video.error?.code === 4 ? 'This iPhone can\'t play this stream\'s format.' : 'The stream stopped.'));
   video.addEventListener('ended', onEnded);
   video.addEventListener('timeupdate', () => { if (!dragging) drawTrack(); });

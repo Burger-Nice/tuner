@@ -11,6 +11,21 @@ import { S, store, scoped, emit, on } from './state.js';
 import { native } from './native.js';
 import { readName, originalLang } from './copies.js';
 
+// Is this text English? (the owner's rule: descriptions always in English). Most of a sentence in another script is
+// not; in a Latin script, English shows its common little words ("the", "and", "of", "his"...) in any real sentence,
+// words other languages don't use. Short or empty text counts as English unless it is in another script.
+const EN_WORDS = new Set(['the', 'and', 'of', 'with', 'for', 'his', 'her', 'who', 'when', 'their', 'he', 'she', 'after', 'from', 'that', 'they', 'this', 'are', 'was', 'has', 'have', 'into', 'but', 'must', 'which', 'while', 'about', 'been', 'will', 'what', 'be', 'it', 'its', 'an', 'is', 'on', 'him', 'them', 'where', 'out', 'up', 'new', 'life', 'young', 'world']);
+export function looksEnglish(text) {
+  const t = String(text || '');
+  const letters = t.match(/\p{L}/gu) || []; if (!letters.length) return true;
+  const latin = (t.match(/\p{Script=Latin}/gu) || []).length;
+  if (latin / letters.length < 0.7) return false;
+  if (/[ðþæøåœßñçãõąęłńśźżčřšžőű]/i.test(t) && !/\b(the|and|of)\b/i.test(t)) return false;
+  const words = t.toLowerCase().match(/\p{L}+/gu) || [];
+  if (words.length < 8) return true;
+  return words.filter((w) => EN_WORDS.has(w)).length / words.length >= 0.1;
+}
+
 const CINEMETA = () => store.get('cinemetaBase', 'https://v3-cinemeta.strem.io');
 const STREMIO_API = () => store.get('stremioApi', 'https://api.strem.io');
 const STREMIO_LINK = () => store.get('stremioLink', 'https://link.stremio.com');
@@ -269,7 +284,7 @@ export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
   const ck = `${type}:${id}`;
   const hit = metaMem.get(ck);
   if (hit && Date.now() - hit.at < maxAge) return hit.v;
-  const saved = await window.Core.cache.get(`ad:meta:${ck}`);
+  const saved = await window.Core.cache.get(`ad:meta2:${ck}`);
   if (saved && Date.now() - saved.at < maxAge) { remember(metaMem, ck, saved, 300); return saved.v; }
   const who = [...enabled().filter((a) => supports(a, 'meta', type, id)), ...(String(id).startsWith('tt') ? [cinemetaAddon()] : [])];
   for (const a of who) {
@@ -278,14 +293,33 @@ export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
       const m = d?.meta;
       if (!m?.name) continue;   // an unknown id answers a meta with no name: none
       const v = cleanMeta(m, type, a);
+      if (!a.builtin && a.manifest?.id !== CINEMETA_ID && String(id).startsWith('tt') && !metaIsEnglish(v)) await englishText(v, type, id);
       const rec = { at: Date.now(), v };
       remember(metaMem, ck, rec, 300);
-      window.Core.cache.set(`ad:meta:${ck}`, rec);
-      keepIndex(`ad:meta:${ck}`);
+      window.Core.cache.set(`ad:meta2:${ck}`, rec);
+      keepIndex(`ad:meta2:${ck}`);
       return v;
     } catch {}
   }
   return (hit || saved)?.v || null;   // (offline: the copy kept, however old)
+}
+// An add-on's details in another language (a localized meta add-on): the text comes from Cinemeta, in English (the
+// title, the description, the episodes' names and summaries); the pictures and the rest stay the add-on's.
+const metaIsEnglish = (v) => looksEnglish(v.description) && looksEnglish(v.videos.slice(0, 12).map((x) => x.overview).join(' '));
+async function englishText(v, type, id) {
+  try {
+    const d = await getJSON(resUrl(cinemetaAddon(), 'meta', type, id), { ms: 8000 });
+    if (!d?.meta?.name) { if (!looksEnglish(v.description)) v.description = ''; return; }
+    const c = cleanMeta(d.meta, type, cinemetaAddon());
+    v.name = c.name || v.name; v.description = c.description || (looksEnglish(v.description) ? v.description : '');
+    const byEp = new Map(c.videos.map((x) => [`${x.season}:${x.episode}`, x]));
+    for (const x of v.videos) {
+      const e = byEp.get(`${x.season}:${x.episode}`);
+      if (e) { x.name = e.name || x.name; x.overview = e.overview || (looksEnglish(x.overview) ? x.overview : ''); }
+      else if (!looksEnglish(x.overview)) x.overview = '';
+    }
+    if (!v.videos.length && c.videos.length) v.videos = c.videos;
+  } catch { if (!looksEnglish(v.description)) v.description = ''; }
 }
 // the last 500 metas and 300 catalog pages are kept on the device
 function keepIndex(k, ixKey = 'adMetaIx', n = 500) {
@@ -334,7 +368,7 @@ export async function catalogPage(a, c, { genre, skip = 0, search } = {}) {
     const d = await ask(a, 'catalog', c.type, c.id, extra, 10000);
     const v = (d?.metas || []).filter((m) => m && m.id && m.name).map((m) => ({ id: m.imdb_id || m.id, type: m.type || c.type, name: decode(m.name), poster: m.poster || '', year: +String(m.releaseInfo || m.year || '').match(/\d{4}/)?.[0] || 0, releaseInfo: decode(m.releaseInfo || ''), released: m.released || '', genres: (m.genres || m.genre || []).map(decode), imdbRating: m.imdbRating || '', director: (Array.isArray(m.director) ? m.director : m.director ? [m.director] : []).map(decode),
       // (what Home's rows and the library need, and nothing else: a series page's episodes stay out, SPEC 9)
-      cast: (Array.isArray(m.cast) ? m.cast : []).slice(0, 4).map(decode), country: decode(m.country || ''), runtime: minutes(m.runtime), background: m.background || '', logo: m.logo || '', moviedb: +m.moviedb_id || 0, description: decode(m.description || '').slice(0, 300) }));
+      cast: (Array.isArray(m.cast) ? m.cast : []).slice(0, 4).map(decode), country: decode(m.country || ''), runtime: minutes(m.runtime), background: m.background || '', logo: m.logo || '', moviedb: +m.moviedb_id || 0, description: ((x) => (looksEnglish(x) ? x : ''))(decode(m.description || '').slice(0, 300)) }));
     const rec = { at: Date.now(), v };
     remember(catMem, ck, rec, 150);   // (searches too, so going back to the results is instant; only the newest are kept)
     if (!search) { window.Core.cache.set(ck, rec); keepIndex(ck, 'adCatIx', 300); }

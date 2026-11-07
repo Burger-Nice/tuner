@@ -2593,8 +2593,10 @@ public class PlayerActivity extends AppCompatActivity {
         if ("off".equals(sub)) return b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
         if ("und".equals(sub)) b.setSelectUndeterminedTextLanguage(true);
         else if (!"auto".equals(sub)) b.setPreferredTextLanguage(sub);
+        // English sound first whenever a file has it (the owner's rule), then the language last picked in Audio
         String audio = prefs.getString("audio", "");
-        if (!audio.isEmpty()) b.setPreferredAudioLanguage(audio);
+        if (audio.isEmpty() || audio.startsWith("en")) b.setPreferredAudioLanguages("en");
+        else b.setPreferredAudioLanguages("en", audio);
         return b;
     }
 

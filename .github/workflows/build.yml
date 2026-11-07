@@ -130,6 +130,9 @@ jobs:
       - name: Test the shared crypto and the merge rules
         working-directory: .
         run: node tests/account-crypto-test.js && node tests/account-merge-test.js
+      - name: Test the copy ranking (English first) and the English check for descriptions
+        working-directory: .
+        run: node tests/copies-test.js && node tests/english-test.js
       - name: The database
         if: env.DEPLOY == 'true'
         run: |

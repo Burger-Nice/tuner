@@ -142,7 +142,7 @@ export function titleCopies(t, onChange) {
     tc.wait = { until, opts, left: () => Math.max(0, Math.ceil((until - Date.now()) / 1000)) };
     tc.wait.timer = setInterval(() => {
       if (tc.dead) return;
-      const b = tc.best(), top4k = b && ((b.checked && b.checked.res) || b.claim.res) === '4K' && (b.lang || '') === (prefLangs()[0] || 'English');
+      const b = tc.best(), top4k = b && ((b.checked && b.checked.res) || b.claim.res) === '4K' && (b.lang || '') === 'English';
       if (Date.now() >= until || !tc.asking().length || top4k) { tc.stopWait(); playCopy(t, tc.best(), tc, opts); }
       else if (!tc.dead) onChange?.(tc, 'tick');   // (only the button's countdown changes)
     }, 250);

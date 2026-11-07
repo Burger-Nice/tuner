@@ -72,7 +72,15 @@ eq('a web copy ranks above an unknown kind', ids(rank([Pu, { ...Tv, id: 'Web', c
 // ---- review 2 M3: "Shown first" order ----
 const En = { id: 'En', source: 'provider', lang: 'English', claim: nm('EN| Film 1080p'), checked: { res: '1080p', mbps: 6, plays: true } };
 const Is = { id: 'Is', source: 'provider', lang: 'Icelandic', claim: nm('IS| Film 1080p'), checked: { res: '1080p', mbps: 6, plays: true } };
-eq('M3: Shown first = Icelandic, English: Icelandic first', ids(rank([En, Is], { langs: ['Icelandic', 'English'] })), ['Is', 'En']);
+eq('owner rule: English first even when Shown first puts Icelandic first', ids(rank([Is, En], { langs: ['Icelandic', 'English'] })), ['En', 'Is']);
+{
+  const n = (name) => { const claim = readName({ name }); return { id: name, source: 'Torrentio', order: 1, match: 'sure', lang: claim.lang || 'English', claim, checked: null }; };
+  const ru4k = n('Film.2019.2160p.RUS.BDRip'), it4k = n('🇮🇹 Film 2160p HDR'), en1080 = n('Film.2019.1080p.WEB-DL');
+  eq('owner rule: a 1080p English copy beats 4K Russian and 4K Italian ones', ids(rank([ru4k, it4k, en1080], { langs: ['English'] }))[0], 'Film.2019.1080p.WEB-DL');
+  const multi4k = n('Film 2160p 🇬🇧 / 🇮🇹');
+  eq('owner rule: a 4K copy with English and Italian sound counts as English (and wins on quality)', ids(rank([en1080, multi4k], { langs: ['English'] }))[0], 'Film 2160p 🇬🇧 / 🇮🇹');
+  eq('readName: ENG.ITA is Multi with English', readName({ name: 'Film.1080p.ENG.ITA' }).langs.join(), 'English,Italian');
+}
 eq('M3: Shown first = English, Icelandic: English first (no longer a tie)', ids(rank([Is, En], { langs: ['English', 'Icelandic'] })), ['En', 'Is']);
 eq('Multi or unknown come after his languages and before others', ids(rank([{ ...En, id: 'Fr', lang: 'French' }, { ...En, id: 'Mu', lang: 'Multi' }, { ...En, id: 'Is2', lang: 'Icelandic' }], { langs: ['English', 'Icelandic'] })), ['Is2', 'Mu', 'Fr']);
 

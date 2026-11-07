@@ -10,6 +10,33 @@
 // "DTS", "DVDRip", "HDRip", "webcam" and the "sd" inside words can't be misread.
 const TOK = (s) => ` ${String(s || '').toLowerCase().replace(/\.(mkv|mp4|m4v|avi|ts|m2ts|webm|mov)\b/g, ' ').replace(/[^a-z0-9+]+/g, ' ')} `;
 const has = (t, words) => words.some((w) => t.includes(` ${w} `));
+// The sound languages a release name or an add-on's title names: words and ISO codes (only codes that rarely appear in
+// a film's own title), and the flags add-ons such as Torrentio print ("🇬🇧 / 🇮🇹"). An unnamed copy gets the film's
+// original language later (addons.js). A name naming English and others is Multi (it holds an English track).
+const LANG_WORDS = [
+  ['English', ['eng', 'english']], ['Italian', ['ita', 'italian']], ['French', ['fre', 'french', 'vff', 'vf', 'vfq', 'truefrench']],
+  ['German', ['ger', 'german', 'deutsch']], ['Spanish', ['spa', 'spanish', 'latino', 'castellano', 'esp']],
+  ['Russian', ['rus', 'russian']], ['Hindi', ['hin', 'hindi']], ['Tamil', ['tamil']], ['Telugu', ['telugu']],
+  ['Portuguese', ['portuguese', 'dublado', 'ptbr', 'pt br']], ['Polish', ['pol', 'polish', 'lektor', 'dubbing pl']],
+  ['Turkish', ['tur', 'turkish']], ['Korean', ['kor', 'korean']], ['Japanese', ['jpn', 'japanese']],
+  ['Chinese', ['chi', 'chinese', 'mandarin', 'cantonese']], ['Czech', ['cze', 'czech']], ['Hungarian', ['hun', 'hungarian']],
+  ['Ukrainian', ['ukr', 'ukrainian']], ['Arabic', ['arabic']], ['Dutch', ['dut', 'dutch']], ['Icelandic', ['isl', 'icelandic', 'islensku', 'íslensku']],
+  ['Swedish', ['swedish']], ['Danish', ['danish']], ['Norwegian', ['norwegian']], ['Finnish', ['finnish']], ['Greek', ['greek']],
+  ['Thai', ['thai']], ['Vietnamese', ['vietnamese']], ['Indonesian', ['indonesian']], ['Romanian', ['romanian']], ['Hebrew', ['hebrew']],
+];
+const FLAG_LANG = { GB: 'English', US: 'English', IT: 'Italian', FR: 'French', DE: 'German', ES: 'Spanish', MX: 'Spanish', RU: 'Russian',
+  IN: 'Hindi', BR: 'Portuguese', PT: 'Portuguese', PL: 'Polish', TR: 'Turkish', KR: 'Korean', JP: 'Japanese', CN: 'Chinese', TW: 'Chinese',
+  CZ: 'Czech', HU: 'Hungarian', UA: 'Ukrainian', SA: 'Arabic', NL: 'Dutch', IS: 'Icelandic', SE: 'Swedish', DK: 'Danish', NO: 'Norwegian',
+  FI: 'Finnish', GR: 'Greek', TH: 'Thai', VN: 'Vietnamese', ID: 'Indonesian', RO: 'Romanian', IL: 'Hebrew' };
+function soundLangs(t, raw) {
+  const out = new Set();
+  for (const [l, ws] of LANG_WORDS) if (has(t, ws)) out.add(l);
+  for (const m of raw.matchAll(/([\u{1F1E6}-\u{1F1FF}])([\u{1F1E6}-\u{1F1FF}])/gu)) {
+    const cc = String.fromCharCode(m[1].codePointAt(0) - 0x1F1E6 + 65, m[2].codePointAt(0) - 0x1F1E6 + 65);
+    if (FLAG_LANG[cc]) out.add(FLAG_LANG[cc]);
+  }
+  return [...out];
+}
 function readName(stream) {
   const raw = [stream.name, stream.description || stream.title, stream.behaviorHints?.filename].filter(Boolean).join(' ');
   const t = TOK(raw);
@@ -24,7 +51,8 @@ function readName(stream) {
   c.remux = has(t, ['remux', 'bdremux']);
   const sz = stream.behaviorHints?.videoSize || ((m) => (m ? parseFloat(m[1]) * (/g/i.test(m[2]) ? 1e9 : 1e6) : 0))(String(raw).match(/(\d+(?:\.\d+)?)\s?(GB|MB)\b/i));
   c.size = sz || 0;
-  c.lang = has(t, ['multi', 'dual']) ? 'Multi' : has(t, ['ita', 'italian']) ? 'Italian' : has(t, ['fre', 'french', 'vff', 'vf']) ? 'French' : has(t, ['ger', 'german']) ? 'German' : has(t, ['spa', 'spanish', 'latino']) ? 'Spanish' : '';
+  c.langs = soundLangs(t, String(raw));
+  c.lang = has(t, ['multi', 'dual']) || c.langs.length > 1 ? 'Multi' : c.langs[0] || '';
   c.dub = /með íslensku tali|islensku tali|\bisl(\.|\s)?tal\b|\bdubbed\b|\bdub\b/i.test(String(raw));   // RANKING.md 5: a name that says "dubbed"
   c.notReady = /⏳|\bdownload(ing)?\b/i.test(String(stream.name || ''));
   return c;
@@ -62,7 +90,13 @@ function facts(c, ctx) {
 }
 const langOf = (c) => (c.checked && c.checked.lang) || c.lang || c.claim.lang || '';
 // key 4: the index in Shown first; Multi or unknown after his languages and before others
-function langRank(c, langs) { const l = langOf(c); const i = langs.indexOf(l); return i >= 0 ? i : !l || l === 'Multi' ? langs.length : langs.length + 1; }
+function langRank(c, langs) {
+  let l = langOf(c);
+  if (l === 'Multi' && (c.claim.langs || []).includes('English')) l = 'English';
+  const i = langs.indexOf(l); return i >= 0 ? i : !l || l === 'Multi' ? langs.length : langs.length + 1;
+}
+// The automatic pick always wants English first (the owner's rule), then his other Shown-first languages in order
+const withEnglish = (langs) => ['English', ...(langs || []).filter((l) => l !== 'English')];
 // key 3: plays on this TV, decided now. Unknown (unchecked) counts as playing.
 const plays = (c, ctx) => { const v = ctx.playsNow ? ctx.playsNow(c) : c.checked ? c.checked.plays : undefined; return v === false ? false : true; };
 // key 5: the main cut. ONE tolerance for "the same cut", everywhere: 5% (a PAL copy of the same cut runs 4% short).
@@ -83,7 +117,7 @@ const cutLabel = (len, ref, fps) => { const l = fps && Math.abs(fps - 25) < 0.1 
 // e failed or not ready this session
 const band = (c, f) => (c.failed || c.notReady ? 4 : c.claim.kind === 'cinema' ? 3 : c.source !== 'provider' && c.match !== 'sure' ? 2 : f.tooFast ? 1 : 0);
 function rank(copies, ctx = {}) {
-  const langs = ctx.langs || ['English'];
+  const langs = withEnglish(ctx.langs);
   const inMain = mainCut(copies, ctx);
   const key = (c) => {
     const f = facts(c, ctx);
@@ -184,4 +218,4 @@ function episodeNotReady({ lenSec, providerLenSec }) {
   return lenSec < 180;
 }
 
-module.exports = { readName, rank, pinNote, waitPlan, matchLevel, episodeNote, allows, recheck, isDub, notReadyByLength, episodeNotReady, cutLabel, CUT };
+module.exports = { readName, rank, pinNote, waitPlan, matchLevel, episodeNote, allows, recheck, isDub, notReadyByLength, episodeNotReady, cutLabel, CUT, withEnglish };
