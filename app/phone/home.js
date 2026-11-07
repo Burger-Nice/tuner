@@ -212,11 +212,19 @@ function picture(v, now) {
   };
   if (now) apply(); else picT = setTimeout(apply, 600);
 }
+// The lines' logos asked for with the lineup, so lighting another line shows its logo at once (not a fetch later)
+const warmed = new Map();
+function warmLogo(u) {
+  if (!u || warmed.has(u)) return;
+  const im = new Image(); im.decoding = 'async'; im.src = u; warmed.set(u, im);
+  while (warmed.size > 12) warmed.delete(warmed.keys().next().value);
+}
 function draw() {
   if (!el || !S.acc) return;
   lines = buildLines();
   if (lit >= lines.length) lit = 0;
   const views = lines.map(lineView);
+  for (const x of views) warmLogo(x.logo);
   const v = views[lit];
   const rowsHtml = rowsMarkup();
   const top = `<div class="ph-top"><img class="mk" src="tv/brand/assets/mark-small.svg" alt="airglow"><span class="sp"></span>${avatar()}</div>`;

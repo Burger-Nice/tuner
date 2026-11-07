@@ -55,13 +55,47 @@ export const capFor = (a, target) => (a ? Math.max(0.1, Math.min(0.6, 1 - target
 export const glowOf = (a, alpha = 0.6) => { if (!a) return 'transparent'; const [r, g, b] = a.color.split(',').map(Number); const f = Math.min(1, 110 / Math.max(1, Math.max(r, g, b))); return `rgba(${Math.round(r * f)},${Math.round(g * f)},${Math.round(b * f)},${alpha})`; };
 
 // ---------- logos ----------
+// A logo shows the moment it is lit, not a second later (2026-11 speed pass). Where the second went: Home asked for a
+// card's details after a 450 ms rest, then the logo's file, then measured it, and only then drew it. Now (the usual
+// patterns: prefetch the neighbours, cache the work, decode before the swap; web.dev "Preload images", MDN
+// HTMLImageElement.decode()):
+// - each logo's ink box is kept on the device (IndexedDB, the newest 400), so after a restart a logo it has seen is
+//   drawn at once in its right size, its file warmed in the background (a file that no longer loads is forgotten);
+// - the measured file is kept decoded in memory (the last 32), and the page's <img> asks for it in the same CORS mode,
+//   so the browser hands over the same decoded picture instead of fetching it again;
+// - Home asks for the neighbours' logos ahead of the press (home.js ahead()).
+const LOGO_DISK = 'art:logos', LOGO_KEEP = 400;
+const disk = new Map();   // url -> ink box, as saved
+const held = new Map();   // url -> the decoded Image (the last 32)
+const hold = (url, img) => { held.delete(url); held.set(url, img); while (held.size > 32) held.delete(held.keys().next().value); };
+let saveT = 0;
+const saveDisk = () => { clearTimeout(saveT); saveT = setTimeout(() => { const all = [...disk].slice(-LOGO_KEEP); window.Core?.cache?.set(LOGO_DISK, all); }, 2000); };
+const remember = (url, out) => { if (out && !out.plain) { disk.delete(url); disk.set(url, out); saveDisk(); } };
+const diskReady = (window.Core?.cache?.get(LOGO_DISK) || Promise.resolve(null)).then((all) => {
+  for (const [url, info] of Array.isArray(all) ? all : []) if (info && !ready.has(`logo:${url}`)) { disk.set(url, info); ready.set(`logo:${url}`, info); }
+}).catch(() => {});
+// (a decoded copy: decode() off the main thread where the browser can, so the swap never decodes in its frame)
+const decoded = (img) => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(() => img);
 // -> { x0, y0, x1, y1 (fractions of the image), w, h (natural), dark, lum (the ink's mean luminance) } | null
 export function logoInfo(url) {
   if (!url) return Promise.resolve(null);
   if (logos.has(url)) return logos.get(url);
   // (decided once, before a screen shows it: a logo is drawn only after this answers, so a shown logo never turns back
   // into text. A host that sends no CORS header can't be measured but still shows: drawn plain. Slow is not failed: 20 s.)
-  const p = load(url, 20000).then(async (img) => {
+  const p = diskReady.then(() => {
+    const kept = disk.get(url);
+    if (kept) {
+      // known from an earlier start: drawn now; its file warmed (and checked) behind it
+      load(url, 20000).then((img) => { if (img?.naturalWidth) { hold(url, img); decoded(img); } else { disk.delete(url); saveDisk(); ready.delete(`logo:${url}`); failedLogos.add(url); } });
+      return kept;
+    }
+    return measure(url);
+  });
+  logos.set(url, p);
+  return p;
+}
+function measure(url) {
+  return load(url, 20000).then(async (img) => {
     if (!img || !img.naturalWidth) {
       const plain = await load(url, 20000, false);
       if (!plain || !plain.naturalWidth) { failedLogos.add(url); return null; }
@@ -84,17 +118,20 @@ export function logoInfo(url) {
       }
       if (x1 < 0) { failedLogos.add(url); return null; }   // (an empty picture is no logo)
       const out = { x0: x0 / W, y0: y0 / Hh, x1: (x1 + 1) / W, y1: (y1 + 1) / Hh, w: img.naturalWidth, h: img.naturalHeight, dark: n > 0 && lum / n < 0.04, lum: n > 0 ? lum / n : 0 };
+      hold(url, img);
+      await decoded(img);
       ready.set(`logo:${url}`, out);
+      remember(url, out);
       return out;
     } catch { const out = { plain: true }; ready.set(`logo:${url}`, out); return out; }
   });
-  logos.set(url, p);
-  return p;
 }
 export const logoKnown = (url) => ready.get(`logo:${url}`) || null;
 // a logo that didn't load (404, offline, too slow): the screens show the name in text instead
 const failedLogos = new Set();
 export const logoFailed = (url) => failedLogos.has(url);
+// (a measured logo was read with CORS: the page's copy asks the same way, so it is the one already decoded)
+export const logoCors = (url) => { const i = logoKnown(url); return i && !i.plain ? ' crossorigin="anonymous"' : ''; };
 // A logo whose ink is h px tall and at most maxW wide; before its ink box is known, the image fitted to h.
 export function logoHtml(url, alt, h, maxW, cls = 'lgo') {
   const info = logoKnown(url);
@@ -106,7 +143,7 @@ export function logoHtml(url, alt, h, maxW, cls = 'lgo') {
   const pos = `left:${(-info.x0 * Wd).toFixed(1)}px;top:${(-info.y0 * Hd).toFixed(1)}px;width:${Wd.toFixed(1)}px;height:${Hd.toFixed(1)}px`;
   const inner = info.dark
     ? `<i style="position:absolute;${pos};background:var(--a-text-1);-webkit-mask:url('${esc(url)}') 0 0/100% 100% no-repeat;mask:url('${esc(url)}') 0 0/100% 100% no-repeat"></i>`
-    : `<img src="${esc(url)}" alt="${esc(alt)}" style="position:absolute;${pos}" decoding="async">`;
+    : `<img src="${esc(url)}" alt="${esc(alt)}" crossorigin="anonymous" style="position:absolute;${pos}">`;
   return `<span class="${cls} ink" style="width:${inkW.toFixed(1)}px;height:${inkH.toFixed(1)}px">${inner}</span>`;
 }
 

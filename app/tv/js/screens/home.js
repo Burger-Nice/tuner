@@ -29,7 +29,7 @@ import * as R from '../rows.js';
 import * as SH from '../shelves.js';
 import * as TM from '../tmdb.js';
 import * as AD from '../addons.js';
-import { analyse, known, capFor, glowOf, logoInfo, logoHtml, logoFailed, logoKnown } from '../art.js';
+import { analyse, known, capFor, glowOf, logoInfo, logoHtml, logoFailed, logoKnown, logoCors } from '../art.js';
 
 // ---------- geometry (SPEC 3) ----------
 const LINE_Y = 92, SLOT = 42, CARD_H = 192, OPEN = CARD_H + 8 - SLOT;   // the lit line opens 158 px in place
@@ -50,7 +50,9 @@ const focusOwn = (n) => { if (!n) return false; own++; try { return focus(n); } 
 
 // ---------- small helpers ----------
 const ctx2d = document.createElement('canvas').getContext('2d');
-const width = (t, font) => { ctx2d.font = font; return ctx2d.measureText(t).width; };
+let ctxFont = '';
+// (the canvas's font set only when it changes: setting it parses the font every time, and the column measures each word)
+const width = (t, font) => { if (font !== ctxFont) { ctx2d.font = font; ctxFont = font; } return ctx2d.measureText(t).width; };
 const NAME_F = '700 30px Outfit, sans-serif', FACT_F = '500 16px "Inter Variable", Inter, sans-serif', PLOT_F = '500 15px "Inter Variable", Inter, sans-serif';
 // one line, cut at a word (never mid-word)
 function fitWords(text, px, font = PLOT_F) {
@@ -82,14 +84,35 @@ function plotLines(text, px = 500, n = 3, font = COL_F) {
   if (i < words.length && out.length) out[out.length - 1] = fitWords(`${out[out.length - 1]} ${words.slice(i).join(' ')}`, px, font);
   return out;
 }
-const plotHtml = (text) => { const l = plotLines(text); return l.length ? `<div class="plot">${l.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''; };
+// (kept per text: the cut is about 60 text measures, and the column asks again on every visit and when details land)
+const plots = new Map();
+function plotHtml(text) {
+  const k = String(text || '');
+  let h = plots.get(k);
+  if (h === undefined) {
+    const l = plotLines(k);
+    h = l.length ? `<div class="plot">${l.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : '';
+    plots.set(k, h);
+    while (plots.size > 200) plots.delete(plots.keys().next().value);
+  }
+  return h;
+}
 const D = '<span class="dot">·</span>';
 // A title's facts line that keeps its IMDb rating (the owner: the rating was the part cut off): parts are [text, d] (d:
 // the order in which it gives way, highest first; 0 never) or [[genres], 'g']; fitMeta then trims the drawn line to
 // its box: the genres from the last one, then "Ends …", then the country, never the rating.
 const fitParts = (list) => list.filter(([t]) => (Array.isArray(t) ? t.length : t)).map(([t, d]) => (Array.isArray(t) ? `<span data-g="${esc(t.join('|'))}" data-d="4">${esc(t.join(' · '))}</span>` : `<span${d ? ` data-d="${d}"` : ''}>${esc(t)}</span>`)).join(D);
-function fitMeta(root) {
+const META_F = '500 15px "Inter Variable", Inter, sans-serif';
+// box: the line's max-width (434 on the Marquee's card, 500 in the column). A line clearly inside it by the font's own
+// measure (with a tenth and 16 px to spare: tabular digits, the dots' margins) needs no layout read; only one near or
+// over the edge is measured in the page (scrollWidth forced a layout in the middle of every press in the rows).
+function fitMeta(root, box = 0) {
   for (const m of root?.querySelectorAll?.('.meta[data-fit]') || []) {
+    if (box) {
+      let w = 0;
+      for (const c of m.children) w += c.classList.contains('dot') ? width('·', META_F) + 4 : width(c.textContent, META_F);
+      if (w * 1.1 + Math.max(0, m.children.length - 1) * 6 < box - 16) continue;
+    }
     for (let n = 0; n < 8 && m.scrollWidth > m.clientWidth + 1; n++) {
       const g = m.querySelector('[data-g]'), gs = g ? g.dataset.g.split('|') : [];
       if (gs.length > 1) { gs.pop(); g.dataset.g = gs.join('|'); g.textContent = gs.join(' · '); continue; }
@@ -128,9 +151,18 @@ let metaT = 0;
 const logoAsked = new Set(), inkAsked = new Set();
 function okLogo(url) {
   if (!url || logoFailed(url)) return '';
-  if (logoKnown(url)) return url;
-  if (!logoAsked.has(url)) { logoAsked.add(url); logoInfo(url).then((r) => { if (r) { clearTimeout(metaT); metaT = setTimeout(softSoon, 80); } }); }
-  return '';
+  // (asked once even when its ink box was kept from an earlier start: that warms its file and checks it still loads)
+  if (!logoAsked.has(url)) { logoAsked.add(url); const was = !!logoKnown(url); logoInfo(url).then((r) => { if (r && !was) logoLanded(url); }); }
+  return logoKnown(url) ? url : '';
+}
+// A logo is ready: the lit card or the column showing that title takes it now (not after the remote is quiet); the
+// rest of Home on its next soft redraw
+function logoLanded(url) {
+  if (el && !el.hidden && !watching()) {
+    if (mode === 'mq') { const v = lines[lit]?.v; if (v?.logo === url) { cards[lit] = cardHtml(v); placeLines(); } }
+    else if (colLogo() === url) drawCol();
+  }
+  clearTimeout(metaT); metaT = setTimeout(softSoon, 80);
 }
 function metaOf(type, imdb) {
   if (!imdb) return null;
@@ -373,14 +405,14 @@ function drawLineup(keepKey) {
   drawPeek();
   drawNote();
   // (each logo's ink box is asked once: a redraw when it lands, not on every redraw, which looped every 80 ms)
-  for (const v of views) if (v.logo && !inkAsked.has(v.logo)) { inkAsked.add(v.logo); logoInfo(v.logo).then(() => { clearTimeout(metaT); metaT = setTimeout(softSoon, 80); }); }
+  for (const v of views) if (v.logo && !inkAsked.has(v.logo)) { inkAsked.add(v.logo); logoInfo(v.logo).then(() => logoLanded(v.logo)); }
 }
 function placeLines() {
   const box = mq.querySelector('.hf-lineup');
   box.querySelectorAll('.hf-e').forEach((n, j) => {
     n.classList.toggle('on', j === lit);
     const cd = n.querySelector('.cd'), want = j === lit ? cards[j] || '' : '';
-    if (cd && cd._html !== want) { cd.innerHTML = want; cd._html = want; fitMeta(cd); }
+    if (cd && cd._html !== want) { cd.innerHTML = want; cd._html = want; fitMeta(cd, 434); }
     const y = LINE_Y + j * SLOT + (j > lit ? OPEN : 0) + (j === lit ? 4 : 0);
     n.style.transform = `translateY(${y}px)`;
   });
@@ -583,11 +615,11 @@ function wideCard(x, i, near) {
     const art = (ep && p.t > 30 ? it.still : '') || m?.background || (loading ? '' : backdropFor(ep ? 'series' : 'movie', imdbOfItem(it), ep ? it.seriesName || it._title : it._title || it.name, +it.year || 0, it.tmdb)) || it.poster;   // (an episode not started: the show's backdrop)
     const title = ep ? it.seriesName || m?.name || '' : it._title || it.name;
     return `<div class="hf-w fx" tabindex="-1" data-i="${i}" data-key="p:${esc(it.kind)}:${esc(it.id)}" data-hold>${art ? `<img ${near ? 'src' : 'data-src'}="${esc(sized(String(art).replace('/background/medium/', '/background/small/'), 500))}" alt="">` : ''}<div class="sy"></div>
-      ${okLogo(m?.logo) ? `<img class="lg" src="${esc(m.logo)}" alt="">` : `<b class="nm">${esc(title)}</b>`}<div class="ln">${ep ? `S${it.season} · E${it.ep}` : 'Film'}<span> · ${esc(leftText(p.d - p.t))}</span></div><div class="pb"><i style="width:${pct(p)}%"></i></div></div>`;
+      ${okLogo(m?.logo) ? `<img class="lg" src="${esc(m.logo)}" alt=""${logoCors(m.logo)}>` : `<b class="nm">${esc(title)}</b>`}<div class="ln">${ep ? `S${it.season} · E${it.ep}` : 'Film'}<span> · ${esc(leftText(p.d - p.t))}</span></div><div class="pb"><i style="width:${pct(p)}%"></i></div></div>`;
   }
   const f = x.show, m = f.meta;
   return `<div class="hf-w fx" tabindex="-1" data-i="${i}" data-key="n:${esc(f.imdb)}" data-hold>${m?.background ? `<img ${near ? 'src' : 'data-src'}="${esc(String(m.background).replace('/background/medium/', '/background/small/'))}" alt="">` : ''}<div class="sy"></div>
-    ${okLogo(m?.logo) ? `<img class="lg" src="${esc(m.logo)}" alt="">` : `<b class="nm">${esc(f.name)}</b>`}<div class="ln">S${f.next.season} · E${f.next.episode}<span> · ${f.fresh ? `${f.count} new` : 'Up next'}</span></div></div>`;
+    ${okLogo(m?.logo) ? `<img class="lg" src="${esc(m.logo)}" alt=""${logoCors(m.logo)}>` : `<b class="nm">${esc(f.name)}</b>`}<div class="ln">S${f.next.season} · E${f.next.episode}<span> · ${f.fresh ? `${f.count} new` : 'Up next'}</span></div></div>`;
 }
 function chCard(ch, i) {
   const pr = onNow(guideNow(ch)), pv = pr ? programmeView(ch, pr) : null;
@@ -623,6 +655,8 @@ function drawStack() {
   setHtml(rw.querySelector('.hf-stack'), html, false);
   fi = Math.min(fi, Math.max(0, rows.length - 1));
   drawPeek();
+  // (on the Marquee, once the launch has gone and the remote is quiet: the cards a P− lands on, so their logos are there)
+  if (mode === 'mq' && launchOpen()) whenIdle(() => { if (mode === 'mq' && rows[0] && !el.hidden) ahead(rows[0], mem[rows[0].id] || 0); });
 }
 // Mount the rows near the focus (8 cards, more as Right reaches the sixth); rows further than 3 away are text only
 function mountRows(force) {
@@ -702,16 +736,39 @@ function focusRow(i, j) {
   return true;
 }
 // The column and the picture answer the focused card: the column at once (what is known), the picture after 600 ms
+// (a column drawn before is drawn as it was fitted: Left and Right back over the same cards measure nothing)
+const fitted = new Map();
+// (a font that finished loading measures differently: the cuts made before it are made again)
+try { document.fonts?.addEventListener?.('loadingdone', () => { plots.clear(); fitted.clear(); }); } catch { /* (no font events) */ }
+function drawCol() {
+  const r = rows[fi]; if (!r) return;
+  const col = rw.querySelector('.hf-col'), h = colHtml(r, r.list[mem[r.id] || 0]), f = fitted.get(h);
+  if (!setHtml(col, f || h, false) || f) return;
+  fitMeta(col, 500);
+  col._html = col.innerHTML;   // (what it shows now: the same column drawn again is no change)
+  fitted.set(h, col._html);
+  while (fitted.size > 120) fitted.delete(fitted.keys().next().value);
+}
+// the logo the column shows (or will) for the focused card
+function colLogo() {
+  const r = rows[fi], x = r?.list[mem[r.id] || 0];
+  if (!x) return '';
+  if (r.type === 'poster') return x._d?.logo || x.logo || '';
+  if (r.type === 'wide' && x.cont) { const it = x.cont.item; return it.kind === 'rp' ? '' : metaOf(it.kind === 'episode' ? 'series' : 'movie', imdbOfItem(it))?.logo || ''; }
+  if (r.type === 'wide' && x.show) return x.show.meta?.logo || '';
+  return '';
+}
 function answerFocus() {
   const r = rows[fi]; if (!r) return;
   const j = mem[r.id] || 0, x = r.list[j];
   clearTimeout(colT);
-  if (setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false)) fitMeta(rw.querySelector('.hf-col'));
+  drawCol();
   if (!x) return;
   if (r.type === 'poster') {
     wantPicture(x.background ? { kind: 'img', url: bgUrl(x.background), key: `i:${x.id}` } : x.poster ? { kind: 'poster', url: x.poster, key: `p:${x.id}` } : { kind: 'flat', key: 'flat' });
-    // the details (IMDb rating, runtime, logo) once he rests on it
-    if (!x._d) colT = setTimeout(() => enrich(x).then(() => { if (rows[fi] === r && r.list[mem[r.id] || 0] === x) { if (setHtml(rw.querySelector('.hf-col'), colHtml(r, x), false)) fitMeta(rw.querySelector('.hf-col')); } }), 450);
+    // the details (IMDb rating, runtime, logo): usually asked already, as a neighbour (ahead()); else once he rests
+    // on it (a held Right asks for none of the cards it passes)
+    colT = setTimeout(() => ahead(r, j), 150);
   } else if (r.type === 'channel') wantPicture({ kind: 'flat', logo: x.logo, name: chName(x), key: `c:${x.id}` });
   else if (r.type === 'game') wantPicture({ kind: 'flat', key: 'flat' });
   else if (r.type === 'wide' && x.cont) {
@@ -734,10 +791,36 @@ function enrich(it) {
     if (imdb) { const m = await AD.meta(it.kind, imdb).catch(() => null); if (m) { d.rating = parseFloat(m.imdbRating) || 0; if (m.genres?.length) d.genres = m.genres; d.runtime = m.runtime || d.runtime; d.logo = m.logo || d.logo; d.country = SH.firstCountry(m.country) || d.country; d.releaseInfo = m.releaseInfo; if (!it.overview) it.overview = m.description; } }
     it._d = d;
     if (d.logo) await logoInfo(d.logo);
+    const r = rows[fi];
+    if (el && mode === 'rows' && r?.type === 'poster' && r.list[mem[r.id] || 0] === it) drawCol();
     return d;
   })();
   enriching.set(k, p);
+  p.catch(() => {}).then(() => enriching.delete(k));
   return p;
+}
+// Ahead of the press (the usual prefetch: what the next press can land on): the focused card's details and logo first,
+// then the card a Down lands on, its neighbours (two to the right, one to the left) and the card an Up lands on. Three
+// at a time (TMDB's own limit is 4); a new focus replaces what hasn't started (a held Right never queues the cards it
+// passed). Answers are cached (TMDB 30 days, Cinemeta 7, the logos' ink boxes on the device), so the next visit asks
+// for nothing.
+let aheadQ = [], aheadN = 0;
+function ahead(r, j) {
+  const want = [], add = (row, i) => { const x = row?.type === 'poster' ? row.list[i] : null; if (x && !x._d && !want.includes(x)) want.push(x); };
+  const near = (d) => { const o = rows[fi + d]; if (o) add(o, mem[o.id] || 0); };
+  add(r, j); near(1); add(r, j + 1); add(r, j + 2); add(r, j - 1); near(-1); add(r, j + 3);
+  // (the card he is on starts at once, whatever is in the air; the neighbours wait for a free slot)
+  if (want[0] === r.list[j]) enrich(want.shift()).catch(() => {});
+  aheadQ = want;
+  pump();
+}
+function pump() {
+  while (aheadN < 3 && aheadQ.length) {
+    const x = aheadQ.shift();
+    if (x._d) continue;
+    aheadN++;
+    enrich(x).catch(() => {}).then(() => { aheadN--; pump(); });
+  }
 }
 function colHtml(r, x) {
   if (!x) return '';
