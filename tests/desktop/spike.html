@@ -24,7 +24,8 @@
 <div id="floats" class="floats"></div>
 <script type="module">
 import { floatRoot, setMirror, setPictures } from '../../app/desktop/float.js';
-const T = window.tuner;
+// (read on each use: now and then the preload's window.tuner lands after this script ran, CI plan C)
+const T = new Proxy({}, { get: (_, k) => window.tuner?.[k] });
 const S = { keys: 0, clicks: 0, pics: 0, dbl: 0, wheel: 0, last: '' };
 const rects = {};
 let barFor = null;
