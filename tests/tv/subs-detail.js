@@ -32,8 +32,8 @@ module.exports = async ({ p, shot, key }) => {
   check('checks ran name-best first, one at a time', JSON.stringify(await ev(() => window.__probeLog)) === '[7001,7003,7004,7002]' || (await ev(() => window.__probeLog.length)) === 4, JSON.stringify(await ev(() => window.__probeLog)));
   check('ready: tags 4K HDR10 5.1 ticked', (await tags()).slice(0, 3).join(' ') === 'ad-ok:4K✓ ad-ok:HDR10✓ ad-ok:5.1✓', (await tags()).join(' '));
   check('ready: Version pill 4K HDR10 · best of 4, ticked', /^4K HDR10 · best of 4$/.test(pl[0]) && await ev((D) => !!document.querySelector(`${D} [data-act="version"] .ad-tk`), D), pl[0]);
-  check('ready: Subtitles: Icelandic', pl[1] === 'Subtitles: Icelandic', pl[1]);
-  check('ready: From OpenSubtitles · English ready too', /^From OpenSubtitles\s*English ready too$/.test(await slot()), await slot());
+  check('ready: Subtitles: English (English first)', pl[1] === 'Subtitles: English', pl[1]);
+  check('ready: From OpenSubtitles · Icelandic ready too', /^From OpenSubtitles\s*Icelandic ready too$/.test(await slot()), await slot());
   const box = await ev((D) => { const s = document.querySelector(`${D} .st-side`).getBoundingClientRect(); return { right: s.right, cut: document.querySelector(`${D} .st-side`).scrollWidth > document.querySelector(`${D} .st-side`).clientWidth + 1 }; }, D);
   check('the slot ends by x 912, not cut', box.right <= 912 && !box.cut, JSON.stringify(box));
 
@@ -57,12 +57,12 @@ module.exports = async ({ p, shot, key }) => {
   // ---- the Subtitles sheet ----
   await key('ArrowRight', 1, 250); await ok(p, 'the Subtitles pill', 'subs');
   await key('Enter', 1, 700);
-  await ok(p, 'the sheet opens on Icelandic', 'Icelandic');
+  await ok(p, 'the sheet opens on English', 'English');
   await shot('detail-subs-sheet');
   const sr = await SC.text(p, '.sheet.st-sheet .lr');
   console.log(sr.join('\n'));
-  check('sheet: Icelandic · timing fixed to fit this film (no tick)', /^Icelandic OpenSubtitles · timing fixed to fit this film$/.test(sr[0]) && await ev(() => !document.querySelector('.sheet.st-sheet .lr .ad-tk')), sr[0]);
-  check('sheet: English · lined up with other subtitles', /^English OpenSubtitles · lined up with other subtitles$/.test(sr[1]), sr[1]);
+  check('sheet: English · lined up with other subtitles (no tick)', /^English OpenSubtitles · lined up with other subtitles$/.test(sr[0]) && await ev(() => !document.querySelector('.sheet.st-sheet .lr .ad-tk')), sr[0]);
+  check('sheet: Icelandic · timing fixed to fit this film', /^Icelandic OpenSubtitles · timing fixed to fit this film$/.test(sr[1]), sr[1]);
   check('sheet: Off, Other languages · 31, Not this film?', sr[2] === 'Off' && /^Other languages (29|3\d)$/.test(sr[3]) && /^Not this film\? Match it again$/.test(sr[4]), sr.slice(2).join(' | '));
   const hd = [(await SC.text(p, '.sheet.st-sheet .t-cap'))[0], (await SC.text(p, '.sheet.st-sheet .st-note'))[0]];
   check('sheet: matched on IMDb; None in this copy\'s file.', /Oppenheimer \(2023\), matched on IMDb/.test(hd[0]) && /None in this copy's file\./.test(hd[1] || ''), hd.join(' | '));
@@ -74,16 +74,16 @@ module.exports = async ({ p, shot, key }) => {
   check('Other languages: all of them, by name', ol.length >= 29 && [...ol].sort().join() === ol.join(), `${ol.length}: ${ol.slice(0, 4).join(', ')}…`);
   await key('Escape', 1, 400);
   await ok(p, 'Back: the sheet again, on Other languages', 'others');
-  // English
-  await key('ArrowUp', 2, 150); await ok(p, 'English', 'English'); await key('Enter', 1, 600);
+  // Icelandic (the second row now)
+  await key('ArrowUp', 2, 150); await ok(p, 'Icelandic', 'Icelandic'); await key('Enter', 1, 600);
   pl = await pills();
-  check('picked: Subtitles: English', pl[1] === 'Subtitles: English', pl[1]);
-  check('picked: From OpenSubtitles · Icelandic ready too', /^From OpenSubtitles\s*Icelandic ready too$/.test(await slot()), await slot());
+  check('picked: Subtitles: Icelandic', pl[1] === 'Subtitles: Icelandic', pl[1]);
+  check('picked: From OpenSubtitles · English ready too', /^From OpenSubtitles\s*English ready too$/.test(await slot()), await slot());
   await ok(p, 'focus back on the pill', 'subs');
   const pick = await ev(async () => { const m = await import('/tv/js/subs.js'); const c = await import('/tv/js/catalog.js'); const u = await import('/tv/js/util.js'); return m.subMemory().pick(u.keyOf(c.catalog.movie.titles.find((x) => x.name === 'Oppenheimer'))); });
-  check('the pick is kept for this title (subpick)', pick?.lang === 'English' && pick.source === 'opensubtitles' && !!pick.id, JSON.stringify(pick));
+  check('the pick is kept for this title (subpick)', pick?.lang === 'Icelandic' && pick.source === 'opensubtitles' && !!pick.id, JSON.stringify(pick));
   const fp = await ev(async () => { const m = await import('/tv/js/subs.js'); const c = await import('/tv/js/catalog.js'); const u = await import('/tv/js/util.js'); const t = c.catalog.movie.titles.find((x) => x.name === 'Oppenheimer'); const x = m.forPlayer(u.keyOf(t), { copyId: u.keyOf(t.versions.find((v) => v.id == 7001)) }); return x && { pick: x.pick, files: x.files.map((f) => `${f.lang} x${f.speed.toFixed(4)} ${f.verdict}`), status: x.status }; });
-  check('what the player gets: his pick and the timed files', fp?.pick?.lang === 'English' && fp.files.some((f) => /^Icelandic x1\.0427 fixed/.test(f)), JSON.stringify(fp));
+  check('what the player gets: his pick and the timed files', fp?.pick?.lang === 'Icelandic' && fp.files.some((f) => /^Icelandic x1\.0427 fixed/.test(f)), JSON.stringify(fp));
 
   // ---- Play: the best real copy, at once ----
   await key('ArrowUp', 1, 200); for (let i = 0; i < 3 && !/play/.test(await SC.C.where(p)); i++) await key('ArrowLeft', 1, 150);
@@ -116,6 +116,6 @@ module.exports = async ({ p, shot, key }) => {
   for (let i = 0; i < 4 && !/retry/.test(await SC.C.where(p)); i++) await key('ArrowDown', 1, 150);
   await ok(p, 'Try now', 'retry'); await key('Enter', 1, 2500);
   pl = await pills();
-  check('Try now: Subtitles: Icelandic again', pl[1] === 'Subtitles: Icelandic', pl[1]);
+  check('Try now: Subtitles: English again', pl[1] === 'Subtitles: English', pl[1]);
   await key('Escape', 1, 400);
 };

@@ -70,6 +70,8 @@ final class Subs {
         mode = s.optString("mode", "always");
         JSONArray l = s.optJSONArray("langs"), sh = s.optJSONArray("shown");
         for (int i = 0; l != null && i < l.length(); i++) langs.add(norm(l.optString(i)));
+        // English first, always (the owner's rule), then his other languages in order
+        langs.remove("en"); langs.add(0, "en");
         for (int i = 0; sh != null && i < sh.length(); i++) shown.add(norm(sh.optString(i)));
         sounds = s.optBoolean("sounds", false);
         dub = s.optBoolean("dub", false);
@@ -77,7 +79,7 @@ final class Subs {
             @Override public void onIsPlayingChanged(boolean playing) { drawer.update(); }
             @Override public void onPositionDiscontinuity(@NonNull Player.PositionInfo o, @NonNull Player.PositionInfo n, int reason) { drawer.update(); }
             @Override public void onPlaybackParametersChanged(@NonNull androidx.media3.common.PlaybackParameters pp) { drawer.update(); }
-            @Override public void onTracksChanged(@NonNull Tracks t) { foreign(t); }
+            @Override public void onTracksChanged(@NonNull Tracks t) { foreign(t); fileFirst(); }
         });
     }
     static String norm(String code) { String c = Util.normalizeLanguageCode(code == null ? "" : code.trim()); return c == null ? "" : c.toLowerCase(Locale.ROOT); }
@@ -141,7 +143,8 @@ final class Subs {
                 // (a language picked from Other languages: its first file, once the app has it)
                 if (t == null && waitingFor.startsWith("lang:")) for (SrtTrack o : files.values()) if (o.lang.equals(waitingFor.substring(5))) { t = o; break; }
                 if (t == null && !pick.optString("lang").isEmpty() && pick.optString("id").isEmpty()) for (SrtTrack o : files.values()) if (o.lang.equals(pick.optString("lang"))) { t = o; break; }
-                if (t != null) {
+                if (t != null && "en".equals(codeOf(t.lang)) && fileHasEnglish()) { waitingFor = ""; useFileEnglish(); }   // (the file's own English first)
+                else if (t != null) {
                     boolean late = !waitingFor.isEmpty();
                     useDownload(t);
                     waitingFor = "";
@@ -181,6 +184,29 @@ final class Subs {
         p.setTrackSelectionParameters(p.getTrackSelectionParameters().buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build());   // ExoPlayer's own view stays empty
         drawer.set(t);
         a.subsChanged();
+    }
+    // ---------- the file's own English subtitles before a download (the owner's rule) ----------
+    /** The file has a full (not forced) English subtitle track. */
+    boolean fileHasEnglish() {
+        for (Tracks.Group g : p.getCurrentTracks().getGroups()) {
+            if (g.getType() != C.TRACK_TYPE_TEXT) continue;
+            for (int i = 0; i < g.length; i++) {
+                Format f = g.getTrackFormat(i);
+                if (g.isTrackSupported(i) && "en".equals(norm(f.language)) && (f.selectionFlags & C.SELECTION_FLAG_FORCED) == 0) return true;
+            }
+        }
+        return false;
+    }
+    /** The file's English track on, the download off. */
+    private void useFileEnglish() {
+        drop();
+        p.setTrackSelectionParameters(p.getTrackSelectionParameters().buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).setPreferredTextLanguages("en").build());
+    }
+    /** The tracks became known after a download went on: the file's English wins unless he picked the download. */
+    private void fileFirst() {
+        if (picked || on == null || !textWanted() || !"en".equals(codeOf(on.lang))) return;
+        if (fileHasEnglish()) useFileEnglish();
     }
     /** The download goes (a file track or Off was picked). */
     void drop() { if (on != null) { on = null; drawer.set(null); a.subsChanged(); } }

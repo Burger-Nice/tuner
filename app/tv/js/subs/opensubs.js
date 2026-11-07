@@ -106,7 +106,8 @@ export function byLang(files) {
 // -> { on: { lang, source: 'file'|'opensubtitles', track?, file? } | null, offReason, perLang: [{ lang, source, track?, files }],
 //      ready: [other languages ready], missing: [his languages with none] }
 export function choose(prefs, copy = {}, files = [], opts = {}) {
-  const langs = prefs.langs?.length ? prefs.langs : prefs.shown || ['English'];
+  // English first, always (the owner's rule: the file's English, else a download's), then his other languages
+  const langs = ['English', ...(prefs.langs?.length ? prefs.langs : prefs.shown || []).filter((l) => l !== 'English')];
   const groups = byLang(prefs.online === false ? [] : files);
   const full = (copy.inFile || []).filter((t) => !t.forced && t.lang);
   const perLang = langs.map((lang) => {

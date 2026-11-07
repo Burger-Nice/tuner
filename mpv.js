@@ -146,7 +146,7 @@ class MpvInstance extends EventEmitter {
         case 'idle-active': st.idle = !!v; break;
         case 'paused-for-cache': st.buffering = !!v; break;
         case 'cache-buffering-state': st.bufPct = typeof v === 'number' ? v : 0; return;
-        case 'track-list': st.tracks = Array.isArray(v) ? v.map((t) => ({ id: t.id, type: t.type, lang: t.lang || '', title: t.title || '', codec: t.codec || '', selected: !!t.selected, external: !!t.external, channels: t['demux-channel-count'] || 0, h: t['demux-h'] || 0 })) : []; break;
+        case 'track-list': st.tracks = Array.isArray(v) ? v.map((t) => ({ id: t.id, type: t.type, lang: t.lang || '', title: t.title || '', codec: t.codec || '', selected: !!t.selected, external: !!t.external, forced: !!t.forced, channels: t['demux-channel-count'] || 0, h: t['demux-h'] || 0 })) : []; break;
         case 'width': st.w = v || 0; break;
         case 'height': st.h = v || 0; break;
         case 'hwdec-current': st.hwdec = v && v !== 'no' ? String(v) : ''; break;

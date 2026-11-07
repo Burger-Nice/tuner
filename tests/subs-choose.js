@@ -23,20 +23,20 @@ const { t, done } = runner('subs-choose');
   t('prefer sounds: the three with sounds first', O.rankFiles(by.get('English'), { preferSounds: true }).slice(0, 3).every((f) => f.nameSounds));
   t('the frame rate breaks a tie (fpsMilli within 0.1%)', O.rankFiles([{ ...en[0], fps: 25, order: 0 }, { ...en[1], order: 1 }], { copyFps: 23.976 })[0].order === 1);
   const c = O.choose(owner, { soundLang: 'English', inFile: [] }, files);
-  t('his order: Icelandic shows, English is ready too', c.on?.lang === 'Icelandic' && c.on.source === 'opensubtitles' && c.ready[0] === 'English' && !c.missing.length);
+  t('English first (the owner\'s rule): English from OpenSubtitles shows, Icelandic is ready too', c.on?.lang === 'English' && c.on.source === 'opensubtitles' && c.ready[0] === 'Icelandic' && !c.missing.length);
   const plan = O.downloadPlan(owner, { soundLang: 'English', inFile: [] }, files);
-  t('the title page downloads 4 files: Icelandic, the best English, and two more English releases (each shown file gets a pair of others)', plan.files.length === 4 && plan.files[0].lang === 'Icelandic' && plan.files[1].id === '9767889' && plan.files.slice(2).every((f) => f.lang === 'English') && new Set(plan.files.map((f) => f.release)).size === 4, plan.files.map((f) => `${f.lang} ${f.release}`).join(' | '));
+  t('the title page downloads 4 files: the best English, Icelandic, and two more English releases (each shown file gets a pair of others)', plan.files.length === 4 && plan.files[0].id === '9767889' && plan.files[1].lang === 'Icelandic' && plan.files.slice(2).every((f) => f.lang === 'English') && new Set(plan.files.map((f) => f.release)).size === 4, plan.files.map((f) => `${f.lang} ${f.release}`).join(' | '));
   t('no pair from Arabic (8 files, more than English) when his languages have one', plan.files.every((f) => f.lang !== 'Arabic'));
   // in the file first (an English track in the copy's file)
   const inFile = O.choose(owner, { soundLang: 'English', inFile: [{ lang: 'English', forced: false }, { lang: 'Spanish', forced: false }] }, files);
-  t('Icelandic downloaded beats English in the file (his order); English is in the file', inFile.on.lang === 'Icelandic' && inFile.perLang[1].source === 'file');
+  t('the file\'s own English wins over every download (the owner\'s rule)', inFile.on.lang === 'English' && inFile.on.source === 'file' && inFile.perLang[0].source === 'file');
   const icelandicInFile = O.choose(owner, { inFile: [{ lang: 'Icelandic', forced: false }] }, files);
-  t('a full Icelandic track in the file wins over a download', icelandicInFile.on.source === 'file' && icelandicInFile.on.lang === 'Icelandic');
+  t('no English in the file: English from OpenSubtitles first, the file\'s Icelandic ready too', icelandicInFile.on.source === 'opensubtitles' && icelandicInFile.on.lang === 'English' && icelandicInFile.perLang[1].source === 'file');
   t('a forced-only track doesn\'t count', O.choose(owner, { inFile: [{ lang: 'Icelandic', forced: true }] }, files).on.source === 'opensubtitles');
   // the settings
   t('Off: nothing on, still listed', O.choose({ ...owner, mode: 'off' }, {}, files).on === null && O.choose({ ...owner, mode: 'off' }, {}, files).perLang[0].source === 'opensubtitles');
   t('Only when the sound isn\'t yours: an English copy shows none', O.choose({ ...owner, mode: 'foreign' }, { soundLang: 'English' }, files).on === null);
-  t('Only when the sound isn\'t yours: a Korean copy shows Icelandic', O.choose({ ...owner, mode: 'foreign' }, { soundLang: 'Korean' }, files).on.lang === 'Icelandic');
+  t('Only when the sound isn\'t yours: a Korean copy shows English', O.choose({ ...owner, mode: 'foreign' }, { soundLang: 'Korean' }, files).on.lang === 'English');
   t('a dub: off by default', O.choose(owner, { soundLang: 'Icelandic', dub: true }, files).offReason === 'dub');
   t('OpenSubtitles off: the file\'s own only', O.choose({ ...owner, online: false }, { inFile: [] }, files).on === null);
   t('English, Icelandic order: English shows', O.choose({ ...owner, langs: ['English', 'Icelandic'] }, {}, files).on.lang === 'English');

@@ -785,7 +785,10 @@ function applySubPick() {
   if (!s || P.subApplied === s) return;
   const p = s.pick;
   if (!p) return;
-  if (p.source === 'opensubtitles') { const f = (s.files || []).find((x) => x.id === p.id); if (f) { P.subApplied = s; addSubFile(f, false); } }
+  // the copy's own English subtitles before an English file found online (the owner's rule)
+  const ownEn = p.source === 'opensubtitles' && langName(p.lang) === 'English' ? subTracks().find((x) => !x.external && !x.forced && langName(x.lang) === 'English') : null;
+  if (ownEn) { P.subApplied = s; mset('sid', ownEn.id); }
+  else if (p.source === 'opensubtitles') { const f = (s.files || []).find((x) => x.id === p.id); if (f) { P.subApplied = s; addSubFile(f, false); } }
   else if (p.source === 'file') { const lang = String(p.id || '').replace(/^track:/, ''); const t = subTracks().find((x) => x.lang === lang || langName(x.lang) === langName(lang)); if (t) { P.subApplied = s; mset('sid', t.id); } }
   else if (p.source === 'off' && M?.tracks?.length) { P.subApplied = s; mset('sid', 'no'); }
 }
