@@ -88,7 +88,25 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 
 ## Build, test, release
 
-- Local Playwright: the repo's `node_modules/playwright` doesn't match the container's browser; launch with
+- **The owner's Windows PC (from 8 Nov):** the repo is at `C:\tuner`. Installed:
+  - Node 24 and gh (signed in as Burger-Nice).
+  - Temurin JDK 21 (`JAVA_HOME` set).
+  - The Android SDK at `%LOCALAPPDATA%\Android\Sdk` (`ANDROID_HOME` set; platform 36, build-tools 35 and 36; Google's
+    new `android sdk install …` CLI replaces sdkmanager there).
+  - Python 3.13 (use `py -3`; `python3` is the Microsoft Store stub, which `serve.sh` skips).
+  - ffmpeg (winget).
+  - adb.
+  - Playwright's own Chromium (`npx playwright install chromium`; no `executablePath`, and `PW=$PWD/node_modules/playwright`
+    for the desktop test).
+
+  How to build and test there:
+  - TV APK: `node scripts/build-web.js tv; npx cap sync android; cd android; .\gradlew.bat assembleDebug`. Afterwards,
+    `git checkout` the two `capacitor*.gradle` files that `cap sync` rewrites.
+  - `bash tests/tv/serve.sh` works in Git Bash. A shell opened before the installs may need the new PATH. If it's
+    stopped from outside a terminal, kill its `node`/`python` children on 8777/8899/8790 by hand.
+  - No adb to the TV: the owner uses the TV a lot and prefers updates through the app's own updater.
+  - The iPhone app only builds on CI (no Mac).
+- Local Playwright (the cloud container): the repo's `node_modules/playwright` doesn't match the container's browser; launch with
   `executablePath: '/opt/pw-browsers/chromium'` (a `-r` preload that patches `chromium.launch` works for drive.js), or
   `PW=$(npm root -g)/playwright` for the desktop views test.
 - Local: `tests/tv/serve.sh` starts the fake provider + fake ESPN (127.0.0.1:8899, demo/demo) and serves the app at
