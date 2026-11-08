@@ -290,7 +290,7 @@ window.TUNER_TEST = true;
         const pl = await TP.playable({ copies: [{ id: 'film', formats: pr.formats }, { id: 'dts', formats: { video: pr.formats?.video, audio: [{ mime: 'audio/vnd.dts.hd', ch: 6, rate: 48000 }] } }] });
         check('plays on this TV: the fake film plays', pl.film?.video && pl.film?.audio, { playable: JSON.stringify(pl) });
         report('note', { playable: pl });
-        // the film, with his settings (SPEC 14: Always, Icelandic then English) and the fake add-on
+        // the film, with his settings (SPEC 14: Always, Icelandic then English; English is always first now) and the fake add-on
         localStorage.setItem('tuner.subsBase', JSON.stringify(`${API}/subs-addon`));
         const mod = (m) => import(`./tv/js/${m}.js`);
         const [SU, CA, U, ST, PL] = await Promise.all(['subs', 'catalog', 'util', 'state', 'player'].map(mod));
@@ -300,7 +300,7 @@ window.TUNER_TEST = true;
         const v = t.versions[0];
         const key = U.keyOf(t);
         const st = await SU.prepare({ key, name: t.name, imdb: 'tt9000101', level: 'sure', version: v });
-        check('subtitles: Icelandic from the fake add-on', st.status === 'ready' && st.on?.lang === 'Icelandic', { pill: st.pill, side: st.side });
+        check('subtitles: English first from the fake add-on (the fake film has no English track of its own)', st.status === 'ready' && st.on?.lang === 'English', { pill: st.pill, side: st.side });
         await PL.playVod(v, { restart: true });
         await until(() => state()?.watching, 10000);
         await wait(2500);
@@ -308,9 +308,9 @@ window.TUNER_TEST = true;
         window.__subs = null;
         await subsNow('player-subs-line', 600);
         await until(() => window.__subs, 3000);
-        check('subtitles: a downloaded line is drawn by the player', /on=Icelandic/.test(window.__subs?.state || '') && window.__subs?.shown > 0 && /Ég|Hvað|Það|Við/.test(window.__subs?.last || ''), { subs: JSON.stringify(window.__subs) });
+        check('subtitles: a downloaded line is drawn by the player', /on=English/.test(window.__subs?.state || '') && window.__subs?.shown > 0 && /know|wrong|done|here|think|about|not now|mean/.test(window.__subs?.last || ''), { subs: JSON.stringify(window.__subs) });
         await press(['MEDIA_PAUSE'], 'player-subs-paused');   // (the film is 60 s long: paused for the panels, which step it as he would)
-        await press(['CAPTIONS'], 'player-subs-panel', 800);   // Options > Subtitles: Off, From OpenSubtitles, Icelandic (on), Early or late, English
+        await press(['CAPTIONS'], 'player-subs-panel', 800);   // Options > Subtitles: Off, From OpenSubtitles, English (on), Early or late, Icelandic
         await press(['DPAD_DOWN'], 'player-subs-early-or-late-row');
         await press(['DPAD_CENTER'], 'player-subs-timing', 800);   // the strip, at the top; the subtitles stay in view
         await press(['DPAD_RIGHT'], 'player-subs-timing-later');   // 0.5 s later
@@ -318,8 +318,8 @@ window.TUNER_TEST = true;
         await subsNow('player-subs-timing-state');
         await until(() => window.__subs, 3000);
         const mem = SU.subMemory();
-        check('Early or late: ▶ moves the next line by 0.5 s, saved for this film', window.__subs?.mine === 0.5 && window.__subs?.strip === 'strip' && mem?.offset(key, U.keyOf(v), '9000101-is') === 0.5,
-          { subs: JSON.stringify(window.__subs), saved: mem?.offset(key, U.keyOf(v), '9000101-is') });
+        check('Early or late: ▶ moves the next line by 0.5 s, saved for this film', window.__subs?.mine === 0.5 && window.__subs?.strip === 'strip' && mem?.offset(key, U.keyOf(v), '9000101-en') === 0.5,
+          { subs: JSON.stringify(window.__subs), saved: mem?.offset(key, U.keyOf(v), '9000101-en') });
         await press(['DPAD_DOWN'], 'player-subs-match-a-line', 800);   // Match a line: the next line's words
         await press(['BACK'], 'player-subs-match-cancelled');
         await press(['DPAD_CENTER'], 'player-subs-timing-done');
