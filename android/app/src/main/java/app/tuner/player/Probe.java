@@ -308,7 +308,7 @@ final class Probe {
                 .setLoadErrorHandlingPolicy(NO_RETRY)
                 .setContinueLoadingCheckIntervalBytes(256 * 1024)
                 .createMediaSource(MediaItem.fromUri(Uri.parse(url)));
-        source.prepareSource(caller, null, PlayerId.UNSET);
+        source.prepareSource(caller, PlayerId.UNSET, androidx.media3.exoplayer.upstream.BandwidthMeter.NO_OP);   // (Media3 1.11: the old form throws "not implemented")
         h.postDelayed(poll, 100);
     }
     private String hash() { return ranged && tail != null && head.length == BLOCK && size >= BLOCK ? movieHash(size, head, tail) : ""; }
