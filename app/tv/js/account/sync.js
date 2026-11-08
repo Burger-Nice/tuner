@@ -7,6 +7,8 @@ import { S, store, emit, on } from '../state.js';
 import * as acct from './acct.js';
 import * as K from './crypto.js';
 import * as R from './rules.js';
+import { problem } from '../reports.js';
+let phase = 'pull', syncFails = 0;   // for error reports (sync-stopped)
 
 const Core = window.Core;
 export const SHARED = ['name', 'nbaTeam', 'shield', 'langs', 'subLang', 'subMode', 'subLangs', 'subSounds', 'subOnline', 'replaysPlay', 'skipIntro', 'heroGame', 'gameNight', 'scoreBug', 'liveAlert'];
@@ -386,11 +388,15 @@ async function run() {
   await loadState();
   setStatus({ state: 'syncing' });
   try {
-    for (let round = 0; round < 3; round++) { await pull(); if (!(await push())) break; }
+    for (let round = 0; round < 3; round++) { phase = 'pull'; await pull(); phase = 'push'; if (!(await push())) break; }
     st.lastSync = Date.now(); saveState();
+    syncFails = 0;
     setStatus({ state: 'idle', error: null, detail: '', lastSync: st.lastSync });
   } catch (e) {
     console.warn('airglow sync failed', e?.code || e?.message || e);
+    // Error reports: after 2 failures in a row (offline doesn't count), the error with its stack, its code and the phase;
+    // never detail or the message (SPEC D10)
+    if (e.code !== 'offline' && ++syncFails === 2) problem('sync-stopped', { code: e.code || 'app', status: e.status, phase, waiting: waiting.size, held: Object.keys(st.held || {}).length, fails: syncFails }, { key: e.code || 'app', err: e });
     setStatus({ state: e.code === 'offline' ? 'offline' : 'error', error: e.code || 'app', detail: e.code ? (e.status ? `${e.code} ${e.status}` : e.code) : `${String(e?.message || e).slice(0, 60)}${where(e)}` });
     if (e.code !== 'revoked') schedule(2 * 60e3);
   }

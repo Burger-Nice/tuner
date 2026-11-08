@@ -8,6 +8,7 @@
 // (F), docked (G: the game panel at the right, the bar in the band under the picture), mini (P: the picture's host
 // moves into an always-on-top window of its own; the same mpv, no new stream).
 import { host, emitEvent } from './bridge.js';
+import { problem, whyFacts } from '../tv/js/reports.js';
 import { S, on, emit, settings } from '../tv/js/state.js';
 import { catalog } from '../tv/js/catalog.js';
 import { gameById, shielded, isSeen } from '../tv/js/games.js';
@@ -170,6 +171,8 @@ function fail(why) {
   clearTimeout(P.startT);
   if (P.mode === 'live' && !failedOnce && !P.playing) { failedOnce = true; setTimeout(() => { if (P && !P.playing) load(); }, 1200); return; }
   P.err = why; P.waiting = false;
+  { const e = P.mode === 'vod' ? P.entries[P.index] : null, wf = whyFacts(why);   // error reports: what failed, never which stream (SPEC D10)
+    problem('play-failed', { stage: P.playing ? 'playing' : 'start', what: P.mode === 'live' ? 'live' : 'vod', source: e?.sourceKind === 'addon' ? 'addon' : S.acc?.type === 'm3u' ? 'm3u' : 'xtream', player: 'mpv', ...wf }, { key: wf.error }); }
   copyFailed();
   draw();
   limitReached().then((lim) => { if (lim && P?.err === why) { P.err = lim; draw(); } });

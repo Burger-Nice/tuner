@@ -2,6 +2,7 @@
 // card that opened it; in a tab's content it scrolls to the top and focuses the tab; on a tab it goes Home; Home exits.
 import { $, ic, brandImg, esc, focusPath, findPath } from './util.js';
 import { focus, entryOf, inLayer } from './focus.js';
+import { screen as reportScreen } from './reports.js';
 
 const screens = new Map();   // name -> { def, el, mounted }
 export const TABS = [['search', 'Search'], ['home', 'Home'], ['live', 'Live'], ['nba', 'NBA'], ['movie', 'Movies'], ['series', 'Series'], ['saved', 'Saved']];
@@ -25,6 +26,7 @@ export const screenEl = (name = current()) => screens.get(name)?.el || null;
 export const screenDef = (name = current()) => screens.get(name)?.def || null;
 
 function show(name, params, { focusIn = true, fresh = true } = {}) {
+  reportScreen(name);   // error reports say which screen he was on
   for (const [n, s] of screens) if (s.el && n !== name && !s.el.hidden) { s.el.hidden = true; s.def.leave?.(s.el); }
   const s = mountOf(name);
   const was = s.el.hidden;

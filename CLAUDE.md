@@ -44,6 +44,24 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   - `js/screens/` home, live (the guide), nba (the NBA tab host), team, game, lib (Movies/Series: the add-on library,
     never the provider's VOD), detail, search, saved, account, first (sign-in).
   - Styles: `ui.css` (the design kit) and `app.css` (app-specific), `launch.css`, `nba*.css` (the NBA pages).
+- Error reports (Sentry; `design/ui-v1/error-reports/SPEC.md` and its "As built"): the rule is that no link, provider or
+  add-on address, channel identity or secret ever leaves the device.
+  - JS on all three apps:
+    - `app/vendor/sentry.js` is `@sentry/browser` 11.11.0 bundled by `scripts/build-sentry.js` at postinstall.
+    - `report-scrub.js` rebuilds every report from an allowlist. Messages become types or codes, links and hosts are
+      blanked, and it also defines `AppError`.
+    - `report-boot.js` starts Sentry before `core.js`.
+    - `reports.js` gives the modules `note()`, `screen()` and `problem()`.
+  - TV native: `Reports.java`, `App.java`, and the plugin's `reports()`.
+  - The real address (`reports.json`) is only in builds from `main`.
+  - Read reports with the Sentry connector: org `biggi-qu` (EU, `https://de.sentry.io`), project `airglow`,
+    `search_issues`.
+  - Tests:
+    - `tests/report-scrub-test.js`
+    - `ReportsTest`
+    - `tests/tv/reports-leak.js` (`serve.sh` starts the fake ingest `tests/mock-sentry.js` on :8791)
+    - the emulator's leak probe
+  - Our own errors throw `AppError(code, text)`: the text is shown on screen, and the code is what a report carries.
 - airglow accounts (`design/ui-v1/accounts-v1/SPEC.md`, its "As built"): `app/tv/js/account/` shared by all three apps:
   `crypto.js` (WebCrypto: KDF with floor/ceiling, wraps, records, the TV handover, recovery keys), `acct.js` (session,
   tokens, the per-platform secure store: TV Keystore `Secret.java`, iPhone Keychain plugin, Windows safeStorage),
@@ -146,6 +164,11 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   couldn't, and ask before anything outward-facing.
 
 ## Known open items
+
+- Error reports (8 Nov, not released yet).
+  - After the next release, send "Send a report now" from each app and read it back with the Sentry connector.
+  - Then add 'production' to the Sentry email alert's environment filter.
+  - Windows main-process crashes are v2 (SPEC D11).
 
 - Some channels still say "No guide information" on the owner's provider; Account > Provider > Check the guide shows
   what the provider sends (the guide has a full-table fallback and a clock-offset fix, untested on the real provider).

@@ -12,7 +12,8 @@ import { go, current } from '../router.js';
 import { focus } from '../focus.js';
 import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js';
 import { sfx } from '../sfx.js';
-import { connectionCheck } from '../conncheck.js';
+import { connectionCheck, lastConnCheck } from '../conncheck.js';
+import { reportsAvailable, setReports, sendNow } from '../reports.js';
 import { forgetReplays, keptWords, NOT_KEPT } from '../catchup.js';
 import { addonsPane, addonsAct, addonsHold, addonsEnter, addonsEntry, tmdbKeyScreen, tmdbTypeKey, phoneKeyReady } from './addons.js';
 import * as TMDB from '../tmdb.js';
@@ -195,7 +196,8 @@ function body() {
     ${row('info', 'Ratings', 'IMDb', 'From IMDb\'s free datasets, updated weekly')}
     ${row('info', 'Catalogs and details', 'Cinemeta', 'Stremio\'s catalog of films and series, and your add-ons')}
     <div class="arow fx tmdb-credit" tabindex="-1" data-act="info"><span class="tmdb-mark" aria-label="TMDB"></span><span class="grow" style="min-width:0">Lists of films and series<div class="t-cap" style="margin-top:0">This product uses the TMDB API but is not endorsed or certified by TMDB.</div></span></div>
-    ${row('info', 'Channels from your provider', esc(catalog.live ? catalog.live.items.length.toLocaleString() : '…'), 'Live TV and replays. Movies and Series come from your add-ons')}`;
+    ${row('info', 'Channels from your provider', esc(catalog.live ? catalog.live.items.length.toLocaleString() : '…'), 'Live TV and replays. Movies and Series come from your add-ons')}
+    ${reportsAvailable() ? `${row('reports', 'Send error reports', settings().reportsOff ? 'Off' : 'On', 'Errors only. Never your passwords, links or what you watch. Turning it on works from the next start')}${row('reportnow', 'Send a report now', more('Send'), 'Something not right? Send a report, then tell Claude it’s in')}` : ''}`;
 }
 function draw() {
   if (!el || el.hidden) return;
@@ -283,6 +285,15 @@ function act(a) {
     saveSettings({ sounds: v }); sfx.mode(v); if (v !== 'off') setTimeout(() => sfx.play('select', { cd: 0 }), 60); draw();
   } });
   else if (a === 'ua') radioMenu({ title: 'User agent', value: s.ua || '', rows: [{ v: '', l: 'Default' }, { v: 'VLC/3.0.20 LibVLC/3.0.20', l: 'VLC' }, { v: 'IPTVSmartersPlayer', l: 'IPTV Smarters' }, { v: 'TiviMate/4.7.0', l: 'TiviMate' }], onPick: (v) => { saveSettings({ ua: v }); draw(); } });
+  else if (a === 'reports') radioMenu({ title: 'Send error reports', value: settings().reportsOff ? 'off' : 'on', rows: [{ v: 'on', l: 'On', sub: 'Errors only. Never your passwords, links or what you watch' }, { v: 'off', l: 'Off' }], onPick: (v) => {
+    saveSettings({ reportsOff: v === 'off' }); setReports(v === 'on'); draw();
+  } });
+  else if (a === 'reportnow') {
+    (native?.lastCause ? native.lastCause() : Promise.resolve(null)).then((cause) => {
+      const s2 = settings();
+      toast(sendNow({ ...(lastConnCheck() || {}), cause, liveFormat: s2.liveFormat, player: s2.player }) ? 'Sent. Tell Claude it’s in' : 'Reports are off on this TV', 5000);
+    });
+  }
   else if (a === 'team') teamSheet(draw);
   else if (a === 'shield') radioMenu({ title: 'Spoiler shield', value: shieldMode(), rows: [{ v: 'off', l: 'Off', sub: 'Scores everywhere' }, { v: 'mine', l: 'My team', sub: 'Your team\'s games hidden' }, { v: 'all', l: 'All games', sub: 'Every game hidden' }], extra: '<div class="t-cap" style="padding:8px 8px 2px">Reveal a game with its Reveal score button. Watching it counts as revealing it.</div>', onPick: (v) => { setShield(v); draw(); } });
   else if (a === 'replays') radioMenu({ title: 'Replays play', value: s.replaysPlay || 'channel', rows: Object.entries(REPLAYS).map(([v, [l, sub]]) => ({ v, l, sub })), style: 'right:48px;top:120px;width:420px',

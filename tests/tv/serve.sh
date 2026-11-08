@@ -10,10 +10,11 @@ for PY in python3 "py -3" python; do $PY -c "" >/dev/null 2>&1 && break; done
 [ -d .tmp/media ] || sh tests/make-media.sh .tmp/media >/dev/null 2>&1 || true   # (needs ffmpeg; without it there is no test video, the rest works)
 MEDIA_DIR=.tmp/media node tests/mock-provider.js &
 node --no-warnings tests/mock-accounts.js &
+node tests/mock-sentry.js &
 (cd app && $PY -m http.server 8777 >/dev/null 2>&1) &
 if [ "$1" = "--test" ]; then
   TUNER_TEST=tests/android-test-boot.js TUNER_TEST_API=http://127.0.0.1:8899 node scripts/build-web.js tv >/dev/null
   (cd www && $PY -m http.server 8778 >/dev/null 2>&1) &
 fi
-echo "fake provider :8899 · accounts :8790 · app :8777/tv.html${1:+ · test build :8778}"
+echo "fake provider :8899 · accounts :8790 · reports :8791 · app :8777/tv.html${1:+ · test build :8778}"
 wait

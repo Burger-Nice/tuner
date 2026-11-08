@@ -255,7 +255,7 @@ final class Probe {
         } catch (Exception e) {
             if (over) return;
             JSObject r = base("couldnt");
-            r.put("why", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            r.put("why", Reports.valueOf(e, false));   // a reason code, never the message (it can quote the link)
             finish(r);
         }
     }

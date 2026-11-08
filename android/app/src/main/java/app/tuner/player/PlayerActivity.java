@@ -364,6 +364,7 @@ public class PlayerActivity extends AppCompatActivity {
         index = replayMode ? 0 : Math.max(0, Math.min(ring.size() - 1, x.getInt("index")));
         cur = ring.get(index);
         String ua = x.getString("ua", "");
+        customUa = !ua.isEmpty();
         apiUrl = x.getString("api", "");
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -485,6 +486,7 @@ public class PlayerActivity extends AppCompatActivity {
                 // a film's other copies: the next one plays, or the hand-over card (PORT-NATIVE.md 2.2)
                 if (ho != null && ho.active() && ho.error(e)) return;
                 error = errorText(e);
+                reportFailed(e, null);
                 JSObject ev = event("failed");
                 ev.put("error", error);
                 TunerPlayerPlugin.emit(ev);
@@ -2128,6 +2130,7 @@ public class PlayerActivity extends AppCompatActivity {
         reconnecting = false;
         cause = c;
         error = c.title;
+        reportFailed(null, c);
         JSObject ev = event("failed");
         ev.put("error", error);
         TunerPlayerPlugin.emit(ev);
@@ -2891,6 +2894,46 @@ public class PlayerActivity extends AppCompatActivity {
     private int limitTries, notFound, broken;
     private long nextTryAt, lastNetTune;
     private String apiUrl = "";
+    private boolean customUa;
+
+    /** Error reports: a stream the player gave up on, as safe facts only (design/ui-v1/error-reports/SPEC.md D10): what
+     *  kind of stream, why, and the picture's format; never which channel, its link or its host. */
+    private void reportFailed(PlaybackException e, Diag.Cause c) {
+        try {
+            java.util.Map<String, Object> f = new java.util.HashMap<>();
+            boolean addon = cur != null && cur.addon();
+            f.put("what", rp != null ? "catchup" : live ? "live" : addon ? "addon" : "vod");
+            f.put("source", addon ? "addon" : apiUrl.isEmpty() ? "m3u" : "xtream");
+            f.put("stage", played ? "playing" : "start");
+            String cid = c != null ? c.id : cause != null ? cause.id : null;
+            if (cid != null) f.put("cause", cid);
+            if (e != null) f.put("error", e.getErrorCodeName());
+            if (rd.http > 0) f.put("http", rd.http);
+            f.put("redirected", rd.redirected);
+            f.put("reconnects", retries);
+            f.put("customUa", customUa);
+            String u = cur == null ? "" : cur.url;
+            f.put("scheme", u.startsWith("https:") ? "https" : u.startsWith("http:") ? "http" : "other");
+            if (!apiUrl.isEmpty() && !u.isEmpty()) { try { f.put("sameHostAsLogin", android.net.Uri.parse(u).getHost() != null && android.net.Uri.parse(u).getHost().equals(android.net.Uri.parse(apiUrl).getHost())); } catch (Exception ignored) {} }
+            String low = u.toLowerCase(java.util.Locale.ROOT);
+            f.put("container", low.contains(".m3u8") ? "m3u8" : low.endsWith(".ts") || low.contains("/mpegts") ? "ts" : low.contains(".mp4") ? "mp4" : low.contains(".mkv") ? "mkv" : "other");
+            Format vf = player != null ? player.getVideoFormat() : null;
+            if (vf != null) {
+                if (vf.sampleMimeType != null) f.put("mime", vf.sampleMimeType);
+                if (vf.codecs != null) f.put("codecs", vf.codecs);
+                if (vf.height > 0) f.put("height", vf.height);
+                if (vf.frameRate > 0) f.put("fps", Math.round(vf.frameRate * 100) / 100.0);
+                if (vf.colorInfo != null) f.put("hdr", vf.colorInfo.colorTransfer == C.COLOR_TRANSFER_ST2084 ? "hdr10" : vf.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG ? "hlg" : "sdr");
+            }
+            for (Throwable t = e; t != null; t = t.getCause() == t ? null : t.getCause())
+                if (t instanceof androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.DecoderInitializationException) {
+                    androidx.media3.exoplayer.mediacodec.MediaCodecInfo ci = ((androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.DecoderInitializationException) t).codecInfo;
+                    if (ci != null) f.put("decoder", ci.name);
+                    break;
+                }
+            Reports.problem("play-failed", cid != null ? cid : e != null ? e.getErrorCodeName() : "failed", f);
+        } catch (Throwable ignored) {}
+    }
     private int optOrder;
     private int checkSeq;
     private boolean checkRunning;
@@ -3513,6 +3556,7 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void emitDiag(Diag.Cause c, String surface) {
+        Reports.lastCause = c.id;   // (Account's Send a report now: the id only)
         JSObject e = event("diag");
         e.put("cause", c.id);
         e.put("title", c.title);

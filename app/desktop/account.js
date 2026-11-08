@@ -12,6 +12,8 @@ import * as AD from '../tv/js/addons.js';
 import * as TM from '../tv/js/tmdb.js';
 import * as R from '../tv/js/rows.js';
 import { toast } from '../tv/js/ui.js';
+import { reportsAvailable, setReports, sendNow } from '../tv/js/reports.js';
+import { lastConnCheck } from '../tv/js/conncheck.js';
 import { desktopInfo, updates as UPD } from './bridge.js';
 import { ic, esc, isShown, sheet, confirm, menu, radio } from './ui.js';
 import { subSettings, saveSubSettings } from '../tv/js/subs.js';
@@ -120,6 +122,8 @@ function about() {
     row({ icon: 'bang', t: 'airglow', s: 'An ad-free player for your own provider', v: esc(desktopInfo().version || 'dev'), chev: false }),
     row({ icon: 'film', t: 'TMDB', s: 'This product uses the TMDB API but is not endorsed or certified by TMDB.', chev: false }),
     row({ icon: 'tv', t: 'mpv', s: 'Plays every copy: HEVC, MKV, AC3 / DTS, every subtitle format', chev: false }),
+    ...(reportsAvailable() ? [row({ icon: 'bang', t: 'Send error reports', s: 'Errors only. Never your passwords, links or what you watch', tog: !settings().reportsOff, act: 'reports' }),
+      row({ icon: 'refresh', t: 'Send a report now', s: 'Something not right? Send it, then tell Claude', act: 'reportnow' })] : []),
   ]);
 }
 // airglow account (design/ui-v1/accounts-v1 3.3, mock 08): devices, friends, security, sync and undo
@@ -230,6 +234,8 @@ export default {
       if (a === 'mpvconf') return T?.files?.mpvConf();
       if (a === 'keys') return import('./keys.js').then((k) => k.openSheet());
       if (a === 'resetwin') { try { localStorage.removeItem('tuner.dkRail'); } catch { /* none */ } toast('The window layout is reset'); return; }
+      if (a === 'reports') { const on = !!settings().reportsOff; saveSettings({ reportsOff: !on }); setReports(on); draw(); return; }   // (the switch flips: on when it was off)
+      if (a === 'reportnow') { const s2 = settings(); toast(sendNow({ ...(lastConnCheck() || {}), liveFormat: s2.liveFormat, player: s2.player }) ? 'Sent. Tell Claude it’s in' : 'Reports are off here'); return; }
       if (a === 'checkupd') return UPD.check();
       if (a === 'install') return UPD.install();
     });

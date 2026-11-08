@@ -18,6 +18,17 @@ app.setAppUserModelId('app.tuner.player');
 // (the PC app was "Tuner": its settings, sign-in and caches stay where they were under the new name)
 app.setPath('userData', process.env.AIRGLOW_USERDATA && !app.isPackaged ? process.env.AIRGLOW_USERDATA : path.join(app.getPath('appData'), 'Tuner'));
 const TEST = !!process.env.AIRGLOW_TEST && !app.isPackaged;
+// Error reports (design/ui-v1/error-reports/SPEC.md D9): what the page's report-boot.js needs, through its preload. The
+// real address only for an installed release (built from main: build-info.json); a test run (AIRGLOW_TEST, --smoke-test) never uses it, and
+// AIRGLOW_REPORTS_DSN (the fake ingest in CI) overrides it.
+function reportsArg() {
+  const read = (f) => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, f), 'utf8')); } catch { return {}; } };
+  const info = read('app/build-info.json');
+  const cfg = { app: 'windows', packaged: app.isPackaged, release: app.getVersion(), dist: info.dist, env: info.env || 'dev',
+    test: process.env.AIRGLOW_TEST || process.argv.includes('--smoke-test') ? true : undefined,
+    dsn: process.env.AIRGLOW_REPORTS_DSN != null ? process.env.AIRGLOW_REPORTS_DSN : undefined, realDsn: info.env === 'production' ? read('reports.json').dsn || '' : '' };
+  return `--airglow-reports=${Buffer.from(JSON.stringify(cfg)).toString('base64')}`;
+}
 const SMOKE = process.argv.includes('--smoke-test');
 if (!SMOKE && !TEST && !app.requestSingleInstanceLock()) app.quit();
 
@@ -62,6 +73,7 @@ function createMain() {
       webSecurity: false,   // (IPTV servers send no CORS headers and mostly use plain http)
       autoplayPolicy: 'no-user-gesture-required',
       backgroundThrottling: false,
+      additionalArguments: [reportsArg()],
     },
   });
   wins.main = win;
@@ -496,7 +508,8 @@ function installHeaderRewrite() {
     const h = d.requestHeaders;
     delete h.Origin;
     delete h.Referer;
-    if (userAgent) h['User-Agent'] = userAgent;
+    // (the custom User-Agent is for the provider; error reports never carry it)
+    if (userAgent && !/^https:\/\/[^/]*\.sentry\.io\/|^http:\/\/127\.0\.0\.1:8791\//.test(d.url)) h['User-Agent'] = userAgent;
     cb({ requestHeaders: h });
   });
 }

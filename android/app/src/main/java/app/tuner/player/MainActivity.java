@@ -22,6 +22,8 @@ public class MainActivity extends BridgeActivity {
         getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {
             @Override
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                // error reports: the page died (the open "reloads by itself" item): a crash or a low-memory kill, and the memory
+                try { Reports.webviewGone(MainActivity.this, detail.didCrash(), detail.rendererPriorityAtExit()); } catch (Throwable ignored) {}
                 runOnUiThread(MainActivity.this::recreate);
                 return true;
             }

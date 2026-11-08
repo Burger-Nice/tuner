@@ -634,7 +634,22 @@ window.TUNER_TEST = true;
       window.__tunerTest.go('home');
       await wait(1500);
       await shot('home-shielded');
+
+      // Error reports' leak probe (design/ui-v1/error-reports/SPEC.md §3): errors shaped to leak the fake provider's
+      // login and an add-on key, sent to the fake ingest (tests/mock-sentry.js); CI then greps every byte it got.
+      try {
+        const link = `${window.TEST_API}/live/demo/demo/1.ts`;
+        setTimeout(() => { throw new Error(`could not open ${link}`); });
+        Promise.reject({ addon: 'https://torrentio.strem.fun/providers=yts|realdebrid=rdkey-Mx41Tq9/manifest.json' });
+        setTimeout(() => JSON.parse('{"password":"demo-Zq7r9x"'));
+        const R = await import('./tv/js/reports.js');
+        R.problem('play-failed', { stage: 'start', what: 'live', source: 'xtream', url: link, http: 403 }, { key: 'leak-probe' });
+        await wait(4000);
+        check('error reports are on in the test build', !!window.AirglowReports?.state.on(), { dsn: !!window.AirglowReports?.state.dsn });
+      } catch (e) { check('the leak probe ran', false, { error: String(e) }); }
       report('done', state());
+      // last of all: a Java crash with a stream link in its message; CI restarts the app so Sentry sends it (leak check)
+      setTimeout(() => window.Capacitor?.Plugins?.TunerPlayer?.reports?.({ crash: `${window.TEST_API}/live/demo/demo/2.ts` }), 3000);
     } catch (e) {
       report('error', String((e && e.stack) || e));
       report('done', {});

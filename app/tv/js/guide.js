@@ -1,5 +1,14 @@
 // The programme guide: one short EPG per channel, kept for 10 minutes and shared by the guide grid, Home, search and the player.
 import { S } from './state.js';
+import { problem } from './reports.js';
+
+// Error reports: once a session, when 20 channels' guides came back and most were empty (the open "No guide information" item)
+const tally = { asked: 0, empty: 0, failed: 0, sent: false };
+function count(ready, failed) {
+  if (tally.sent) return;
+  tally.asked++; if (!ready?.length) tally.empty++; if (failed) tally.failed++;
+  if (tally.asked >= 20 && tally.empty / tally.asked >= 0.6) { tally.sent = true; problem('guide-empty', { channels: tally.asked, withEpg: tally.asked - tally.empty, fallback: failed ? 'failed' : 'none', offsetH: Math.round((shifted || 0) / 36e5) }, { key: tally.failed > tally.empty / 2 ? 'failed' : 'empty' }); }
+}
 
 const guides = new Map();   // chId -> { at, list: Promise, ready: [] | undefined }
 // (a new account or a fresh start: the queue goes too, its jobs answer with nothing, so nothing runs for the old one)
@@ -40,11 +49,12 @@ export function guideFor(ch, { urgent = false } = {}) {
     reshift();
     const ready = moved(l, shifted);   // the provider's times, on our clock
     guides.set(ch.id, { at: Date.now(), list: Promise.resolve(ready), ready });
+    count(ready, false);
     return ready;
   }, () => {
     // (failed the first time: an empty guide marked failed, so the screens say so and it's tried again in 30 s)
     const keep = hit?.ready || [];
-    if (my === S.epoch) guides.set(ch.id, { at: Date.now(), list: Promise.resolve(keep), ready: keep, failed: true });
+    if (my === S.epoch) { guides.set(ch.id, { at: Date.now(), list: Promise.resolve(keep), ready: keep, failed: true }); count(keep, true); }
     return keep;
   });
   guides.set(ch.id, { at: Date.now(), list, ready: hit?.ready });

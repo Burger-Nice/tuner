@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Runs on Google TV / Android TV as well as phones -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- App: starts error reports before any screen (design/ui-v1/error-reports/SPEC.md D5); the reports switch is never
+         restored from a backup on its own -->
     <application
+        android:name=".App"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -46,6 +52,10 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+        <!-- Sentry starts from App, only when reports are on: not by itself, and with no performance tracing -->
+        <meta-data android:name="io.sentry.auto-init" android:value="false" />
+        <provider android:name="io.sentry.android.core.SentryInitProvider" android:authorities="${applicationId}.SentryInitProvider" tools:node="remove" />
+        <provider android:name="io.sentry.android.core.SentryPerformanceProvider" android:authorities="${applicationId}.SentryPerformanceProvider" tools:node="remove" />
     </application>
 
     <!-- Permissions -->

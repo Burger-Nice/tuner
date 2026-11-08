@@ -1,7 +1,7 @@
 // Account (SPEC 3.8, 08): a pushed page with Back (no avatar on it), the TV's groups as grouped lists: Provider (the
 // line, Active, expiry, Connections, Check streams on this iPhone, Refresh), Playback, NBA (your team, the shield),
 // Films and series (add-ons and the Stremio account, the TMDB key), App (version: AltStore refreshes it; Sign out).
-import { S, on, settings } from '../tv/js/state.js';
+import { S, on, settings, saveSettings } from '../tv/js/state.js';
 import { accountFacts, signOut } from '../tv/js/session.js';
 import { refreshNow, cacheAt } from '../tv/js/catalog.js';
 import { resetGuides } from '../tv/js/guide.js';
@@ -10,6 +10,8 @@ import * as AD from '../tv/js/addons.js';
 import * as TM from '../tv/js/tmdb.js';
 import * as R from '../tv/js/rows.js';
 import { toast } from '../tv/js/ui.js';
+import { reportsAvailable, setReports, sendNow } from '../tv/js/reports.js';
+import { lastConnCheck } from '../tv/js/conncheck.js';
 import { phoneInfo } from './bridge.js';
 import { ic, esc, back, go, isShown, sheet, confirm, menu, radio } from './ui.js';
 import { subSettings, saveSubSettings } from '../tv/js/subs.js';
@@ -66,6 +68,8 @@ function mainHtml() {
     ])}
     ${group('App', [
       row({ icon: 'phone', t: 'Version', s: 'AltStore refreshes it', v: esc(info.version || 'dev'), chev: false }),
+      ...(reportsAvailable() ? [row({ icon: 'shield', t: 'Send error reports', s: 'Errors only. Never your passwords, links or what you watch', tog: !settings().reportsOff, act: 'reports' }),
+        row({ icon: 'refresh', t: 'Send a report now', s: 'Something not right? Send it, then tell Claude', act: 'reportnow' })] : []),
       row({ icon: 'out', t: 'Sign out', act: 'signout' }),
     ], 'airglow · an ad-free player for your own provider.')}
   </div>`;
@@ -141,6 +145,8 @@ export default {
       if (a === 'shield') return shieldSheet(draw);
       if (a === 'addons') { sub = 'addons'; draw(); AD.stremioSync({ toast }).then((r) => { if (r) draw(); }).catch(() => {}); return; }
       if (a === 'tmdb') return input('TMDB key', { label: 'API key (v3) or read access token', hint: 'From themoviedb.org › Settings › API. It stays on this iPhone.', pass: true, mode: 'text', onOk: async (v) => { const k = TM.cleanKey(v); if (!k) { TM.clearKey(); return; } if (!TM.looksLikeKey(k)) throw new Error('That doesn\'t look like a TMDB key'); const r = await TM.checkKey(k).catch(() => ({ ok: false, why: 'TMDB didn\'t answer' })); if (!r.ok) throw new Error(r.why); TM.setKey(k); } });
+      if (a === 'reports') { const on = !!settings().reportsOff; saveSettings({ reportsOff: !on }); setReports(on); draw(); return; }   // (the switch flips: on when it was off)
+      if (a === 'reportnow') { const s2 = settings(); toast(sendNow({ ...(lastConnCheck() || {}), liveFormat: s2.liveFormat, player: s2.player }) ? 'Sent. Tell Claude it’s in' : 'Reports are off here'); return; }
       if (a === 'signout') return confirm({ title: 'Sign out?', text: 'airglow forgets this provider on this iPhone. Your TV stays signed in.', yes: 'Sign out', onYes: () => { signOut(true); go('signin'); } });
       if (a === 'stremio') return stremioSignIn();
       if (a === 'stremio-sync') { AD.stremioSync({ force: true, toast }).then(() => { toast('Add-ons are in step with Stremio'); draw(); }); return; }

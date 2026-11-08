@@ -31,7 +31,9 @@ async function vset(v) {
 async function vclear() { memVault.delete('acct'); try { await vault?.clear('acct'); } catch { /* none */ } }
 
 // ---------- errors ----------
-export class AcctError extends Error { constructor(code, status, body) { super(WORDS[code] || code); this.code = code; this.status = status; this.body = body; } }
+// Our errors are AppErrors (app/tv/js/report-scrub.js): error reports send their code, never their message.
+const AppErrorBase = globalThis.AppError || class extends Error { constructor(code, message, status) { super(message); this.code = code; if (status != null) this.status = status; } };
+export class AcctError extends AppErrorBase { constructor(code, status, body) { super(code, WORDS[code] || code, status); this.name = 'AcctError'; this.code = code; this.status = status; this.body = body; } }
 // SPEC 10's sentences for the Worker's codes (the raw message is never shown)
 export const WORDS = {
   offline: 'Can\'t reach airglow\'s server right now. You can use airglow without an account and sign in later.',

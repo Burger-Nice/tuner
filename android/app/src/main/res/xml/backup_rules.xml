@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Everything is backed up as before, except the error-reports switch (it follows the app's own setting at each start) -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="reports.xml" />
+</full-backup-content>

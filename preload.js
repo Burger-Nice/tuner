@@ -4,10 +4,15 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 const on = (ch) => (fn) => { const f = (_, d) => fn(d); ipcRenderer.on(ch, f); return () => ipcRenderer.removeListener(ch, f); };
 const overlayArg = process.argv.find((a) => a.startsWith('--airglow-overlay='));
+// Error reports' settings from main (report-boot.js reads window.tuner.reports)
+const reportsArg = process.argv.find((a) => a.startsWith('--airglow-reports='));
+let reports = null;
+try { reports = reportsArg ? JSON.parse(Buffer.from(reportsArg.split('=')[1], 'base64').toString('utf8')) : null; } catch { reports = null; }
 
 contextBridge.exposeInMainWorld('tuner', {
   platform: process.platform,
   desktop: true,
+  reports,
   setUserAgent: (ua) => ipcRenderer.send('set-ua', ua),
   version: () => ipcRenderer.invoke('app-version'),
   quit: () => ipcRenderer.send('app:quit'),

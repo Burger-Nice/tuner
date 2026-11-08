@@ -9,6 +9,7 @@
 // watching, progress) never writes it.
 import { S, store, scoped, emit, on } from './state.js';
 import { native } from './native.js';
+import { problem } from './reports.js';
 import { readName, originalLang } from './copies.js';
 
 // Is this text English? (the owner's rule: descriptions always in English). Most of a sentence in another script is
@@ -49,7 +50,9 @@ let inAir = 0;
 const queue = [];
 const slot = () => new Promise((r) => { if (inAir < 6) { inAir++; r(); } else queue.push(r); });
 const free = () => { const n = queue.shift(); if (n) n(); else inAir--; };
-export class AddonError extends Error { constructor(kind, status) { super(kind === 'timeout' ? 'No answer in time' : kind === 'notjson' ? 'Not an add-on answer' : kind === 'http' ? `It answered ${status}` : 'Could not reach it'); this.kind = kind; this.status = status; } }
+// Our errors are AppErrors (app/tv/js/report-scrub.js): error reports send their code, never their message.
+const AppErrorBase = globalThis.AppError || class extends Error { constructor(code, message, status) { super(message); this.code = code; if (status != null) this.status = status; } };
+export class AddonError extends AppErrorBase { constructor(kind, status) { super(kind, kind === 'timeout' ? 'No answer in time' : kind === 'notjson' ? 'Not an add-on answer' : kind === 'http' ? `It answered ${status}` : 'Could not reach it'); this.name = 'AddonError'; delete this.code; this.kind = kind; this.status = status; } }   // (no .code: screens/addons.js tells Stremio's answers by it)
 // GET or POST JSON. Errors never carry the link (it can hold a key).
 async function getJSON(url, { ms = 10000, body, raw } = {}) {
   await slot();
@@ -203,10 +206,12 @@ const isDown = (a) => (a.health?.downUntil || 0) > Date.now();
 function failed(a, err) {
   const h = (a.health ||= {});
   const now = Date.now();
-  if (err.kind === 'notjson') { h.notAddon = h.notAddon || now; saveList(); return; }
+  // error reports: when an add-on stops being an add-on, or is marked Not answering (its public id only, SPEC D10)
+  const report = () => problem('addon-failed', { addon: a.manifest?.id, http: err.status, error: err.kind }, { key: err.kind });
+  if (err.kind === 'notjson') { if (!h.notAddon) report(); h.notAddon = h.notAddon || now; saveList(); return; }
   if (err.kind !== 'timeout' && err.kind !== 'down') return;
   h.fails = [...(h.fails || []).filter((t) => now - t < 10 * 60e3), now];
-  if (h.fails.length >= 3) { h.downUntil = now + 30 * 60e3; h.downSince = h.fails[0]; }
+  if (h.fails.length >= 3) { if (!isDown(a)) report(); h.downUntil = now + 30 * 60e3; h.downSince = h.fails[0]; }
   saveList();
 }
 function worked(a) { const h = (a.health ||= {}); const was = h.notAddon || h.downUntil || h.fails?.length; h.lastOk = Date.now(); delete h.notAddon; delete h.downUntil; h.fails = []; if (was) saveList(); }
@@ -530,7 +535,8 @@ const SKEY = () => scoped('stremio');
 export const stremioSignedIn = () => { const s = S.acc && store.get(SKEY(), null); return !!(s?.authKey && !s.signedOut); };   // (Stremio signed him out: the code screen again)
 export const stremioState = () => (S.acc ? store.get(SKEY(), null) : null);
 const setStremio = (v) => { if (v) store.set(SKEY(), v); else store.del(SKEY()); emit('addons'); };
-const apiErr = (d) => d?.error ? Object.assign(new Error(d.error.message || 'Stremio said no'), { code: d.error.code, wrongEmail: !!d.error.wrongEmail }) : null;
+// Stremio's own words are shown on screen; a report only says stremio-<its code>
+const apiErr = (d) => d?.error ? Object.assign(new AppErrorBase(`stremio-${d.error.code}`, d.error.message || 'Stremio said no'), { code: d.error.code, report: `stremio-${d.error.code}`, wrongEmail: !!d.error.wrongEmail }) : null;
 export async function stremioCreateCode() {
   const d = await getJSON(`${STREMIO_LINK()}/api/v2/create?type=Create`, { ms: 10000 });
   if (!d?.result?.code) throw apiErr(d) || new Error('No code');

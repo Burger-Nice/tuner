@@ -137,6 +137,9 @@ public class TunerPlayerPlugin extends Plugin {
         // airglow accounts (design/ui-v1/accounts-v1/SPEC.md 5.7): the Keystore-wrapped store (secretGet/Set/Clear)
         r.put("secret", true);
         r.put("model", Build.MODEL);
+        // error reports (design/ui-v1/error-reports/SPEC.md D5): the reports method, and the player's last diagnosis (its id)
+        r.put("reports", true);
+        r.put("lastCause", Reports.lastCause);
         String region = java.util.Locale.getDefault().getCountry();
         if (region != null && region.matches("[A-Za-z]{2,3}")) r.put("region", region);
         // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).
@@ -200,13 +203,28 @@ public class TunerPlayerPlugin extends Plugin {
     @PluginMethod
     public void probeCancel(PluginCall call) { Probe.cancelRunning("cancelled"); call.resolve(); }
     /** "Plays on this TV" for stored formats, with the audio route as it is now; opens no stream. */
+    /** Error reports' switch, the screen and the JS heap from the app (SPEC D5); crash only in the emulator test's build. */
+    @PluginMethod
+    public void reports(PluginCall call) {
+        Boolean on = call.getBoolean("on");
+        if (on != null) Reports.setOn(getContext(), on);
+        String screen = call.getString("screen");
+        if (screen != null) Reports.setScreen(screen);
+        Integer heap = call.getInt("heapMb");
+        if (heap != null) Reports.heapMb = heap;
+        call.resolve();
+        // the emulator's leak test: a Java crash whose message holds a stream link (sent by Sentry at the next start)
+        String crash = call.getString("crash");
+        if (BuildConfig.REPORTS_TEST && crash != null) new Thread(() -> { throw new RuntimeException("Forced test crash at " + crash); }, "reports-test-crash").start();
+    }
+
     @PluginMethod
     public void playable(PluginCall call) {
         JSArray copies = call.getArray("copies");
         Context ctx = getContext();
         new Thread(() -> {
             try { call.resolve(Probe.playable(ctx, copies)); }
-            catch (Exception e) { call.reject(String.valueOf(e.getMessage())); }
+            catch (Exception e) { call.reject(Reports.valueOf(e, false)); }   // (a reason code: the message could quote the copies' links)
         }).start();
     }
 

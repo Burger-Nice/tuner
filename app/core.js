@@ -2,6 +2,8 @@
 // No DOM access in here, so the same file can ship in the TV builds.
 (function (global) {
   'use strict';
+  // Our own errors carry a short code for error reports (report-scrub.js: the code leaves the device, the message never does).
+  const fail = (code, message, status) => { const C = global.AppError; if (C) return new C(code, message, status); const e = new Error(message); e.code = code; return e; };
 
   const store = {
     get(k, d) { try { const v = localStorage.getItem('tuner.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -38,7 +40,7 @@
     return api;
   })();
 
-  const DEFAULTS = { liveFormat: 'hls', ua: '', scale: 'standard', player: 'mpv', nbaTeam: 'MEM' };
+  const DEFAULTS = { liveFormat: 'hls', ua: '', scale: 'standard', player: 'mpv', nbaTeam: 'MEM', reportsOff: false };
   // (read many times a frame: parsed again only when the saved text changed; each caller gets its own copy of the top level)
   let setMemo = { raw: undefined, v: {} };
   const settings = () => {
@@ -62,7 +64,7 @@
     try {
       return await fetch(url, { signal: ctl.signal, cache: 'no-store' });
     } catch (e) {
-      throw new Error(e.name === 'AbortError' ? 'The server took too long to answer.' : 'Could not reach the server. Check the address and your connection.');
+      throw e.name === 'AbortError' ? fail('server-timeout', 'The server took too long to answer.') : fail('server-unreachable', 'Could not reach the server. Check the address and your connection.');
     } finally {
       clearTimeout(t);
     }
@@ -70,9 +72,9 @@
 
   async function getJSON(url, ms) {
     const res = await fetchT(url, ms);
-    if (!res.ok) throw new Error(`The server answered ${res.status}. Check the server address.`);
+    if (!res.ok) throw fail(`server-http-${res.status}`, `The server answered ${res.status}. Check the server address.`, res.status);
     const text = await res.text();
-    try { return JSON.parse(text); } catch { throw new Error('The server did not send Xtream data. Check the server address.'); }
+    try { return JSON.parse(text); } catch { throw fail('server-not-xtream', 'The server did not send Xtream data. Check the server address.'); }
   }
 
   const arr = (x) => (Array.isArray(x) ? x : x && typeof x === 'object' ? Object.values(x) : []);
@@ -87,10 +89,10 @@
   // Accepts "host:port", "http://host:port/", or a full get.php / player_api.php link with credentials in it.
   function parseLogin(server, username, password) {
     let s = String(server || '').trim();
-    if (!s) throw new Error('Enter the server address.');
+    if (!s) throw fail('server-missing', 'Enter the server address.');
     if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
     let u;
-    try { u = new URL(s); } catch { throw new Error('That server address does not look right.'); }
+    try { u = new URL(s); } catch { throw fail('server-bad-address', 'That server address does not look right.'); }
     const path = u.pathname.replace(/\/(player_api|get|xmltv|panel_api)\.php$/i, '').replace(/\/+$/, '');
     return {
       server: u.origin + path,
@@ -198,8 +200,8 @@
       type: 'xtream',
       async login() {
         const d = await api('');
-        if (!d || !d.user_info || String(d.user_info.auth) === '0') throw new Error('Wrong username or password.');
-        if (d.user_info.status && !/active/i.test(d.user_info.status)) throw new Error(`This account is ${String(d.user_info.status).toLowerCase()}.`);
+        if (!d || !d.user_info || String(d.user_info.auth) === '0') throw fail('wrong-login', 'Wrong username or password.');
+        if (d.user_info.status && !/active/i.test(d.user_info.status)) throw fail(`account-${['banned', 'disabled', 'expired'].includes(String(d.user_info.status).toLowerCase()) ? String(d.user_info.status).toLowerCase() : 'other'}`, `This account is ${String(d.user_info.status).toLowerCase()}.`);
         return d;
       },
       async live() {
@@ -393,11 +395,11 @@
       let text = acc.text;
       if (!text) {
         const res = await fetchT(acc.url, 90000);
-        if (!res.ok) throw new Error(`The playlist server answered ${res.status}.`);
+        if (!res.ok) throw fail(`playlist-http-${res.status}`, `The playlist server answered ${res.status}.`, res.status);
         text = await res.text();
       }
       parsed = parseM3U(text);
-      if (!parsed.length) throw new Error('No channels found in that playlist.');
+      if (!parsed.length) throw fail('playlist-empty', 'No channels found in that playlist.');
       return parsed;
     };
     const part = async (kind) => { const items = (await load()).filter((x) => x.kind === kind); return { cats: catsOf(items), items }; };

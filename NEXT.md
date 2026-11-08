@@ -8,6 +8,11 @@ Windows' in `app/desktop/` + `main.js`
 / `mpv.js`; all three share `app/tv/js`. Pushing `tv-redesign` to `main` releases v0.4.<run>; the TV updates itself.
 CI: `gh workflow run build.yml --ref tv-redesign -f tests=both|tv|phone|windows`.
 
+**Built, not released (8 Nov):** error reports through Sentry on all three apps (`design/ui-v1/error-reports/`):
+the Sentry project `airglow` (EU) is set up, and Account › About/App has "Send error reports" and "Send a report now".
+Themes are on hold: the owner wants them redone with his design plugins and may do a full rebrand first
+(`design/ui-v1/themes/RESEARCH.md` holds the research).
+
 **First thing to check with the owner:** after 0.4.119, did his TV's add-ons and movies come back (Account's sync line
 should say Synced)? If not, the line now names the reason (code, or file:line).
 

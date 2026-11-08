@@ -4,6 +4,7 @@
 // floats is drawn in the floating layer (float.js), so it works over a picture too.
 import { esc, ic as tvIc } from '../tv/js/util.js';
 import { floatRoot } from './float.js';
+import { screen as reportScreen } from '../tv/js/reports.js';
 
 const IC = {
   home: '<path d="M3.5 11 12 4l8.5 7v8.5a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/>',
@@ -84,6 +85,7 @@ export const currentParams = () => (nav.stack.length ? nav.stack[nav.stack.lengt
 export const screenEl = (n = current()) => els.get(n) || null;
 export const isShown = (n) => { const e = els.get(n); return !!e && !e.hidden; };
 function show(name, params, fresh) {
+  reportScreen(name);   // error reports say which screen he was on
   for (const [n, e] of els) if (n !== name && !e.hidden) { e.hidden = true; defs.get(n).leave?.(e); }
   const def = defs.get(name), el = elOf(name);
   el.hidden = false;

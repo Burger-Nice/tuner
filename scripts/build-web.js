@@ -31,14 +31,28 @@ if (target === 'tv') {
 }
 // The TV app talks to its native player and updater through Capacitor's plugin bridge, which needs @capacitor/core;
 // the phone app its status bar and orientation plugins.
-const head = [`<script>window.TUNER_TARGET = ${JSON.stringify(target)};</script>`];
+// Error reports (design/ui-v1/error-reports/SPEC.md D9): the Sentry bundle, and what report-boot.js needs to know. The
+// real address is only in release builds (CI from main) and only used by the installed app; TUNER_REPORTS_DSN (CI's test
+// builds: the fake ingest, or '' for off) overrides it, and a TUNER_TEST build without one sends nothing. Everything injected goes before vendor/sentry.js.
+if (!fs.existsSync(path.join(root, 'app/vendor/sentry.js'))) require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'build-sentry.js')], { stdio: 'inherit' });
+copy('app/vendor', 'vendor');
+const reports = {
+  app: target === 'phone' ? 'iphone' : 'tv',
+  release: process.env.VERSION || require(path.join(root, 'package.json')).version,
+  dist: (process.env.GITHUB_SHA || '').slice(0, 7) || undefined,
+  env: process.env.GITHUB_REF_NAME === 'main' ? 'production' : 'dev',
+  test: process.env.TUNER_TEST ? true : undefined,
+  dsn: process.env.TUNER_REPORTS_DSN != null ? process.env.TUNER_REPORTS_DSN : undefined,
+  realDsn: process.env.GITHUB_REF_NAME === 'main' ? JSON.parse(fs.readFileSync(path.join(root, 'reports.json'), 'utf8')).dsn : '',
+};
+const head = [`<script>window.TUNER_TARGET = ${JSON.stringify(target)}; window.TUNER_REPORTS = ${JSON.stringify(reports)};</script>`];
 {
   copy('node_modules/@capacitor/core/dist/capacitor.js', 'node_modules/@capacitor/core/dist/capacitor.js');
   head.push('<script src="node_modules/@capacitor/core/dist/capacitor.js"></script>');
 }
 const html = fs.readFileSync(index, 'utf8').replaceAll('../node_modules/', 'node_modules/');
 fs.writeFileSync(index, html
-  .replace('<script src="core.js"></script>', `${head.join('\n')}\n<script src="core.js"></script>`));
+  .replace('<script src="vendor/sentry.js"></script>', `${head.join('\n')}\n<script src="vendor/sentry.js"></script>`));
 // The TV's modules: their whole static import graph is named up front (modulepreload), so the WebView asks for all 60
 // at once instead of finding them a level at a time (each import waits for the file that names it).
 {
@@ -57,6 +71,6 @@ fs.writeFileSync(index, html
 if (process.env.TUNER_TEST) {
   fs.copyFileSync(path.resolve(root, process.env.TUNER_TEST), path.join(out, 'test-boot.js'));
   const api = process.env.TUNER_TEST_API || 'http://127.0.0.1:8899';
-  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('<script src="core.js"></script>', `<script>window.TEST_API = ${JSON.stringify(api)};</script>\n<script src="test-boot.js"></script>\n<script src="core.js"></script>`));
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('<script src="vendor/sentry.js"></script>', `<script>window.TEST_API = ${JSON.stringify(api)};</script>\n<script src="test-boot.js"></script>\n<script src="vendor/sentry.js"></script>`));
 }
 console.log(`www/ ready (${target})`);

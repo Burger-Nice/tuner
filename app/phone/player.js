@@ -9,6 +9,7 @@
 // Subtitles are drawn by the app inside the picture (WebKit's own drawing landed off it on the iPhone); Options >
 // Copies (films, episodes) and Feeds (live) switch to another copy from the same place, as the TV's Copies does.
 import { host, emitEvent } from './bridge.js';
+import { problem, whyFacts } from '../tv/js/reports.js';
 import { S, on, emit } from '../tv/js/state.js';
 import { catalog } from '../tv/js/catalog.js';
 import { gameById, shielded, isSeen, hidden as gameHidden, chaptersOf } from '../tv/js/games.js';
@@ -177,6 +178,8 @@ function fail(why) {
   // a live channel's HLS answer that fails once is asked again before giving up (some panels need a second ask)
   if (why !== 'mkv' && P.mode === 'live' && !failedOnce && !P.playing) { failedOnce = true; setTimeout(() => { if (P && !P.playing) load(); }, 1200); return; }
   P.err = why; P.waiting = false;
+  { const e = P.mode === 'vod' ? P.entries[P.index] : null, wf = whyFacts(why);   // error reports: what failed, never which stream (SPEC D10)
+    problem('play-failed', { stage: P.playing ? 'playing' : 'start', what: P.mode === 'live' ? 'live' : 'vod', source: e?.sourceKind === 'addon' ? 'addon' : S.acc?.type === 'm3u' ? 'm3u' : 'xtream', player: 'native', ...wf }, { key: wf.error }); }
   if (why !== 'mkv') copyFailed();
   draw();
   if (why !== 'mkv') limitReached().then((lim) => { if (lim && P?.err === why) { P.err = lim; draw(); } });

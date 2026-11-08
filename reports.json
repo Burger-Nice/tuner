@@ -1,0 +1,4 @@
+{
+  "//": "Error reports (design/ui-v1/error-reports/SPEC.md). The DSN is public by design: it only lets an app send reports to the airglow project.",
+  "dsn": "https://1a3f4c72089d636ba99b8e869737dd88@o4512397043630080.ingest.de.sentry.io/4512397477609552"
+}

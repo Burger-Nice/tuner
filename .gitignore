@@ -8,3 +8,4 @@ tests/media/
 /qr[0-9]*.txt
 worker/.wrangler/
 worker/.dev.vars
+app/build-info.json

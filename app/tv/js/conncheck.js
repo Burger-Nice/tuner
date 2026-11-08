@@ -96,6 +96,19 @@ function verdict(r, { cap, wifiLimit, ended, need, name }) {
 }
 
 // ---------- the sheet ----------
+// The last check, as numbers and yes/no only, for Account's "Send a report now" (error reports, SPEC D8)
+let last = null;
+export const lastConnCheck = () => last;
+const summary = (r) => ({
+  net: typeof r.net?.type === 'string' ? r.net.type : undefined,
+  internet: r.internet ? r.internet.code === 204 || (!!r.internet.web && r.internet.code > 0) || r.internet.ok === true : undefined,
+  msInternet: typeof r.internet?.ms === 'number' ? r.internet.ms : undefined,
+  provider: r.provider ? r.provider.acct === 1 || (r.provider.acct == null && r.provider.host > 0) : undefined,
+  msProvider: typeof r.provider?.ms === 'number' ? r.provider.ms : undefined,
+  stream: r.channel ? r.channel.state === 'ok' || r.channel.ok === true : undefined,
+  mbps: typeof r.speed?.mbps === 'number' ? r.speed.mbps : undefined,
+});
+
 export function connectionCheck(lastCh) {
   const ch = lastCh;
   const opts = { api: apiUrl(), url: ch ? urlOf(ch) : '', name: ch?.name || '' };
@@ -126,6 +139,7 @@ export function connectionCheck(lastCh) {
     if (stopped || res?.stopped) return;
     if (res && typeof res === 'object') r = { ...r, ...res };
     done = true;
+    last = summary(r);
     draw();
   };
   run(false);

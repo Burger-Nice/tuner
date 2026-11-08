@@ -37,7 +37,9 @@ jobs:
       - name: Set version
         run: npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version
       - name: Build installer
-        run: npm run dist
+        run: |
+          node scripts/build-info.js
+          npm run dist
       - name: Smoke test the built app
         shell: pwsh
         run: |
@@ -129,7 +131,7 @@ jobs:
         run: npm test
       - name: Test the shared crypto and the merge rules
         working-directory: .
-        run: node tests/account-crypto-test.js && node tests/account-merge-test.js
+        run: node tests/account-crypto-test.js && node tests/account-merge-test.js && node tests/report-scrub-test.js
       - name: Test the copy ranking (English first) and the English check for descriptions
         working-directory: .
         run: node tests/copies-test.js && node tests/english-test.js
@@ -228,7 +230,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
-          TUNER_TEST=tests/ios-test-boot.js node scripts/build-web.js phone
+          TUNER_TEST=tests/ios-test-boot.js TUNER_REPORTS_DSN= node scripts/build-web.js phone
           npx cap sync ios
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build/sim build | tail -n 15
@@ -301,7 +303,7 @@ jobs:
           npx cap sync android
           cd android
           # Surface compiler errors as annotations (the raw log isn't always easy to get to).
-          if ! ./gradlew assembleRelease --no-daemon -PtunerVersionCode=${{ github.run_number }} -PtunerVersionName=$VERSION > gradle.log 2>&1; then
+          if ! ./gradlew assembleRelease --no-daemon -PtunerVersionCode=${{ github.run_number }} -PtunerVersionName=$VERSION -PreportsEnv=${{ github.ref_name == 'main' && 'production' || 'dev' }} > gradle.log 2>&1; then
             grep -E "error:|e: |What went wrong|FAILURE|Could not|> " gradle.log | head -40 | sed 's/^/::error title=Android build::/'
             tail -25 gradle.log | sed 's/^/::error title=Android build tail::/'
             exit 1
@@ -310,6 +312,8 @@ jobs:
           # Same file under the old name, so the first Downloader link keeps working.
           cp ../Tuner-TV.apk ../Tuner.apk
           ls -la ../Tuner-TV.apk
+      - name: Test the error reports' native rules (ReportsTest)
+        run: cd android && ./gradlew testDebugUnitTest --tests app.tuner.player.ReportsTest --no-daemon -q
       - if: steps.key.outputs.signed == 'yes'
         uses: actions/upload-artifact@v4
         with:
@@ -338,13 +342,14 @@ jobs:
         with: { name: test-media, path: tests/media }
       - name: Build the test version
         run: |
-          TUNER_TEST=tests/android-test-boot.js TUNER_TEST_API=http://10.0.2.2:8899 node scripts/build-web.js tv
+          TUNER_TEST=tests/android-test-boot.js TUNER_TEST_API=http://10.0.2.2:8899 TUNER_REPORTS_DSN=http://k@10.0.2.2:8791/1 node scripts/build-web.js tv
           npx cap sync android
-          cd android && ./gradlew assembleDebug --no-daemon -q -PtunerVersionCode=${{ github.run_number }} -PtunerVersionName=$VERSION
+          cd android && ./gradlew assembleDebug --no-daemon -q -PtunerVersionCode=${{ github.run_number }} -PtunerVersionName=$VERSION -PreportsDsn=http://k@10.0.2.2:8791/1 -PreportsTest
       - name: Start the fake provider
         run: |
           MEDIA_DIR=tests/media nohup node tests/mock-provider.js > mock.log 2>&1 &
           nohup node --no-warnings tests/mock-accounts.js > acct.log 2>&1 &
+          nohup node tests/mock-sentry.js > sentry.log 2>&1 &
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -374,7 +379,27 @@ jobs:
             adb logcat -d -b crash 2>&1 | head -40 | sed 's/^/::notice title=TV crash::/'
             adb logcat -d 2>&1 | grep -E "FATAL|AndroidRuntime|Capacitor/Console|chromium.*CONSOLE|E Capacitor" | head -40 | sed 's/^/::notice title=TV log::/'
             node tests/android-shots.js 2>&1 | sed 's/^/::notice title=TV test::/'
+            # (the test ends with a forced Java crash: start the app again so Sentry sends it to the fake ingest)
+            sleep 8
+            adb shell am start -W -n app.tuner.player/.MainActivity 2>&1 | tail -1 | sed 's/^/::notice title=TV test::restart /'
+            sleep 20
             adb logcat -d 2>&1 | grep -E "FATAL|AndroidRuntime|TunerPlayer|ExoPlayer|Capacitor/Console" | tail -40 | sed 's/^/::notice title=TV log end::/'
+      # Error reports (design/ui-v1/error-reports/SPEC.md §3): every byte the fake ingest got, searched for the fake provider's
+      # login, its address, stream paths and the planted add-on key; the probe's reports and the forced Java crash must have
+      # arrived.
+      - name: Check that error reports leak nothing
+        run: |
+          curl -s http://127.0.0.1:8791/_got > sentry-got.json || echo '[]' > sentry-got.json
+          node -e "
+            const got = JSON.parse(require('fs').readFileSync('sentry-got.json', 'utf8'));
+            const all = JSON.stringify(got);
+            const bad = ['10.0.2.2:8899', '/live/', '/demo/demo', 'demo-Zq7r9x', 'Zq7r9x', 'rdkey-Mx41Tq9', 'Mx41Tq9', 'torrentio.strem.fun'].filter((x) => all.includes(x));
+            const events = got.filter((g) => /\"type\":\"event\"/.test(g.bytes)).length;
+            console.log('::notice title=Error reports::' + got.length + ' envelopes, ' + events + ' events');
+            if (bad.length) { console.log('::error title=Error reports::a report carried ' + bad.join(', ')); process.exit(1); }
+            if (events < 3) { console.log('::error title=Error reports::the leak probe reports did not arrive (' + events + ')'); process.exit(1); }
+            if (!/RuntimeException/.test(all) || !/side\W{1,8}native/.test(all)) { console.log('::error title=Error reports::the forced Java crash never arrived'); process.exit(1); }
+          "
       # The test's own verdict: it finished, and every check passed (the emulator step above always looks green).
       - name: Check the emulator test's results
         run: |

@@ -12,6 +12,10 @@ import { segmentsFor } from './intros.js';
 import { showStore, introMode, offerDue, doubtful, episodeKey, afterSkip, afterChoice, afterLetGo, watchedBefore } from './skipshow.js';
 import { keyOf } from './util.js';
 import { native } from './native.js';
+import { note, problem } from './reports.js';
+// Error reports: where a stream came from (never which one: SPEC D10)
+const srcKind = (addon) => (addon ? 'addon' : S.acc?.type === 'm3u' ? 'm3u' : 'xtream');
+const startFailed = (what, addon) => problem('play-failed', { stage: 'start', what, source: srcKind(addon), liveFormat: settings().liveFormat, player: settings().player }, { key: 'start' });
 import { programmeView } from './catchup.js';
 import { chName, cleanGroup } from './names.js';
 import { nba, fetchSummary, gameOn, gameById, setWatching, setLag, show, watch, delayFor, setDelay, recentClocks, clockText, findFeeds, feedsNow, liveGames, myGame, isMine, mySide, hidden, reveal, shieldMode, ordinal, shielded, behindReplay, replayProgress, chaptersOf, boxTable, teamStatsOf } from './games.js';
@@ -67,7 +71,8 @@ export async function playLive(ch, ring, ringName = 'All channels') {
   const opts = { mode: 'live', index, ua: settings().ua, key, ring: ringName, upNext: settings().zapUp !== 'prev', ...playerSettings() };
   let r = key === sentKey ? await native.player.play(opts).catch(() => null) : null;
   if (!r) r = await native.player.play({ ...opts, ...pack(list) }).catch((e) => ({ ok: false, error: e?.message || 'The player could not start.' }));
-  if (!r?.ok) { toast(r?.error || 'The player could not start.', 4000); return; }
+  if (!r?.ok) { startFailed('live'); toast(r?.error || 'The player could not start.', 4000); return; }
+  note('play', { what: 'live', source: srcKind() });
   sentKey = key;
   sfx.zone('player');
   ctx.cur = { kind: 'live', items: list, index, session: r.session, ring: ringName };
@@ -274,7 +279,8 @@ async function playVod0(item, { queue, restart, entry } = {}) {
   if (!native) { if (window.TUNER_TEST) { window.__lastVod = entries; window.__vodCount = (window.__vodCount || 0) + 1; } toast(`Playing ${entries[0].title} (the TV player is only on the TV)`); return; }
   cancelChecks();
   const r = await native.player.play({ mode: 'vod', entries, index: 0, ua: settings().ua, ...playerSettings(subState(subsKey(item))?.copy?.dub) }).catch((e) => ({ ok: false, error: e?.message }));
-  if (!r?.ok) { toast(r?.error || 'This video would not play.', 4000); return; }
+  if (!r?.ok) { startFailed('vod', item._entry?.sourceKind === 'addon'); toast(r?.error || 'This video would not play.', 4000); return; }
+  note('play', { what: 'vod', source: srcKind(item._entry?.sourceKind === 'addon') });
   sfx.zone('player');
   ctx.cur = { kind: 'vod', items: list, index: 0, session: r.session };
   sentSubs = '';
@@ -629,7 +635,7 @@ export async function startReplaySession(opts, cur) {
   if (!native) return null;
   setWatching(null, null);   // one stream: the replay replaces whatever was playing live
   const r = await native.player.play({ ...opts, ua: settings().ua, ...playerSettings() }).catch((e) => ({ ok: false, error: e?.message }));
-  if (!r?.ok) { toast(r?.error || 'This replay would not start.', 4000); return null; }
+  if (!r?.ok) { startFailed('catchup'); toast(r?.error || 'This replay would not start.', 4000); return null; }
   sfx.zone('player');
   ctx.cur = { ...cur, session: r.session };
   return r.session;
