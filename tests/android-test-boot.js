@@ -308,9 +308,20 @@ window.TUNER_TEST = true;
         window.__subs = null;
         await subsNow('player-subs-line', 600);
         await until(() => window.__subs, 3000);
-        check('subtitles: a downloaded line is drawn by the player', /on=English/.test(window.__subs?.state || '') && window.__subs?.shown > 0 && /know|wrong|done|here|think|about|not now|mean/.test(window.__subs?.last || ''), { subs: JSON.stringify(window.__subs) });
+        // the fake film carries its own English track: the player shows that, not the English download (the owner's rule)
+        check('subtitles: the film\'s own English track wins over the English download', /subs on= /.test(window.__subs?.state || '') && !/on=English/.test(window.__subs?.state || ''), { subs: JSON.stringify(window.__subs) });
+        // a language he picks himself (Icelandic, found online) is drawn by the player from the download
+        SU.subMemory().setPick(key, { source: 'opensubtitles', id: '9000101-is', lang: 'Icelandic' });
+        await SU.prepare({ key, name: t.name, imdb: 'tt9000101', level: 'sure', version: v }, { again: true }).catch(() => {});
+        await PL.playVod(v, { restart: true });
+        await until(() => state()?.watching, 10000);
+        await wait(2500);
+        window.__subs = null;
+        await subsNow('player-subs-line-picked', 600);
+        await until(() => window.__subs, 3000);
+        check('subtitles: a downloaded line is drawn by the player', /on=Icelandic/.test(window.__subs?.state || '') && window.__subs?.shown > 0 && /Ég|Hvað|Það|Við/.test(window.__subs?.last || ''), { subs: JSON.stringify(window.__subs) });
         await press(['MEDIA_PAUSE'], 'player-subs-paused');   // (the film is 60 s long: paused for the panels, which step it as he would)
-        await press(['CAPTIONS'], 'player-subs-panel', 800);   // Options > Subtitles: Off, From OpenSubtitles, English (on), Early or late, Icelandic
+        await press(['CAPTIONS'], 'player-subs-panel', 800);   // Options > Subtitles: Off, From OpenSubtitles, Icelandic (on, his pick), Early or late, English
         await press(['DPAD_DOWN'], 'player-subs-early-or-late-row');
         await press(['DPAD_CENTER'], 'player-subs-timing', 800);   // the strip, at the top; the subtitles stay in view
         await press(['DPAD_RIGHT'], 'player-subs-timing-later');   // 0.5 s later
@@ -318,8 +329,8 @@ window.TUNER_TEST = true;
         await subsNow('player-subs-timing-state');
         await until(() => window.__subs, 3000);
         const mem = SU.subMemory();
-        check('Early or late: ▶ moves the next line by 0.5 s, saved for this film', window.__subs?.mine === 0.5 && window.__subs?.strip === 'strip' && mem?.offset(key, U.keyOf(v), '9000101-en') === 0.5,
-          { subs: JSON.stringify(window.__subs), saved: mem?.offset(key, U.keyOf(v), '9000101-en') });
+        check('Early or late: ▶ moves the next line by 0.5 s, saved for this film', window.__subs?.mine === 0.5 && window.__subs?.strip === 'strip' && mem?.offset(key, U.keyOf(v), '9000101-is') === 0.5,
+          { subs: JSON.stringify(window.__subs), saved: mem?.offset(key, U.keyOf(v), '9000101-is') });
         await press(['DPAD_DOWN'], 'player-subs-match-a-line', 800);   // Match a line: the next line's words
         await press(['BACK'], 'player-subs-match-cancelled');
         await press(['DPAD_CENTER'], 'player-subs-timing-done');
