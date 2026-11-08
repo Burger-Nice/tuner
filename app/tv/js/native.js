@@ -79,6 +79,7 @@ function bridge() {
     // Error reports (design/ui-v1/error-reports/SPEC.md D5): on/off, the screen and JS heap for the native side's reports
     reports: (o) => (TP.reports ? TP.reports(o).catch(() => {}) : Promise.resolve()),
     lastCause: () => TP.info().then((i) => i.lastCause || null).catch(() => null),   // the player's last diagnosis, its id only
+    lastPlay: () => TP.info().then((i) => i.lastPlay || {}).catch(() => ({})),   // what's playing: formats, how the sound goes out
     // airglow accounts (SPEC 5.7): the Keystore-wrapped store; null on an older build without it (memory only then)
     secret: {
       get: async (key) => { if (!(await ready).secret) throw new Error('no secret store'); return (await TP.secretGet({ key })).value ?? null; },

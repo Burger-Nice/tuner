@@ -13,6 +13,14 @@ the Sentry project `airglow` (EU) is set up, and Account › About/App has "Send
 Themes are on hold: the owner wants them redone with his design plugins and may do a full rebrand first
 (`design/ui-v1/themes/RESEARCH.md` holds the research).
 
+**Open (8 Nov): sound out of sync on add-on episodes** (his report, after 0.4.127):
+- TV speakers, a steady delay, add-on (Stremio) episodes. Switching to another copy a couple of times fixed it.
+- The next build has Media3 1.6.0 → 1.11.1. Its 1.8.0 notes list better start-up when audio doesn't begin exactly at
+  the requested position, which is what a resume does.
+- "Send a report now" now carries what's playing: sound format, channels, `audioOut` (pcm = decoded, eac3/ac3/dts =
+  passed to the TV's chip), container, resumed, underruns.
+- If it comes back, ask him for a report while it's off, and read it in Sentry.
+
 **First thing to check with the owner:** after 0.4.119, did his TV's add-ons and movies come back (Account's sync line
 should say Synced)? If not, the line now names the reason (code, or file:line).
 

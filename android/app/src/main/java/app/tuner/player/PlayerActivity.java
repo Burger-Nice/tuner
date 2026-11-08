@@ -424,6 +424,21 @@ public class PlayerActivity extends AppCompatActivity {
             player.setTrackSelectionParameters(subs.prefer(player.getTrackSelectionParameters().buildUpon()).build());
         }
         player.setVideoChangeFrameRateStrategy(C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS);
+        // error reports: what's playing, and how the sound is sent out (decoded to PCM, or Dolby/DTS passed to the TV's
+        // audio chip): Send a report now carries it, for problems that raise no error, like sound out of sync
+        player.addAnalyticsListener(new androidx.media3.exoplayer.analytics.AnalyticsListener() {
+            @Override public void onAudioInputFormatChanged(@NonNull EventTime t, @NonNull Format f, androidx.media3.exoplayer.DecoderReuseEvaluation r) {
+                Reports.playFact("audioMime", f.sampleMimeType); Reports.playFact("audioChannels", f.channelCount > 0 ? f.channelCount : null); Reports.playFact("audioRate", f.sampleRate > 0 ? f.sampleRate : null);
+            }
+            @Override public void onVideoInputFormatChanged(@NonNull EventTime t, @NonNull Format f, androidx.media3.exoplayer.DecoderReuseEvaluation r) {
+                Reports.playFact("mime", f.sampleMimeType); Reports.playFact("codecs", f.codecs); Reports.playFact("height", f.height > 0 ? f.height : null); Reports.playFact("fps", f.frameRate > 0 ? Math.round(f.frameRate * 100) / 100.0 : null);
+            }
+            @Override public void onAudioTrackInitialized(@NonNull EventTime t, @NonNull androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig c) {
+                Reports.playFact("audioOut", Reports.encodingName(c.encoding)); Reports.playFact("tunneling", c.tunneling); Reports.playFact("offload", c.offload);
+            }
+            @Override public void onAudioDecoderInitialized(@NonNull EventTime t, @NonNull String name, long at, long took) { Reports.playFact("audioDecoder", name); }
+            @Override public void onAudioUnderrun(@NonNull EventTime t, int size, long ms, long since) { Object n = Reports.lastPlay.get("underruns"); Reports.playFact("underruns", n instanceof Number ? ((Number) n).intValue() + 1 : 1); }
+        });
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int s) {
                 handler.removeCallbacks(stall);
@@ -553,6 +568,10 @@ public class PlayerActivity extends AppCompatActivity {
             vod = new VodControls(this, player, root);
             skips = new Skips(this, player, root);
             skips.itemStarted(cur, index, false);
+            Reports.lastPlay.clear();
+            Reports.playFact("what", live ? "live" : cur.addon() ? "addon" : "vod");
+            Reports.playFact("resumed", !live && cur.start > 30);
+            { String low = cur.url.toLowerCase(java.util.Locale.ROOT); Reports.playFact("container", low.contains(".m3u8") ? "m3u8" : low.endsWith(".ts") || low.contains("/mpegts") ? "ts" : low.contains(".mp4") ? "mp4" : low.contains(".mkv") ? "mkv" : "other"); }
             player.setMediaSources(sources(ring), index, cur.start > 30 ? cur.start * 1000 : 0);
             player.prepare();
             player.play();
@@ -2931,6 +2950,7 @@ public class PlayerActivity extends AppCompatActivity {
                     if (ci != null) f.put("decoder", ci.name);
                     break;
                 }
+            for (String k : new String[]{"resumed", "audioMime", "audioChannels", "audioRate", "audioOut", "audioDecoder", "tunneling", "offload", "underruns"}) { Object v = Reports.lastPlay.get(k); if (v != null && !f.containsKey(k)) f.put(k, v); }
             Reports.problem("play-failed", cid != null ? cid : e != null ? e.getErrorCodeName() : "failed", f);
         } catch (Throwable ignored) {}
     }

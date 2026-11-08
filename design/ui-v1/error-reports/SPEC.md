@@ -602,6 +602,12 @@ He can switch reports off per device, or send one by hand. Claude reads them thr
   - `addon-failed`: when an add-on turns Not answering, or stops being an add-on.
   - `webview-gone` and `last-exit`.
   - `manual`.
+- **After the first real report (8 Nov):**
+  - The SDK's `sdk.settings.infer_ip: never` is kept. The allowlist had dropped it, and Sentry's server then guessed a
+    city from the connection.
+  - `liveFormat` allows `hls`.
+  - `manual` and `play-failed` carry the TV's `lastPlay`: sound format, how it's sent out, container, resumed and
+    underruns. These come from a Media3 AnalyticsListener.
 - **Not done in v1:**
   - Windows main-process crashes (D11).
   - Java `note()` calls from the player (the helper exists).

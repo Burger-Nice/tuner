@@ -103,7 +103,7 @@
     what: ['live', 'vod', 'catchup', 'addon', 'replay'], source: ['xtream', 'm3u', 'addon'],
     container: ['ts', 'm3u8', 'mp4', 'mkv', 'other'], stage: ['start', 'playing'], scheme: ['http', 'https', 'other'],
     phase: ['pull', 'push', 'merge', 'other'], player: ['auto', 'exo', 'vlc', 'mpv', 'hls', 'native', 'other'],
-    liveFormat: ['ts', 'm3u8', 'auto', 'other'], side: ['js', 'native', 'main'], app: ['tv', 'iphone', 'windows'],
+    liveFormat: ['hls', 'ts', 'm3u8', 'auto', 'other'], side: ['js', 'native', 'main'], app: ['tv', 'iphone', 'windows'],
   };
   const T = {
     num: (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : undefined),
@@ -121,12 +121,16 @@
       what: en('what'), source: en('source'), container: en('container'), stage: en('stage'), engines: T.list,
       http: T.num, error: T.code, cause: T.code, mime: T.mime, codecs: T.codecs, height: T.num, fps: T.num, hdr: T.code,
       decoder: T.code, reconnects: T.num, customUa: T.bool, liveFormat: en('liveFormat'), player: en('player'),
-      stalls: T.num, redirected: T.bool, scheme: en('scheme'), sameHostAsLogin: T.bool,
+      stalls: T.num, redirected: T.bool, scheme: en('scheme'), sameHostAsLogin: T.bool, resumed: T.bool,
+      audioMime: T.mime, audioChannels: T.num, audioRate: T.num, audioOut: T.code, audioDecoder: T.code, tunneling: T.bool, offload: T.bool, underruns: T.num,
     },
     'sync-stopped': { code: T.code, status: T.num, phase: en('phase'), waiting: T.num, held: T.num, fails: T.num },
     'guide-empty': { channels: T.num, withEpg: T.num, fallback: T.code, offsetH: T.num },
     'addon-failed': { addon: T.addonId, resource: T.code, http: T.num, error: T.code, ms: T.num },
-    manual: { cause: T.code, liveFormat: en('liveFormat'), player: en('player'), net: T.code,
+    manual: { what: en('what'), resumed: T.bool, container: en('container'), mime: T.mime, codecs: T.codecs, height: T.num, fps: T.num,
+      audioMime: T.mime, audioChannels: T.num, audioRate: T.num, audioOut: T.code, audioDecoder: T.code, tunneling: T.bool,
+      offload: T.bool, underruns: T.num,
+      cause: T.code, liveFormat: en('liveFormat'), player: en('player'), net: T.code,
       internet: T.bool, provider: T.bool, stream: T.bool, msInternet: T.num, msProvider: T.num, mbps: T.num },
   };
   const KINDS = Object.keys(FACTS).concat(['webview-gone', 'last-exit']);
@@ -162,6 +166,9 @@
     try {
       const out = {};
       for (const k of ['event_id', 'timestamp', 'level', 'platform', 'release', 'dist', 'environment']) if (event[k] != null) out[k] = event[k];
+      // the SDK's own name and version, and its word to Sentry's server never to guess the IP (without it, the server
+      // falls back to the connection's address and adds a city to the report)
+      out.sdk = { settings: { infer_ip: 'never' } };   // (the SDK adds its own name and version when it sends)
       const values = event.exception?.values || [];
       if (values.length) {
         const objs = chain(hint?.originalException).reverse();   // Sentry lists the outermost exception last
@@ -215,7 +222,7 @@
       return null;
     }
   }
-  const SKIP = new Set(['event_id', 'timestamp', 'level', 'platform', 'release', 'dist', 'environment', 'filename', 'abs_path', 'function', 'lineno', 'colno']);
+  const SKIP = new Set(['event_id', 'timestamp', 'level', 'platform', 'release', 'dist', 'environment', 'infer_ip', 'filename', 'abs_path', 'function', 'lineno', 'colno']);
   function deepNet(o, key) {
     if (typeof o === 'string') return SKIP.has(key) ? o : net(o);
     if (Array.isArray(o)) return o.map((x) => deepNet(x, key));

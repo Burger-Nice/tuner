@@ -557,11 +557,11 @@ final class Probe {
             String reason = "";
             if (f != null) {
                 JSONObject v = f.optJSONObject("video");
-                if (v != null && !v.optString("mime").isEmpty()) video = videoPlays(v);
+                if (v != null && !v.optString("mime").isEmpty()) video = videoPlays(ctx, v);
                 JSONArray a = f.optJSONArray("audio");
                 if (a != null && a.length() > 0) {
                     audio = false;
-                    for (int k = 0; k < a.length() && !audio; k++) { JSONObject t = a.optJSONObject(k); if (t != null) audio = audioPlays(t, caps); }
+                    for (int k = 0; k < a.length() && !audio; k++) { JSONObject t = a.optJSONObject(k); if (t != null) audio = audioPlays(ctx, t, caps); }
                 }
             }
             if (!video) reason = "no-picture"; else if (!audio) reason = "no-sound";
@@ -572,7 +572,7 @@ final class Probe {
         }
         return out;
     }
-    private static boolean videoPlays(JSONObject v) {
+    private static boolean videoPlays(Context ctx, JSONObject v) {
         Format f = new Format.Builder().setSampleMimeType(v.optString("mime")).setCodecs(v.optString("codecs").isEmpty() ? null : v.optString("codecs"))
                 .setWidth(v.optInt("w", Format.NO_VALUE) > 0 ? v.optInt("w") : Format.NO_VALUE)
                 .setHeight(v.optInt("h", Format.NO_VALUE) > 0 ? v.optInt("h") : Format.NO_VALUE)
@@ -582,13 +582,13 @@ final class Probe {
             // Vision profile 8 is HEVC (its HDR10 base) and for profile 5 is none
             List<MediaCodecInfo> list = new ArrayList<>(MediaCodecUtil.getDecoderInfosSoftMatch(MediaCodecSelector.DEFAULT, f, false, false));
             list.addAll(MediaCodecUtil.getAlternativeDecoderInfos(MediaCodecSelector.DEFAULT, f, false, false));
-            for (MediaCodecInfo i : list) if (i.isFormatSupported(f)) return true;
+            for (MediaCodecInfo i : list) if (i.isFormatSupported(ctx, f)) return true;
             // a decoder that would try it at a lower level counts too (the player falls back the same way)
             if (!list.isEmpty() && f.width > 0) for (MediaCodecInfo i : list) if (i.isVideoSizeAndRateSupportedV21(f.width, f.height, f.frameRate > 0 ? f.frameRate : 30)) return true;
             return false;
         } catch (Exception e) { return true; }
     }
-    private static boolean audioPlays(JSONObject a, AudioCapabilities caps) {
+    private static boolean audioPlays(Context ctx, JSONObject a, AudioCapabilities caps) {
         String mime = a.optString("mime");
         if (mime.isEmpty()) return true;
         Format f = new Format.Builder().setSampleMimeType(mime).setCodecs(a.optString("codecs").isEmpty() ? null : a.optString("codecs"))
@@ -598,7 +598,7 @@ final class Probe {
             if (caps.isPassthroughPlaybackSupported(f, androidx.media3.common.AudioAttributes.DEFAULT)) return true;
         } catch (Throwable ignored) {}
         try {
-            for (MediaCodecInfo i : MediaCodecUtil.getDecoderInfos(mime, false, false)) if (i.isFormatSupported(f)) return true;
+            for (MediaCodecInfo i : MediaCodecUtil.getDecoderInfos(mime, false, false)) if (i.isFormatSupported(ctx, f)) return true;
         } catch (Exception ignored) {}
         return false;
     }

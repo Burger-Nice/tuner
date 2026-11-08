@@ -289,9 +289,9 @@ function act(a) {
     saveSettings({ reportsOff: v === 'off' }); setReports(v === 'on'); draw();
   } });
   else if (a === 'reportnow') {
-    (native?.lastCause ? native.lastCause() : Promise.resolve(null)).then((cause) => {
+    Promise.all([native?.lastCause ? native.lastCause() : null, native?.lastPlay ? native.lastPlay() : {}]).then(([cause, play]) => {
       const s2 = settings();
-      toast(sendNow({ ...(lastConnCheck() || {}), cause, liveFormat: s2.liveFormat, player: s2.player }) ? 'Sent. Tell Claude it’s in' : 'Reports are off on this TV', 5000);
+      toast(sendNow({ ...(play || {}), ...(lastConnCheck() || {}), cause, liveFormat: s2.liveFormat, player: s2.player }) ? 'Sent. Tell Claude it’s in' : 'Reports are off on this TV', 5000);
     });
   }
   else if (a === 'team') teamSheet(draw);

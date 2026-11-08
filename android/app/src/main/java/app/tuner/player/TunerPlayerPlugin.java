@@ -140,6 +140,9 @@ public class TunerPlayerPlugin extends Plugin {
         // error reports (design/ui-v1/error-reports/SPEC.md D5): the reports method, and the player's last diagnosis (its id)
         r.put("reports", true);
         r.put("lastCause", Reports.lastCause);
+        JSObject lp = new JSObject();
+        for (java.util.Map.Entry<String, Object> e : Reports.lastPlay.entrySet()) lp.put(e.getKey(), e.getValue());
+        r.put("lastPlay", lp);
         String region = java.util.Locale.getDefault().getCountry();
         if (region != null && region.matches("[A-Za-z]{2,3}")) r.put("region", region);
         // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).

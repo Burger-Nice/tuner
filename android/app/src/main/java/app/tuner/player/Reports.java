@@ -46,6 +46,24 @@ public final class Reports {
     static volatile int heapMb = -1;
     static volatile String lastCause = "";   // the player's last diagnosis, its id only (info().lastCause)
     static int recreates;
+    /** What's playing now, as safe facts (formats, how the sound is sent out, whether it resumed partway): Account's
+     *  Send a report now carries them (info().lastPlay), for problems no error reports, like sound out of sync. */
+    static final java.util.Map<String, Object> lastPlay = new java.util.concurrent.ConcurrentHashMap<>();
+    static void playFact(String k, Object v) { if (k != null && v != null) { Object s = safeFact(v); if (s != null) lastPlay.put(k, s); } }
+    static String encodingName(int e) {
+        switch (e) {
+            case androidx.media3.common.C.ENCODING_AC3: return "ac3";
+            case androidx.media3.common.C.ENCODING_E_AC3: return "eac3";
+            case androidx.media3.common.C.ENCODING_E_AC3_JOC: return "eac3-joc";
+            case androidx.media3.common.C.ENCODING_AC4: return "ac4";
+            case androidx.media3.common.C.ENCODING_DTS: return "dts";
+            case androidx.media3.common.C.ENCODING_DTS_HD: return "dts-hd";
+            case androidx.media3.common.C.ENCODING_DOLBY_TRUEHD: return "truehd";
+            case androidx.media3.common.C.ENCODING_PCM_16BIT: return "pcm16";
+            case androidx.media3.common.C.ENCODING_PCM_FLOAT: return "pcmfloat";
+            default: return "enc-" + e;
+        }
+    }
 
     // ---------- start (App.onCreate) ----------
     static void start(Context ctx) {

@@ -45,6 +45,7 @@ const ctx = { app: 'tv', side: 'js', screen: () => 'live', ua: 'Mozilla/5.0 (Lin
   ok(out.contexts.os.name === 'Android' && out.contexts.os.version === '14' && out.contexts.device.model === '55OLED810/12', 'device from the user agent');
   ok(out.fingerprint[1] === 'app:///tv/js/player.js:play', 'fingerprint is type + top in-app frame');
   ok(out.tags.app === 'tv' && out.tags.screen === 'live', 'tags');
+  ok(out.sdk?.settings?.infer_ip === 'never', 'the server is told never to guess the IP');
 }
 // 2. our own errors send their code only, never their message
 {
