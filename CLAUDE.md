@@ -165,9 +165,11 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 
 ## Known open items
 
-- Error reports (8 Nov, not released yet).
-  - After the next release, send "Send a report now" from each app and read it back with the Sentry connector.
+- Error reports (released 0.4.127, 8 Nov). The TV's report arrived.
+  - Still to try: "Send a report now" from the iPhone and Windows, and reading them back.
   - Then add 'production' to the Sentry email alert's environment filter.
+  - CI flakes: the iPhone simulator's "live HLS plays" check and the Windows real-input checks fail now and then (a rerun
+    passes).
   - Windows main-process crashes are v2 (SPEC D11).
 
 - Some channels still say "No guide information" on the owner's provider; Account > Provider > Check the guide shows

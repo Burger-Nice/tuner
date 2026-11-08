@@ -231,6 +231,22 @@ CI 45/45 before the release:
   dropdown (Auto) fixes it. He moved to a new chat after this to use plugins (suggested: frontend-design, Design, Axe Accessibility,
   code-review, Cloudflare), starting with themes: Grizzlies, OLED black and a couple of mood themes.
 
+## 8 Nov (a new chat on the owner's Windows PC)
+- The repo is now on his PC at `C:	uner`: Java 21, the Android SDK, Python and ffmpeg (see CLAUDE.md). He didn't want
+  adb on the TV.
+- **Themes:** research done (`design/ui-v1/themes/RESEARCH.md`), then put on hold. He wants them redone with his design
+  plugins, and may do a full rebrand first.
+- **Setup:**
+  - Connectors: Sentry and Cloudflare are signed in.
+  - Axe needs a paid plan (skipped).
+- **Error reports (0.4.127):** his idea of what would help most.
+  - The plan went through five independent reviews (6 → 6 → 6.5 → 7 → 7), then he said build. The code review's
+    findings were fixed.
+  - Friends: on by default (his call).
+  - The leak tests plant a password and fail CI if it shows up.
+- **0.4.130:** Media3 1.11.1, after he reported sound out of sync on resumed add-on episodes (TV speakers, a steady
+  delay, switching copies fixed it). Unconfirmed on his TV.
+
 ## Things that are true but easy to miss
 
 - **airglow accounts' Worker is `acct` on the owner's Cloudflare** (`https://acct.airglow-tv.workers.dev`, made by CI
