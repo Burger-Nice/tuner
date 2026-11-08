@@ -88,6 +88,9 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 
 ## Build, test, release
 
+- Local Playwright: the repo's `node_modules/playwright` doesn't match the container's browser; launch with
+  `executablePath: '/opt/pw-browsers/chromium'` (a `-r` preload that patches `chromium.launch` works for drive.js), or
+  `PW=$(npm root -g)/playwright` for the desktop views test.
 - Local: `tests/tv/serve.sh` starts the fake provider + fake ESPN (127.0.0.1:8899, demo/demo) and serves the app at
   127.0.0.1:8777/tv.html. `node tests/tv/drive.js <outdir> <script>` drives it with the remote's keys in Playwright
   and takes screenshots (see `tests/tv/example-layout.js`). `tests/tv/serve.sh --test` + `node tests/tv/walkthrough.js
@@ -108,7 +111,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 
 ## Owner's rules
 
-- Wait for an explicit "release" (or "go") before pushing to `main`.
+- Wait for an explicit "release" (or "go") before pushing to `main`. "Just release" means push now without waiting for
+  the emulator run (the release job never waits for it); run CI on `tv-redesign` otherwise.
 - Commit as `git -c user.name="Tuner" -c user.email="birgirsveinn@gmail.com"`; no AI model names in commits or code.
 - Never commit the Android signing key or its password (only in the `TUNER_KEY_PASSWORD` secret; never ask for it).
   Don't make the repo private.
@@ -129,4 +133,10 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   what the provider sends (the guide has a full-table fallback and a clock-offset fix, untested on the real provider).
 - The Home rows' source on his TV: Account > Provider shows "TMDB: working · N of M Home rows from TMDB" (or the error).
 - The WebView draws just-off-screen content ahead (a memory cost): if the app reloads by itself on the TV, turn it off (`MainActivity`).
-- Built, not yet on the TV (0.4): the player controls v2, the speed pass, the bug-hunt-3 fixes. Unbuilt bits are in `NEXT.md`.
+- On `tv-redesign`, not released at the last handover (8 Nov): the file's own English subtitles first, the Copies
+  lists' extra facts, English descriptions via TMDB. Unbuilt bits are in `NEXT.md`.
+- English first everywhere (the owner's rule, 7 Nov): `copies.js` `rank()` puts English first whatever Shown first
+  says; subtitles likewise (`subs/opensubs.js` `choose()`, `Subs.java`); descriptions in English (`addons.js`
+  `looksEnglish`, `englishText`, `tmdbOverview`; `tests/english-test.js`).
+- Accounts sync (`account/sync.js`): a record the server refuses waits on the device (`waiting`), the rest syncs; the
+  first sign-in's merge retries (`flow.js` `mergeLater`); Account's sync line names the reason (`problemText`).

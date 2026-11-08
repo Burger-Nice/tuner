@@ -1,13 +1,19 @@
 # airglow: next round
 
-Where things stand: v0.2.66 is on the TV (Philips 55OLED810/12); catch-up, subtitles + real quality and add-ons are
-built on `tv-redesign` and pass CI. The TV app lives in `app/tv/` (HTML/CSS/ES modules in a Capacitor WebView) and
-`android/app/src/main/java/app/tuner/player/` (the native Media3 player and the Capacitor plugin).
-Pushing `tv-redesign` to `main` releases (version 0.2.<run>), and the TV updates itself from `android.json`. Work happens
-on `tv-redesign`; CI there (`gh workflow run build.yml --ref tv-redesign`) builds and runs the emulator test
-(`tests/android-test-boot.js`) before anything is merged to `main`.
+Where things stand (8 Nov): v0.4.119 is on the TV (Philips 55OLED810/12); the iPhone app (AltStore) and the Windows
+app ship from the same release. On `tv-redesign`, not released yet: the file's own English subtitles first, English
+descriptions for non-tt ids (TMDB fallback), more facts in the Copies lists (the last CI run was in progress; release
+on the owner's word). The TV app lives in `app/tv/`, the iPhone's in `app/phone/`, Windows' in `app/desktop/` + `main.js`
+/ `mpv.js`; all three share `app/tv/js`. Pushing `tv-redesign` to `main` releases v0.4.<run>; the TV updates itself.
+CI: `gh workflow run build.yml --ref tv-redesign -f tests=both|tv|phone|windows`.
+
+**First thing to check with the owner:** after 0.4.119, did his TV's add-ons and movies come back (Account's sync line
+should say Synced)? If not, the line now names the reason (code, or file:line).
 
 ## Done (see CONTEXT.md)
+
+The iPhone app v1 and its NBA tab, the Windows app (desktop-v1), airglow accounts and sync, English first (copies,
+sound, descriptions, subtitles), speed pass 2 (instant Home logos).
 
 Team and League pages, best-quality game channel, the playback diagnosis, catch-up / rewatch, subtitles + real quality
 per copy, add-ons (Stremio protocol, direct links only).
@@ -38,6 +44,14 @@ Then the TV: Account › airglow account › Sign in on your phone (or the first
 
 **Never rename or delete the `acct` Worker:** its `PEPPER` goes with it, and then nobody can sign in again or recover
 (signed-in devices keep working; the data stays safe). Rotate with `PEPPER_PREV`, never by deleting.
+
+## Small things left from 7–8 Nov
+- The owner's TV: confirm the sync recovered (above). Windows: still no report from his laptop.
+- Subtitles: the "file's own English first" switch is untested against a real file with several text tracks; the
+  iPhone (HLS) rarely has in-stream text tracks and still uses OpenSubtitles.
+- Descriptions: an add-on title with neither an IMDb nor a TMDB id keeps no description rather than a foreign one.
+- Ideas offered on 7 Nov (his pick pending): the Google TV home screen row, reminders over other apps, skip intro
+  from chapters / learnt per show, Home asking ahead for the first Continue watching copy (instant play), multiview.
 
 ## Next features
 

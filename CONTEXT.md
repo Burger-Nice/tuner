@@ -192,7 +192,43 @@ CI 45/45 before the release:
   (design/ui-v1/player-v2/, reviews 7.4 → 8.1); the speed pass (Home was redrawing every 80 ms; now idle); Search's ▼
   stays in the results, the channel number top right, Back in Account returns to the group first.
 - The owner said the spoiler shield matters less to him now; keep it, but don't spend much on it.
-- He wants usage kept low: Sonnet for cleanups and bug hunts, one emulator run only when he says "test".
+- He wants usage kept low: Sonnet for cleanups and bug hunts; batch fixes before a CI run.
+
+## 0.4.x after the 0.4 batch (29 Oct – 8 Nov)
+- **iPhone (29 Oct – 3 Nov):** his screenshots fixed (the Library grid wider than the screen, subtitles drawn off screen,
+  copies/feeds switchable while watching); the NBA tab as deep as the TV's (six sections, team pages, the player
+  sheet, the game page); `tests=phone` runs only the simulator (the owner asked why the TV test ran for iPhone work).
+- **Up next for add-on series** from anywhere (lined up early, asked again, the end card), episodes from add-on copies
+  counting as watched on the show page.
+- **Player:** Sync reads ESPN natively (the app's page is throttled behind the player: the old "game clocks didn't
+  come in"); more box-score stats (+/-, fouls…).
+- **Windows app (0.4.106, fixes 0.4.112):** design desktop-v1 (review → v1.1), Electron + mpv `--wid` in Win32 host
+  windows (plan A proved on CI), the overlay window, mini player, multiview, the real app's flows on the Windows runner.
+  The owner hasn't reported from his laptop yet.
+- **airglow accounts (0.4.112):** design accounts-v1 (three independent reviews), the Cloudflare Worker + D1, end-to-end
+  encrypted sync of providers, add-ons, Saved, history, Home rows, settings; the TV signs in from the phone. The owner
+  made his account and signed in on phone, laptop and TV, choosing **Merge** on each. He wants friends able to use
+  it; selling later is on his mind.
+- **English first (0.4.117):** "the description is often in some other language and it auto picks the source in
+  another language". The copy pick takes the best-quality English copy (30 languages read from names and flags; a
+  Multi copy with English counts as English); the sound prefers English on all three players; descriptions always in
+  English (a non-English add-on meta takes Cinemeta's text by the IMDb id, else TMDB's en-US overview, else none).
+- **Hold OK opened its menu twice:** the remote's first repeat (~500 ms, unmarked) counted as a new press; fixed.
+- **Speed pass 2 (0.4.117):** Home's show logos showed ~1 s late (a 450 ms wait, then two fetches, the download, the
+  crop); now prefetched for the lit card and its neighbours, the crop box kept in IndexedDB, decoded before the swap:
+  under 30 ms. Kept Intl formatters (the NBA tab), settings parsed once per change.
+- **Accounts sync stuck on his TV (0.4.117, 0.4.119):** "server didn't answer", then "list is not iterable", and no
+  movies. Causes: one refused record stopped the whole sync; the first sign-in's merge never ran again after a
+  failure; and the add-on list in memory was dropped by a sync while an add-on step saved it, writing null over the
+  saved list. Now: refused records wait and the rest syncs, the merge retries every 2 min, the null list is never
+  written and is rebuilt from the last sync's values (never read as all add-ons deleted), and Account names the reason
+  (with file:line for a JS error).
+- **Subtitles (on tv-redesign, not released at the time of writing):** English always first; the file's own English
+  track before an English download (TV and Windows); OpenSubtitles only when the file has none; his own pick still
+  wins. **Copies show more:** codec, sound and channels, size, language, release group next to the add-on's name.
+- The owner wants releases fast when he's watching: "just release" means push to main without waiting for the
+  emulator (the release job doesn't wait anyway). He reported permission prompts after worker restarts: the mode
+  dropdown (Auto) fixes it. He moved to a new chat after this to use plugins.
 
 ## Things that are true but easy to miss
 
