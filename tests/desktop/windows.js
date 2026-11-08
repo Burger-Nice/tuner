@@ -176,7 +176,9 @@ async function spike(plan) {
     await sleep(1200);
     const L = await screenRect(app, { x: left.x + 20, y: left.y + 20, w: left.w - 40, h: left.h - 40 }), R = await screenRect(app, { x: right.x + 20, y: right.y + 20, w: right.w - 40, h: right.h - 40 });
     const gap = await screenRect(app, { x: left.x + left.w + 4, y: left.y + 20, w: 8, h: left.h - 40 });
-    const g2 = await grab(app, `${plan}-02-multiview`, { L, R, gap });
+    // (the second picture can still be black a second after it starts, on a busy runner: up to two more looks)
+    let g2 = await grab(app, `${plan}-02-multiview`, { L, R, gap });
+    for (let i = 0; i < 2 && !(g2.stats.R?.colours >= 8 && g2.stats.L?.colours >= 12); i++) { await sleep(1500); g2 = await grab(app, `${plan}-02-multiview`, { L, R, gap }); }
     report('grab', { name: `${plan}-02-multiview`, stats: g2.stats });
     res.multiview = check(`${plan}: multiview: two mpv play side by side, each in its host`, r2.ok && a1.ok && a2.ok && g2.stats.L?.colours >= 12 && g2.stats.R?.colours >= 8, `p1 ${a1.t} p2 ${a2.t} L ${JSON.stringify(g2.stats.L)} R ${JSON.stringify(g2.stats.R)}`);
     check(`${plan}: the gap between the tiles is the page`, g2.stats.gap?.colours <= 4, JSON.stringify(g2.stats.gap));
