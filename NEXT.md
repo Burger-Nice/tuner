@@ -1,9 +1,10 @@
 # airglow: next round
 
-Where things stand (8 Nov): v0.4.119 is on the TV (Philips 55OLED810/12); the iPhone app (AltStore) and the Windows
-app ship from the same release. On `tv-redesign`, not released yet: the file's own English subtitles first, English
-descriptions for non-tt ids (TMDB fallback), more facts in the Copies lists (the last CI run was in progress; release
-on the owner's word). The TV app lives in `app/tv/`, the iPhone's in `app/phone/`, Windows' in `app/desktop/` + `main.js`
+Where things stand (8 Nov): v0.4.125 is on the TV (Philips 55OLED810/12); the iPhone app (AltStore) and the Windows
+app ship from the same release. 0.4.125 has the file's own English subtitles first, English descriptions (Cinemeta,
+then TMDB), and the Copies lists' extra facts (sound, codec, size, language, release group); its iPhone test passed,
+the TV emulator passed on the version just before. The TV app lives in `app/tv/`, the iPhone's in `app/phone/`,
+Windows' in `app/desktop/` + `main.js`
 / `mpv.js`; all three share `app/tv/js`. Pushing `tv-redesign` to `main` releases v0.4.<run>; the TV updates itself.
 CI: `gh workflow run build.yml --ref tv-redesign -f tests=both|tv|phone|windows`.
 

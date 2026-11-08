@@ -223,12 +223,13 @@ CI 45/45 before the release:
   saved list. Now: refused records wait and the rest syncs, the merge retries every 2 min, the null list is never
   written and is rebuilt from the last sync's values (never read as all add-ons deleted), and Account names the reason
   (with file:line for a JS error).
-- **Subtitles (on tv-redesign, not released at the time of writing):** English always first; the file's own English
+- **Subtitles (0.4.125):** English always first; the file's own English
   track before an English download (TV and Windows); OpenSubtitles only when the file has none; his own pick still
   wins. **Copies show more:** codec, sound and channels, size, language, release group next to the add-on's name.
 - The owner wants releases fast when he's watching: "just release" means push to main without waiting for the
   emulator (the release job doesn't wait anyway). He reported permission prompts after worker restarts: the mode
-  dropdown (Auto) fixes it. He moved to a new chat after this to use plugins.
+  dropdown (Auto) fixes it. He moved to a new chat after this to use plugins (suggested: frontend-design, Design, Axe Accessibility,
+  code-review, Cloudflare), starting with themes: Grizzlies, OLED black and a couple of mood themes.
 
 ## Things that are true but easy to miss
 
