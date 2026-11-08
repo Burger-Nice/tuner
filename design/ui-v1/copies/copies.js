@@ -49,6 +49,13 @@ function readName(stream) {
     : has(t, ['web', 'webdl', 'web dl', 'webrip']) || / web dl /.test(t) ? 'web'
     : has(t, ['hdtv', 'pdtv', 'dsr']) ? 'tv' : has(t, ['dvdrip', 'dvd']) ? 'dvd' : '';
   c.remux = has(t, ['remux', 'bdremux']);
+  // more of what the name says, for the Copies list (the ranking doesn't use these)
+  c.codec = has(t, ['x265', 'h265', 'hevc', 'h 265']) ? 'HEVC' : has(t, ['av1']) ? 'AV1' : has(t, ['x264', 'h264', 'avc', 'h 264']) ? 'H.264' : '';
+  c.audio = has(t, ['atmos']) ? 'Atmos' : has(t, ['truehd']) ? 'TrueHD' : / dts hd ma | dts hd | dtshd /.test(t) || has(t, ['dts x', 'dtsx']) ? 'DTS-HD' : has(t, ['dts']) ? 'DTS'
+    : /(^| )(ddp|eac3|dd\+|ddp5|ddp7|ddp2)( |\d)/.test(t) || has(t, ['dd+']) ? 'Dolby Digital+' : /(^| )(dd|ac3|dd5)( |\d)/.test(t) ? 'Dolby Digital' : has(t, ['aac']) ? 'AAC' : has(t, ['opus']) ? 'Opus' : '';
+  c.ch = ((m) => (m ? `${m[1]}.${m[2]}` : ''))(String(raw).match(/(?:^|[^0-9])([257])\.([01])(?![0-9])/));
+  const fileName = String(stream.behaviorHints?.filename || String(stream.description || stream.title || '').split('\n')[0] || '');
+  c.group = ((m) => (m && !/^(mkv|mp4|web|dl|rip|hdr|dv|x26[45]|h26[45]|hevc|avc|aac|ac3|eac3|atmos|remux|bluray|2160p|1080p|720p)$/i.test(m[1]) ? m[1] : ''))(fileName.replace(/\.(mkv|mp4|m4v|avi|ts|webm|mov)$/i, '').match(/-([A-Za-z0-9]{2,14})(?:\[[^\]]*\])?$/));
   const sz = stream.behaviorHints?.videoSize || ((m) => (m ? parseFloat(m[1]) * (/g/i.test(m[2]) ? 1e9 : 1e6) : 0))(String(raw).match(/(\d+(?:\.\d+)?)\s?(GB|MB)\b/i));
   c.size = sz || 0;
   c.langs = soundLangs(t, String(raw));

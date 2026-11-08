@@ -10,7 +10,7 @@ import { esc, ic, dot } from './util.js';
 import { prefLangs } from './catalog.js';
 import * as AD from './addons.js';
 import { matchTitle, pickMatch, anyStreamAddon } from './imdb.js';
-import { rank, waitPlan, providerCopy, copyLine, sizeText, originalLang, pinNote, episodeNotReady, cutLabel } from './copies.js';
+import { rank, waitPlan, providerCopy, copyLine, copyFacts, sizeText, originalLang, pinNote, episodeNotReady, cutLabel } from './copies.js';
 import { checkFor, checkedFor } from './subs.js';
 import { soundOfCopy, uncheckedWords, lenWords } from './quality.js';
 import { native } from './native.js';
@@ -244,7 +244,7 @@ function artOf(t, tc, row) {
 const mimeOf = (c) => { const m = String(c.filename || c.url || '').toLowerCase().split('?')[0].match(/\.(mkv|mp4|m4v|ts|m3u8|webm|avi|mov)$/); return m ? { mkv: 'video/x-matroska', mp4: 'video/mp4', m4v: 'video/mp4', ts: 'video/mp2t', m3u8: 'application/x-mpegURL', webm: 'video/webm', avi: 'video/x-msvideo', mov: 'video/quicktime' }[m[1]] : ''; };
 // the next copies, as identities (never links): the player asks for one with need: copy (SPEC 8.1)
 // (mime: the file's kind from its name, never its link: the iPhone's Copies says which ones play there)
-const identities = (list) => list.slice(0, 5).map((c) => ({ key: c.key, source: c.source === 'provider' ? 'provider' : c.source, label: copyLine(c) || 'Copy', provider: c.source === 'provider', mime: mimeOf(c) }));
+const identities = (list) => list.slice(0, 5).map((c) => ({ key: c.key, source: c.source === 'provider' ? 'provider' : c.source, label: [copyLine(c) || 'Copy', ...copyFacts(c).slice(0, 3)].join(' · '), provider: c.source === 'provider', mime: mimeOf(c) }));
 // lastPlay: { tc, t, item (what was played first), playing (the copy's key now), rows (the series' episodes) or rowsP
 // (their promise), eps: Map(item -> { row, list }) for each episode of this play (the first one and every one Up next
 // added), list / row: the first item's }
@@ -445,10 +445,8 @@ export function copiesMenu(tc, { title, onDone, row, which }) {
       if (c.failed) bits.push('didn\'t play on this TV'); else if (c.notReady) bits.push('wasn\'t ready yet');
       else if (likely && !c.pinned) bits.push(`for ${esc(tc.t.name)}${tc.meta?.year ? ` (${tc.meta.year})` : ''}`, 'the name says');
       else if (c.claim.dv && (c.claim.kind === 'bluray' || c.claim.remux)) bits.push('its name says Dolby Vision');
-      else bits.push('the name says');
       if (c.pinned && pinNote(list)) bits.splice(1, 0, `<span class="ad-pin">${esc(pinNote(list))}</span>`);
-      if ((k && k.lang) || c.lang) bits.push(esc((k && k.lang) || c.lang));
-      if (c.size) bits.push(sizeText(c.size));
+      bits.push(...copyFacts(c).map(esc));   // sound, codec, size, language, release group
       return bits.join(' · ');
     };
     const rowOf = (c, i) => two('copy', c.key, `${c.checked ? TICK : ''}${esc(copyLine(c) || 'Quality not known yet')}`, line2(c), i === 0 ? '<span class="tag ad-best">Best</span>' : '', c.failed || c.notReady ? ' dim' : '');

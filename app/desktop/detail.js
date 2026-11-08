@@ -6,7 +6,7 @@ import { sized } from '../tv/js/util.js';
 import { S, on, progressOf, inProgress, isFav, toggleFav, markWatched as markW } from '../tv/js/state.js';
 import { prefLangs, defaultVersion } from '../tv/js/catalog.js';
 import { titleCopies } from '../tv/js/titlecopies.js';
-import { rank, copyLine } from '../tv/js/copies.js';
+import { rank, copyLine, copyFacts } from '../tv/js/copies.js';
 import { playVod } from '../tv/js/player.js';
 import { videoMask } from '../tv/js/catchup.js';
 import { openVideoGame } from '../tv/js/replay.js';
@@ -243,7 +243,7 @@ export default {
 };
 function copiesMenu() {
   const list = tc?.active ? tc.copies() : [], best = list[0];
-  menu('Copies', list.slice(0, 14).map((c) => ({ label: copyLine(c) || (c.source === 'provider' ? 'Your provider' : c.source), sub: [c.source === 'provider' ? 'Your provider' : c.source, c === best ? 'Best' : '', c.failed ? 'didn\'t play' : ''].filter(Boolean).join(' · '), icon: c === best ? 'tick' : 'film', run: () => { tc.pick(c.key); tc.play({ now: true }); } })), { sub: 'mpv plays every copy · the best first' });
+  menu('Copies', list.slice(0, 14).map((c) => ({ label: copyLine(c) || (c.source === 'provider' ? 'Your provider' : c.source), sub: [c.source === 'provider' ? 'Your provider' : c.source, ...copyFacts(c), c === best ? 'Best' : '', c.failed ? 'didn\'t play' : ''].filter(Boolean).join(' · '), icon: c === best ? 'tick' : 'film', run: () => { tc.pick(c.key); tc.play({ now: true }); } })), { sub: 'mpv plays every copy · the best first' });
 }
 function markWatched() {
   const p = { kind: t.kind === 'series' ? 'series' : 'movie', id: tc?.match?.id || t.id };

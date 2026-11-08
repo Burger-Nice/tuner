@@ -54,6 +54,13 @@ export function readName(stream) {
     : has(t, ['web', 'webdl', 'web dl', 'webrip']) || / web dl /.test(t) ? 'web'
     : has(t, ['hdtv', 'pdtv', 'dsr']) ? 'tv' : has(t, ['dvdrip', 'dvd']) ? 'dvd' : '';
   c.remux = has(t, ['remux', 'bdremux']);
+  // more of what the name says, for the Copies list (the ranking doesn't use these)
+  c.codec = has(t, ['x265', 'h265', 'hevc', 'h 265']) ? 'HEVC' : has(t, ['av1']) ? 'AV1' : has(t, ['x264', 'h264', 'avc', 'h 264']) ? 'H.264' : '';
+  c.audio = has(t, ['atmos']) ? 'Atmos' : has(t, ['truehd']) ? 'TrueHD' : / dts hd ma | dts hd | dtshd /.test(t) || has(t, ['dts x', 'dtsx']) ? 'DTS-HD' : has(t, ['dts']) ? 'DTS'
+    : /(^| )(ddp|eac3|dd\+|ddp5|ddp7|ddp2)( |\d)/.test(t) || has(t, ['dd+']) ? 'Dolby Digital+' : /(^| )(dd|ac3|dd5)( |\d)/.test(t) ? 'Dolby Digital' : has(t, ['aac']) ? 'AAC' : has(t, ['opus']) ? 'Opus' : '';
+  c.ch = ((m) => (m ? `${m[1]}.${m[2]}` : ''))(String(raw).match(/(?:^|[^0-9])([257])\.([01])(?![0-9])/));
+  const fileName = String(stream.behaviorHints?.filename || String(stream.description || stream.title || '').split('\n')[0] || '');
+  c.group = ((m) => (m && !/^(mkv|mp4|web|dl|rip|hdr|dv|x26[45]|h26[45]|hevc|avc|aac|ac3|eac3|atmos|remux|bluray|2160p|1080p|720p)$/i.test(m[1]) ? m[1] : ''))(fileName.replace(/\.(mkv|mp4|m4v|avi|ts|webm|mov)$/i, '').match(/-([A-Za-z0-9]{2,14})(?:\[[^\]]*\])?$/));
   const sz = stream.behaviorHints?.videoSize || ((m) => (m ? parseFloat(m[1]) * (/g/i.test(m[2]) ? 1e9 : 1e6) : 0))(String(raw).match(/(\d+(?:\.\d+)?)\s?(GB|MB)\b/i));
   c.size = sz || 0;
   c.langs = soundLangs(t, String(raw));
@@ -248,3 +255,12 @@ export function copyLine(c) {
   return [res, range, KIND_WORD[c.claim.kind] || '', k && k.mbps ? `${Math.round(k.mbps * 10) / 10} Mb/s` : ''].filter(Boolean).join(' · ');
 }
 export const sizeText = (b) => (!b ? '' : b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.round(b / 1e6)} MB`);
+// A copy's other facts for the Copies lists: "Atmos 7.1 · HEVC · 61.2 GB · English · FraMeSToR" (checked facts first,
+// then what its name says)
+export function copyFacts(c) {
+  const k = c.checked, n = c.claim || {};
+  const ch = k && k.ch ? (k.ch >= 8 ? '7.1' : k.ch >= 6 ? '5.1' : k.ch === 2 ? '2.0' : '') : n.ch || '';
+  const snd = [k && k.atmos ? 'Atmos' : n.audio || '', ch].filter(Boolean).join(' ');
+  const lang = (k && k.lang) || c.lang || '';
+  return [snd, n.codec || '', sizeText(c.size || n.size || 0), lang === 'Multi' && (n.langs || []).length ? n.langs.join(' + ') : lang, n.group || ''].filter(Boolean);
+}

@@ -6,7 +6,7 @@ import { sized } from '../tv/js/util.js';
 import { S, on, progressOf, inProgress, isFav, toggleFav } from '../tv/js/state.js';
 import { prefLangs, defaultVersion } from '../tv/js/catalog.js';
 import { titleCopies } from '../tv/js/titlecopies.js';
-import { rank, copyLine } from '../tv/js/copies.js';
+import { rank, copyLine, copyFacts } from '../tv/js/copies.js';
 import { playVod } from '../tv/js/player.js';
 import { videoMask } from '../tv/js/catchup.js';
 import { openVideoGame } from '../tv/js/replay.js';
@@ -241,7 +241,7 @@ function moreMenu() {
   const list = tc?.active ? tc.copies() : [];
   menu(t.name, [
     { label: 'Start over', icon: 'rew', run: () => play(true) },
-    list.length > 1 ? { label: 'Choose a copy', sub: `${list.length} copies`, icon: 'film', run: () => menu('Copies', list.slice(0, 12).map((c) => ({ label: copyLine(c) || (c.source === 'provider' ? 'Your provider' : c.source), sub: [c.source === 'provider' ? 'Your provider' : c.source, here(c) ? 'plays here' : 'MKV · Infuse or VLC', c === best ? 'Best' : ''].filter(Boolean).join(' · '), run: () => { if (!here(c)) return handOff(infuseUrl(linkOf(c)), 'Infuse'); tc.pick(c.key); tc.play({ now: true }); } }))) } : null,
+    list.length > 1 ? { label: 'Choose a copy', sub: `${list.length} copies`, icon: 'film', run: () => menu('Copies', list.slice(0, 12).map((c) => ({ label: copyLine(c) || (c.source === 'provider' ? 'Your provider' : c.source), sub: [c.source === 'provider' ? 'Your provider' : c.source, ...copyFacts(c), here(c) ? 'plays here' : 'MKV · Infuse or VLC', c === best ? 'Best' : ''].filter(Boolean).join(' · '), run: () => { if (!here(c)) return handOff(infuseUrl(linkOf(c)), 'Infuse'); tc.pick(c.key); tc.play({ now: true }); } }))) } : null,
     best ? { label: 'Open in VLC', icon: 'ext', run: () => handOff(vlcUrl(linkOf(best)), 'VLC') } : null,
     { label: isFav(t) ? 'Remove from Saved' : 'Save', icon: 'heart', run: () => { toggleFav(t); draw(); } },
   ]);

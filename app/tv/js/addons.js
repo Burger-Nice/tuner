@@ -286,7 +286,7 @@ export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
   const ck = `${type}:${id}`;
   const hit = metaMem.get(ck);
   if (hit && Date.now() - hit.at < maxAge) return hit.v;
-  const saved = await window.Core.cache.get(`ad:meta2:${ck}`);
+  const saved = await window.Core.cache.get(`ad:meta3:${ck}`);
   if (saved && Date.now() - saved.at < maxAge) { remember(metaMem, ck, saved, 300); return saved.v; }
   const who = [...enabled().filter((a) => supports(a, 'meta', type, id)), ...(String(id).startsWith('tt') ? [cinemetaAddon()] : [])];
   for (const a of who) {
@@ -295,11 +295,11 @@ export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
       const m = d?.meta;
       if (!m?.name) continue;   // an unknown id answers a meta with no name: none
       const v = cleanMeta(m, type, a);
-      if (!a.builtin && a.manifest?.id !== CINEMETA_ID && String(id).startsWith('tt') && !metaIsEnglish(v)) await englishText(v, type, id);
+      if (!a.builtin && a.manifest?.id !== CINEMETA_ID && !metaIsEnglish(v)) await englishText(v, type, v.imdb || (String(id).startsWith('tt') ? String(id).split(':')[0] : ''));
       const rec = { at: Date.now(), v };
       remember(metaMem, ck, rec, 300);
-      window.Core.cache.set(`ad:meta2:${ck}`, rec);
-      keepIndex(`ad:meta2:${ck}`);
+      window.Core.cache.set(`ad:meta3:${ck}`, rec);
+      keepIndex(`ad:meta3:${ck}`);
       return v;
     } catch {}
   }
@@ -310,10 +310,10 @@ export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
 const metaIsEnglish = (v) => looksEnglish(v.description) && looksEnglish(v.videos.slice(0, 12).map((x) => x.overview).join(' '));
 async function englishText(v, type, id) {
   try {
-    const d = await getJSON(resUrl(cinemetaAddon(), 'meta', type, id), { ms: 8000 });
-    if (!d?.meta?.name) { if (!looksEnglish(v.description)) v.description = ''; return; }
+    const d = id ? await getJSON(resUrl(cinemetaAddon(), 'meta', type, id), { ms: 8000 }).catch(() => null) : null;
+    if (!d?.meta?.name) { if (!looksEnglish(v.description)) v.description = await tmdbOverview(v, type, id); return; }
     const c = cleanMeta(d.meta, type, cinemetaAddon());
-    v.name = c.name || v.name; v.description = c.description || (looksEnglish(v.description) ? v.description : '');
+    v.name = c.name || v.name; v.description = c.description || (looksEnglish(v.description) ? v.description : await tmdbOverview(v, type, id));
     const byEp = new Map(c.videos.map((x) => [`${x.season}:${x.episode}`, x]));
     for (const x of v.videos) {
       const e = byEp.get(`${x.season}:${x.episode}`);
@@ -322,6 +322,19 @@ async function englishText(v, type, id) {
     }
     if (!v.videos.length && c.videos.length) v.videos = c.videos;
   } catch { if (!looksEnglish(v.description)) v.description = ''; }
+}
+// TMDB's English overview (with the owner's key), by the add-on's TMDB id or the IMDb id; '' when there is none
+async function tmdbOverview(v, type, imdb) {
+  try {
+    const TM = await import('./tmdb.js');
+    if (!TM.hasKey()) return '';
+    const kind = type === 'series' ? 'tv' : 'movie';
+    let tid = v.moviedb || 0;
+    if (!tid && imdb) { const f = await TM.get(`/find/${imdb}`, { external_source: 'imdb_id', language: 'en-US' }, { ttl: 30 * 864e5 }); tid = (f?.[`${kind}_results`] || [])[0]?.id || 0; }
+    if (!tid) return '';
+    const d = await TM.get(`/${kind}/${tid}`, { language: 'en-US' }, { ttl: 30 * 864e5 });
+    return d?.overview && looksEnglish(d.overview) ? d.overview : '';
+  } catch { return ''; }
 }
 // the last 500 metas and 300 catalog pages are kept on the device
 function keepIndex(k, ixKey = 'adMetaIx', n = 500) {

@@ -34,7 +34,7 @@ module.exports = async ({ p, shot, key }) => {
   check('order: remux 4K Blu-ray, 4K web, 1080p Blu-ray, then the provider', /^4K · HDR10 · Blu-ray/.test(rows[1]) && /^4K · Dolby Vision · web copy/.test(rows[2]) && /^1080p · Blu-ray/.test(rows[3]) && /Your provider/.test(rows[4]), '');
   check('no torrent, magnet or Stremio-server copy', !rows.some((r) => /P2P|magnet|local|torrent/i.test(r)));
   check('the French copy (countryWhitelist fra) dropped in Iceland', !rows.some((r) => /3\.3 GB/.test(r)));
-  check('line 2: its name says Dolby Vision', /Northlight · its name says Dolby Vision · English · 51.6 GB/.test(rows[1]), rows[1]);
+  check('line 2: its name says Dolby Vision, then the sound, size and language', /Northlight · its name says Dolby Vision · Atmos · 51.6 GB · English/.test(rows[1]), rows[1]);
   check('Kestrel is still looking', rows.some((r) => /Kestrel is still looking/.test(r)));
   check('trailer and other apps rows', rows.some((r) => /Trailer/.test(r)) && rows.some((r) => /Watch in another app/.test(r)));
   check('no secret on screen', !(await ev(() => document.body.innerText)).includes('eyJ'));
