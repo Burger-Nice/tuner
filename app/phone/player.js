@@ -652,7 +652,7 @@ function copiesSheet() {
     const now = playingKey(e);
     return menu('Copies', ch.map((c, i) => ({
       label: copyName(c),
-      sub: [srcName(c) !== copyName(c) ? srcName(c) : '', i === 0 ? 'Best' : '', c.key === now ? 'playing' : hereC(c) ? 'plays here' : 'MKV · Infuse or VLC', c.failed ? 'didn\'t play' : ''].filter(Boolean).join(' · '),
+      sub: [srcName(c) !== copyName(c) ? srcName(c) : '', i === 0 ? 'Best' : '', c.key === now ? 'playing' : hereC(c) ? 'plays here' : 'MKV · Infuse or VLC', c.facts || '', c.failed ? 'didn\'t play' : ''].filter(Boolean).join(' · '),
       icon: c.key === now ? 'tick' : hereC(c) ? 'film' : 'ext', run: () => switchCopy(c),
     })), { sub: 'Switching keeps your place' });
   }

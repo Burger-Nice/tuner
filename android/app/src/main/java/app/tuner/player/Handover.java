@@ -108,6 +108,8 @@ final class Handover {
     private static String sourceName(JSONObject o) { return o.optBoolean("provider") || "provider".equals(o.optString("source")) ? "Your provider" : o.optString("source"); }
     private static String sourceName(PlayerActivity.Entry e) { return e.addon() ? e.source : "Your provider"; }
     private static boolean isProvider(JSONObject o) { return o.optBoolean("provider") || "provider".equals(o.optString("source")); }
+    /** The copy's other facts from the app (sound, codec, size, language), after the source's name. */
+    private static String facts(JSONObject o) { String f = o.optString("facts"); return f.isEmpty() ? "" : " · " + f; }
     private static String label(JSONObject o) { String l = o.optString("label"); return l.isEmpty() ? "another copy" : l; }
 
     /** The copies not tried yet this play, in rank order, without the one playing. */
@@ -384,7 +386,7 @@ final class Handover {
         c.text(title, l.isEmpty() ? "No other copy is left to try." : line);
         for (JSONObject o : l.subList(0, Math.min(4, l.size()))) {
             ListPanel.Item it = new ListPanel.Item(label(o));
-            it.sub = sourceName(o) + " · starts at " + clock(at);
+            it.sub = sourceName(o) + facts(o) + " · starts at " + clock(at);
             it.icon = "quality";
             it.height = 52;
             String k = o.optString("key");
@@ -441,7 +443,7 @@ final class Handover {
             it.radioOn = chosen && playing;
             it.tickA = playing && frames && !notReady;
             it.height = 50;
-            it.sub = sourceName(o) + (playing ? " · playing" : "notready".equals(t) ? " · wasn't ready yet" : t != null ? " · didn't play on this TV" : "");
+            it.sub = sourceName(o) + (playing ? " · playing" : "notready".equals(t) ? " · wasn't ready yet" : t != null ? " · didn't play on this TV" : "") + facts(o);
             if (t != null && !playing) { it.disabled = true; last.add(it); continue; }
             it.ok = playing ? closeQuality : () -> { closeQuality.run(); chosen = true; switchHere(k); };
             items.add(it);
