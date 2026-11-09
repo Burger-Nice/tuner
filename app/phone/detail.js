@@ -229,6 +229,7 @@ export default {
       const d = t.addon ? await addonInfo(t) : t.kind === 'movie' ? await S.src.movieInfo(ver) : await S.src.seriesInfo({ id: t.id, name: t.name, poster: t.poster });
       if (mine !== my) return;
       info = AD.englishInfo(d);   // (the owner's rule: descriptions in English, or none)
+      if (!info.plot && !info.error) { const mi = info; AD.englishPlot(t.kind === 'movie' ? 'movie' : 'series', { name: t.name, year: +(d.year || t.year) || 0, imdb: String(t.id).startsWith('tt') ? String(t.id).split(':')[0] : '' }).then((p) => { if (p && mine === my && info === mi) { mi.plot = p; draw(); } }); }   // (none in English: Cinemeta's or TMDB's)
     } catch (e) { if (mine !== my) return; info = { error: e.message, seasons: [] }; }
     tc.start(info);
     draw();

@@ -298,6 +298,7 @@ export const orderOf = (a) => addons().indexOf(a) + 1;
 const cinemetaAddon = () => enabled().find((a) => a.manifest.id === CINEMETA_ID) || { key: 'cinemeta', url: `${CINEMETA()}/manifest.json`, manifest: { id: CINEMETA_ID, name: 'Cinemeta', resources: ['catalog', 'meta', 'addon_catalog'], types: ['movie', 'series'], idPrefixes: ['tt'], catalogs: [] }, builtin: true };
 const metaMem = new Map();
 const META_DAYS = 7;
+const EN_CHECK = 2;   // the English check's version a kept meta went through (2: 9 Nov, the stricter check, names on Cinemeta)
 // a memory cache that keeps its newest n entries
 const remember = (m, k, v, n) => { m.delete(k); m.set(k, v); while (m.size > n) m.delete(m.keys().next().value); };
 // A title's details (the first enabled add-on with meta for this id's prefix; for tt ids that is Cinemeta)
@@ -305,10 +306,12 @@ const remember = (m, k, v, n) => { m.delete(k); m.set(k, v); while (m.size > n) 
 export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
   if (!id) return null;
   const ck = `${type}:${id}`;
+  // (a copy kept before the English check of 9 Nov whose text isn't English is fetched again, once: en marks the check)
+  const ok = (r) => r && Date.now() - r.at < maxAge && (r.en >= EN_CHECK || metaIsEnglish(r.v));
   const hit = metaMem.get(ck);
-  if (hit && Date.now() - hit.at < maxAge) return hit.v;
+  if (ok(hit)) return hit.v;
   const saved = await window.Core.cache.get(`ad:meta3:${ck}`);
-  if (saved && Date.now() - saved.at < maxAge) { remember(metaMem, ck, saved, 300); return saved.v; }
+  if (ok(saved)) { remember(metaMem, ck, saved, 300); return saved.v; }
   const who = [...enabled().filter((a) => supports(a, 'meta', type, id)), ...(String(id).startsWith('tt') ? [cinemetaAddon()] : [])];
   for (const a of who) {
     try {
@@ -317,7 +320,7 @@ export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
       if (!m?.name) continue;   // an unknown id answers a meta with no name: none
       const v = cleanMeta(m, type, a);
       if (!a.builtin && a.manifest?.id !== CINEMETA_ID && !metaIsEnglish(v)) await englishText(v, type, v.imdb || (String(id).startsWith('tt') ? String(id).split(':')[0] : ''));
-      const rec = { at: Date.now(), v };
+      const rec = { at: Date.now(), v, en: EN_CHECK };
       remember(metaMem, ck, rec, 300);
       window.Core.cache.set(`ad:meta3:${ck}`, rec);
       keepIndex(`ad:meta3:${ck}`);
@@ -331,6 +334,7 @@ export async function meta(type, id, { maxAge = META_DAYS * 86400e3 } = {}) {
 const metaIsEnglish = (v) => looksEnglish(v.description) && looksEnglish(v.videos.slice(0, 12).map((x) => x.overview).join(' '));
 async function englishText(v, type, id) {
   try {
+    id = id || (await imdbByName(type, v.name, v.year));   // (an anime or TMDB-id add-on's title: found on Cinemeta by its name)
     const d = id ? await getJSON(resUrl(cinemetaAddon(), 'meta', type, id), { ms: 8000 }).catch(() => null) : null;
     if (!d?.meta?.name) { if (!looksEnglish(v.description)) v.description = await tmdbOverview(v, type, id); return; }
     const c = cleanMeta(d.meta, type, cinemetaAddon());
@@ -350,12 +354,40 @@ async function tmdbOverview(v, type, imdb) {
     const TM = await import('./tmdb.js');
     if (!TM.hasKey()) return '';
     const kind = type === 'series' ? 'tv' : 'movie';
-    let tid = v.moviedb || 0;
+    let tid = v.moviedb || +String(v.id || '').match(/^tmdb:(\d+)/)?.[1] || 0;
     if (!tid && imdb) { const f = await TM.get(`/find/${imdb}`, { external_source: 'imdb_id', language: 'en-US' }, { ttl: 30 * 864e5 }); tid = (f?.[`${kind}_results`] || [])[0]?.id || 0; }
     if (!tid) return '';
     const d = await TM.get(`/${kind}/${tid}`, { language: 'en-US' }, { ttl: 30 * 864e5 });
     return d?.overview && looksEnglish(d.overview) ? d.overview : '';
   } catch { return ''; }
+}
+// A title's IMDb id from its name on Cinemeta: the same name (or the one result), and the year within one when both
+// are known; '' when unsure (a wrong title's description is worse than none)
+const sameName = (a, b) => String(a || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '') === String(b || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+async function imdbByName(type, name, year) {
+  if (!name) return '';
+  const list = (await cinemetaSearch(type, name)) || [];
+  const near = (r) => !year || !r.year || Math.abs(r.year - year) <= 1;
+  const hit = list.find((r) => sameName(r.name, name) && near(r));
+  return String(hit?.id || '').startsWith('tt') ? hit.id : '';
+}
+// The English description for a title whose own isn't English (a provider's title, or details saved before the
+// check): Cinemeta's by IMDb id or name, else TMDB's; '' when there's none
+const plotMem = new Map();
+export async function englishPlot(type, { name, year, imdb, moviedb } = {}) {
+  const k = `${type}:${imdb || ''}:${moviedb || ''}:${name || ''}:${year || ''}`;
+  if (plotMem.has(k)) return plotMem.get(k);
+  let out = '';
+  try {
+    const id = imdb || (await imdbByName(type, name, year));
+    if (id) {
+      const v = await meta(type, id);
+      if (v?.description && looksEnglish(v.description)) out = v.description;
+    }
+    if (!out) out = await tmdbOverview({ moviedb, name }, type, id);
+  } catch {}
+  remember(plotMem, k, out, 100);
+  return out;
 }
 // the last 500 metas and 300 catalog pages are kept on the device
 function keepIndex(k, ixKey = 'adMetaIx', n = 500) {

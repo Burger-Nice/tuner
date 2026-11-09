@@ -443,6 +443,7 @@ export default {
         if (mine !== my) return;
         info = AD.englishInfo(d);   // (the owner's rule: descriptions in English, or none)
         infoCache.set(ck, info);
+        if (!info.plot && !info.error) { const mi = info; AD.englishPlot(t.kind === 'movie' ? 'movie' : 'series', { name: t.name, year: +(d.year || t.year) || 0, imdb: String(t.id).startsWith('tt') ? String(t.id).split(':')[0] : '' }).then((p) => { if (p && info === mi) { mi.plot = p; if (!el.hidden) draw(); } }); }   // (none in English: Cinemeta's or TMDB's)
         if (infoCache.size > 30) infoCache.delete(infoCache.keys().next().value);
       } catch (e) { if (mine !== my) return; info = { error: e.message, seasons: [] }; }
       tc.start(info);

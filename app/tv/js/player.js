@@ -26,6 +26,23 @@ import { toast } from './ui.js';
 import { sfx } from './sfx.js';
 
 export const ctx = { cur: null };   // { kind: 'live' | 'vod', items, index, session, ring }
+// The film or episode playing, kept on the device while it plays: Android can end the app's page behind the full-screen
+// player for memory (AIRGLOW-3), and the page that comes back had no play to save progress under, so where he got to
+// after that was never saved. Now the page that comes back takes the play over again (the player's session still up).
+const NOW_KEY = 'playingNow';
+let keptAt = 0;
+function keepNow(force) {
+  const c = ctx.cur;
+  if (!c || c.kind !== 'vod' || (!force && Date.now() - keptAt < 5000)) return;
+  keptAt = Date.now();
+  const plain = (it) => Object.fromEntries(Object.entries(it || {}).filter(([k]) => !k.startsWith('_')));
+  try { store.set(NOW_KEY, { session: c.session, index: c.index, items: c.items.map(plain), at: keptAt }); } catch {}
+}
+const keptPlay = (session) => { const k = store.get(NOW_KEY, null); return k && Array.isArray(k.items) && +k.session === +session ? { kind: 'vod', items: k.items, index: +k.index || 0, session: k.session, restored: true } : null; };
+// still playing: take it over; already closed: its exit (kept for the page by the bridge) comes in as an event (below)
+if (native) native.ready.then((i) => { if (!ctx.cur && +i?.playing > 0) { const c = keptPlay(i.playing); if (c) { ctx.cur = c; sfx.zone('player'); } } }).catch(() => {});
+// (progress saved once the provider's session is up again: before it, the saved progress isn't loaded yet)
+const whenSession = (f) => { if (S.acc) return f(); const off = on('session', () => { if (S.acc) { off(); f(); } }); };
 let sentKey = '';
 busy.watching = () => !!ctx.cur;
 export const watching = () => !!ctx.cur;
@@ -283,6 +300,7 @@ async function playVod0(item, { queue, restart, entry } = {}) {
   note('play', { what: 'vod', source: srcKind(item._entry?.sourceKind === 'addon') });
   sfx.zone('player');
   ctx.cur = { kind: 'vod', items: list, index: 0, session: r.session };
+  keepNow(true);
   sentSubs = '';
   sendSubs();
   sendSegments(item);
@@ -481,12 +499,12 @@ async function versionsNow() {
 
 // ---------- what the player asks for and what you pick in it ----------
 native?.player.onEvent((e) => {
-  const c = ctx.cur;
+  const c = ctx.cur || (e.type === 'exit' ? keptPlay(e.session) : null);   // (a page that came back after the player closed)
   if (!c || e.session !== c.session) return;
   // a replay's own events (position, need, sync, golive…) are replay.js's: only the session's end and settings are here
   if (c.kind === 'replay' && !['exit', 'diag', 'setting', 'goto-account', 'reveal'].includes(e.type)) return;
   if (e.type === 'track') {
-    if (c.kind === 'vod') { const moved = c.index !== e.index; c.index = e.index; if (moved) { sentSubs = ''; sendSubs(); sendSegments(c.items[e.index]); } return; }   // (an episode: its own subtitles and intro)
+    if (c.kind === 'vod') { const moved = c.index !== e.index; c.index = e.index; keepNow(moved); if (moved) { sentSubs = ''; sendSubs(); sendSegments(c.items[e.index]); } return; }   // (an episode: its own subtitles and intro)
     const i = c.items.findIndex((x) => String(x.id) === String(e.id));
     const it = i >= 0 ? c.items[i] : chOf(e.id);
     if (i >= 0) c.index = i;
@@ -600,7 +618,9 @@ native?.player.onEvent((e) => {
   } else if (e.type === 'skip-state') {
     window.__skip = { state: e.state, at: Date.now() };   // (the emulator test reads it)
   } else if (e.type === 'progress' && c.kind === 'vod') {
+    if (c.restored && !S.acc) return;   // (a page that came back: not before the provider's session is up again)
     recordProgress(c.items[e.index], e.t, e.d, !!e.final);
+    keepNow();
   } else if (e.type === 'setting') {
     if (e.key === 'scoreBug') saveSettings({ scoreBug: !!e.value });
     if (e.key === 'skipIntro' && ['button', 'auto', 'off'].includes(e.value)) saveSettings({ skipIntro: e.value });   // (the player's Options > Skip intros)
@@ -615,8 +635,9 @@ native?.player.onEvent((e) => {
   } else if (e.type === 'exit') {
     if (e.then === 'tipoff' && watch.gameId) setTimeout(() => emit('tipoff-request', watch.gameId), 0);
     ctx.cur = null;
+    store.del(NOW_KEY);
     sfx.zone('ui');
-    if (c.kind === 'vod') { recordProgress(c.items[e.index], e.t, e.d, true); if (e.error) toast(`This video would not play. ${e.error}`, 6000); }
+    if (c.kind === 'vod') { whenSession(() => recordProgress(c.items[e.index], e.t, e.d, true)); if (e.error) toast(`This video would not play. ${e.error}`, 6000); }
     else if (e.error && c.kind === 'live') toast(`That channel would not play. ${e.error}`, 6000);   // (a replay's own failure: replay.js)
     // The game you were watching stays at its synced delay on every screen until you tune something else,
     // so leaving the player never shows a score your stream hadn't reached.

@@ -121,6 +121,10 @@ public class TunerPlayerPlugin extends Plugin {
         r.put("tv", tv);
         // The player speaks the replay protocol (design/ui-v1/catchup/PORT-NATIVE.md): the app sends mode 'replay'.
         r.put("replay", true);
+        // The session of the player that's up (0: none): a page that Android ended behind the player and that came back
+        // takes the play over again, so progress keeps being saved (player.js keepNow)
+        PlayerActivity up = PlayerActivity.current;
+        r.put("playing", up != null && !up.isFinishing() ? up.session() : 0);
         // The quality check and "plays on this TV" (probe, probeCancel, playable), and downloaded subtitles drawn by the
         // player (the subs command): design/ui-v1/subtitles/PORT-NATIVE.md 0.
         r.put("probe", true);

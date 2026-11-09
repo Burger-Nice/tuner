@@ -181,6 +181,9 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
   descriptions via TMDB. Next up: themes (Grizzlies, OLED black, mood ones). Unbuilt bits are in `NEXT.md`.
 - English first everywhere (the owner's rule, 7 Nov): `copies.js` `rank()` puts English first whatever Shown first
   says; subtitles likewise (`subs/opensubs.js` `choose()`, `Subs.java`); descriptions in English (`addons.js`
-  `looksEnglish`, `englishText`, `tmdbOverview`; `tests/english-test.js`).
+  `looksEnglish`, `englishText`, `tmdbOverview`; `tests/english-test.js`). A blanked description is looked up again
+  (`englishPlot`: Cinemeta by IMDb id or exact name, then TMDB); metas kept before the 9 Nov check are fetched again (`EN_CHECK`).
+- Progress after the page dies behind the player (AIRGLOW-3): `player.js` keeps the play in `playingNow` and the page that
+  comes back takes it over (`info().playing`), or saves the retained `exit` event's position.
 - Accounts sync (`account/sync.js`): a record the server refuses waits on the device (`waiting`), the rest syncs; the
   first sign-in's merge retries (`flow.js` `mergeLater`); Account's sync line names the reason (`problemText`).
