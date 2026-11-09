@@ -175,7 +175,8 @@ The whole story so far (what was asked, decided and shipped) is in `CONTEXT.md`;
 - Some channels still say "No guide information" on the owner's provider; Account > Provider > Check the guide shows
   what the provider sends (the guide has a full-table fallback and a clock-offset fix, untested on the real provider).
 - The Home rows' source on his TV: Account > Provider shows "TMDB: working · N of M Home rows from TMDB" (or the error).
-- The WebView draws just-off-screen content ahead (a memory cost): if the app reloads by itself on the TV, turn it off (`MainActivity`).
+- The WebView draws just-off-screen content ahead (a memory cost). Since 9 Nov it's off while the player is up (`MainActivity`
+  onPause/onResume) after AIRGLOW-3 (the page killed for memory behind the player); if the app still reloads by itself, turn it off for good.
 - Released in 0.4.125 (8 Nov): the file's own English subtitles first, the Copies lists' extra facts, English
   descriptions via TMDB. Next up: themes (Grizzlies, OLED black, mood ones). Unbuilt bits are in `NEXT.md`.
 - English first everywhere (the owner's rule, 7 Nov): `copies.js` `rank()` puts English first whatever Shown first

@@ -15,8 +15,7 @@ public class MainActivity extends BridgeActivity {
         // The page is full screen and always moving by transforms (rows sliding in, the guide scrolling): let the WebView
         // raster the parts just outside the screen ahead of time, so a row that slides in is drawn already (Android's
         // advice for a WebView that is visible and animating).
-        WebView wv = getBridge().getWebView();
-        if (wv != null) wv.getSettings().setOffscreenPreRaster(true);
+        preRaster(true);
         // If the TV runs low on memory and kills the web page, reload it instead of letting Android close the
         // whole app (and any game playing in the full-screen player).
         getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {
@@ -40,6 +39,22 @@ public class MainActivity extends BridgeActivity {
                 getBridge().getWebView().onResume();
                 getBridge().getWebView().resumeTimers();
             }
+            // ...but hidden behind the player the page needs no tiles drawn ahead: let them go while he watches (the
+            // renderer was killed for memory behind the player once, AIRGLOW-3). Back on when the app is in front again.
+            preRaster(false);
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        preRaster(true);
+    }
+
+    private void preRaster(boolean on) {
+        WebView wv = getBridge() != null ? getBridge().getWebView() : null;
+        if (wv == null) return;   // (set every time: after a recreate() the new WebView starts with it off)
+        wv.getSettings().setOffscreenPreRaster(on);
+        Reports.preRaster = on;
     }
 }

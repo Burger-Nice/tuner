@@ -46,6 +46,8 @@ public final class Reports {
     static volatile int heapMb = -1;
     static volatile String lastCause = "";   // the player's last diagnosis, its id only (info().lastCause)
     static int recreates;
+    /** MainActivity's pre-drawing of off-screen tiles: on while the app is in front, off behind the player. */
+    static volatile boolean preRaster;
     /** What's playing now, as safe facts (formats, how the sound is sent out, whether it resumed partway): Account's
      *  Send a report now carries them (info().lastPlay), for problems no error reports, like sound out of sync. */
     static final java.util.Map<String, Object> lastPlay = new java.util.concurrent.ConcurrentHashMap<>();
@@ -169,7 +171,7 @@ public final class Reports {
         f.put("playerUp", PlayerActivity.current != null);
         f.put("uptimeMin", (SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()) / 60000);
         f.put("recreates", ++recreates);
-        f.put("offscreenPreRaster", true);
+        f.put("offscreenPreRaster", preRaster);
         f.put("screen", screen);
         if (heapMb >= 0) f.put("heapMb", heapMb);
         memory(ctx, f);
