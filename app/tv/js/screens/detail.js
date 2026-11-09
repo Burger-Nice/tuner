@@ -35,7 +35,7 @@ function seasonsList() {
   if (merged?.info === info && merged.eps === tc.eps && merged.match === tc.match) return merged.list;
   const rows = tc.episodes(base), by = new Map();
   for (const r of rows) {
-    const e = r.prov || { kind: 'episode', id: r.vid.id, season: r.season, ep: r.ep, name: r.name, plot: r.vid.overview || '', duration: '', still: r.vid.thumbnail || '', seriesId: t.id, seriesName: t.name, poster: t.poster, _row: r };
+    const e = r.prov || { kind: 'episode', id: r.vid.id, season: r.season, ep: r.ep, name: r.name, plot: AD.englishOnly(r.vid.overview), duration: '', still: r.vid.thumbnail || '', seriesId: t.id, seriesName: t.name, poster: t.poster, _row: r };
     rowOf.set(e, r);
     if (!by.has(r.season)) by.set(r.season, []);
     by.get(r.season).push(e);
@@ -441,8 +441,8 @@ export default {
       try {
         const d = t.addon ? await addonInfo(t) : t.kind === 'movie' ? await S.src.movieInfo(ver) : await S.src.seriesInfo({ id: t.id, name: t.name, poster: t.poster });
         if (mine !== my) return;
-        info = d;
-        infoCache.set(ck, d);
+        info = AD.englishInfo(d);   // (the owner's rule: descriptions in English, or none)
+        infoCache.set(ck, info);
         if (infoCache.size > 30) infoCache.delete(infoCache.keys().next().value);
       } catch (e) { if (mine !== my) return; info = { error: e.message, seasons: [] }; }
       tc.start(info);

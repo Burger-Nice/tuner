@@ -17,6 +17,10 @@ const T = [
  [false, 'Een jonge man keert terug naar zijn geboortestad na de dood van zijn vader en ontdekt dat het familiebedrijf in de problemen zit.'],
  [false, 'Um jovem volta para sua cidade natal após a morte do pai e descobre que o negócio da família está em apuros.'],
  [true, ''], [true, 'Short bit'],
+ // short text (under 8 words): other languages' little words, against English's
+ [false, 'Le retour du roi et des hobbits.'], [false, 'Un hombre y su perro.'], [false, 'Der Mann und das Meer.'],
+ [false, 'Het verhaal van een familie.'], [false, 'Ett år för familjen och vännerna.'],
+ [true, 'Born to die.'], [true, 'A man and his dog.'], [true, 'The return of the king.'], [true, 'Two brothers, one van.'], [true, 'Los Angeles, 1947.'], [true, 'Robert De Niro stars.'], [true, 'Guillermo del Toro presents.'],
 ];
 let bad = 0;
 for (const [want, t] of T) { const got = looksEnglish(t); if (got !== want) { bad++; console.log('WRONG', want, t.slice(0, 60)); } }

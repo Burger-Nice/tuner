@@ -829,18 +829,18 @@ function colHtml(r, x) {
     const d = x._d || {}, logo = d.logo || x.logo, series = x.kind === 'series';
     const rt = d.runtime || x.runtime;
     const meta = fitParts([[series ? String(d.releaseInfo || x.year || '').replace(/[–-]\s*$/, '') : x.year ? String(x.year) : ''], [(d.genres || x.genres || []).slice(0, 3), 'g'], [rt ? (series ? `${rt} min` : dur(rt)) : ''], [!series && rt ? `Ends ${endsAt(rt)}` : '', 3], [d.rating || (x.src === 'cinemeta' && x.rating) ? `IMDb ${(d.rating || x.rating).toFixed(1)}` : ''], [series && (d.country || x.country) ? SH.firstCountry(d.country || x.country) : '', 2]]);
-    return `${okLogo(logo) ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta" data-fit>${meta}</div>${plotHtml(x.overview)}${hint('Details', 'Play now, Save, Not interested')}`;
+    return `${okLogo(logo) ? logoHtml(logo, x.name, 48, 320, 'hf-lg') : `<div class="title">${esc(x.name)}</div>`}<div class="meta" data-fit>${meta}</div>${plotHtml(AD.englishOnly(x.overview))}${hint('Details', 'Play now, Save, Not interested')}`;
   }
   if (r.type === 'wide' && x.cont) {
     const p = x.cont, it = p.item, ep = it.kind === 'episode', m = metaOf(ep ? 'series' : 'movie', imdbOfItem(it));
     if (it.kind === 'rp') return `<div class="title">${esc(it.game ? `${it.game.away.name} at ${it.game.home.name}` : it.title || it.name)}</div><div class="meta">${facts(['Replay', it.pos?.chapter ? `Stopped in ${it.pos.chapter}` : 'Started'])}</div>${hint('Resume', 'From tip-off, Game page, Remove')}`;
     const vid = ep ? m?.videos?.find((v) => v.season === +it.season && v.episode === +it.ep) : null;
     const name = ep ? it.seriesName || m?.name : it._title || it.name;
-    return `${okLogo(m?.logo) ? logoHtml(m.logo, name, 48, 320, 'hf-lg') : `<div class="title">${esc(name)}</div>`}<div class="meta">${facts([...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || ''] : []), leftText(p.d - p.t), `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`].filter(Boolean))}</div>${plotHtml(vid?.overview || m?.description)}${hint('Resume', 'Start over, Details, Mark watched, Remove from Home')}`;
+    return `${okLogo(m?.logo) ? logoHtml(m.logo, name, 48, 320, 'hf-lg') : `<div class="title">${esc(name)}</div>`}<div class="meta">${facts([...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || ''] : []), leftText(p.d - p.t), `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`].filter(Boolean))}</div>${plotHtml(AD.englishOnly(vid?.overview) || AD.englishOnly(m?.description))}${hint('Resume', 'Start over, Details, Mark watched, Remove from Home')}`;
   }
   if (r.type === 'wide' && x.show) {
     const f = x.show, m = f.meta;
-    return `${okLogo(m?.logo) ? logoHtml(m.logo, f.name, 48, 320, 'hf-lg') : `<div class="title">${esc(f.name)}</div>`}<div class="meta">${facts([`S${f.next.season} · E${f.next.episode}`, f.next.name, f.fresh ? `${f.count} new` : 'Up next'])}</div>${plotHtml(f.next.overview || m?.description)}${hint('Play', 'Details')}`;
+    return `${okLogo(m?.logo) ? logoHtml(m.logo, f.name, 48, 320, 'hf-lg') : `<div class="title">${esc(f.name)}</div>`}<div class="meta">${facts([`S${f.next.season} · E${f.next.episode}`, f.next.name, f.fresh ? `${f.count} new` : 'Up next'])}</div>${plotHtml(AD.englishOnly(f.next.overview) || AD.englishOnly(m?.description))}${hint('Play', 'Details')}`;
   }
   if (r.type === 'channel') {
     const pr = onNow(guideNow(x)), pv = pr ? programmeView(x, pr) : null;

@@ -14,8 +14,13 @@ import { readName, originalLang } from './copies.js';
 
 // Is this text English? (the owner's rule: descriptions always in English). Most of a sentence in another script is
 // not; in a Latin script, English shows its common little words ("the", "and", "of", "his"...) in any real sentence,
-// words other languages don't use. Short or empty text counts as English unless it is in another script.
+// words other languages don't use. Short text counts as English unless it is in another script, or shows other
+// languages' little words ("de", "la", "und", "het"...) and none of English's.
 const EN_WORDS = new Set(['the', 'and', 'of', 'with', 'for', 'his', 'her', 'who', 'when', 'their', 'he', 'she', 'after', 'from', 'that', 'they', 'this', 'are', 'was', 'has', 'have', 'into', 'but', 'must', 'which', 'while', 'about', 'been', 'will', 'what', 'be', 'it', 'its', 'an', 'is', 'on', 'him', 'them', 'where', 'out', 'up', 'new', 'life', 'young', 'world']);
+// (none that are also everyday English or in names: no 'die', 'den', 'van', 'con', 'til', 'de', 'los'…)
+const FOREIGN_WORDS = new Set(['y', 'una', 'por', 'que', 'su', 'sus', 'et', 'les', 'des', 'du', 'est', 'une', 'dans', 'pour', 'qui', 'und', 'der', 'das', 'ein', 'eine', 'mit', 'ist', 'dem', 'nicht', 'sich', 'auf', 'il', 'di', 'che', 'della', 'nel', 'gli', 'och', 'att', 'för', 'som', 'og', 'af', 'ikke', 'het', 'een', 'zijn', 'niet', 'uma', 'não', 'að', 'við', 'hann', 'hún', 'się', 'jest', 'és', 'egy']);
+// for short text: English's little words, counted against the others
+const EN_SHORT = new Set([...EN_WORDS, 'a', 'to', 'in', 'at', 'by', 'as', 'we', 'you', 'your', 'my', 'our', 'his', 'one', 'two']);
 export function looksEnglish(text) {
   const t = String(text || '');
   const letters = t.match(/\p{L}/gu) || []; if (!letters.length) return true;
@@ -23,8 +28,19 @@ export function looksEnglish(text) {
   if (latin / letters.length < 0.7) return false;
   if (/[ðþæøåœßñçãõąęłńśźżčřšžőű]/i.test(t) && !/\b(the|and|of)\b/i.test(t)) return false;
   const words = t.toLowerCase().match(/\p{L}+/gu) || [];
-  if (words.length < 8) return true;
+  if (words.length < 8) return words.filter((w) => EN_SHORT.has(w)).length >= words.filter((w) => FOREIGN_WORDS.has(w)).length;
   return words.filter((w) => EN_WORDS.has(w)).length / words.length >= 0.1;
+}
+// The owner's rule at the point of showing: English text, or nothing. Covers every route a description takes (the
+// provider's plot and episode summaries, add-on and TMDB text, and copies saved before a fix).
+export const englishOnly = (text) => (text && looksEnglish(text) ? text : '');
+// A title's details as the title pages show them: the plot and every episode's summary, English or empty; an episode
+// whose own summary isn't English takes Cinemeta's English one when the merged row has it (e._row.vid).
+export function englishInfo(d) {
+  if (!d || typeof d !== 'object') return d;
+  const out = { ...d, plot: englishOnly(d.plot) };
+  if (Array.isArray(d.seasons)) out.seasons = d.seasons.map((s) => (Array.isArray(s?.eps) ? { ...s, eps: s.eps.map((e) => (e && e.plot && !looksEnglish(e.plot) ? { ...e, plot: '' } : e)) } : s));
+  return out;
 }
 
 const CINEMETA = () => store.get('cinemetaBase', 'https://v3-cinemeta.strem.io');

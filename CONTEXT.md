@@ -244,6 +244,11 @@ CI 45/45 before the release:
     findings were fixed.
   - Friends: on by default (his call).
   - The leak tests plant a password and fail CI if it shows up.
+- **Descriptions, English only, everywhere (9 Nov):** he still saw some in other languages.
+  - The check now runs at the point of showing: `addons.js` `englishOnly`/`englishInfo` on the title pages (all three
+    apps) and Home's text. That covers the provider's plots and episode summaries, TMDB, and copies saved before the fix.
+  - Short text is judged by other languages' little words, set against English's.
+  - The guide's programme descriptions stay as the provider sends them (his call).
 - **0.4.130:** Media3 1.11.1, after he reported sound out of sync on resumed add-on episodes (TV speakers, a steady
   delay, switching copies fixed it). Unconfirmed on his TV.
 

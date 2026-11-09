@@ -90,7 +90,7 @@ function lineView(l) {
     v.facts = ['Continue', ep ? `S${it.season} · E${it.ep}` : '', left];
     v.ey = 'Continue watching'; v.logo = m?.logo || ''; v.big = v.name;
     v.meta = [...(ep ? [`S${it.season} · E${it.ep}`, vid?.name || it.name] : [it.year ? String(it.year) : '']), left, `Ends ${hm(Date.now() + (p.d - p.t) * 1000)}`];
-    v.line = ep ? vid?.overview || m?.description || '' : m?.description || '';
+    v.line = ep ? AD.englishOnly(vid?.overview) || AD.englishOnly(m?.description) : AD.englishOnly(m?.description);   // (English, or none)
     v.bar = pct(p); v.verb = 'Resume'; v.right = ['details', ep ? 'Episodes' : 'Details'];
     v.pic = m?.background ? { kind: 'img', url: m.background } : it.still ? { kind: 'img', url: it.still } : { kind: 'flat' };
     return v;
@@ -100,7 +100,7 @@ function lineView(l) {
     v.name = f.name; v.facts = [`S${n.season} · E${n.episode}`, { html: `<span class="count">${f.count} new</span>` }];
     v.ey = 'New episodes'; v.logo = m?.logo || ''; v.big = f.name;
     v.meta = [`S${n.season} · E${n.episode}`, n.name, m?.runtime ? `${m.runtime} min` : ''];
-    v.line = n.overview || m?.description || ''; v.verb = 'Episodes'; v.noplay = true; v.right = null;
+    v.line = AD.englishOnly(n.overview) || AD.englishOnly(m?.description); v.verb = 'Episodes'; v.noplay = true; v.right = null;
     v.pic = m?.background ? { kind: 'img', url: m.background } : { kind: 'flat' };
     return v;
   }
@@ -109,7 +109,7 @@ function lineView(l) {
     v.name = it.name; v.facts = ['A film for tonight', it.runtime ? `ends ${hm(Date.now() + it.runtime * 60e3)}` : ''];
     v.ey = 'A film for tonight'; v.logo = it.logo || ''; v.big = it.name;
     v.meta = [it.year ? String(it.year) : '', (it.genres || []).slice(0, 2).join(' · '), it.runtime ? `${Math.floor(it.runtime / 60)}h ${String(it.runtime % 60).padStart(2, '0')}m` : '', it.rating ? `IMDb ${(+it.rating).toFixed(1)}` : ''];
-    v.line = it.overview || ''; v.verb = 'Details'; v.noplay = true; v.right = ['films', 'More popular films'];
+    v.line = AD.englishOnly(it.overview); v.verb = 'Details'; v.noplay = true; v.right = ['films', 'More popular films'];
     v.pic = it.background ? { kind: 'img', url: it.background } : { kind: 'flat' };
     return v;
   }
