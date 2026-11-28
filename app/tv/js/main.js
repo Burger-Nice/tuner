@@ -21,6 +21,7 @@ import search from './screens/search.js';
 import saved from './screens/saved.js';
 import account from './screens/account.js';
 import first from './screens/first.js';
+import raptTry from './rapt/try.js';   // Account > About > Try Rapt: the Rapt test page (design/brand-v7/rapt/BUILD-PLAN.md section 2)
 import { launchOpen, launchReady, launchKey } from './launch.js';
 import { sfx } from './sfx.js';
 import { initSubs } from './subs.js';
@@ -43,7 +44,7 @@ function fit() { const z = window.innerWidth / 960; document.body.style.zoom = M
 fit();
 window.addEventListener('resize', fit);
 
-[home, live, lib('movie'), lib('series'), detail, nbaHub, game, team, search, saved, account, first].forEach(register);
+[home, live, lib('movie'), lib('series'), detail, nbaHub, game, team, search, saved, account, first, raptTry].forEach(register);
 
 // ---------- keys ----------
 const KEYS = {

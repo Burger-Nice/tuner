@@ -66,4 +66,12 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- lets Tuner install its own updates -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- the plugin's info() asks whether a speech recognition service exists (SpeechRecognizer.isRecognitionAvailable);
+         from Android 11 that service is only visible to apps that name it here. No microphone permission: nothing listens -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 </manifest>

@@ -151,6 +151,9 @@ public class TunerPlayerPlugin extends Plugin {
         if (region != null && region.matches("[A-Za-z]{2,3}")) r.put("region", region);
         // The TV's own "System sounds" switch: the app's sounds start off when it's off (until chosen in Account).
         try { r.put("systemSounds", Settings.System.getInt(getContext().getContentResolver(), Settings.System.SOUND_EFFECTS_ENABLED, 1) == 1); } catch (Exception ignored) {}
+        // Whether this TV has a speech recognition service an app may use (the Try Rapt page's line; voice search is
+        // decided on it). Seen through the manifest's <queries> entry for RecognitionService (package visibility).
+        try { r.put("speech", android.speech.SpeechRecognizer.isRecognitionAvailable(getContext())); } catch (Exception ignored) {}
         try {
             PackageInfo p = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
             r.put("version", p.versionName);

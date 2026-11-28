@@ -153,6 +153,24 @@ const ctx = { app: 'tv', side: 'js', screen: () => 'live', ua: 'Mozilla/5.0 (Lin
   ok(S.framePath('capacitor://localhost/phone/main.js') === 'app:///phone/main.js', 'iPhone frame path');
   ok(S.framePath('http://127.0.0.1:8777/tv/js/main.js') === 'app:///tv/js/main.js', 'local test frame path');
 }
+// 9b. Try Rapt's readout (app/tv/js/rapt/meter.js reportFacts) rides on a manual report: numbers, true/false and two
+// fixed words; a title, a link or a word off the list never does
+{
+  const mf = { raptFades: 12, raptFadeMax: 41.4, raptFadeAvg: 16.73, raptFadeFrames: 230, raptMoveMax: 33, raptMoveAvg: 16.7, raptMoveFrames: 900,
+    raptLaunchMax: 18, raptLaunchAvg: 16.6, raptSlowFrames: 2, raptBackdrops: 1, raptPosters: 14, raptHeapMb: 38, raptHeapLimitMb: 512,
+    raptSpeech: false, raptSounds: 'v2', raptSoundPath: 'soundpool', raptFilms: 48, raptSeries: 48, raptPlays: 1,
+    raptTitle: 'Sinners', raptArt: `https://image.tmdb.org/t/p/w1280/abc.jpg?api_key=${RD}`, raptUrl: LINK };
+  const f = S.facts('manual', mf);
+  ok(f.raptFades === 12 && f.raptFadeMax === 41.4 && f.raptFadeAvg === 16.73 && f.raptPosters === 14 && f.raptHeapMb === 38, 'rapt numbers kept');
+  ok(f.raptSpeech === false && f.raptSounds === 'v2' && f.raptSoundPath === 'soundpool', 'rapt flag and fixed words kept');
+  ok(!('raptTitle' in f) && !('raptArt' in f) && !('raptUrl' in f), 'off-schema rapt facts dropped');
+  ok(S.facts('manual', { raptSounds: `v2 ${HOST}`, raptSoundPath: LINK, raptFadeMax: '41', raptSpeech: 'yes', raptHeapMb: Infinity }).raptSounds === 'other', 'a rapt word off the list becomes other');
+  const bad = S.facts('manual', { raptSoundPath: LINK, raptFadeMax: '41', raptSpeech: 'yes', raptHeapMb: Infinity });
+  ok(bad.raptSoundPath === 'other' && !('raptFadeMax' in bad) && !('raptSpeech' in bad) && !('raptHeapMb' in bad), 'rapt strings where numbers go are dropped');
+  const out = prepare({ event_id: 'r', message: 'manual', tags: { kind: 'manual' }, extra: { facts: mf }, fingerprint: ['problem', 'manual', '1'] }, {}, ctx);
+  leaks(out, 'manual report with the rapt readout');
+  ok(out.extra.facts.raptFadeMax === 41.4 && out.extra.facts.raptFilms === 48 && !JSON.stringify(out).includes('Sinners'), 'rapt facts survive the whole report, the title does not');
+}
 // 10. caps: once in 10 minutes per fingerprint, 30 a day
 {
   const mem = {}; const store = { getItem: (k) => mem[k] || null, setItem: (k, v) => { mem[k] = v; } };

@@ -104,6 +104,7 @@
     container: ['ts', 'm3u8', 'mp4', 'mkv', 'other'], stage: ['start', 'playing'], scheme: ['http', 'https', 'other'],
     phase: ['pull', 'push', 'merge', 'other'], player: ['auto', 'exo', 'vlc', 'mpv', 'hls', 'native', 'other'],
     liveFormat: ['hls', 'ts', 'm3u8', 'auto', 'other'], side: ['js', 'native', 'main'], app: ['tv', 'iphone', 'windows'],
+    raptSounds: ['v1', 'v2'], raptSoundPath: ['soundpool', 'webaudio', 'loading', 'none'],
   };
   const T = {
     num: (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : undefined),
@@ -131,7 +132,12 @@
       audioMime: T.mime, audioChannels: T.num, audioRate: T.num, audioOut: T.code, audioDecoder: T.code, tunneling: T.bool,
       offload: T.bool, underruns: T.num,
       cause: T.code, liveFormat: en('liveFormat'), player: en('player'), net: T.code,
-      internet: T.bool, provider: T.bool, stream: T.bool, msInternet: T.num, msProvider: T.num, mbps: T.num },
+      internet: T.bool, provider: T.bool, stream: T.bool, msInternet: T.num, msProvider: T.num, mbps: T.num,
+      // the Try Rapt page's readout (js/rapt/meter.js): frame times, pictures held, the heap, speech, which sounds
+      raptFades: T.num, raptFadeMax: T.num, raptFadeAvg: T.num, raptFadeFrames: T.num, raptMoveMax: T.num, raptMoveAvg: T.num,
+      raptMoveFrames: T.num, raptLaunchMax: T.num, raptLaunchAvg: T.num, raptSlowFrames: T.num, raptBackdrops: T.num,
+      raptPosters: T.num, raptHeapMb: T.num, raptHeapLimitMb: T.num, raptSpeech: T.bool, raptSounds: en('raptSounds'),
+      raptSoundPath: en('raptSoundPath'), raptFilms: T.num, raptSeries: T.num, raptPlays: T.num },
   };
   const KINDS = Object.keys(FACTS).concat(['webview-gone', 'last-exit']);
   const NOTE_FACTS = { engine: T.code, http: T.num, code: T.code, cause: T.code, what: en('what'), source: en('source'),
