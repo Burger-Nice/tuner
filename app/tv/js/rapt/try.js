@@ -7,7 +7,7 @@
 //   - Play into the native player; the Reel launch; a readout (frame times, pictures held, heap, speech recognition)
 //   - Send a report: the readout's numbers only (report-scrub.js 'manual')
 // Styles: tv/rapt/rapt.css, loaded the first time the page opens, every rule under .rapt.
-import { esc, hm, initials, sized } from '../util.js';
+import { esc, hm, initials, sized, setHtml } from '../util.js';
 import { store, settings } from '../state.js';
 import { focus, pushLayer, popLayer } from '../focus.js';
 import { toast } from '../ui.js';
@@ -32,11 +32,12 @@ const FADE = 300;
 const MENU = ['Home', 'Series', 'Films', 'NBA', 'Live', 'Search', 'Saved', 'Account'];
 const html = document.documentElement;
 
-let root = null, block, readEl, plate, cssReady = null;
+let root = null, block, readEl, plate, cssReady = null, cssDone = false;
 const shelves = [{ kind: 'movie', label: 'Films', items: [], state: 'idle' }, { kind: 'series', label: 'Series', items: [], state: 'idle' }];
 let cur = 0;                     // the shelf on screen
 const idx = [0, 0];              // the focused poster per shelf
 let want = null, lit = '', restT = 0, dropT = 0, tok = 0, readT = 0, clockT = 0;
+let shown = null, pending = null;   // the title the block (and its Play) shows; the picture layer a swap is waiting on
 let dirAt = -1e9, dirHeld = false, moved = false, plays = 0, opener = null;
 let set = store.get('raptSounds', 'v2');   // which UI sounds play on this page: 'v1' today's, 'v2' the new set
 
@@ -48,7 +49,7 @@ function loadCss() {
   if (!cssReady) cssReady = new Promise((res) => {
     const l = document.createElement('link');
     l.rel = 'stylesheet'; l.href = 'tv/rapt/rapt.css';
-    l.onload = l.onerror = () => res();
+    l.onload = l.onerror = () => { cssDone = true; res(); };
     document.head.appendChild(l);
   });
   return cssReady;
@@ -79,14 +80,21 @@ function frame() {
 // ---------- the shelves ----------
 async function load(i) {
   const s = shelves[i];
-  if (s.state !== 'idle') return;
+  // a shelf that failed (or came back empty) tries again each time the page opens
+  if (s.state === 'loading' || (s.state === 'done' && s.items.length)) return;
   s.state = 'loading';
+  if (root && !s.items.length) drawShelf(i);   // ("Getting your films…" again while it tries)
+  let pg = null;
+  const take = () => pg.items.filter((it) => it.poster).slice(0, WANT + 12);
   try {
-    const pg = new SH.Pager(SH.shelves(s.kind)[0]);   // Popular: what Films and Series open on
+    pg = new SH.Pager(SH.shelves(s.kind)[0]);   // Popular: what Films and Series open on
     for (let n = 0; n < 8 && pg.items.length < WANT && !pg.end; n++) await pg.more();
-    s.items = pg.items.filter((it) => it.poster).slice(0, WANT + 12);
+    s.items = take();
     s.state = 'done';
-  } catch { s.state = s.items.length ? 'done' : 'failed'; }
+  } catch {
+    if (pg?.items.length) s.items = take();   // (the pages that came before one failed)
+    s.state = s.items.length ? 'done' : 'failed';
+  }
   if (!root) return;
   drawShelf(i);
   // nothing chosen yet: the first film lights the page and takes focus (unless he has moved somewhere already)
@@ -100,7 +108,7 @@ function drawShelf(i) {
   const s = shelves[i], sec = root.querySelector(`.r-shelf[data-shelf="${i}"]`), row = rowOf(i);
   sec.querySelector('.r-empty').hidden = s.items.length > 0;
   if (!s.items.length) sec.querySelector('.r-empty').textContent = s.state === 'failed' ? `Your ${s.label.toLowerCase()} didn't load` : s.state === 'done' ? `No ${s.label.toLowerCase()} came` : `Getting your ${s.label.toLowerCase()}…`;
-  row.innerHTML = s.items.map((it, j) => `<div class="r-p fx" tabindex="-1" data-i="${j}" data-key="${esc(keyOf(it))}"><span class="r-ini">${esc(initials(it.name))}</span></div>`).join('');
+  setHtml(row, s.items.map((it, j) => `<div class="r-p fx" tabindex="-1" data-i="${j}" data-key="${esc(keyOf(it))}"><span class="r-ini">${esc(initials(it.name))}</span></div>`).join(''));   // (focus follows the poster by its data-key)
   row.navHook = (dir) => {
     if (dir === 'down' && i === 0 && shelves[1].items.length) { showShelf(1); return true; }
     if (dir === 'down') return false;
@@ -147,8 +155,24 @@ function wantCanvas(it) {
 }
 function rest() {
   if (!want || !root || root.hidden) return;
-  if (html.classList.contains('rep')) { restT = setTimeout(rest, 80); return; }   // never while a key is held
+  if (html.classList.contains('rep')) {
+    // never while a key is held (a held key sends a keydown every ~50 ms); with none for a while its keyup went
+    // missing, and the picture settles anyway
+    if (performance.now() - dirAt < 300) { restT = setTimeout(rest, 80); return; }
+    html.classList.remove('rep');
+  }
   applyCanvas(want);
+}
+const shownKey = () => (shown ? keyOf(shown) : '');
+// Focus left the posters: the block and the picture stay on the title they show (so Play and Details, which act on
+// that title, are never redrawn under focus). A rest still waiting, or a picture still decoding, for another poster
+// is dropped; focus coming back to a poster asks for it again.
+function holdCanvas() {
+  clearTimeout(restT); want = null;
+  if (lit === shownKey()) return;   // (nothing else on the way: a picture coming back for the shown title goes on)
+  tok++; lit = shownKey();
+  if (pending && !pending.classList.contains('vis')) pending.querySelector('img').removeAttribute('src');
+  pending = null;
 }
 function applyCanvas(it) {
   const k = keyOf(it);
@@ -159,9 +183,11 @@ function applyCanvas(it) {
   const now = layers.find((l) => l.classList.contains('vis')), next = layers.find((l) => l !== now) || layers[0];
   const img = next.querySelector('img');
   const url = bgOf(it) || sized(it.poster || '', 780);
+  pending = next;
   const swap = (ok) => {
     if (my !== tok || !root) return;
-    drawBlock(it);
+    pending = null;
+    if (k !== shownKey()) drawBlock(it);
     root.dataset.lit = k;   // (what the canvas shows: the tests read it)
     if (ok) next.classList.add('vis');
     now?.classList.remove('vis');
@@ -187,11 +213,19 @@ function drawBlock(it) {
   const kLine = [film ? 'Film' : 'Series', it.year || '', g].filter(Boolean).join(' · ');
   const rt = it.runtime ? (it.runtime >= 60 ? `${Math.floor(it.runtime / 60)} h ${it.runtime % 60} min` : `${it.runtime} min`) : '';
   const fact = [it.rating ? `<b>IMDb ${it.rating.toFixed(1)}</b>` : `<b>${film ? 'Popular films' : 'Popular series'}</b>`, rt ? esc(rt) : ''].filter(Boolean).join(' · ');
-  block.innerHTML = `<div class="r-k">${esc(kLine)}</div><h1>${esc(it.name)}</h1><div class="r-m">${fact}</div>
-    <div class="r-act" data-row><i class="r-key" aria-label="OK button">OK</i>${pill('play', film ? 'Play' : 'Play episode 1', ' first')}${pill('details', 'Details')}</div>`;
-  block.classList.remove('in'); void block.offsetWidth; block.classList.add('in');
+  shown = it;
+  // drawn once; after that only the words change, so Play and Details are never replaced (one may have focus)
+  if (!block.querySelector('.r-act')) block.innerHTML = `<div class="r-k"></div><h1></h1><div class="r-m"></div>
+    <div class="r-act" data-row><i class="r-key" aria-label="OK button">OK</i>${pill('play', '', ' first')}${pill('details', 'Details')}</div>`;
+  setHtml(block.querySelector('.r-k'), esc(kLine));
+  setHtml(block.querySelector('h1'), esc(it.name));
+  setHtml(block.querySelector('.r-m'), fact);
+  const pl = block.querySelector('[data-a="play"]'), label = film ? 'Play' : 'Play episode 1';
+  if (pl.textContent !== label) pl.textContent = label;
+  if (!block.contains(document.activeElement)) { block.classList.remove('in'); void block.offsetWidth; block.classList.add('in'); }
 }
 const litItem = () => { const s = shelves[cur]; return s.items[idx[cur]] || null; };
+const posterItem = (p) => shelves[+p.closest('.r-shelf').dataset.shelf]?.items[+p.dataset.i] || null;
 
 // ---------- Play: the add-ons' best copy in the native player, as Home's Play now does ----------
 async function play(it) {
@@ -249,8 +283,9 @@ function onKeyDown(e) {
   if (/^Arrow/.test(e.key)) { dirAt = performance.now(); dirHeld = e.repeat; moved = true; }
 }
 function act(a, el) {
-  if (a === 'play') return play(litItem());
-  if (a === 'details') { const it = litItem(); if (it) SH.openItem(it); return; }
+  // the block's buttons act on the title the block shows; OK on a poster on that poster
+  if (a === 'play') return play(el?.classList.contains('r-p') ? posterItem(el) : shown);
+  if (a === 'details') { if (shown) SH.openItem(shown); return; }
   if (a === 'menu') return toast('The menu is only drawn on this test page. Back leaves it.', 3000);
   if (a === 'launch') return playReel(root);
   if (a === 'type') return openType();
@@ -270,6 +305,9 @@ function act(a, el) {
   }
 }
 
+// Account's Try Rapt row loads this file when it's chosen (never at start-up) and waits for this before opening the page
+export const ready = () => loadCss();
+
 export default {
   name: 'rapt',
   bar: false,
@@ -278,6 +316,9 @@ export default {
     el.classList.add('rapt');
     el.hidden = true;
     el.innerHTML = frame();
+    // nothing of the page shows before its stylesheet has loaded (unstyled, the launch's pictures and the mark draw
+    // large); the page stays focusable meanwhile. (!important: above the router's screen-in animation)
+    if (!cssDone) { el.style.setProperty('opacity', '0', 'important'); loadCss().then(() => el.style.removeProperty('opacity')); }
     block = el.querySelector('.r-block'); readEl = el.querySelector('.r-read'); plate = el.querySelector('.r-dlg');
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) el.classList.add('r-reduce');
     el.addEventListener('tvfocus', (e) => {
@@ -287,7 +328,7 @@ export default {
       const byKey = performance.now() - dirAt < 120;
       if (byKey && v2()) raptSound.play('focus', { held: dirHeld });
       if (byKey) M.watch('move', 300);
-      if (!isP) return;
+      if (!isP) return holdCanvas();
       const i = +t.closest('.r-shelf').dataset.shelf;
       idx[i] = +t.dataset.i;
       place(i);
@@ -298,7 +339,7 @@ export default {
       const a = p ? 'play' : e.target.closest('[data-a]')?.dataset.a;
       if (!a) return;
       if (v2() && a !== 'type' && a !== 'close' && a !== 'sounds') raptSound.play('select');
-      act(a, e.target.closest('[data-a]'));
+      act(a, p || e.target.closest('[data-a]'));
     });
     window.addEventListener('keydown', onKeyDown, true);
   },
@@ -308,7 +349,7 @@ export default {
     raptSound.preloadLaunch();
     load(0).then(() => load(1));
     place(cur);
-    const it = litItem();
+    const it = shown || litItem();
     if (it && !el.querySelector('.r-bd.vis img[src]')) { lit = ''; applyCanvas(it); }   // (back from a title page: the picture it let go)
     const tick = () => { const c = el.querySelector('.r-clock'); if (c) c.textContent = hm(Date.now()); };
     tick(); clearInterval(clockT); clockT = setInterval(tick, 15000);
@@ -316,7 +357,7 @@ export default {
   },
   leave(el) {
     clearInterval(readT); clearInterval(clockT); clearTimeout(restT); clearTimeout(dropT);
-    tok++; want = null;
+    tok++; want = null; pending = null;
     reelStop(); closeType(); M.stopWatching();
     // everything this page decoded goes: the big pictures and the shelves' posters
     el.querySelectorAll('.r-bd').forEach((l) => { l.classList.remove('vis'); l.querySelector('img').removeAttribute('src'); });

@@ -18,7 +18,7 @@ module.exports = async ({ p, shot, key, log }) => {
   await ev(() => localStorage.removeItem('tuner.raptSounds'));   // (the default: the new set)
 
   // Account > About > Try Rapt, by keys: Back to the groups, down to About, right into its rows, down to the last
-  const openPage = async (pic) => {
+  const openPage = async (pic, until = () => !!document.querySelector('[data-screen="rapt"]:not([hidden]) .r-shelf[data-shelf="0"] .r-p')) => {
     await ev(() => window.__tunerTest.go('account')); await wait(1200);
     await key('Escape', 1, 250);
     for (let i = 0; i < 12 && !(await ev(() => document.activeElement?.dataset?.g === 'about')); i++) await key('ArrowDown', 1, 200);
@@ -28,10 +28,40 @@ module.exports = async ({ p, shot, key, log }) => {
     ok(await ev(() => document.activeElement?.dataset?.act === 'rapt'), 'About: the Try Rapt row');
     if (pic) await shot('about-row');
     await key('Enter', 1, 300);
-    await p.waitForFunction(() => !!document.querySelector('[data-screen="rapt"]:not([hidden]) .r-shelf[data-shelf="0"] .r-p'), null, { timeout: 15000 });
+    await p.waitForFunction(until, null, { timeout: 15000 });
     await wait(1500);
   };
-  await openPage(true);
+  // The first open, with no network for the shelves (the fake Cinemeta's catalogs drop the connection, none kept from
+  // before) and the page's stylesheet held back 800 ms: no frame of the page shows unstyled, the Films shelf says it
+  // didn't load, and opening the page again tries again
+  await fetch(`${C.H}/_addons/fail?what=catalog`);
+  await ev(async () => { const { store } = await import('/tv/js/state.js'); for (const k of store.get('adCatIx', [])) await window.Core.cache.set(k, null); store.set('adCatIx', []); });
+  await p.reload(); await wait(3500);
+  const slowCss = async (r) => { await new Promise((res) => setTimeout(res, 800)); await r.continue(); };
+  await p.route('**/tv/rapt/rapt.css', slowCss);
+  await ev(() => {
+    window.__raptSeen = { shown: 0, unstyled: 0, on: true };
+    const tick = () => {
+      const r = document.querySelector('[data-screen="rapt"]');
+      if (r && !r.hidden && +getComputedStyle(r).opacity > 0) {
+        window.__raptSeen.shown++;
+        if (getComputedStyle(r.querySelector('.r-menu')).position !== 'absolute') window.__raptSeen.unstyled++;
+      }
+      if (window.__raptSeen.on) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await openPage(true, () => /didn't load|No films came/.test(document.querySelector('[data-screen="rapt"]:not([hidden]) .r-shelf[data-shelf="0"] .r-empty:not([hidden])')?.textContent || ''));
+  const seen = await ev(() => { window.__raptSeen.on = false; return window.__raptSeen; });
+  ok(seen.shown > 0 && seen.unstyled === 0, `no unstyled frame on the first open (${seen.shown} frames shown, ${seen.unstyled} unstyled)`);
+  await shot('no-network');
+  const failed = await ev(() => ({ text: document.querySelector('[data-screen="rapt"] .r-shelf[data-shelf="0"] .r-empty').textContent, inPage: document.querySelector('[data-screen="rapt"]').contains(document.activeElement), n: document.querySelectorAll(':focus').length }));
+  ok(failed.inPage && failed.n === 1, `with no network: one focused element, on the page ("${failed.text}")`);
+  await p.unroute('**/tv/rapt/rapt.css', slowCss);
+  await key('Escape', 1, 600);
+  await fetch(`${C.H}/_addons/ok`);
+  await openPage(false);
+  ok(await ev(() => document.querySelectorAll('[data-screen="rapt"] .r-shelf[data-shelf="0"] .r-p').length >= 10), 'opened again with the network back: the Films shelf loaded');
   await log('page open');
 
   const st = () => ev(() => {
@@ -101,6 +131,44 @@ module.exports = async ({ p, shot, key, log }) => {
   ok(s.lit === s.key, `the picture caught up where the key was let go (${s.title})`);
   await shot('films-held');
   bad = await safe(); ok(!bad.length, `safe area along the shelf${bad.length ? ': ' + bad.join(' | ') : ''}`);
+
+  // Right and at once Up to Play, before the rest (250 ms) and the picture are done: focus stays on Play, the block
+  // keeps the title it shows, and Play plays that title. Then the same with the rest over and the next picture still
+  // loading (pictures held back 700 ms).
+  const vodAfter = async (n0) => {
+    await p.waitForFunction((n) => (window.__vodCount || 0) > n, n0, { timeout: 15000 }).catch(() => {});
+    return ev(() => ({ n: window.__vodCount || 0, title: window.__lastVod?.[0]?.title || '' }));
+  };
+  const fastUp = async (gap, what) => {
+    const was = await st();
+    await key('ArrowRight', 1, gap); await key('ArrowUp', 1, 40);
+    const at = await st();
+    await wait(1400);
+    s = await st();
+    ok(at.key === 'play' && s.key === 'play' && s.focusN === 1 && s.inPage, `${what}: focus stays on Play (${at.key || 'none'}, then ${s.key || 'none'})`);
+    ok(s.title === was.title && s.lit === was.lit && !!s.bg, `${what}: the block and the picture stay on the title they showed (${s.title})`);
+    const n0 = await ev(() => window.__vodCount || 0);
+    await key('Enter', 1, 200);
+    const v = await vodAfter(n0);
+    ok(v.n > n0 && v.title === s.title, `${what}: Play plays the title the block shows (${v.title})`);
+    await key('ArrowDown', 1, 300); await wait(1500);
+    s = await st();
+    ok(s.poster && s.focusN === 1 && s.lit === s.key && s.title !== was.title, `${what}: back down on the poster, the picture and the title follow it (${s.title})`);
+  };
+  await fastUp(40, 'Right then Up at once');
+  const slowPics = async (r) => { if (r.request().resourceType() === 'image') await new Promise((res) => setTimeout(res, 700)); await r.continue(); };
+  await p.route('**/*', slowPics);
+  await fastUp(330, 'Up while the next picture loads');
+  await p.unroute('**/*', slowPics);
+  await shot('after-fast-up');
+
+  // a held key whose keyup never came (html.rep left set: the remote's keyup went to the player, say): the picture
+  // still settles
+  const litH = (await st()).lit;
+  await ev(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', repeat: true, bubbles: true })));
+  await wait(1200);
+  s = await st();
+  ok(s.poster && s.lit === s.key && s.lit !== litH, `a held key's keyup missed: the picture still settles (${s.title})`);
 
   // down to Series, along it, and back up
   await key('ArrowDown', 1, 400); await wait(800);

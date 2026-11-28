@@ -8,7 +8,7 @@ import { resetGuides } from '../guide.js';
 import { setShield, shieldMode, favTeam, delayFor, nba } from '../games.js';
 import { native } from '../native.js';
 import { accountFacts, switchTo, signOut, removeAccount } from '../session.js';
-import { go, push, current } from '../router.js';
+import { go, push, current, register, screenDef } from '../router.js';
 import { focus } from '../focus.js';
 import { radioMenu, confirmMenu, toast, openOverlay, scrollList } from '../ui.js';
 import { sfx } from '../sfx.js';
@@ -254,6 +254,14 @@ function tickSheet(title, cur, done, cap = 'In the order you tick them') {
   });
   drawL(); focus(ov.el.querySelector('.lr')); scrollList(ov.el);
 }
+// Try Rapt: its code is loaded only when the row is chosen (most launches never open it), then registered as a screen;
+// the page opens once its stylesheet is in (try.js ready), and only if he is still here
+let raptLoad = null;
+function openRapt() {
+  if (!raptLoad) raptLoad = import('../rapt/try.js').then(async (m) => { if (!screenDef('rapt')) register(m.default); await m.ready(); });
+  raptLoad.then(() => { if (current() === 'account') push('rapt'); }, () => { raptLoad = null; toast('The test page didn\'t load. Try again', 3000); });
+}
+
 function act(a) {
   const s = settings();
   if (a === 'guidecheck') return guideCheck();
@@ -295,7 +303,7 @@ function act(a) {
       toast(sendNow({ ...(play || {}), ...(lastConnCheck() || {}), cause, liveFormat: s2.liveFormat, player: s2.player }) ? 'Sent. Tell Claude it’s in' : 'Reports are off on this TV', 5000);
     });
   }
-  else if (a === 'rapt') push('rapt');   // the Rapt test page (js/rapt/try.js)
+  else if (a === 'rapt') openRapt();   // the Rapt test page (js/rapt/try.js)
   else if (a === 'team') teamSheet(draw);
   else if (a === 'shield') radioMenu({ title: 'Spoiler shield', value: shieldMode(), rows: [{ v: 'off', l: 'Off', sub: 'Scores everywhere' }, { v: 'mine', l: 'My team', sub: 'Your team\'s games hidden' }, { v: 'all', l: 'All games', sub: 'Every game hidden' }], extra: '<div class="t-cap" style="padding:8px 8px 2px">Reveal a game with its Reveal score button. Watching it counts as revealing it.</div>', onPick: (v) => { setShield(v); draw(); } });
   else if (a === 'replays') radioMenu({ title: 'Replays play', value: s.replaysPlay || 'channel', rows: Object.entries(REPLAYS).map(([v, [l, sub]]) => ({ v, l, sub })), style: 'right:48px;top:120px;width:420px',
